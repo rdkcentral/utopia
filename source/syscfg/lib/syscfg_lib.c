@@ -239,6 +239,24 @@ int syscfg_getall (char *buf, int bufsz, int *outsz)
     return 0;
 }
 
+int syscfg_getall2 (char *buf, size_t bufsz, size_t *outsz)
+{
+    if (syscfg_initialized == 0) {
+        int rc = syscfg_init_internal();
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    /* smallest possible result is 'a','=','b','\n','\0' */
+    if (bufsz < 5) {
+        return ERR_INVALID_PARAM;
+    }
+
+    *outsz = _syscfg_getall2(buf, bufsz, 0);
+    return 0;
+}
+
 /*
  * Procedure     : syscfg_unset
  * Purpose       : Remove an entry from syscfg
@@ -1134,6 +1152,42 @@ static int _syscfg_getall (char *buf, int bufsz)
     return (bufsz - len);   /* size does not include final nul terminator */
 }
 
+static size_t _syscfg_getall2 (char *buf, size_t bufsz, int nolock)
+{
+    int i;
+    size_t len = bufsz;
+    syscfg_shm_ctx *ctx = syscfg_ctx;
+    shmoff_t entry;
+
+    buf[0] = 0;
+
+    if (!nolock) {
+        rw_lock(ctx);
+    }
+
+    for (i = 0; i < SYSCFG_HASH_TABLE_SZ; i++) {
+        entry = ctx->ht[i];
+        while (entry) {
+            unsigned int name_sz = HT_ENTRY_NAMESZ(ctx,entry);
+            unsigned int value_sz = HT_ENTRY_VALUESZ(ctx,entry);
+            if (len > (name_sz + value_sz + 1)) {
+                memcpy(buf, HT_ENTRY_NAME(ctx,entry), name_sz + value_sz - 1);
+                buf[name_sz - 1] = '=';
+                buf[name_sz + value_sz - 1] = '\n';
+                buf[name_sz + value_sz] = 0;
+                buf += name_sz + value_sz;
+                len -= name_sz + value_sz;
+            }
+            entry = HT_ENTRY_NEXT(ctx,entry);
+        }
+    }
+
+    if (!nolock) {
+        rw_unlock(ctx);
+    }
+
+    return (bufsz - len);   /* size does not include final nul terminator */
+}
 
 
 /******************************************************************************
