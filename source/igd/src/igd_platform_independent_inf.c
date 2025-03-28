@@ -168,9 +168,7 @@ LOCAL INT32 _pii_get_if_MacAddress(IN const CHAR *ifName, INOUT CHAR MacAddress[
   
   	if(fd >= 0 )
   	{
-	/* CID 135603 : BUFFER_SIZE_WARNING */
-        strncpy(ifr.ifr_name, ifName, sizeof(ifr.ifr_name)-1);
-	ifr.ifr_name[sizeof(ifr.ifr_name)-1] = '\0';
+        snprintf(ifr.ifr_name,sizeof(ifr.ifr_name),"%s",ifName);
     	ifr.ifr_addr.sa_family = AF_INET;
     	if(ioctl(fd, SIOCGIFHWADDR, &ifr) == 0)
     	{
@@ -860,7 +858,7 @@ INT32 IGD_pii_add_portmapping_entry( IN INT32 WanDeviceIndex,
             if (0 == strcmp(portmapEntry->internalClient, pmap.internal_host)) {
                 /*CID 64891 : Array compared against zero.*/
                 if (portmapEntry->description[0] != '\0') {
-                    strncpy(pmap.name, portmapEntry->description, sizeof(pmap.name));
+                    snprintf(pmap.name,sizeof(pmap.name),"%s",portmapEntry->description);
                 }
 		
                 pmap.lease = portmapEntry->leaseTime;
@@ -894,16 +892,16 @@ INT32 IGD_pii_add_portmapping_entry( IN INT32 WanDeviceIndex,
              */
             pmap.enabled = (boolean_t) portmapEntry->enabled;
             /*CID 64891 : Array compared against zero.*/
-            if (portmapEntry->description [0] != '\0') {
-                strncpy(pmap.name, portmapEntry->description, sizeof(pmap.name));
+            if (portmapEntry->description[0] != '\0') {
+                snprintf(pmap.name,sizeof(pmap.name),"%s",portmapEntry->description);
             }
             pmap.external_port = portmapEntry->externalPort;
             if (portmapEntry->remoteHost != NULL) {
-                strncpy(pmap.external_host, portmapEntry->remoteHost, sizeof(pmap.external_host)); 
+                snprintf(pmap.external_host,sizeof(pmap.external_host),"%s",portmapEntry->remoteHost);
             }
             pmap.internal_port = portmapEntry->internalPort;
             if (portmapEntry->internalClient != NULL) {
-                strncpy(pmap.internal_host, portmapEntry->internalClient, sizeof(pmap.internal_host)); 
+                snprintf(pmap.internal_host,sizeof(pmap.internal_host),"%s",portmapEntry->internalClient);
             }
             pmap.lease = portmapEntry->leaseTime;
             pmap.protocol = proto;
@@ -969,7 +967,7 @@ INT32 IGD_pii_del_portmapping_entry( IN INT32 WanDeviceIndex,
         portmap.external_port = ExternalPort;
         portmap.protocol = (0 == strcasecmp(Protocol, "TCP")) ? TCP : UDP;
         if (RemoteHost) {
-            strncpy(portmap.external_host, RemoteHost, sizeof(portmap.external_host));
+            snprintf(portmap.external_host,sizeof(portmap.external_host),"%s",RemoteHost);
         }
 
         st = Utopia_DeleteDynPortMapping(&portmap);
@@ -1099,7 +1097,7 @@ INT32 IGD_pii_get_portmapping_entry_generic( IN INT32 WanDeviceIndex,
         }
 
         PortmappingEntry->enabled = portmap.enabled;
-        strncpy(PortmappingEntry->description, portmap.name, PORT_MAP_DESCRIPTION_LEN);
+        snprintf(PortmappingEntry->description,sizeof(PortmappingEntry->description),"%s",portmap.name);
         PortmappingEntry->leaseTime = portmap.lease;       
         if (portmap.protocol == TCP) {
             safec_rc = strcpy_s(PortmappingEntry->protocol, sizeof(PortmappingEntry->protocol),"TCP");
@@ -1163,7 +1161,7 @@ INT32 IGD_pii_get_portmapping_entry_specific( IN INT32 WanDeviceIndex,
      */
     UtopiaContext ctx;
     int rc = 1; 
-    errno_t safec_rc = -1;
+
     if (Utopia_Init(&ctx)) {
         int index;
         portMapDyn_t pmap;
@@ -1181,12 +1179,11 @@ INT32 IGD_pii_get_portmapping_entry_specific( IN INT32 WanDeviceIndex,
                                                     proto,
                                                     &pmap, &index)) {
             PortmappingEntry->enabled = pmap.enabled;
-            strncpy(PortmappingEntry->description, pmap.name, PORT_MAP_DESCRIPTION_LEN);
-            PortmappingEntry->leaseTime = pmap.lease;       
+            snprintf(PortmappingEntry->description,sizeof(PortmappingEntry->description),"%s",pmap.name);
+            PortmappingEntry->leaseTime = pmap.lease;
             PortmappingEntry->internalPort = pmap.internal_port;
-            safec_rc = strcpy_s(PortmappingEntry->internalClient, sizeof(PortmappingEntry->internalClient),pmap.internal_host);
-            ERR_CHK(safec_rc);
 
+            snprintf(PortmappingEntry->internalClient,sizeof(PortmappingEntry->internalClient),"%s",pmap.internal_host);
             rc = 0;
         } else {
             RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "%s: couldn't find entry", __FUNCTION__);
@@ -1445,13 +1442,13 @@ INT32 IGD_pii_get_lan_info(IN INT32 LanDeviceIndex, IN INT32 bufsz, OUT CHAR *ip
     Utopia_Free(&ctx, 0);
 
     if (ipaddr) {
-        strncpy(ipaddr, lan.ipaddr, bufsz);
+        snprintf(ipaddr,bufsz,"%s",lan.ipaddr);
     }
     if (subnet_mask) {
-        strncpy(subnet_mask, lan.netmask, bufsz);
+        snprintf(subnet_mask,bufsz,"%s",lan.netmask);
     }
     if (domain_name) {
-        strncpy(domain_name, lan.domain, bufsz);
+        snprintf(domain_name,bufsz,"%s",lan.domain);
     }
     return 0;
 }
@@ -1493,7 +1490,7 @@ INT32 IGD_pii_get_lan_dns_servers(IN INT32 LanDeviceIndex, OUT CHAR *dns_servers
     Utopia_Free(&ctx, 0);
 
     if (dns_servers) {
-        strncpy(dns_servers, lan.ipaddr, max_list_sz);
+        snprintf(dns_servers,max_list_sz,"%s",lan.ipaddr);
     }
 
     return 0;

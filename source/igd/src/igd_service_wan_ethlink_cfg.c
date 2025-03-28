@@ -201,9 +201,8 @@ struct upnp_service* IGD_service_WANEthernetLinkConfigInit(IN VOID* input_index_
 		_igd_service_WANEthernetLinkConfig_destroy(WANEthernetLinkConfig_service);
 		return NULL;
 	}
-	/* CID 135634 : BUFFER_SIZE_WARNING */
-	strncpy(WANEthernetLinkConfig_service->type, WANETHERNETLINKCONFIG_SERVICE_TYPE, strlen(WANETHERNETLINKCONFIG_SERVICE_TYPE)+1);
-	WANEthernetLinkConfig_service->type[strlen(WANETHERNETLINKCONFIG_SERVICE_TYPE)] = '\0';
+	snprintf(WANEthernetLinkConfig_service->type, strlen(WANETHERNETLINKCONFIG_SERVICE_TYPE) + 1, "%s", WANETHERNETLINKCONFIG_SERVICE_TYPE);
+
 	
 	WANEthernetLinkConfig_service->serviceID=(CHAR *)calloc(1,strlen(WANETHERNETLINKCONFIG_SERVICE_ID)+1);
 	if(WANEthernetLinkConfig_service->serviceID==NULL)
@@ -212,7 +211,7 @@ struct upnp_service* IGD_service_WANEthernetLinkConfigInit(IN VOID* input_index_
 		_igd_service_WANEthernetLinkConfig_destroy(WANEthernetLinkConfig_service);
 		return NULL;
 	}
-	strncpy((CHAR *)WANEthernetLinkConfig_service->serviceID, WANETHERNETLINKCONFIG_SERVICE_ID, strlen(WANETHERNETLINKCONFIG_SERVICE_ID)+1);
+    snprintf((CHAR *)WANEthernetLinkConfig_service->serviceID, strlen(WANETHERNETLINKCONFIG_SERVICE_ID) + 1, "%s", WANETHERNETLINKCONFIG_SERVICE_ID);
 
 	WANEthernetLinkConfig_service->actions = WANEthernetLinkConfig_actions;
 
@@ -302,8 +301,9 @@ VOID IGD_service_WANEthernetLinkConfigEventHandler(IN struct upnp_device  *pdevi
 		pthread_mutex_lock(&pservice->service_mutex);
 		if(0!= strcmp(status, pservice->state_variables[0].value))
 		{
-			strncpy(pservice->state_variables[0].value,status, strlen(status)+1);
-			strncpy(pservice->event_variables[0].value,status, strlen(status)+1);
+            snprintf(pservice->state_variables[0].value,sizeof(pservice->state_variables[0].value),"%s",status);
+            snprintf(pservice->event_variables[0].value,sizeof(pservice->event_variables[0].value),"%s",status);
+
 			var_name[0] = (CHAR *)pservice->event_variables[0].name;
             var_value[0] = pservice->event_variables[0].value;
 			RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD", "Eventing:%s=%s",var_name[0],var_value[0]);
@@ -348,7 +348,8 @@ LOCAL INT32 _igd_get_EthernetLinkStatus (INOUT struct action_event *event)
 	if(IGD_pii_get_ethernet_link_status(local_index.wan_device_index,local_index.wan_connection_device_index,status))
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","Layer3Forwarding action:Action fail\n");
-		strncpy(event->request->error_str, "Action Fail,get status fail",PAL_UPNP_LINE_SIZE);
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","Action Fail,get status fail");
+
 		event->request->error_code = 501;
 		PAL_upnp_make_action(&event->request->action_result,"GetEthernetLinkStatus",WANETHERNETLINKCONFIG_SERVICE_TYPE,0,NULL,PAL_UPNP_ACTION_RESPONSE);
 		return(event->request->error_code);
@@ -356,7 +357,7 @@ LOCAL INT32 _igd_get_EthernetLinkStatus (INOUT struct action_event *event)
 	params[0].name="NewEthernetLinkStatus";
 	params[0].value=status;
 	event->request->error_code = PAL_UPNP_E_SUCCESS;
-	strncpy(event->service->state_variables[0].value,status, strlen(status)+1);
+    snprintf(event->service->state_variables[0].value,sizeof(event->service->state_variables[0].value),"%s",status);
 	PAL_upnp_make_action(&event->request->action_result,"GetEthernetLinkStatus",WANETHERNETLINKCONFIG_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	return(event->request->error_code);
 }

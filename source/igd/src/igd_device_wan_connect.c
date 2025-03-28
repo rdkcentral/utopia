@@ -145,7 +145,7 @@ struct upnp_device *IGD_wan_connection_device_init (IN VOID* input_index_struct,
     new_wan_connection_device->destroy_function = _wan_connection_device_destroy;
     
     /*assign udn*/
-    rv = snprintf(new_wan_connection_device->udn,strlen(udn)+1, "%s", udn);
+    rv = snprintf(new_wan_connection_device->udn,sizeof(new_wan_connection_device->udn), "%s", udn);
     if ( rv < 0 )
     {
         RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "print content to udn error");
