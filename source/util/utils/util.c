@@ -78,7 +78,8 @@ int sysctl_iface_set(const char *path, const char *ifname, const char *content)
     int fd;
 
     if (ifname) {
-        snprintf(buf, sizeof(buf), path, ifname);
+        if (snprintf(buf, sizeof(buf), path, ifname) >= sizeof(buf))
+            return -1;
         filename = buf;
     }
     else
