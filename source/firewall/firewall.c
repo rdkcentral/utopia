@@ -16651,7 +16651,7 @@ int CleanIPConntrack(char *physAddress)
     char *mac_filter = NULL;
     char *if_filter = NULL;
     int af_filter = 0;
-    char output[INET_ADDRSTRLEN] = {0};
+    char output[INET6_ADDRSTRLEN] = {0};
 
     if (physAddress != NULL) {
        mac_filter = strdup(physAddress);
