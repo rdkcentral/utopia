@@ -647,6 +647,8 @@ static char transparent_cache_state[10]; // state of the transparent http cache
 static char byoi_bridge_mode[10]; // whether or not byoi is in bridge mode
 static char cmdiag_enabled[20];   // If eCM diagnostic Interface Enabled
 static char firewall_level[20];   // None, Low, Medium, High, or Custom
+static char wireguard_enabled[4]; // Wireguard configuration
+static char wireguard_port[8];
 static char natip4[20];
 static char captivePortalEnabled[50]; //to ccheck captive portal is enabled or not
 
@@ -3090,6 +3092,17 @@ static int prepare_globals_from_configuration(void)
    rc = syscfg_get(NULL, "http_admin_port", reserved_mgmt_port, sizeof(reserved_mgmt_port));
    if (0 != rc || '\0' == reserved_mgmt_port[0]) {
       snprintf(reserved_mgmt_port, sizeof(reserved_mgmt_port), "80");
+   }
+
+   wireguard_enabled[0] = '\0';
+   rc = syscfg_get(NULL, "wireguard_enabled", wireguard_enabled, sizeof(wireguard_enabled));
+   if (0 != rc || '\0' == wireguard_enabled[0]) {
+       snprintf(wireguard_enabled, sizeof(wireguard_enabled), "0");
+   }
+   wireguard_port[0] = '\0';
+   rc = syscfg_get(NULL, "Wireguard_Port", wireguard_port, sizeof(wireguard_port));
+   if (0 != rc || '\0' == wireguard_port[0]) {
+       snprintf(wireguard_port, sizeof(wireguard_port), "53280");
    } 
    
    /* Get DSCP value for gre */
@@ -12427,6 +12440,14 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, "-A pp_disabled -p udp --sport 53 -j GWMETA --dis-pp\n");
    fprintf(filter_fp, "-A FORWARD -j pp_disabled\n");
 #endif
+
+   if(wireguard_enabled[0] == '1') {
+          fprintf(filter_fp, "-A FORWARD -o wg0 -j ACCEPT\n");
+          fprintf(filter_fp, "-A FORWARD -i wg0 -j ACCEPT\n");
+          fprintf(filter_fp, "-A INPUT -i wg0 -j ACCEPT\n");
+          fprintf(filter_fp, "-A OUTPUT -o wg0 -j ACCEPT\n");
+          fprintf(filter_fp, "-A INPUT -i erouter0 -p udp --dport %s -j ACCEPT\n",wireguard_port);
+   }
 
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2wan");
    
