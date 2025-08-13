@@ -277,18 +277,18 @@ VOID IGD_service_WANEthernetLinkConfigEventHandler(IN struct upnp_device  *pdevi
     	CHAR *var_value[WANETHLINKCFG_MAX_EVENT_NUM] = {0};
 	
 		if (NULL == pdevice) {
-			RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pdevice is NULL");
+			RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pdevice is NULL\n");
 			return;
 		}
 		if (NULL == pservice) {
-			RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pservice is NULL");
+			RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pservice is NULL\n");
 			return;
 		}
 		pthread_mutex_lock(&pservice->service_mutex);
 	
 		pIndex = (struct device_and_service_index *)(pservice->private);
 		if (NULL == pIndex) {
-			RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "No interface infomation");
+			RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "No interface infomation\n");
 			pthread_mutex_unlock(&pservice->service_mutex);
 			return;
 		}
@@ -306,7 +306,7 @@ VOID IGD_service_WANEthernetLinkConfigEventHandler(IN struct upnp_device  *pdevi
 			strncpy(pservice->event_variables[0].value,status, strlen(status)+1);
 			var_name[0] = (CHAR *)pservice->event_variables[0].name;
             var_value[0] = pservice->event_variables[0].value;
-			RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD", "Eventing:%s=%s",var_name[0],var_value[0]);
+			RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD", "Eventing:%s=%s\n",var_name[0],var_value[0]);
 			if(PAL_upnp_notify (PAL_upnp_device_getHandle(),
                         		(const CHAR *)pdevice->udn,
                         		pservice->serviceID,
@@ -314,7 +314,7 @@ VOID IGD_service_WANEthernetLinkConfigEventHandler(IN struct upnp_device  *pdevi
                         		(const CHAR **)var_value,
                         		1))
 			{
-				RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_notify() fail");
+				RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_notify() fail\n");
 			}
 		}
 	
@@ -360,4 +360,3 @@ LOCAL INT32 _igd_get_EthernetLinkStatus (INOUT struct action_event *event)
 	PAL_upnp_make_action(&event->request->action_result,"GetEthernetLinkStatus",WANETHERNETLINKCONFIG_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	return(event->request->error_code);
 }
-
