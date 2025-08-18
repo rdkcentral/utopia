@@ -3023,7 +3023,7 @@ void *worker_thread_main(void *arg)
             cur_fd = (global_clients.clients)[i].fd;
             if (-1 == cur_fd) {
                SE_INC_LOG(ERROR,
-                  printf("main select got used client with a bad fd. Ignoring\n");
+                  printf("Thread id %d line %d main select got used client with a bad fd. Ignoring\n", thread_get_id(worker_data_key), __LINE__);
                )
               incr_stat_info(STAT_WORKER_MAIN_SELECT_BAD_FD);
             } else {
@@ -3117,7 +3117,7 @@ SE_INC_LOG(SEMAPHORE,
                   cur_fd = (global_clients.clients)[index].fd;
                   if (-1 == cur_fd) {
                       SE_INC_LOG(ERROR,
-                              printf("main select got used client with a bad fd. Ignoring\n");
+                              printf("Thread id %d line %d main select got used client with a bad fd. Ignoring\n", thread_get_id(worker_data_key), __LINE__);
                               )
                   }
                   else if (cur_fd == cur_read_fd)
