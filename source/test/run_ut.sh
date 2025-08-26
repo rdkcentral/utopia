@@ -1,9 +1,6 @@
 #!/bin/bash
 ####################################################################################
-# If not stated otherwise in this file or this component's Licenses.txt file the
-# following copyright and licenses apply:
-#
-# Copyright 2024 RDK Management
+# Copyright 2024 Comcast Cable Communications Management, LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +13,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
 ####################################################################################
+
 # Define the logging function
 log() {
     local level=$1
@@ -27,41 +27,39 @@ log() {
     echo " "
 }
 
-# Initialize branch variable with an if-else statement
-branch=${BRANCH:-stable2}
-log "INFO" "Using branch: $branch"
-
-# Check if RdkbGMock directory already exists
+# Clone or enter RdkbGMock
 if [ -d "RdkbGMock" ]; then
     log "INFO" "RdkbGMock directory already exists. Skipping clone."
     cd RdkbGMock
 else
-    log "INFO" "RdkbGMock directory does not exist. Cloning repository..."
-    if git clone ssh://gerrit.teamccp.com:29418/rdk/rdkb/components/opensource/ccsp/RdkbGMock/generic RdkbGMock -b "$branch"; then
-        log "INFO" "Entering into RdkbGMock directory..."
+    log "INFO" "Cloning RdkbGMock repository from GitHub..."
+    # Use token for authentication if provided
+    if git clone -b "develop" "https://github.com/rdkcentral/gmock-broadband.git" RdkbGMock; then
         cd RdkbGMock
     else
-        log "ERROR" "Failed to clone RdkbGMock repository."
+        log "ERROR" "Failed to clone repository with branch: develop"
         exit 1
     fi
 fi
 
-# Check if change number/revision is provided
+# Check if a pull request ID is provided in argument 1
 if [ -n "$1" ]; then
-    change_revision=$1
-    change_number=$(echo $change_revision | cut -d'/' -f1)
-    revision=$(echo $change_revision | cut -d'/' -f2)
-    last_two_digits=${change_number: -2}
-
-    log "INFO" "Fetching and cherry-picking changes..."
-    if git fetch ssh://gerrit.teamccp.com:29418/rdk/rdkb/components/opensource/ccsp/RdkbGMock/generic refs/changes/"$last_two_digits"/"$change_number"/"$revision" && git cherry-pick FETCH_HEAD; then
-        log "INFO" "Changes fetched and cherry-picked successfully."
+    pr_id="$1"
+    log "INFO" "Fetching PR ID: $pr_id and checking out FETCH_HEAD"
+    if git fetch "https://github.com/rdkcentral/gmock-broadband.git" pull/"$pr_id"/head && git checkout FETCH_HEAD; then
+        log "INFO" "Successfully checked out PR #$pr_id"
     else
-        log "ERROR" "Failed to fetch and cherry-pick changes."
+        log "ERROR" "Failed to fetch or checkout PR #$pr_id"
         exit 1
     fi
 else
-    log "INFO" "No change number/revision provided, skipping git fetch and cherry-pick."
+    log "INFO" "No PR ID provided. Fetching latest from branch: develop"
+    if git fetch "https://github.com/rdkcentral/gmock-broadband.git" develop && git checkout develop; then
+        log "INFO" "Checked out latest branch: develop"
+    else
+        log "ERROR" "Failed to fetch or checkout branch: develop"
+        exit 1
+    fi
 fi
 
 log "INFO" "Start Running RdkbGMock Dependency Component Script..."
@@ -86,8 +84,8 @@ else
     exit 1
 fi
 
-# Run configure with specific option
-log "INFO" "Running configure with option --enable-unitTestDockerSupport..."
+# Run configure with specific options
+log "INFO" "Running configure with options --enable-unitTestDockerSupport..."
 if ./configure --enable-unitTestDockerSupport; then
     log "INFO" "Configuration successful."
 else
@@ -100,85 +98,56 @@ if [ ! -f "${PWD}/RdkbGMock/docker_scripts/export_var.sh" ]; then
     log "ERROR" "RdkbGMock/docker_scripts/export_var.sh does not exist in the directory $PWD."
     exit 1
 else
-    # Source the export_var.sh script from the current working directory
     source "RdkbGMock/docker_scripts/export_var.sh"
-
-    # Log the paths set by the sourced script
     log "INFO" "C_INCLUDE_PATH is set to: $C_INCLUDE_PATH"
     log "INFO" "CPLUS_INCLUDE_PATH is set to: $CPLUS_INCLUDE_PATH"
 fi
 
-# Run make for specific target
-
-log "INFO" "Running make for all services of Utopia test app..."
-if make -C source/test; then
-    log "INFO" "Make operation completed successfully."
-else
-    log "ERROR" "Make operation failed."
-    exit 1
-fi
-
 log "INFO" "Preparing to run the Gtest Binary"
+# Generic function to build and run all gtest binaries under source/test and its subfolders
+run_all_gtests() {
+    local test_dirs
+    local make_dir
+    local bin_files
+    local bin_file
 
-log "INFO" "Running Binary of service_routed_gtest.bin .. "
-if [ -f "./source/test/service_routed/service_routed_gtest.bin" ]; then
-    log "INFO" "Running service_routed_gtest.bin"
-    ./source/test/service_routed/service_routed_gtest.bin
-    log "INFO" "Completed Test Execution"
-else
-    log "ERROR" "service_routed_gtest.bin does not exist, cannot run tests"
-    exit 1
-fi
+    # Only include directories that contain a Makefile and do not contain makefile or GNUmakefile
+    test_dirs=( $(find source/test -type f -name 'Makefile' -exec dirname {} \; | sort -u) )
 
-log "INFO" "Running Binary of service_ipv6_gtest.bin .. "
-if [ -f "./source/test/service_ipv6/service_ipv6_gtest.bin" ]; then
-    log "INFO" "Running service_ipv6_gtest.bin"
-    ./source/test/service_ipv6/service_ipv6_gtest.bin
-    log "INFO" "Completed Test Execution"
-else
-    log "ERROR" "service_ipv6_gtest.bin does not exist, cannot run tests"
-    exit 1
-fi
+    for make_dir in "${test_dirs[@]}"; do
+        log "INFO" "Running make in $make_dir..."
+        if make -C "$make_dir"; then
+            log "INFO" "Make operation completed successfully in $make_dir."
+        else
+            log "ERROR" "Make operation failed in $make_dir."
+            exit 1
+        fi
+    done
 
-log "INFO" "Running Binary of service_udhcpc_gtest.bin .. "
-if [ -f "./source/test/service_udhcpc/service_udhcpc_gtest.bin" ]; then
-    log "INFO" "Running service_udhcpc_gtest.bin"
-    ./source/test/service_udhcpc/service_udhcpc_gtest.bin
-    log "INFO" "Completed Test Execution"
-else
-    log "ERROR" "service_udhcpc_gtest.bin does not exist, cannot run tests"
-    exit 1
-fi
+    log "INFO" "Completed running all make operations."
 
-log "INFO" "Running Binary of service_wan_gtest.bin .. "
-if [ -f "./source/test/service_wan/service_wan_gtest.bin" ]; then
-    log "INFO" "Running service_wan_gtest.bin"
-    ./source/test/service_wan/service_wan_gtest.bin
-    log "INFO" "Completed Test Execution"
-else
-    log "ERROR" "service_wan_gtest.bin does not exist, cannot run tests"
-    exit 1
-fi
+    # Find all .bin files under source/test and its subfolders
+    bin_files=( $(find source/test -type f -name "*.bin") )
 
-log "INFO" "Running Binary of service_dhcp_gtest.bin .. "
-if [ -f "./source/test/service_dhcp/service_dhcp_gtest.bin" ]; then
-    log "INFO" "Running service_dhcp_gtest.bin"
-    ./source/test/service_dhcp/service_dhcp_gtest.bin
-    log "INFO" "Completed Test Execution"
-else
-    log "ERROR" "service_dhcp_gtest.bin does not exist, cannot run tests"
-    exit 1
-fi
+    if [[ ${#bin_files[@]} -eq 0 ]]; then
+        log "ERROR" "No .bin files found under source/test, cannot run tests"
+        exit 1
+    fi
 
-log "INFO" "Running Binary of apply_system_defaults_gtest.bin .. "
-if [ -f "./source/test/apply_system_defaults/apply_system_defaults_gtest.bin" ]; then
-    log "INFO" "Running apply_system_defaults_gtest.bin"
-    ./source/test/apply_system_defaults/apply_system_defaults_gtest.bin
-    log "INFO" "Completed Test Execution"
-else
-    log "ERROR" "apply_system_defaults_gtest.bin does not exist, cannot run tests"
-    exit 1
-fi
+    for bin_file in "${bin_files[@]}"; do
+        if [[ -x "$bin_file" ]]; then
+            log "INFO" "Running $(basename "$bin_file")"
+            "$bin_file"
+            log "INFO" "Completed Test Execution for $(basename "$bin_file")"
+        else
+            log "ERROR" "$(basename "$bin_file") is not executable, skipping"
+        fi
+    done
+}
+
+# Call the generic function to build and run all gtest binaries
+run_all_gtests
+log "INFO" "Completed running all Gtest Binaries"
 
 log "INFO" "Starting Gcov for code coverage analysis"
 # Capture initial coverage data
@@ -217,4 +186,3 @@ fi
 log "INFO" "Completed Gcov report analysis"
 
 log "INFO" "All operations completed for UT successfully"
-
