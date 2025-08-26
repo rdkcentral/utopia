@@ -267,10 +267,6 @@ service_start ()
       echo "*/$interval * * * * /usr/ccsp/tad/remote_port_usage.sh" >> $CRONTAB_FILE
    fi
 
-	#This variable is to check RFC ETHWAN Mode Enabled/Disabled from syscfg DB
-	rfc_ethwan_status=""
-	rfc_ethwan_status=`syscfg get eth_wan_enabled`
-
 	#This variable is to check RFC WANLinkHeal Enabled/Disabled from syscfg DB
 	rfc_wanlinkheal_status=""
 	rfc_wanlinkheal_status=`syscfg get wanlinkheal`
@@ -279,7 +275,6 @@ service_start ()
 	#RFC ETHWAN should be false/null and WAN_TYPE should be DOCSIS
 	#RF WANLinkHeal should be true and BOX_TYPE should be plaftorm specfic
 	#In CISCOXB3 platform, does not have WAN_TYPE paramenter in /etc/device.properties file, So added MODEL_NUM Check along with WAN_TYPE.
-	if [ "$rfc_ethwan_status" = "false" ] || [ -z "$rfc_ethwan_status" ]; then
 		if [ "$WAN_TYPE" = "DOCSIS" ] || [ "$MODEL_NUM" = "DPC3941" ] || [ "$MODEL_NUM" = "DPC3941B" ] || [ "$MODEL_NUM" = "DPC3939B" ]; then
 			if [ "$rfc_wanlinkheal_status" = "true" ]; then
 				if [ "$BOX_TYPE" = "XB3" ] || [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "TCCBR" ]; then
@@ -294,9 +289,6 @@ service_start ()
 		else
 			echo_t "This Device WAN TYPE is not DOCSIS, Needed DOCSIS type Device for WANLinkHeal"
 		fi
-	else
-		echo_t "This Device should not enabled ETHWAN mode"
-	fi
 
    fi
  

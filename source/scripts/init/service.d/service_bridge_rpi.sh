@@ -520,22 +520,20 @@ virtual_interface_ebtables_rules ()
     fi
 }
 
-reset_usb_ports ()
+reset_eth_usb_ports ()
 {
-    usb_devices=$(ls /sys/bus/usb/devices/)
+    usb_devices=$(ls /sys/class/net/brlan0/lower_eth1/device/driver/ | grep ":")
 
     for device in $usb_devices; do
-        # Skip if it's not a valid USB device (like 'usb1' or 'usb2' directories)
-        if [[ "$device" =~ ^usb[0-9]+$ ]]; then
-            # Check if the device has a driver bound to it
-            if [ -e "/sys/bus/usb/devices/$device/driver" ]; then
-                # Unbind the USB device
-                echo -n "$device" > /sys/bus/usb/drivers/usb/unbind
-                # Wait for 2 seconds to ensure the device is unbound
-                sleep 2
-                # Re-bind the USB device
-                echo -n "$device" > /sys/bus/usb/drivers/usb/bind
-            fi
+        eth_device=$(echo $device | cut -d ':' -f1)
+        # Check if the device has a driver bound to it
+        if [ -e "/sys/bus/usb/devices/$eth_device/driver" ]; then
+            # Unbind the USB device
+            echo -n "$eth_device" > /sys/bus/usb/drivers/usb/unbind
+            # Wait for 2 seconds to ensure the device is unbound
+            sleep 2
+            # Re-bind the USB device
+            echo -n "$eth_device" > /sys/bus/usb/drivers/usb/bind
         fi
     done
 }
@@ -720,7 +718,7 @@ service_start ()
          if [ "$PSM_MODE" != "1" ]; then
             # It is not a good practice to force all physical links to refresh -- should have used arguments to specify which ports/links
             #gw_lan_refresh
-	    reset_usb_ports
+            reset_eth_usb_ports
          fi
 
        prepare_hostname
@@ -790,7 +788,7 @@ case "$1" in
           touch $POSTD_START_FILE
           execute_dir /etc/utopia/post.d/
       fi         
-      reset_usb_ports
+      reset_eth_usb_ports
       #gw_lan_refresh
       sysevent set firewall-restart
       ;;
@@ -801,7 +799,7 @@ case "$1" in
               touch $POSTD_START_FILE
               execute_dir /etc/utopia/post.d/
         fi           
-        reset_usb_ports
+        reset_eth_usb_ports
         #gw_lan_refresh
         sysevent set firewall-restart
 
