@@ -187,7 +187,7 @@ struct upnp_device * IGD_device_LANDeviceInit(IN VOID * input_index_struct, IN c
 		
 	if((LANHostConfigManagement_service=IGD_service_LANHostConfigManagementInit(input_index_struct,fp))==NULL)
     {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD","LANHostConfigManagement init fail! \n");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD","LANHostConfigManagement init fail!\n");
 		SAFE_FREE(landevice->services);
 		SAFE_FREE(landevice);
         return NULL;
