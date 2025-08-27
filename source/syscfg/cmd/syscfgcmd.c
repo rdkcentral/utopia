@@ -165,27 +165,15 @@ int main (int argc, char **argv)
     }
     else if (strcmp(cmd[0], "show") == 0)
     {
-        int len, sz;
+        size_t sz;
         long int used_sz = 0, max_sz = 0;
-        char *buf;
+        char buf[SYSCFG_SZ];
 
-        buf = malloc(SYSCFG_SZ);
-
-        if (buf) {
-            if (syscfg_getall(buf, SYSCFG_SZ, &sz) == 0) {
-                char *p = buf;
-                while (sz > 0) {
-                    len = printf("%s", p);
-                    printf("\n");
-                    p = p + len + 1;
-                    sz -= len + 1;
-                }
-            }
-            else {
-                printf("No entries\n");
-            }
-
-            free(buf);
+        if (syscfg_getall2(buf, sizeof(buf), &sz) == 0) {
+            fwrite(buf, 1, sz, stdout);
+        }
+        else {
+            printf("No entries\n");
         }
 
         syscfg_getsz(&used_sz, &max_sz);
