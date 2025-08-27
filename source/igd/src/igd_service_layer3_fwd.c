@@ -209,10 +209,9 @@ LOCAL INT32 _igd_check_DefaultConnectionService (IN const CHAR *connecion_servic
 	
 	RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","check the string:%s\n",connecion_service_string);
 	
-	strncpy(check_string,connecion_service_string,PAL_UPNP_NAME_SIZE);
-	strncpy(udn,connecion_service_string,UPNP_UUID_LEN_BY_VENDER);
-	udn[UPNP_UUID_LEN_BY_VENDER-1]='\0';
-	check_string[PAL_UPNP_NAME_SIZE-1]='\0';	
+    snprintf(check_string,PAL_UPNP_NAME_SIZE,"%s",connecion_service_string);
+    snprintf(udn,UPNP_UUID_LEN_BY_VENDER,"%s",connecion_service_string);
+
 	RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","UUID:%s\n",udn);
 	/*check the uuid */
 	while(dev)
@@ -299,8 +298,9 @@ LOCAL INT32 _igd_set_DefaultConnectionService (INOUT struct action_event *event)
 	if(ret == 0)
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","NewDefaultConnectionService:%s\n",value);
-		strncpy(event->service->state_variables[0].value,value,strlen(value)+1);
-		strncpy(event->service->event_variables[0].value,value, strlen(value)+1);
+        snprintf(event->service->state_variables[0].value,sizeof(event->service->state_variables[0].value),"%s",value);
+        snprintf(event->service->event_variables[0].value,sizeof(event->service->event_variables[0].value),"%s",value);
+        
 		var_name[0] = (CHAR *)event->service->event_variables[0].name;
         var_value[0] = event->service->event_variables[0].value;
 		ret = PAL_upnp_notify(PAL_upnp_device_getHandle(),IGD_device.udn,event->service->serviceID,(const CHAR **)var_name,(const CHAR **)var_value,1);
@@ -313,19 +313,19 @@ LOCAL INT32 _igd_set_DefaultConnectionService (INOUT struct action_event *event)
 	else if(INVALID_DEVICE_UUID == ret)
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","Layer3Forwarding action:InvalidDeviceUUID\n");
-		strncpy(event->request->error_str, "InvalidDeviceUUID",PAL_UPNP_LINE_SIZE);
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","InvalidDeviceUUID");
 		event->request->error_code = INVALID_DEVICE_UUID;
 	}
 	else if(INVALID_SERVICE_ID == ret)
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","Layer3Forwarding action:InvalidServiceID\n");
-		strncpy(event->request->error_str, "InvalidServiceID",PAL_UPNP_LINE_SIZE);
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","InvalidServiceID");
 		event->request->error_code = INVALID_SERVICE_ID;
 	}
 	else if(INVALID_CONN_SERVICE_SELECTION == ret)
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","Layer3Forwarding action:The selected connection service instance cannot be set as a default connection\n");
-		strncpy(event->request->error_str, "InvalidConnServiceSelection",PAL_UPNP_LINE_SIZE);
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","InvalidConnServiceSelection");
 		event->request->error_code = INVALID_CONN_SERVICE_SELECTION;
 	}
 	else
@@ -380,9 +380,8 @@ LOCAL VOID l3fwding_conn_service_init(IN struct upnp_service  *ps)
 
     IGD_pii_get_uuid(baseUuid);
     snprintf(connService, sizeof(connService), defaultConnService, baseUuid);
-    
-    strncpy(ps->state_variables[0].value, connService, strlen(connService));
-    strncpy(ps->event_variables[0].value, connService, strlen(connService));
+    snprintf(ps->state_variables[0].value,sizeof(ps->state_variables[0].value),"%s",connService);
+    snprintf(ps->event_variables[0].value,sizeof(ps->event_variables[0].value),"%s",connService);
 
     pthread_mutex_unlock(&ps->service_mutex);
     return;

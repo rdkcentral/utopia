@@ -286,8 +286,7 @@ void srv_register(void) {
 
       }
 
-      if( (0 == access( ONEWIFI_ENABLED, F_OK )) || (0 == access( OPENVSWITCH_LOADED, F_OK ))
-                                                 || (0 == access( WFO_ENABLED, F_OK )) )
+      if( 0 == access( OPENVSWITCH_LOADED, F_OK ) )
       {
           ovsEnable = 1;
       }

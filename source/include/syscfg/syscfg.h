@@ -131,6 +131,12 @@ int syscfg_get(const char *ns, const char *name, char *out_value, int outbufsz);
 int syscfg_getall(char *buf, int bufsz, int *outsz);
 
 /*
+ * Like syscfg_getall(), but returns pairs of entries separated by
+ * newlines instead nul characters.
+ */
+int syscfg_getall2(char *buf, size_t bufsz, size_t *outsz);
+
+/*
  * Procedure     : syscfg_set
  * Purpose       : Adds an entry to syscfg
  * Parameters    :   
