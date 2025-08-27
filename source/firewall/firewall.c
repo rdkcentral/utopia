@@ -3119,7 +3119,6 @@ static int prepare_globals_from_configuration(void)
 
 
 #if defined (AMENITIES_NETWORK_ENABLED)
-#define AMENITY_QUEUE_NUM_START 61
 void updateAmenityNetworkRules(FILE *filter_fp , FILE *mangle_fp , int iptype )
 {
    char query[MAX_QUERY];
@@ -3167,15 +3166,14 @@ void updateAmenityNetworkRules(FILE *filter_fp , FILE *mangle_fp , int iptype )
       FIREWALL_DEBUG(" Applying Amenity network IPv%d rules for %s \n" COMMA iptype COMMA bridgename);
       if(iptype == AF_INET)
       {
-         //DHCP option 82 handling rule for Amenity bridge interfaces
-         fprintf(filter_fp, "-A FORWARD -o %s -p udp --dport=67:68 -j NFQUEUE --queue-bypass --queue-num %d\n", bridgename, AMENITY_QUEUE_NUM_START+idx);
-
-	 fprintf(mangle_fp, "-A POSTROUTING -o %s -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1360 \n" , bridgename);
+         //will be enabling option 82 rules once prod team confirms
+         //fprintf(filter_fp, "-A FORWARD -o %s -p udp --dport=67:68 -j NFQUEUE --queue-bypass --queue-num %d\n", bridgename, idx+1);
+         fprintf(mangle_fp, "-A POSTROUTING -o %s -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1360 \n" , bridgename);
       }
       else
       {
+         // Adding Accept rule for Amenity interface
          fprintf(filter_fp, "-A INPUT -i %s -j ACCEPT  \n" , bridgename );
-
          // Allow forward within same Amenity network interface
          fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", bridgename, bridgename);
       }
