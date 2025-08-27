@@ -411,22 +411,20 @@ resync_to_nonvol ()
 }
 
 #-----------------------------------------------------------------
-reset_usb_ports ()
+reset_eth_usb_ports ()
 {
-    usb_devices=$(ls /sys/bus/usb/devices/)
+    usb_devices=$(ls /sys/class/net/brlan0/lower_eth1/device/driver/ | grep ":")
 
     for device in $usb_devices; do
-        # Skip if it's not a valid USB device (like 'usb1' or 'usb2' directories)
-        if [[ "$device" =~ ^usb[0-9]+$ ]]; then
-            # Check if the device has a driver bound to it
-            if [ -e "/sys/bus/usb/devices/$device/driver" ]; then
-                # Unbind the USB device
-                echo -n "$device" > /sys/bus/usb/drivers/usb/unbind
-                # Wait for 2 seconds to ensure the device is unbound
-                sleep 2
-                # Re-bind the USB device
-                echo -n "$device" > /sys/bus/usb/drivers/usb/bind
-            fi
+        eth_device=$(echo $device | cut -d ':' -f1)
+        # Check if the device has a driver bound to it
+        if [ -e "/sys/bus/usb/devices/$eth_device/driver" ]; then
+            # Unbind the USB device
+            echo -n "$eth_device" > /sys/bus/usb/drivers/usb/unbind
+            # Wait for 2 seconds to ensure the device is unbound
+            sleep 2
+            # Re-bind the USB device
+            echo -n "$eth_device" > /sys/bus/usb/drivers/usb/bind
         fi
     done
 }
@@ -625,7 +623,7 @@ dhcp_server_start ()
        if [ -f "/var/tmp/.refreshlan" ];then
             echo_t "RDKB_SYSTEM_BOOT_UP_LOG : Call gw_lan_refresh_from_dhcpscript:`uptime | cut -d "," -f1 | tr -d " \t\n\r"`"
             if [ "$BOX_TYPE" = "rpi" ]; then
-                reset_usb_ports
+                reset_eth_usb_ports
             else
                 gw_lan_refresh &
 	    fi
@@ -634,7 +632,7 @@ dhcp_server_start ()
            if [ x"ready" = x`sysevent get start-misc` ]; then
                echo_t "RDKB_SYSTEM_BOOT_UP_LOG : Call gw_lan_refresh_from_dhcpscript:`uptime | cut -d "," -f1 | tr -d " \t\n\r"`"
                if [ "$BOX_TYPE" = "rpi" ]; then
-                   reset_usb_ports
+                   reset_eth_usb_ports
                else
                    gw_lan_refresh &
 	       fi

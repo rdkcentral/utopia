@@ -146,11 +146,11 @@ INT32 IGD_get_NATRSIP_status(INOUT struct action_event *event)
         {"NewNATEnabled", 0}
     };
 
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ENTER %s...", __func__);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ENTER %s...\n", __func__);
 
     if (!event || !(event->request)) 
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "Input parameter error");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "Input parameter error\n");
 
         ret = IGD_GENERAL_ERROR;
         return ret;
@@ -158,14 +158,11 @@ INT32 IGD_get_NATRSIP_status(INOUT struct action_event *event)
 
     pIndex = (struct device_and_service_index *)(event->service->private);
     if (NULL == pIndex) {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL\n");
 
         ret = PAL_UPNP_SOAP_E_ACTION_FAILED;
         event->request->error_code = ret;
-	/*CID 135237 :BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0';
-
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED));
         return ret;
     }
     
@@ -177,7 +174,7 @@ INT32 IGD_get_NATRSIP_status(INOUT struct action_event *event)
 
     if(ret != PAL_UPNP_E_SUCCESS)
     {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "get_nat_rsip_status error");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "get_nat_rsip_status error\n");
 
         event->request->error_code = ret;
         event->request->action_result = NULL;
@@ -201,14 +198,14 @@ INT32 IGD_get_NATRSIP_status(INOUT struct action_event *event)
                                                             event->service->type, 2, response, PAL_UPNP_ACTION_RESPONSE);
         if(ret != PAL_UPNP_E_SUCCESS)
         {
-            RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_upnp_make_action error: %d", ret);
+            RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_upnp_make_action error: %d\n", ret);
 
             event->request->error_code = ret;
             event->request->action_result = NULL;
         }
     }
 
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "EXIT %s...", __func__);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "EXIT %s...\n", __func__);
 
     return ret;
 }
@@ -249,11 +246,11 @@ INT32 IGD_get_GenericPortMapping_entry(INOUT struct action_event *event)
         { PM_SET[LEASE_DURATION] ,                  NULL }
     };
 
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ENTER %s...", __func__);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ENTER %s...\n", __func__);
 
     if (!event || !(event->request)) 
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "Input parameter error");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "Input parameter error\n");
 
         ret = IGD_GENERAL_ERROR;
         return ret;
@@ -261,27 +258,22 @@ INT32 IGD_get_GenericPortMapping_entry(INOUT struct action_event *event)
     
     pIndex = (struct device_and_service_index *)(event->service->private);
     if (NULL == pIndex) {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL\n");
 
         ret = PAL_UPNP_SOAP_E_ACTION_FAILED;
         event->request->error_code = ret;
-	/*CID 135271 : BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0';
-
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED));
         return ret;
     }
     
     bzero(&portmapIndex, sizeof(portmapIndex));
     ret = PAL_xml2s_process(event->request->action_request, tableGenPorMap, &portmapIndex);
     if (ret < 0){
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_xml2s_process error");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_xml2s_process error\n");
 
         ret = PAL_UPNP_SOAP_E_INVALID_ARGS;
         event->request->error_code = ret;
-	/*CID 135271 : BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0';
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS));
     } else {
         ret = IGD_pii_get_portmapping_entry_num(pIndex->wan_device_index,
                                  pIndex->wan_connection_device_index,
@@ -292,11 +284,11 @@ INT32 IGD_get_GenericPortMapping_entry(INOUT struct action_event *event)
         {
             if(portmapIndex.portMapIndex >= entryNum)
             {
-                RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "portmap index error");
+                RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "portmap index error\n");
                 
                 ret = ARRAY_INDEX_INVALID;
                 event->request->error_code = ret;
-                strncpy(event->request->error_str, ARRAY_INDEX_INVALID_STR, strlen(ARRAY_INDEX_INVALID_STR) + 1);
+                snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",ARRAY_INDEX_INVALID_STR);
             } else {
                 ret = IGD_pii_get_portmapping_entry_generic(pIndex->wan_device_index,
                                          pIndex->wan_connection_device_index,
@@ -337,7 +329,7 @@ INT32 IGD_get_GenericPortMapping_entry(INOUT struct action_event *event)
                                     event->service->type, PORTMAP_ENTRY_FIELD_NUM, response, PAL_UPNP_ACTION_RESPONSE);
                     if(ret != PAL_UPNP_E_SUCCESS)
                     {
-                        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_upnp_make_action error");
+                        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_upnp_make_action error\n");
 
                         event->request->error_code = ret;
                         event->request->action_result = NULL;
@@ -360,7 +352,7 @@ INT32 IGD_get_GenericPortMapping_entry(INOUT struct action_event *event)
                         free(response[PORTMAPPING_DESCRIPTION].value);
                     }
                 }else {  //IGD_pii_get_portmapping_entry_generic error
-                    RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_pii_get_portmapping_entry_num error");
+                    RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_pii_get_portmapping_entry_num error\n");
 
                     ret = PAL_UPNP_SOAP_E_ACTION_FAILED;
                     event->request->error_code = ret;
@@ -368,17 +360,17 @@ INT32 IGD_get_GenericPortMapping_entry(INOUT struct action_event *event)
                 }
             }   // end if (portmapIndex.portMapIndex >= entryNum)
         } else {   //IGD_pii_get_portmapping_entry_num error
-            RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_pii_get_portmapping_entry_num error");
+            RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_pii_get_portmapping_entry_num error\n");
 
             ret = PAL_UPNP_SOAP_E_ACTION_FAILED;
             event->request->error_code = ret;
-            strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED), PAL_UPNP_LINE_SIZE);
+            snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED));
         }
         
         PAL_xml2s_free(&portmapIndex, tableGenPorMap);
     }
 
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "EXIT %s...", __func__);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "EXIT %s...\n", __func__);
 
     return ret;
 }
@@ -418,11 +410,11 @@ INT32 IGD_get_SpecificPortMapping_entry(INOUT struct action_event *event)
         { PM_SET[LEASE_DURATION] ,                  NULL }
     };
     
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ENTER %s...", __func__);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ENTER %s...\n", __func__);
 
     if (!event || !(event->request)) 
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "Input parameter error");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "Input parameter error\n");
 
         ret = IGD_GENERAL_ERROR;
         return ret;
@@ -430,14 +422,11 @@ INT32 IGD_get_SpecificPortMapping_entry(INOUT struct action_event *event)
 
     pIndex = (struct device_and_service_index *)(event->service->private);
     if (NULL == pIndex) {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL\n");
 
         ret = PAL_UPNP_SOAP_E_ACTION_FAILED;
         event->request->error_code = ret;
-	/* CID 135641 : BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0';
-
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED));
         return ret;
     }
     
@@ -445,37 +434,29 @@ INT32 IGD_get_SpecificPortMapping_entry(INOUT struct action_event *event)
     ret = PAL_xml2s_process(event->request->action_request, tableSpecPorMap, &portmapIndex);
 
     if (ret < 0){
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_xml2s_process error");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_xml2s_process error\n");
 
         ret = PAL_UPNP_SOAP_E_INVALID_ARGS;
         event->request->error_code = ret;
-	/* CID 135641 : BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0';
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS));
     } else if ((portmapIndex.remoteHost != NULL)
                 &&(0 == inet_pton(AF_INET, portmapIndex.remoteHost, &addr))){ 
-        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "remoteHost format error: x.x.x.x");
+        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "remoteHost format error: x.x.x.x\n");
 
         ret = PAL_UPNP_SOAP_E_INVALID_ARGS;
         event->request->error_code = ret;
-	/* CID 135641 : BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS), sizeof(event->request->error_str)-1);
-        event->request->error_str[sizeof(event->request->error_str)-1] = '\0';
-	PAL_xml2s_free(&portmapIndex, tableSpecPorMap);
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS));
+        PAL_xml2s_free(&portmapIndex, tableSpecPorMap);
     } else {
         bzero(&portmapEntry, sizeof(portmapEntry));
         if(portmapIndex.remoteHost != NULL)
         {
-            /* CID 135641 : BUFFER_SIZE_WARNING */
-            strncpy(portmapEntry.remoteHost, portmapIndex.remoteHost, sizeof(portmapEntry.remoteHost)-1);
-	    portmapEntry.remoteHost[sizeof(portmapEntry.remoteHost)-1] = '\0';
+            snprintf(portmapEntry.remoteHost,sizeof(portmapEntry.remoteHost),"%s",portmapIndex.remoteHost);
         }
         portmapEntry.externalPort = portmapIndex.externalPort;
         if(portmapIndex.pmProtocol != NULL)
         {
-            /* CID 135641 : BUFFER_SIZE_WARNING */ 
-            strncpy(portmapEntry.protocol, portmapIndex.pmProtocol, sizeof(portmapEntry.protocol)-1);
-	    portmapEntry.protocol[sizeof(portmapEntry.protocol)-1] = '\0';
+            snprintf(portmapEntry.protocol,sizeof(portmapEntry.protocol),"%s",portmapIndex.pmProtocol);
         }
 
         ret = IGD_pii_get_portmapping_entry_specific(pIndex->wan_device_index,
@@ -508,7 +489,7 @@ INT32 IGD_get_SpecificPortMapping_entry(INOUT struct action_event *event)
                                             PORTMAP_ENTRY_FIELD_NUM - PORTMAP_INDEX_FIELD_NUM, response, PAL_UPNP_ACTION_RESPONSE);
             if(ret != PAL_UPNP_E_SUCCESS)
             {
-                RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_upnp_make_action error");
+                RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_upnp_make_action error\n");
 
                 event->request->error_code = ret;
                 event->request->action_result = NULL;
@@ -524,17 +505,17 @@ INT32 IGD_get_SpecificPortMapping_entry(INOUT struct action_event *event)
             }
             
         } else {
-            RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_pii_get_portmapping_entry_specific error");
+            RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_pii_get_portmapping_entry_specific error\n");
 
             ret = NO_SUCH_ENTRY_IN_ARRAY;
             event->request->error_code = ret;
-            strncpy(event->request->error_str, NO_SUCH_ENTRY_IN_ARRAY_STR, sizeof(NO_SUCH_ENTRY_IN_ARRAY_STR)+1);
+            snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",NO_SUCH_ENTRY_IN_ARRAY_STR);
         }
         
         PAL_xml2s_free(&portmapIndex, tableSpecPorMap);
     }
 
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "EXIT %s...", __func__);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "EXIT %s...\n", __func__);
 
     return ret;
 }
@@ -573,11 +554,11 @@ INT32 IGD_add_PortMapping(INOUT struct action_event *event)
         XML2S_TABLE_END
     };
 
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ENTER %s...", __func__);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ENTER %s...\n", __func__);
 
     if (!event || !(event->request)) 
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "Input parameter error");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "Input parameter error\n");
 
         ret = IGD_GENERAL_ERROR;
         return ret;
@@ -585,14 +566,11 @@ INT32 IGD_add_PortMapping(INOUT struct action_event *event)
 
     pIndex = (struct device_and_service_index *)(event->service->private);
     if (NULL == pIndex) {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL\n");
 
         ret = PAL_UPNP_SOAP_E_ACTION_FAILED;
         event->request->error_code = ret;
-	/* CID 135442: BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0' ;
-
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED));
         return ret;
     }
 
@@ -600,52 +578,47 @@ INT32 IGD_add_PortMapping(INOUT struct action_event *event)
     ret = PAL_xml2s_process(event->request->action_request, tableAddPorMap, &portmapEntry);
 
     src_addr = (struct sockaddr_in*)(&(event->request->cp_addr));
-    strncpy(buf,inet_ntoa(src_addr->sin_addr),INET_ADDRSTRLEN);
-    buf[INET_ADDRSTRLEN-1] = '\0';
+    snprintf(buf,sizeof(buf),"%s",inet_ntoa(src_addr->sin_addr));
 
     if (ret < 0){
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_xml2s_process error: %d", ret);
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_xml2s_process error: %d\n", ret);
 
         ret = PAL_UPNP_SOAP_E_INVALID_ARGS;
         event->request->error_code = ret;
-	/* CID 135442: BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0' ;
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS));
     } else if (((portmapEntry.remoteHost != NULL)
                 &&(0 == inet_pton(AF_INET, portmapEntry.remoteHost, &addr)))
                 ||(portmapEntry.internalClient == NULL) /* WANIpConnection v1: internalClient can not be wildcard (i.e. empty string) */
                 ||(0 == inet_pton(AF_INET, portmapEntry.internalClient, &addr))
                 ||(0 != strncmp(buf,portmapEntry.internalClient,INET_ADDRSTRLEN)) 
                 ||(!chkPortMappingClient(portmapEntry.internalClient))){ 
-        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "remoteHost or internalClient format error: x.x.x.x");
+        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "remoteHost or internalClient format error: x.x.x.x\n");
 
         ret = PAL_UPNP_SOAP_E_INVALID_ARGS;
         event->request->error_code = ret;
-	/*CID 163387 : BUFFER_SIZE */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0';
-	PAL_xml2s_free(&portmapEntry, tableAddPorMap);
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS));
+        PAL_xml2s_free(&portmapEntry, tableAddPorMap);
     } else {
         bzero(&pii_pmEntry, sizeof(pii_pmEntry));
 
         if(portmapEntry.remoteHost != NULL)
         {
-            strncpy(pii_pmEntry.remoteHost, portmapEntry.remoteHost, IPV4_ADDR_LEN);
+            snprintf(pii_pmEntry.remoteHost,sizeof(pii_pmEntry.remoteHost),"%s",portmapEntry.remoteHost);
         }
         pii_pmEntry.externalPort = portmapEntry.externalPort;
         if(portmapEntry.pmProtocol != NULL)
         {
-            strncpy(pii_pmEntry.protocol, portmapEntry.pmProtocol, PORT_MAP_PROTOCOL_LEN);
+            snprintf(pii_pmEntry.protocol,sizeof(pii_pmEntry.protocol),"%s",portmapEntry.pmProtocol);
         }
         pii_pmEntry.internalPort = portmapEntry.internalPort;
         if(portmapEntry.internalClient != NULL)
         {
-            strncpy(pii_pmEntry.internalClient, portmapEntry.internalClient, IPV4_ADDR_LEN);
+            snprintf(pii_pmEntry.internalClient,sizeof(pii_pmEntry.internalClient),"%s",portmapEntry.internalClient);
         }
         pii_pmEntry.enabled = portmapEntry.pmEnabled;
         if(portmapEntry.pmDescription != NULL)
         {
-            strncpy(pii_pmEntry.description, portmapEntry.pmDescription, sizeof(pii_pmEntry.description)-1);
+            snprintf(pii_pmEntry.description,sizeof(pii_pmEntry.description),"%s",portmapEntry.pmDescription);
         }
 
 #if defined (SPEED_BOOST_SUPPORTED)
@@ -653,7 +626,7 @@ INT32 IGD_add_PortMapping(INOUT struct action_event *event)
         {
            ret = Conflict_In_MappingEntry;
            event->request->error_code = ret;
-           strncpy(event->request->error_str, Conflict_In_MappingEntry_STR, PAL_UPNP_LINE_SIZE);
+           snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",Conflict_In_MappingEntry_STR);
            //printf(" IGD_checkport_SpeedboostPort : UPnP External or Internal are overlap with Speedboost range \n");
            return ret;
         }
@@ -674,53 +647,53 @@ INT32 IGD_add_PortMapping(INOUT struct action_event *event)
                             event->service->type, 0, NULL, PAL_UPNP_ACTION_RESPONSE);
             if(ret != PAL_UPNP_E_SUCCESS)
             {
-                RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_upnp_make_action error");
+                RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_upnp_make_action error\n");
                 event->request->error_code = ret;
                 event->request->action_result = NULL;
             }
         } else {
-            RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_pii_add_portmapping_entry error");
+            RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_pii_add_portmapping_entry error\n");
             switch(ret) 
             { 
                 case ERROR_WILDCARD_NOTPERMIT_FOR_SRC_IP: 
                     ret = WildCard_NotPermitted_InSrcIP;
                     event->request->error_code = ret;
-                    strncpy(event->request->error_str, WildCard_NotPermitted_InSrcIP_STR, PAL_UPNP_LINE_SIZE);
+                    snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",WildCard_NotPermitted_InSrcIP_STR);
                     break;
                 case ERROR_WILDCARD_NOTPERMIT_FOR_EXTERNAL_PORT: 
                     ret = WildCard_NotPermitted_InExtPort;
                     event->request->error_code = ret;
-                    strncpy(event->request->error_str, WildCard_NotPermitted_InExtPort_STR, PAL_UPNP_LINE_SIZE);
+                    snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",WildCard_NotPermitted_InExtPort_STR);
                     break;
                 case ERROR_CONFLICT_FOR_MAPPING_ENTRY: 
                     ret = Conflict_In_MappingEntry;
                     event->request->error_code = ret;
-                    strncpy(event->request->error_str, Conflict_In_MappingEntry_STR, PAL_UPNP_LINE_SIZE);
+                    snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",Conflict_In_MappingEntry_STR);
                     break;
                 case ERROR_SAME_PORT_VALUE_REQUIRED: 
                     ret = Same_PortValues_Required;
                     event->request->error_code = ret;
-                    strncpy(event->request->error_str, Same_PortValues_Required_STR, PAL_UPNP_LINE_SIZE);
+                    snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",Same_PortValues_Required_STR);
                     break;
                 case ERROR_ONLY_PERMANENT_LEASETIME_SUPPORTED: 
                     ret = Only_Permanent_Leases_Supported;
                     event->request->error_code = ret;
-                    strncpy(event->request->error_str, Only_Permanent_Leases_Supported_STR, PAL_UPNP_LINE_SIZE);
+                    snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",Only_Permanent_Leases_Supported_STR);
                     break;
                 case ERROR_REMOST_HOST_ONLY_SUPPORT_WILDCARD: 
                     ret = RemoteHost_OnlySupports_Wildcard;
                     event->request->error_code = ret;
-                    strncpy(event->request->error_str, RemoteHost_OnlySupports_Wildcard_STR, PAL_UPNP_LINE_SIZE);
+                    snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",RemoteHost_OnlySupports_Wildcard_STR);
                     break;
                 case ERROR_EXTERNAL_PORT_ONLY_SUPPORT_WILDCARD: 
                     ret = ExternalPort_OnlySupports_Wildcard;
                     event->request->error_code = ret;
-                    strncpy(event->request->error_str, ExternalPort_OnlySupports_Wildcard_STR, PAL_UPNP_LINE_SIZE);
+                    snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",ExternalPort_OnlySupports_Wildcard_STR);
                     break;
                 default:
                     ret = PAL_UPNP_SOAP_E_ACTION_FAILED;
                     event->request->error_code = ret;
-                    strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED), PAL_UPNP_LINE_SIZE);
+                    snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED));
                     break;
             }
         }
@@ -728,7 +701,7 @@ INT32 IGD_add_PortMapping(INOUT struct action_event *event)
         PAL_xml2s_free(&portmapEntry, tableAddPorMap);
     }
 
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "EXIT %s...", __func__);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "EXIT %s...\n", __func__);
 
     return ret;
 }
@@ -777,7 +750,7 @@ INT32 IGD_checkport_SpeedboostPort(UINT16 ExternalPort, UINT16 InternalPort)
               (atoi(sb_port_startv6) <= ExternalPort && ExternalPort <= atoi(sb_port_endv6)) || \
               (atoi(sb_port_startv6) <= InternalPort && InternalPort <= atoi(sb_port_endv6)) )
           {
-             RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_checkport_SpeedboostPort UPnP External or Internal port Overlaps with Speedboost ports ");
+             RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_checkport_SpeedboostPort UPnP External or Internal port Overlaps with Speedboost ports\n");
              return TRUE;
           }
        }
@@ -813,11 +786,11 @@ INT32 IGD_delete_PortMapping(INOUT struct action_event *event)
         XML2S_TABLE_END
     };
 
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ENTER %s...", __func__);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ENTER %s...\n", __func__);
 
     if (!event || !(event->request)) 
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "Input parameter error");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "Input parameter error\n");
 
         ret = IGD_GENERAL_ERROR;
         return ret;
@@ -825,37 +798,30 @@ INT32 IGD_delete_PortMapping(INOUT struct action_event *event)
     
     pIndex = (struct device_and_service_index *)(event->service->private);
     if (NULL == pIndex) {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL\n");
 
         ret = PAL_UPNP_SOAP_E_ACTION_FAILED;
         event->request->error_code = ret;
-	/* CID 135406 : BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0';
-
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED));
         return ret;
     }
     
     bzero(&portmapIndex, sizeof(portmapIndex));
     ret = PAL_xml2s_process(event->request->action_request, tableDelPorMap, &portmapIndex);
     if (ret < 0){
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_xml2s_process error");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_xml2s_process error\n");
 
         ret = PAL_UPNP_SOAP_E_INVALID_ARGS;
         event->request->error_code = ret;
-	/* CID 135406 : BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0';
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS));
     } else if ((portmapIndex.remoteHost != NULL)
                 &&(0 == inet_pton(AF_INET, portmapIndex.remoteHost, &addr))){ 
-        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "remoteHost format error: x.x.x.x");
+        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "remoteHost format error: x.x.x.x\n");
 
         ret = PAL_UPNP_SOAP_E_INVALID_ARGS;
         event->request->error_code = ret;
-	/* CID 163319 : BUFFER_SIZE_WARNING */
-        strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS), sizeof(event->request->error_str)-1);
-	event->request->error_str[sizeof(event->request->error_str)-1] = '\0';
-	PAL_xml2s_free(&portmapIndex, tableDelPorMap);
+        snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_INVALID_ARGS));
+        PAL_xml2s_free(&portmapIndex, tableDelPorMap);
     } else {
 
         ret = IGD_pii_del_portmapping_entry(pIndex->wan_device_index,
@@ -873,23 +839,23 @@ INT32 IGD_delete_PortMapping(INOUT struct action_event *event)
                             event->service->type, 0, NULL, PAL_UPNP_ACTION_RESPONSE);
             if(ret != PAL_UPNP_E_SUCCESS)
             {
-                RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_upnp_make_action error");
+                RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "PAL_upnp_make_action error\n");
 
                 event->request->error_code = ret;
                 event->request->action_result = NULL;
             }
         } else {
-            RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_pii_del_portmapping_entry error");
+            RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "IGD_pii_del_portmapping_entry error\n");
 
             ret = NO_SUCH_ENTRY_IN_ARRAY;
             event->request->error_code = ret;
-            strncpy(event->request->error_str, NO_SUCH_ENTRY_IN_ARRAY_STR, strlen(NO_SUCH_ENTRY_IN_ARRAY_STR) + 1);
+            snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",NO_SUCH_ENTRY_IN_ARRAY_STR);
         }
         
         PAL_xml2s_free(&portmapIndex, tableDelPorMap);
     }
 
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "EXIT %s...", __func__);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "EXIT %s...\n", __func__);
 
     return ret;
 }
