@@ -443,13 +443,13 @@ LOCAL INT32 _igd_root_device_registerAndgetsignal( VOID )
 	
 	if(pthread_sigmask( SIG_SETMASK, &signaltocatch, NULL )!=0)
 	{    
-		RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "Failed to set signal mask");
+		RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "Failed to set signal mask\n");
 		return -1;
 	}
 
 	if(sigwait( &signaltocatch, &receivedsignal )!=0)
 	{   
-		RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "Failed to wait for signal");
+		RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "Failed to wait for signal\n");
 		return -1;
 	}
 

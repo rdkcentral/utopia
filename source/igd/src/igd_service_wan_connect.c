@@ -86,11 +86,11 @@
 #include "igd_action_port_mapping.h"
 
 #ifndef LOG_ENTER_FUNCTION
-#define LOG_ENTER_FUNCTION  RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "entering %s", __func__)
+#define LOG_ENTER_FUNCTION  RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "entering %s\n", __func__)
 #endif
 
 #ifndef LOG_LEAVE_FUNCTION
-#define LOG_LEAVE_FUNCTION  RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "leaving %s", __func__)
+#define LOG_LEAVE_FUNCTION  RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "leaving %s\n", __func__)
 #endif
 
 enum enum_ppp_or_ip{
@@ -210,13 +210,13 @@ LOCAL INT32 _set_connection_type(INOUT struct action_event *event)
     if (NULL == pnode)
     {
         rc = ERROR_CODE_501;
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_xml_node_get_first_by_name() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_xml_node_get_first_by_name() fail\n");
         goto out;
     }
     type = PAL_xml_node_get_value(pnode);
     if (NULL == type) {
         rc = ERROR_CODE_501;
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_xml_node_get_value() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_xml_node_get_value() fail\n");
         goto out;
     }
 
@@ -225,29 +225,29 @@ LOCAL INT32 _set_connection_type(INOUT struct action_event *event)
     pIndex = (struct device_and_service_index *)(event->service->private);
     if (NULL == pIndex) {
         rc = ERROR_CODE_501;
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL\n");
         goto out;
     }
     if (BOOL_FALSE == _is_valid_possible_connection_types(type, event->service->type)) {
         rc = ERROR_CODE_402;
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "invalid connection type");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "invalid connection type\n");
         goto out;
     }
 
     // check current connection status
     safec_rc = strcpy_s(connectionstatus, sizeof(connectionstatus), event->service->state_variables[ConnectionStatus_index].value); // CID 282049: Buffer not null terminated (BUFFER_SIZE)
     ERR_CHK(safec_rc);
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "current connection status: %s", connectionstatus);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "current connection status: %s\n", connectionstatus);
     if ((0 != strcmp(connectionstatus, "Unconfigured")) &&
         (0 != strcmp(connectionstatus, "Disconnected"))) 
     {
         rc = ERROR_CODE_703;
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "inactive connection state required (703)");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "inactive connection state required (703)\n");
         goto out;
     }
 
     //set new connection type
-    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "start to set connection type (%s)", type);
+    RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "start to set connection type (%s)\n", type);
     rc = IGD_pii_set_connection_type(pIndex->wan_device_index,
                                  pIndex->wan_connection_device_index,
                                  pIndex->wan_connection_service_index,
@@ -256,7 +256,7 @@ LOCAL INT32 _set_connection_type(INOUT struct action_event *event)
     if (0 != rc)
     {
         rc = ERROR_CODE_501;
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_set_connection_type() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_set_connection_type() fail\n");
         goto out;
     }
     snprintf(event->service->state_variables[ConnectionType_index].value, sizeof(event->service->state_variables[ConnectionType_index].value),"%s",type);
@@ -269,7 +269,7 @@ LOCAL INT32 _set_connection_type(INOUT struct action_event *event)
                               NULL,
                               PAL_UPNP_ACTION_RESPONSE);
     if (0!=rc) {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_make_action() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_make_action() fail\n");
     }
     return rc;
 
@@ -318,7 +318,7 @@ LOCAL INT32 _get_connection_type_info(INOUT struct action_event *event)
                               params,
                               PAL_UPNP_ACTION_RESPONSE);
     if (0!=rc) {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_make_action() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_make_action() fail\n");
     }
 
     return rc;
@@ -359,7 +359,7 @@ LOCAL INT32 _request_connection(INOUT struct action_event *event)
     pIndex = (struct device_and_service_index *)(event->service->private);
     if (NULL == pIndex) {
         rc = ERROR_CODE_501;
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL\n");
         goto out;
     }
     rc = IGD_pii_request_connection(pIndex->wan_device_index,
@@ -427,7 +427,7 @@ LOCAL INT32 _force_termination(INOUT struct action_event *event)
     pIndex = (struct device_and_service_index *)(event->service->private);
     if (NULL == pIndex) {
         rc = ERROR_CODE_501;
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "pIndex is NULL\n");
         goto out;
     }
     rc = IGD_pii_force_termination(pIndex->wan_device_index,
@@ -503,7 +503,7 @@ LOCAL INT32 _get_status_info(INOUT struct action_event *event)
                                                     PAL_UPNP_ACTION_RESPONSE);
     if (0!=rc) 
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_make_action() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_make_action() fail\n");
     }
         
     return rc;
@@ -542,7 +542,7 @@ LOCAL INT32 _get_external_ip_address(INOUT struct action_event *event)
                                                     params,
                                                     PAL_UPNP_ACTION_RESPONSE);
     if (0!=rc) {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_make_action() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_make_action() fail\n");
     }
         
     return rc;
@@ -585,7 +585,7 @@ LOCAL INT32 _get_link_layer_max_bit_rates(INOUT struct action_event *event)
                                                     params,
                                                     PAL_UPNP_ACTION_RESPONSE);
     if (0!=rc) {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_make_action() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_make_action() fail\n");
     }
         
     return rc;
@@ -620,7 +620,7 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
     INT32 rc = -1;
 
     if (NULL == ps) {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "ps is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "ps is NULL\n");
         return;
     }
 
@@ -628,7 +628,7 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
 
     pIndex = (struct device_and_service_index *)(ps->private);
     if (NULL == pIndex) {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "ps->private is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "ps->private is NULL\n");
         pthread_mutex_unlock(&ps->service_mutex);
         return;
     }
@@ -645,10 +645,10 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
             var_name[eventnum] = (CHAR *)ps->event_variables[PossibleConnectionTypes_event_index].name;
             var_value[eventnum] = ps->event_variables[PossibleConnectionTypes_event_index].value;
             eventnum++;
-            RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "PossibleConnectionTypes updated & evented");
+            RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "PossibleConnectionTypes updated & evented\n");
         }
     } else {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_possible_connection_types() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_possible_connection_types() fail\n");
     }
 
     OutStr[0] = 0;
@@ -664,10 +664,10 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
             var_name[eventnum] = (CHAR *)ps->event_variables[ConnectionStatus_event_index].name;
             var_value[eventnum] = ps->event_variables[ConnectionStatus_event_index].value;
             eventnum++;
-            RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ConnectionStatus updated & evented");
+            RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ConnectionStatus updated & evented\n");
         }
     } else {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_connection_status() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_connection_status() fail\n");
     }
 
     OutStr[0] = 0;
@@ -683,10 +683,10 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
             var_name[eventnum] = (CHAR *)ps->event_variables[ExternalIPAddress_event_index].name;
             var_value[eventnum] = ps->event_variables[ExternalIPAddress_event_index].value;
             eventnum++;
-            RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ExternalIPAddress updated & evented");
+            RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ExternalIPAddress updated & evented\n");
         }
     } else {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_external_ip() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_external_ip() fail\n");
     }
 
     OutStr[0] = 0;
@@ -703,10 +703,10 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
             var_name[eventnum] = (CHAR *)ps->event_variables[PortMappingNumberOfEntries_event_index].name;
             var_value[eventnum] = ps->event_variables[PortMappingNumberOfEntries_event_index].value;
             eventnum++;
-            RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "PortMappingNumberOfEntries updated & evented");
+            RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "PortMappingNumberOfEntries updated & evented\n");
         }
     } else {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_PortMappingEntry_num() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_PortMappingEntry_num() fail\n");
     }
 
     OutStr[0] = 0;
@@ -718,7 +718,7 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
         if (0 != strcmp(OutStr, ps->state_variables[Uptime_index].value))
             snprintf(ps->state_variables[Uptime_index].value, sizeof(ps->state_variables[Uptime_index].value),"%s",OutStr);
     } else {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_up_time() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_up_time() fail\n");
     }
 
     OutStr[0] = 0;
@@ -732,7 +732,7 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
             RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ConnectionType updated\n");
         }
     } else {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_connection_type() fail");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_connection_type() fail\n");
     }
 
     OutStr[0] = 0;
@@ -752,13 +752,13 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
                 RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "DownstreamMaxBitRate updated\n");
             }
         } else {
-            RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_connection_type() fail");
+            RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_connection_type() fail\n");
         }
     }
 
     // notify if needed
     if (eventnum > 0) {
-        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "event num: %d", eventnum);
+        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "event num: %d\n", eventnum);
         rc = PAL_upnp_notify (PAL_upnp_device_getHandle(),
                         (const CHAR *)pd->udn,
                         ps->serviceID,
@@ -767,7 +767,7 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
                         eventnum);
         if(rc)
         {
-            RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_notify() fail, error code=%d", rc);
+            RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "PAL_upnp_notify() fail, error code=%d\n", rc);
         }
     }
 
@@ -779,7 +779,7 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
 VOID IGD_update_pm_lease_time(struct upnp_device *pd, struct upnp_service *ps)
 {
     if (ps == NULL) {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "ps is NULL");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "ps is NULL\n");
         return;
     }
 
@@ -927,7 +927,7 @@ LOCAL struct upnp_service * _wan_connection_service_init (IN BOOL ppp_or_ip,
           || (!wan_desc_file)
           )
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "input parameter error");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "input parameter error\n");
         return NULL;
     }
 
@@ -935,14 +935,14 @@ LOCAL struct upnp_service * _wan_connection_service_init (IN BOOL ppp_or_ip,
     new_wan_connection_service = (struct upnp_service *)calloc(1, sizeof(struct upnp_service));
     if (!new_wan_connection_service)
     {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "out of memory : new_wan_connection_service malloc error");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "out of memory : new_wan_connection_service malloc error\n");
         return NULL;
     }
 
     /*assign service_mutex*/
     if (pthread_mutex_init (&(new_wan_connection_service->service_mutex), NULL) != 0)
     {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "ERROR: service_mutex init error!");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "ERROR: service_mutex init error!\n");
         _wan_connection_service_destroy(new_wan_connection_service);
         return NULL;
     }
@@ -969,7 +969,7 @@ LOCAL struct upnp_service * _wan_connection_service_init (IN BOOL ppp_or_ip,
 
     if (!(new_wan_connection_service->serviceID))
     {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "out of memory : serviceID malloc error");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "out of memory : serviceID malloc error\n");
         _wan_connection_service_destroy(new_wan_connection_service);
         return NULL;
     }
@@ -980,7 +980,7 @@ LOCAL struct upnp_service * _wan_connection_service_init (IN BOOL ppp_or_ip,
                   temp_index->wan_connection_service_index );
     if ( rv < 0 )
     {
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "print content to serviceID error");
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "print content to serviceID error\n");
         _wan_connection_service_destroy(new_wan_connection_service);
         return NULL;
     }
@@ -997,7 +997,7 @@ LOCAL struct upnp_service * _wan_connection_service_init (IN BOOL ppp_or_ip,
 
     if (!new_wan_connection_service->state_variables)
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "out of memory : state_variables malloc error");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "out of memory : state_variables malloc error\n");
         _wan_connection_service_destroy(new_wan_connection_service);
         return NULL;
     }
@@ -1022,7 +1022,7 @@ LOCAL struct upnp_service * _wan_connection_service_init (IN BOOL ppp_or_ip,
     new_wan_connection_service->event_variables = (struct upnp_variable *)calloc(WAN_CONNECTION_SERVICE_EVENT_VARIABLES_SIZE, sizeof(struct upnp_variable));
     if (!new_wan_connection_service->event_variables)
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "out of memory : event_variables malloc error");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "out of memory : event_variables malloc error\n");
         _wan_connection_service_destroy(new_wan_connection_service);
         return NULL;
     }
@@ -1037,7 +1037,7 @@ LOCAL struct upnp_service * _wan_connection_service_init (IN BOOL ppp_or_ip,
     new_wan_connection_service->private = calloc(1, sizeof(struct device_and_service_index));
     if (!new_wan_connection_service->private)
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "out of memory : private malloc error");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "out of memory : private malloc error\n");
         _wan_connection_service_destroy(new_wan_connection_service);
         return NULL;
     }
@@ -1093,7 +1093,7 @@ LOCAL INT32 _wan_connection_service_destroy(IN struct upnp_service *service)
     /*check input parameters*/
     if (!service)
     {
-        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "input parameter error");
+        RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "input parameter error\n");
         return -1;
     }
 
