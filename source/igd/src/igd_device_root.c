@@ -369,7 +369,7 @@ main( IN INT32 argc,
             if((strcmp(igd_upnp_interface, lan_ifname) == 0) &&
                (strcmp(ip_address, lan_ipaddr) != 0)) {
                 memset(ip_address, 0, sizeof(ip_address));
-                strncpy(ip_address, lan_ipaddr, sizeof(ip_address));
+                snprintf(ip_address,sizeof(ip_address),"%s",lan_ipaddr);
             }
         }
 #endif

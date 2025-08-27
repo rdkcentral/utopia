@@ -129,7 +129,7 @@ LOCAL VOID _set_err_str(INT32 code, CHAR *dest)
 
     while (0 != ErrorPair[i].code) {
         if (code == ErrorPair[i].code) {
-            strncpy(dest, ErrorPair[i].desc, strlen(ErrorPair[i].desc)+1);
+            snprintf(dest, PAL_UPNP_LINE_SIZE ,"%s",ErrorPair[i].desc);
             break;
         }
 
@@ -259,7 +259,7 @@ LOCAL INT32 _set_connection_type(INOUT struct action_event *event)
         RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_set_connection_type() fail\n");
         goto out;
     }
-    strncpy(event->service->state_variables[ConnectionType_index].value, type, strlen(type)+1);
+    snprintf(event->service->state_variables[ConnectionType_index].value, sizeof(event->service->state_variables[ConnectionType_index].value),"%s",type);
 
     // construct action response
     rc = PAL_upnp_make_action((VOID**)&event->request->action_result,
@@ -639,8 +639,8 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
                                                          (strcmp(WAN_IP_CONNECTION_SERVICE_TYPE,ps->type) == 0) ? SERVICETYPE_IP : SERVICETYPE_PPP,
                                                          OutStr) ) {
         if (0 != strcmp(OutStr, ps->state_variables[PossibleConnectionTypes_index].value)) {
-            strncpy(ps->state_variables[PossibleConnectionTypes_index].value, OutStr, strlen(OutStr)+1);
-            strncpy(ps->event_variables[PossibleConnectionTypes_event_index].value, OutStr, strlen(OutStr)+1);
+            snprintf(ps->state_variables[PossibleConnectionTypes_index].value, sizeof(ps->state_variables[PossibleConnectionTypes_index].value),"%s",OutStr);
+            snprintf(ps->event_variables[PossibleConnectionTypes_event_index].value, sizeof(ps->event_variables[PossibleConnectionTypes_event_index].value),"%s",OutStr);
 
             var_name[eventnum] = (CHAR *)ps->event_variables[PossibleConnectionTypes_event_index].name;
             var_value[eventnum] = ps->event_variables[PossibleConnectionTypes_event_index].value;
@@ -658,8 +658,8 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
                                                          (strcmp(WAN_IP_CONNECTION_SERVICE_TYPE,ps->type) == 0) ? SERVICETYPE_IP : SERVICETYPE_PPP,
                                                          OutStr) ) {
         if (0 != strcmp(OutStr, ps->state_variables[ConnectionStatus_index].value)) {
-            strncpy(ps->state_variables[ConnectionStatus_index].value, OutStr, strlen(OutStr)+1);
-            strncpy(ps->event_variables[ConnectionStatus_event_index].value, OutStr, strlen(OutStr)+1);
+            snprintf(ps->state_variables[ConnectionStatus_index].value, sizeof(ps->state_variables[ConnectionStatus_index].value),"%s",OutStr);
+            snprintf(ps->event_variables[ConnectionStatus_event_index].value, sizeof(ps->event_variables[ConnectionStatus_event_index].value),"%s",OutStr);
 
             var_name[eventnum] = (CHAR *)ps->event_variables[ConnectionStatus_event_index].name;
             var_value[eventnum] = ps->event_variables[ConnectionStatus_event_index].value;
@@ -677,8 +677,8 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
                                                          (strcmp(WAN_IP_CONNECTION_SERVICE_TYPE,ps->type) == 0) ? SERVICETYPE_IP : SERVICETYPE_PPP,
                                                          OutStr) ) {
         if (0 != strcmp(OutStr, ps->state_variables[ExternalIPAddress_index].value)) {
-            strncpy(ps->state_variables[ExternalIPAddress_index].value, OutStr, strlen(OutStr)+1);
-            strncpy(ps->event_variables[ExternalIPAddress_event_index].value, OutStr, strlen(OutStr)+1);
+            snprintf(ps->state_variables[ExternalIPAddress_index].value, sizeof(ps->state_variables[ExternalIPAddress_index].value),"%s",OutStr);
+            snprintf(ps->event_variables[ExternalIPAddress_event_index].value, sizeof(ps->event_variables[ExternalIPAddress_event_index].value),"%s",OutStr);
 
             var_name[eventnum] = (CHAR *)ps->event_variables[ExternalIPAddress_event_index].name;
             var_value[eventnum] = ps->event_variables[ExternalIPAddress_event_index].value;
@@ -697,8 +697,8 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
                                                          &PortMappingEntryNum) ) {
         snprintf(OutStr, PAL_UPNP_LINE_SIZE, "%d", PortMappingEntryNum);
         if (0 != strcmp(OutStr, ps->state_variables[PortMappingNumberOfEntries_index].value)) {
-            strncpy(ps->state_variables[PortMappingNumberOfEntries_index].value, OutStr, strlen(OutStr)+1);
-            strncpy(ps->event_variables[PortMappingNumberOfEntries_event_index].value, OutStr, strlen(OutStr)+1);
+            snprintf(ps->state_variables[PortMappingNumberOfEntries_index].value, sizeof(ps->state_variables[PortMappingNumberOfEntries_index].value),"%s",OutStr);
+            snprintf(ps->event_variables[PortMappingNumberOfEntries_event_index].value, sizeof(ps->event_variables[PortMappingNumberOfEntries_event_index].value),"%s",OutStr);
 
             var_name[eventnum] = (CHAR *)ps->event_variables[PortMappingNumberOfEntries_event_index].name;
             var_value[eventnum] = ps->event_variables[PortMappingNumberOfEntries_event_index].value;
@@ -716,7 +716,7 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
                                                          (strcmp(WAN_IP_CONNECTION_SERVICE_TYPE,ps->type) == 0) ? SERVICETYPE_IP : SERVICETYPE_PPP,
                                                          OutStr) ) {
         if (0 != strcmp(OutStr, ps->state_variables[Uptime_index].value))
-            strncpy(ps->state_variables[Uptime_index].value, OutStr, strlen(OutStr)+1);
+            snprintf(ps->state_variables[Uptime_index].value, sizeof(ps->state_variables[Uptime_index].value),"%s",OutStr);
     } else {
         RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_up_time() fail\n");
     }
@@ -728,8 +728,8 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
                                                          (strcmp(WAN_IP_CONNECTION_SERVICE_TYPE,ps->type) == 0) ? SERVICETYPE_IP : SERVICETYPE_PPP,
                                                          OutStr) ) {
         if (0 != strcmp(OutStr, ps->state_variables[ConnectionType_index].value)) {
-            strncpy(ps->state_variables[ConnectionType_index].value, OutStr, strlen(OutStr)+1);
-            RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ConnectionType updated");
+            snprintf(ps->state_variables[ConnectionType_index].value, sizeof(ps->state_variables[ConnectionType_index].value),"%s",OutStr);
+            RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "ConnectionType updated\n");
         }
     } else {
         RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_connection_type() fail\n");
@@ -744,12 +744,12 @@ VOID IGD_update_wan_connection_service(IN struct upnp_device  *pd,
                                                              OutStr,
                                                              OutStr2) ) {
             if (0 != strcmp(OutStr, ps->state_variables[UpstreamMaxBitRate_index].value)) {
-                strncpy(ps->state_variables[UpstreamMaxBitRate_index].value, OutStr, strlen(OutStr)+1);
-                RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "UpstreamMaxBitRate updated");
+                snprintf(ps->state_variables[UpstreamMaxBitRate_index].value, sizeof(ps->state_variables[UpstreamMaxBitRate_index].value),"%s",OutStr);
+                RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "UpstreamMaxBitRate updated\n");
             }
             if (0 != strcmp(OutStr2, ps->state_variables[DownstreamMaxBitRate_index].value)) {
-                strncpy(ps->state_variables[DownstreamMaxBitRate_index].value, OutStr2, strlen(OutStr2)+1);
-                RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "DownstreamMaxBitRate updated");
+                snprintf(ps->state_variables[DownstreamMaxBitRate_index].value, sizeof(ps->state_variables[DownstreamMaxBitRate_index].value),"%s",OutStr2);
+                RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "DownstreamMaxBitRate updated\n");
             }
         } else {
             RDK_LOG(RDK_LOG_NOTICE, "LOG.RDK.IGD", "IGD_pii_get_connection_type() fail\n");
@@ -1006,7 +1006,7 @@ LOCAL struct upnp_service * _wan_connection_service_init (IN BOOL ppp_or_ip,
         for(i=0; wan_ppp_connection_service_state_variables[i].name!= NULL; i++)
         {
             new_wan_connection_service->state_variables[i].name = wan_ppp_connection_service_state_variables[i].name;
-            strncpy(new_wan_connection_service->state_variables[i].value, wan_ppp_connection_service_state_variables[i].default_value, strlen(wan_ppp_connection_service_state_variables[i].default_value)+1);
+            snprintf(new_wan_connection_service->state_variables[i].value, sizeof(new_wan_connection_service->state_variables[i].value),"%s",wan_ppp_connection_service_state_variables[i].default_value);
         }
     }
     else// if (enum_ip_service_type == ppp_or_ip)
@@ -1014,7 +1014,7 @@ LOCAL struct upnp_service * _wan_connection_service_init (IN BOOL ppp_or_ip,
         for(i=0; wan_ip_connection_service_state_variables[i].name!= NULL; i++)
         {
             new_wan_connection_service->state_variables[i].name = wan_ip_connection_service_state_variables[i].name;
-            strncpy(new_wan_connection_service->state_variables[i].value, wan_ip_connection_service_state_variables[i].default_value, strlen(wan_ip_connection_service_state_variables[i].default_value)+1);
+            snprintf(new_wan_connection_service->state_variables[i].value, sizeof(new_wan_connection_service->state_variables[i].value),"%s",wan_ip_connection_service_state_variables[i].default_value);
         }
     }
 
@@ -1029,7 +1029,8 @@ LOCAL struct upnp_service * _wan_connection_service_init (IN BOOL ppp_or_ip,
     for(i=0; wan_connection_service_event_variables[i].name!= NULL; i++)
     {
         new_wan_connection_service->event_variables[i].name = wan_connection_service_event_variables[i].name;
-        strncpy(new_wan_connection_service->event_variables[i].value, wan_connection_service_event_variables[i].default_value, strlen(wan_connection_service_event_variables[i].default_value)+1);
+        snprintf(new_wan_connection_service->event_variables[i].value, sizeof(new_wan_connection_service->event_variables[i].value),"%s",wan_connection_service_event_variables[i].default_value);
+
     }
 
     /*assign private*/

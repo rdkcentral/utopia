@@ -468,8 +468,15 @@ echo $TOT_MSG_MAX > /proc/sys/fs/mqueue/msg_max
 echo_t "[utopia][init] Starting sysevent subsystem"
 #syseventd --threads 18
 syseventd
+sleep 1
+sysevent_pid="$(pidof syseventd)"
+sysevent_status="$(sysevent ping)"
+if [ "$sysevent_status" != "SUCCESS" ]; then
+   echo_t "[utopia][init] ERROR Syseventd subsystem is not started properly: ${sysevent_status}, pid: ${sysevent_pid}"
+else
+   echo_t "[utopia][init] Syseventd subsystem started with pid: ${sysevent_pid} successfully"
+fi
 
-sleep 1 
 echo_t "[utopia][init] Setting any unset system values to default"
 apply_system_defaults
 changeFilePermissions $SYSCFG_BKUP_FILE 400
