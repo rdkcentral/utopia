@@ -76,13 +76,13 @@
  *
  **/
 
-
 #ifndef IGD_PLATFORM_INDEPENDENT_INF_H
 #define IGD_PLATFORM_INDEPENDENT_INF_H
 
 #include "pal_def.h"
 #include "igd_platform_dependent_inf.h"
 #include "autoconf.h"
+#include <utapi/utapi.h>
 
 #if defined (FEATURE_SUPPORT_RDKLOG)
 #include "rdk_debug.h"
@@ -513,16 +513,20 @@ extern INT32 IGD_pii_get_NAT_RSIP_status( IN INT32 WanDeviceIndex,
  ************************************************************/  
 //Structure definition for the output parameter,"PortmappingEntry"
 #define PORT_MAP_PROTOCOL_LEN         4
-#define PORT_MAP_DESCRIPTION_LEN      128
+
+// To avoid string truncation compiler warnings:
+//   sizeof IGD_PortMapping_Entry.description    == sizeof portMapDyn_t.name
+//   sizeof IGD_PortMapping_Entry.internalClient == sizeof portMapDyn_t.internal_host
+
 typedef struct IGD_PortMapping_Entry{
-    CHAR        remoteHost[IPV4_ADDR_LEN]; //"RemoteHost"
-    UINT16      externalPort;              //"ExternalPort"
+    CHAR        remoteHost[IPADDR_SZ];            //"RemoteHost"
+    UINT16      externalPort;                     //"ExternalPort"
     CHAR        protocol[PORT_MAP_PROTOCOL_LEN];  //"PortMappingProtocol"
     UINT16      internalPort;                     //"InternalPort"
-    CHAR        internalClient[IPV4_ADDR_LEN];   //"InternalClient"
+    CHAR        internalClient[IPADDR_SZ];        //"InternalClient"
     BOOL        enabled;                          //"PortMappingEnabled"
-    CHAR        description[PORT_MAP_DESCRIPTION_LEN];//"PortMappingDescription"
-    UINT32      leaseTime;                            //"PortMappingLeaseDuration"
+    CHAR        description[NAME_SZ];             //"PortMappingDescription"
+    UINT32      leaseTime;                        //"PortMappingLeaseDuration"
 }IGD_PortMapping_Entry, *PIGD_PortMapping_Entry; 
 
 //Error code
@@ -646,8 +650,8 @@ typedef struct IGD_PortMapping_Entry{
     UINT16      internalPort;                    //OUT
     CHAR        internalClient[IPV4_ADDR_LEN];   //OUT
     BOOL        enabled;                         //OUT
-    CHAR        description[PORT_MAP_DESCRIPTION_LEN];//OUT
-    UINT32      leaseTime;                            //OUT
+    CHAR        description[NAME_SZ];            //OUT
+    UINT32      leaseTime;                       //OUT
 }IGD_PortMapping_Entry, *PIGD_PortMapping_Entry; */
  
 //Error code 

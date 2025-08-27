@@ -292,7 +292,7 @@ LOCAL INT32 _igd_get_DHCPServerConfigurable (INOUT struct action_event *event)
 	if(IGD_pii_get_lan_dhcpserver_configurable(local_index.lan_device_index, status))
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetDHCPServerConfigurable action:Action fail\n");
-		strncpy(event->request->error_str, "Action Fail,get status fail",PAL_UPNP_LINE_SIZE);
+		snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","Action Fail,get status fail");
 		event->request->error_code = 501;
 		PAL_upnp_make_action(&event->request->action_result,"GetDHCPServerConfigurable",LANHOSTCONFIGMGMT_SERVICE_TYPE,0,NULL,PAL_UPNP_ACTION_RESPONSE);
 		return(event->request->error_code);
@@ -301,7 +301,7 @@ LOCAL INT32 _igd_get_DHCPServerConfigurable (INOUT struct action_event *event)
 	params[0].name="NewDHCPServerConfigurable";
 	params[0].value=status;
 	event->request->error_code = PAL_UPNP_E_SUCCESS;
-	strncpy(event->service->state_variables[DHCPServerConfigurable_index].value,status, PAL_UPNP_LINE_SIZE);
+	snprintf(event->service->state_variables[DHCPServerConfigurable_index].value,sizeof(event->service->state_variables[DHCPServerConfigurable_index].value),"%s",status);
 	PAL_upnp_make_action(&event->request->action_result,"GetDHCPServerConfigurable",LANHOSTCONFIGMGMT_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	return(event->request->error_code);
 }
@@ -329,7 +329,7 @@ LOCAL INT32 _igd_get_DHCPRelay (INOUT struct action_event *event)
 	if(IGD_pii_get_lan_dhcp_relay_status(local_index.lan_device_index, status))
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetDHCPRelay action:Action fail\n");
-		strncpy(event->request->error_str, "Action Fail,get status fail",PAL_UPNP_LINE_SIZE);
+		snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","Action Fail,get status fail");
 		event->request->error_code = 501;
 		PAL_upnp_make_action(&event->request->action_result,"GetDHCPRelay",LANHOSTCONFIGMGMT_SERVICE_TYPE,0,NULL,PAL_UPNP_ACTION_RESPONSE);
 		return(event->request->error_code);
@@ -338,7 +338,8 @@ LOCAL INT32 _igd_get_DHCPRelay (INOUT struct action_event *event)
 	params[0].name="NewDHCPRelay";
 	params[0].value=status;
 	event->request->error_code = PAL_UPNP_E_SUCCESS;
-	strncpy(event->service->state_variables[DHCPRelay_index].value,status, PAL_UPNP_LINE_SIZE);
+	snprintf(event->service->state_variables[DHCPRelay_index].value,sizeof(event->service->state_variables[DHCPRelay_index].value),"%s",status);
+
 	PAL_upnp_make_action(&event->request->action_result,"GetDHCPRelay",LANHOSTCONFIGMGMT_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	return(event->request->error_code);
 }
@@ -364,7 +365,7 @@ LOCAL INT32 _igd_get_SubnetMask (INOUT struct action_event *event)
 	if(IGD_pii_get_lan_info(local_index.lan_device_index, sizeof(subnetmask), NULL, subnetmask, NULL))
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetSubnetMask action:Action fail\n");
-		strncpy(event->request->error_str, "Action Fail,get status fail",PAL_UPNP_LINE_SIZE);
+		snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","Action Fail,get status fail");
 		event->request->error_code = 501;
 		PAL_upnp_make_action(&event->request->action_result,"GetSubnetMask",LANHOSTCONFIGMGMT_SERVICE_TYPE,0,NULL,PAL_UPNP_ACTION_RESPONSE);
 		return(event->request->error_code);
@@ -373,7 +374,8 @@ LOCAL INT32 _igd_get_SubnetMask (INOUT struct action_event *event)
 	params[0].name="NewSubnetMask";
 	params[0].value=subnetmask;
 	event->request->error_code = PAL_UPNP_E_SUCCESS;
-	strncpy(event->service->state_variables[SubnetMask_index].value, subnetmask, PAL_UPNP_LINE_SIZE);
+	snprintf(event->service->state_variables[SubnetMask_index].value,sizeof(event->service->state_variables[SubnetMask_index].value),"%s",subnetmask);
+
 	PAL_upnp_make_action(&event->request->action_result,"GetSubnetMask",LANHOSTCONFIGMGMT_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	return(event->request->error_code);
 }
@@ -391,7 +393,7 @@ LOCAL INT32 _igd_get_DomainName (INOUT struct action_event *event)
 {
 	struct device_and_service_index local_index;
 	pal_string_pair params[1];	
-	CHAR domain_name[256];
+	CHAR domain_name[PAL_UPNP_LINE_SIZE];
 
 	local_index = *((struct device_and_service_index*)event->service->private);
 	RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetDomainName of LAN%d\n",local_index.lan_device_index);
@@ -399,7 +401,7 @@ LOCAL INT32 _igd_get_DomainName (INOUT struct action_event *event)
 	if(IGD_pii_get_lan_info(local_index.lan_device_index, sizeof(domain_name), NULL, NULL, domain_name))
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetDomainName action:Action fail\n");
-		strncpy(event->request->error_str, "Action Fail,get status fail",PAL_UPNP_LINE_SIZE);
+		snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","Action Fail,get status fail");
 		event->request->error_code = 501;
 		PAL_upnp_make_action(&event->request->action_result,"GetDomainName",LANHOSTCONFIGMGMT_SERVICE_TYPE,0,NULL,PAL_UPNP_ACTION_RESPONSE);
 		return(event->request->error_code);
@@ -408,7 +410,8 @@ LOCAL INT32 _igd_get_DomainName (INOUT struct action_event *event)
 	params[0].name="NewDomainName";
 	params[0].value=domain_name;
 	event->request->error_code = PAL_UPNP_E_SUCCESS;
-	strncpy(event->service->state_variables[DomainName_index].value, domain_name, PAL_UPNP_LINE_SIZE);
+	snprintf(event->service->state_variables[DomainName_index].value,sizeof(event->service->state_variables[DomainName_index].value),"%s",domain_name);
+
 	PAL_upnp_make_action(&event->request->action_result,"GetDomainName",LANHOSTCONFIGMGMT_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	return(event->request->error_code);
 }
@@ -426,7 +429,7 @@ LOCAL INT32 _igd_get_DNSServers (INOUT struct action_event *event)
 {
 	struct device_and_service_index local_index;
 	pal_string_pair params[1];	
-	CHAR dns_server_list[256] = "";
+	CHAR dns_server_list[PAL_UPNP_LINE_SIZE] = "";
 
 	local_index = *((struct device_and_service_index*)event->service->private);
 	RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetDNSServers of LAN%d\n",local_index.lan_device_index);
@@ -435,7 +438,7 @@ LOCAL INT32 _igd_get_DNSServers (INOUT struct action_event *event)
 	if(IGD_pii_get_lan_dns_servers(local_index.lan_device_index, dns_server_list, sizeof(dns_server_list)))
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetDNSServers action:Action fail\n");
-		strncpy(event->request->error_str, "Action Fail,get status fail",PAL_UPNP_LINE_SIZE);
+		snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","Action Fail,get status fail");
 		event->request->error_code = 501;
 		PAL_upnp_make_action(&event->request->action_result,"GetDNSServers",LANHOSTCONFIGMGMT_SERVICE_TYPE,0,NULL,PAL_UPNP_ACTION_RESPONSE);
 		return(event->request->error_code);
@@ -444,7 +447,8 @@ LOCAL INT32 _igd_get_DNSServers (INOUT struct action_event *event)
 	params[0].name="NewDNSServers";
 	params[0].value=dns_server_list;
 	event->request->error_code = PAL_UPNP_E_SUCCESS;
-	strncpy(event->service->state_variables[DNSServers_index].value, dns_server_list, PAL_UPNP_LINE_SIZE);
+	snprintf(event->service->state_variables[DNSServers_index].value,sizeof(event->service->state_variables[DNSServers_index].value),"%s",dns_server_list);
+
 	PAL_upnp_make_action(&event->request->action_result,"GetDNSServers",LANHOSTCONFIGMGMT_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	return(event->request->error_code);
 }
@@ -472,7 +476,7 @@ LOCAL INT32 _igd_get_AddressRange (INOUT struct action_event *event)
 	if(IGD_pii_get_lan_addr_range(local_index.lan_device_index, RANGE_ADDR_BUF_SZ, min_address, max_address))
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetAddressRange action:Action fail\n");
-		strncpy(event->request->error_str, "Action Fail,get status fail",PAL_UPNP_LINE_SIZE);
+		snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","Action Fail,get status fail");
 		event->request->error_code = 501;
 		PAL_upnp_make_action(&event->request->action_result,"GetAddressRange",LANHOSTCONFIGMGMT_SERVICE_TYPE,0,NULL,PAL_UPNP_ACTION_RESPONSE);
 		return(event->request->error_code);
@@ -483,8 +487,10 @@ LOCAL INT32 _igd_get_AddressRange (INOUT struct action_event *event)
 	params[1].name="NewMaxAddress";
 	params[1].value=max_address;
 	event->request->error_code = PAL_UPNP_E_SUCCESS;
-	strncpy(event->service->state_variables[MinAddress_index].value, min_address, PAL_UPNP_LINE_SIZE);
-	strncpy(event->service->state_variables[MaxAddress_index].value, min_address, PAL_UPNP_LINE_SIZE);
+
+	snprintf(event->service->state_variables[MinAddress_index].value,sizeof(event->service->state_variables[MinAddress_index].value),"%s",min_address);
+	snprintf(event->service->state_variables[MaxAddress_index].value,sizeof(event->service->state_variables[MaxAddress_index].value),"%s",max_address);
+
 	PAL_upnp_make_action(&event->request->action_result,"GetAddressRange",LANHOSTCONFIGMGMT_SERVICE_TYPE,2,params,PAL_UPNP_ACTION_RESPONSE);
 	return(event->request->error_code);
 }
@@ -502,7 +508,7 @@ LOCAL INT32 _igd_get_ReservedAddresses (INOUT struct action_event *event)
 {
 	struct device_and_service_index local_index;
 	pal_string_pair params[2];	
-	CHAR reserved_list[256] = "";
+	CHAR reserved_list[PAL_UPNP_LINE_SIZE] = "";
 
 	local_index = *((struct device_and_service_index*)event->service->private);
 	RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetReservedAddresses of LAN%d\n",local_index.lan_device_index);
@@ -511,7 +517,7 @@ LOCAL INT32 _igd_get_ReservedAddresses (INOUT struct action_event *event)
 	if(IGD_pii_get_lan_reserved_addr_list(local_index.lan_device_index, reserved_list, sizeof(reserved_list)))
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetReservedAddresses action:Action fail\n");
-		strncpy(event->request->error_str, "Action Fail,get status fail",PAL_UPNP_LINE_SIZE);
+		snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","Action Fail,get status fail");
 		event->request->error_code = 501;
 		PAL_upnp_make_action(&event->request->action_result,"GetReservedAddresses",LANHOSTCONFIGMGMT_SERVICE_TYPE,0,NULL,PAL_UPNP_ACTION_RESPONSE);
 		return(event->request->error_code);
@@ -520,7 +526,8 @@ LOCAL INT32 _igd_get_ReservedAddresses (INOUT struct action_event *event)
 	params[0].name="NewReservedAddresses";
 	params[0].value=reserved_list;
 	event->request->error_code = PAL_UPNP_E_SUCCESS;
-	strncpy(event->service->state_variables[ReservedAddresses_index].value, reserved_list, PAL_UPNP_LINE_SIZE);
+	snprintf(event->service->state_variables[ReservedAddresses_index].value,sizeof(event->service->state_variables[ReservedAddresses_index].value),"%s",reserved_list);
+
 	PAL_upnp_make_action(&event->request->action_result,"GetReservedAddresses",LANHOSTCONFIGMGMT_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	return(event->request->error_code);
 }
@@ -548,7 +555,7 @@ LOCAL INT32 _igd_get_IPRoutersList (INOUT struct action_event *event)
 	if(IGD_pii_get_lan_info(local_index.lan_device_index, sizeof(ipaddr), ipaddr, NULL, NULL))
 	{
 		RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD","GetIPRoutersList action:Action fail\n");
-		strncpy(event->request->error_str, "Action Fail,get status fail",PAL_UPNP_LINE_SIZE);
+		snprintf(event->request->error_str,sizeof(event->request->error_str),"%s","Action Fail,get status fail");
 		event->request->error_code = 501;
 		PAL_upnp_make_action(&event->request->action_result,"GetIPRoutersList",LANHOSTCONFIGMGMT_SERVICE_TYPE,0,NULL,PAL_UPNP_ACTION_RESPONSE);
 		return(event->request->error_code);
@@ -557,7 +564,7 @@ LOCAL INT32 _igd_get_IPRoutersList (INOUT struct action_event *event)
 	params[0].name="NewIPRouters";
 	params[0].value=ipaddr;
 	event->request->error_code = PAL_UPNP_E_SUCCESS;
-	strncpy(event->service->state_variables[IPRouters_index].value, ipaddr, PAL_UPNP_LINE_SIZE);
+	snprintf(event->service->state_variables[IPRouters_index].value,sizeof(event->service->state_variables[IPRouters_index].value),"%s",ipaddr);
 	PAL_upnp_make_action(&event->request->action_result,"GetIPRoutersList",LANHOSTCONFIGMGMT_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	return(event->request->error_code);
 }
