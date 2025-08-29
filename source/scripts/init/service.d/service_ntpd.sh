@@ -60,6 +60,13 @@ WAN_INTERFACE=$(getWanInterfaceName)
 LANIPV6Support=`sysevent get LANIPv6GUASupport`
 ntpHealthCheck=`sysevent get NTPHealthCheckSupport`
 
+if [ -f /lib/rdk/t2Shared_api.sh ]; then
+      source /lib/rdk/t2Shared_api.sh
+fi
+
+CONNCHECK_FILE="/tmp/connectivity_check_done" #This file will be created once connection check success with comcast connectivity server
+
+
 if [ -z "$NTPD_LOG_NAME" ];then
 NTPD_LOG_NAME=/rdklogs/logs/ntpLog.log
 fi
@@ -349,6 +356,13 @@ service_start ()
 {
 
    local NTP_SERVER_URL_RESTORE="false"
+   # Wait for connectivitycheck to complete
+   if [ -f $CONNCHECK_FILE ]; then
+       echo_t "SERVICE_NTPD CONNCHK: connectivity success $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
+   else
+       echo_t "SERVICE_NTPD CONNCHK: start connectivity check waiting for $CONNCHECK_FILE file" >> $NTPD_LOG_NAME
+       waitForConnChkFile
+   fi
 
     # this needs to be hooked up to syscfg for specific timezone
    if [ -n "$SYSCFG_ntp_enabled" ] && [ "0" = "$SYSCFG_ntp_enabled" ] ; then
@@ -720,6 +734,35 @@ waitForWanInitStatusEvent()
     done
 
     return $wan_init_complete;
+}
+
+waitForConnChkFile()
+{
+    echo_t "SERVICE_NTPD CONNCHK: Waiting for connection check for  completion..." >> $NTPD_LOG_NAME
+    TIMEOUT=120
+    INTERVAL=1
+
+    # Get system uptime in seconds at start
+    START_TIME=$(cut -d. -f1 /proc/uptime)
+
+    echo_t "SERVICE_NTPD CONNCHK: Waiting for $CONNCHECK_FILE (max ${TIMEOUT}s)..." >> $NTPD_LOG_NAME
+
+    while true; do
+        if [ -f "$CONNCHECK_FILE" ]; then
+            echo_t "SERVICE_NTPD CONNCHK: File $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
+            return 0
+        fi
+
+        CURRENT_TIME=$(cut -d. -f1 /proc/uptime)
+        ELAPSED=$((CURRENT_TIME - START_TIME))
+
+        if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo_t "SERVICE_NTPD CONNCHK: Timeout ${TIMEOUT}s expired - file $CONNCHECK_FILE not found" >> $NTPD_LOG_NAME
+            return 1
+        fi
+
+        sleep "$INTERVAL"
+    done
 }
 
 # service_ntpd.sh Entry
