@@ -101,7 +101,7 @@ while true; do
             touch $CONNCHECK_FILE
         fi
         
-        t2ValNotify "SYST_INFO_INTERNETRDY" "$uptime_ms"
+        t2ValNotify "SYST_INFO_INTERNETRDY_split" "$uptime_ms"
         # Send dbus-send
         if [ -x "$DBUS_SEND_BIN" ]; then
             $DBUS_SEND_BIN --system --type=method_call --dest=org.freedesktop.nm_connectivity /org/freedesktop/nm_connectivity org.freedesktop.nm_connectivity.NotifyFullyConnected
