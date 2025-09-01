@@ -41,7 +41,7 @@ if [ "x$TIMESYNC_STATUS" = "xsynced" ]; then
         touch $TIMESET_FILE
         uptime=$(cut -d. -f1 /proc/uptime)
         uptime_ms=$((uptime*1000))
-	t2ValNotify "SYST_INFO_SETSYSTIME" "$uptime_ms"
+	t2ValNotify "SYST_INFO_SETSYSTIME_split" "$uptime_ms"
     fi
 fi
 
