@@ -276,7 +276,7 @@ set_ntp_quicksync_status ()
           uptime_ms=$((uptime*1000))
           if [ "$ntpd_exit_code" -eq 0 ]; then
              echo_t "NTP quick sync succeeded,set ntp status" >> $NTPD_LOG_NAME
-			 t2ValNotify  "SYST_INFO_NTP_SYNC" $uptime_ms
+			 t2ValNotify  "SYST_INFO_NTP_SYNC_split" $uptime_ms
              systemctl restart ntp-data-collector.service
              syscfg set ntp_status 3
              #Set FirstUseDate in Syscfg if this is the first time we are doing a successful NTP Sych
@@ -626,7 +626,7 @@ service_start ()
 		   uptime=$(cut -d. -f1 /proc/uptime)
            uptime_ms=$((uptime*1000))
            echo_t "SERVICE_NTPD : Starting NTP Quick Sync" >> $NTPD_LOG_NAME
-		   t2ValNotify "SYST_INFO_NTP_START" $uptime_ms
+		   t2ValNotify "SYST_INFO_NTP_START_split" $uptime_ms
            if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$ntpHealthCheck" = "true" ]; then
                if [ $WAN_IPv6_UP -eq 1 ]; then
                    $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME & 
