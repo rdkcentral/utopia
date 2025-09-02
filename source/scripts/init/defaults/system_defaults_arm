@@ -1483,3 +1483,7 @@ $RemoteDebuggerIssueType=NULL
 #Wifi Personalization Support Default value
 $WiFiPersonalizationSupport=true
 
+#Defaulting OAUTHAuthMode
+$OAUTHAuthMode=sso
+
+
