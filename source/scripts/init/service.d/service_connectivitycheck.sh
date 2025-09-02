@@ -37,18 +37,18 @@ connectivityCheckLog()
     UPTIME_MS=$((uptime_log*1000))
     echo "$(/bin/timestamp) (uptime: ${UPTIME_MS} ms) : $0: $*" >> $CONNCHECK_LOG_FILE
 }
-if [ -f $LOCKFILE ]; then
-    connectivityCheckLog "Already One Instance Of connectivity check is in progress or completed"
-    exit 1
-else
-    echo $$ > ${LOCKFILE}
-    connectivityCheckLog "Created Connectivity check LOCK file $LOCKFILE"
-fi
 CURRENT_WAN_STATE=`sysevent get current_wan_state`
 CURRENT_WAN_STATUS=`sysevent get wan-status`
 if [ "x$CURRENT_WAN_STATE" = "xup" ] || [ "x$CURRENT_WAN_STATUS" = "xstarted" ]; then
     connectivityCheckLog "WAN is up. Continuing with connectivity check..."
     connectivityCheckLog "CURRENT_WAN_STATE=$CURRENT_WAN_STATE and CURRENT_WAN_STATUS=$CURRENT_WAN_STATUS"
+    if [ -f $LOCKFILE ]; then
+        connectivityCheckLog "Already One Instance Of connectivity check is in progress or completed"
+        exit 1
+    else
+        echo $$ > ${LOCKFILE}
+        connectivityCheckLog "Created Connectivity check LOCK file $LOCKFILE"
+    fi
     # Your main script logic goes here
 else
     connectivityCheckLog "WAN is not up (status: $CURRENT_WAN_STATUS and $CURRENT_WAN_STATE). Exiting."
