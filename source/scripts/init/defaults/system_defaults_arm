@@ -947,8 +947,6 @@ $Adv_AdvSecCujoTelemetryRFCEnable=0
 $Adv_RaptrRFCEnable=1
 
 #Firewall log settings
-$FW_LOG_FILE_PATH=/nvram/log/firewall
-@FW_LOG_FILE_PATH_V2=/nvram/log/firewall
 $$FW_LOG_COMPRESSED_FILE_SIZE=10
 
 #SYSTEM log settings

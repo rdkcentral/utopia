@@ -229,9 +229,7 @@ struct upnp_service* IGD_service_WANCommonInterfaceConfigInit(IN VOID* input_ind
 		_igd_service_WANCommonInterfaceConfig_destroy(WANCommonInterfaceConfig_service);
 		return NULL;
 	}
-	/* CID 135556 : BUFFER_SIZE_WARNING */
-	strncpy(WANCommonInterfaceConfig_service->type, WANCOMMONINTERFACECONFIG_SERVICE_TYPE, strlen(WANCOMMONINTERFACECONFIG_SERVICE_TYPE)+1);
-	WANCommonInterfaceConfig_service->type[strlen(WANCOMMONINTERFACECONFIG_SERVICE_TYPE)] = '\0';
+	snprintf(WANCommonInterfaceConfig_service->type, strlen(WANCOMMONINTERFACECONFIG_SERVICE_TYPE)+1 ,"%s",WANCOMMONINTERFACECONFIG_SERVICE_TYPE);
 	
 	WANCommonInterfaceConfig_service->serviceID=(CHAR *)calloc(1,strlen(WANCOMMONINTERFACECONFIG_SERVICE_ID)+1);
 	if(WANCommonInterfaceConfig_service->serviceID==NULL)
@@ -240,7 +238,7 @@ struct upnp_service* IGD_service_WANCommonInterfaceConfigInit(IN VOID* input_ind
 		_igd_service_WANCommonInterfaceConfig_destroy(WANCommonInterfaceConfig_service);
 		return NULL;
 	}
-	strncpy((CHAR *)WANCommonInterfaceConfig_service->serviceID, WANCOMMONINTERFACECONFIG_SERVICE_ID, strlen(WANCOMMONINTERFACECONFIG_SERVICE_ID)+1);
+    snprintf((CHAR *)WANCommonInterfaceConfig_service->serviceID, strlen(WANCOMMONINTERFACECONFIG_SERVICE_ID)+1 ,"%s",WANCOMMONINTERFACECONFIG_SERVICE_ID);
 
 	WANCommonInterfaceConfig_service->actions = WANCommonInterfaceConfig_actions;
 
@@ -340,8 +338,9 @@ VOID IGD_service_WANCommonInterfaceConfigEventHandler(IN struct upnp_device  *pd
 
 		if(0!= strcmp(status, pservice->state_variables[PhysicalLinkStatus_index].value))
 		{
-			strncpy(pservice->state_variables[PhysicalLinkStatus_index].value,status, strlen(status)+1);
-			strncpy(pservice->event_variables[0].value,status, strlen(status)+1);
+            snprintf(pservice->state_variables[PhysicalLinkStatus_index].value,sizeof(pservice->state_variables[PhysicalLinkStatus_index].value),"%s",status);
+            snprintf(pservice->event_variables[0].value,sizeof(pservice->event_variables[0].value),"%s",status);
+
 			var_name[0] = (CHAR *)pservice->event_variables[0].name;
             var_value[0] = pservice->event_variables[0].value;
 			RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IGD", "Eventing:%s=%s",var_name[0],var_value[0]);
@@ -397,16 +396,20 @@ LOCAL INT32 _igd_get_CommonLinkProperties (INOUT struct action_event *event)
 	   
 	   params[0].name="NewWANAccessType";
 	   params[0].value=type;
-	   strncpy(event->service->state_variables[WANAccessType_index].value,type, strlen(type)+1);
+           snprintf(event->service->state_variables[WANAccessType_index].value,sizeof(event->service->state_variables[WANAccessType_index].value),"%s",type);
+
 	   params[1].name="NewLayer1UpstreamMaxBitRate";
 	   params[1].value=up;
-	   strncpy(event->service->state_variables[Layer1UpstreamMaxBitRate_index].value,up, strlen(up)+1);
+           snprintf(event->service->state_variables[Layer1UpstreamMaxBitRate_index].value,sizeof(event->service->state_variables[Layer1UpstreamMaxBitRate_index].value),"%s",up);
+
 	   params[2].name="NewLayer1DownstreamMaxBitRate";
 	   params[2].value=down;
-	   strncpy(event->service->state_variables[Layer1DownstreamMaxBitRate_index].value,down, strlen(down)+1);
+           snprintf(event->service->state_variables[Layer1DownstreamMaxBitRate_index].value,sizeof(event->service->state_variables[Layer1DownstreamMaxBitRate_index].value),"%s",down);
+
 	   params[3].name="NewPhysicalLinkStatus";
 	   params[3].value=status;
-	   strncpy(event->service->state_variables[PhysicalLinkStatus_index].value,status, strlen(status)+1);
+          snprintf(event->service->state_variables[PhysicalLinkStatus_index].value,sizeof(event->service->state_variables[PhysicalLinkStatus_index].value),"%s",status);
+
 	   PAL_upnp_make_action(&event->request->action_result,"GetCommonLinkProperties",WANCOMMONINTERFACECONFIG_SERVICE_TYPE,4,params,PAL_UPNP_ACTION_RESPONSE);
 	   return(event->request->error_code);
 }
@@ -448,7 +451,7 @@ LOCAL INT32 _igd_get_TotalBytesSent (INOUT struct action_event *event)
 	   
 	   params[0].name="NewTotalBytesSent";
 	   params[0].value=bytes_sent;
-	   strncpy(event->service->state_variables[TotalBytesSent_index].value, bytes_sent, PAL_UPNP_LINE_SIZE);
+       snprintf(event->service->state_variables[TotalBytesSent_index].value,sizeof(event->service->state_variables[TotalBytesSent_index].value),"%s",bytes_sent);
 	   PAL_upnp_make_action(&event->request->action_result,"GetTotalBytesSent",WANCOMMONINTERFACECONFIG_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	   return(event->request->error_code);
 }
@@ -490,7 +493,7 @@ LOCAL INT32 _igd_get_TotalBytesReceived (INOUT struct action_event *event)
 	   
 	   params[0].name="NewTotalBytesReceived";
 	   params[0].value=bytes_rcvd;
-	   strncpy(event->service->state_variables[TotalBytesReceived_index].value, bytes_rcvd, PAL_UPNP_LINE_SIZE);
+       snprintf(event->service->state_variables[TotalBytesReceived_index].value,sizeof(event->service->state_variables[TotalBytesReceived_index].value),"%s",bytes_rcvd);
 	   PAL_upnp_make_action(&event->request->action_result,"GetTotalBytesReceived",WANCOMMONINTERFACECONFIG_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	   return(event->request->error_code);
 }
@@ -532,7 +535,7 @@ LOCAL INT32 _igd_get_TotalPacketsSent (INOUT struct action_event *event)
 	   
 	   params[0].name="NewTotalPacketsSent";
 	   params[0].value=pkts_sent;
-	   strncpy(event->service->state_variables[TotalPacketsSent_index].value, pkts_sent, PAL_UPNP_LINE_SIZE);
+       snprintf(event->service->state_variables[TotalPacketsSent_index].value,sizeof(event->service->state_variables[TotalPacketsSent_index].value),"%s",pkts_sent);
 	   PAL_upnp_make_action(&event->request->action_result,"GetTotalPacketsSent",WANCOMMONINTERFACECONFIG_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	   return(event->request->error_code);
 }
@@ -574,7 +577,7 @@ LOCAL INT32 _igd_get_TotalPacketsReceived (INOUT struct action_event *event)
 	   
 	   params[0].name="NewTotalPacketsReceived";
 	   params[0].value=pkts_rcvd;
-	   strncpy(event->service->state_variables[TotalPacketsReceived_index].value, pkts_rcvd, PAL_UPNP_LINE_SIZE);
+       snprintf(event->service->state_variables[TotalPacketsReceived_index].value,sizeof(event->service->state_variables[TotalPacketsReceived_index].value),"%s",pkts_rcvd);
 	   PAL_upnp_make_action(&event->request->action_result,"GetTotalPacketsReceived",WANCOMMONINTERFACECONFIG_SERVICE_TYPE,1,params,PAL_UPNP_ACTION_RESPONSE);
 	   return(event->request->error_code);
 }
@@ -600,7 +603,7 @@ VOID IGD_WANCommonInterfaceConfig_eventvariables_init(struct upnp_service *ps)
     }
 	pthread_mutex_lock(&ps->service_mutex);
 
-    strncpy(ps->event_variables[0].value, status, strlen(status)+1);
+    snprintf(ps->event_variables[0].value,sizeof(ps->event_variables[0].value),"%s",status);
 
     pthread_mutex_unlock(&ps->service_mutex);
 

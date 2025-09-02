@@ -174,7 +174,7 @@ struct upnp_device * IGD_device_WANDeviceInit(IN VOID * input_index_struct, IN c
 	}
 	
 	wandevice->destroy_function=_igd_wan_device_destroy;
-	strncpy(wandevice->udn, udn, UPNP_UUID_LEN_BY_VENDER);
+	snprintf(wandevice->udn, sizeof(wandevice->udn), "%s", udn);
 
 	if(_igd_wan_device_desc_file(fp,udn))
 	{

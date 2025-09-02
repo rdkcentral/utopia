@@ -197,6 +197,7 @@ static int _syscfg_set (const char *ns, const char *name, const char *value, int
 static int _syscfg_unset (const char *ns, const char *name, int nolock);
 static char* _syscfg_get (const char *ns, const char *name);
 static int _syscfg_getall (char *buf, int bufsz);
+static size_t _syscfg_getall2 (char *buf, size_t bufsz, int nolock);
 static void _syscfg_destroy ();
 
 static inline int read_lock (syscfg_shm_ctx *ctx);

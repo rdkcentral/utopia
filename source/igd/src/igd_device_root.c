@@ -369,7 +369,7 @@ main( IN INT32 argc,
             if((strcmp(igd_upnp_interface, lan_ifname) == 0) &&
                (strcmp(ip_address, lan_ipaddr) != 0)) {
                 memset(ip_address, 0, sizeof(ip_address));
-                strncpy(ip_address, lan_ipaddr, sizeof(ip_address));
+                snprintf(ip_address,sizeof(ip_address),"%s",lan_ipaddr);
             }
         }
 #endif
@@ -443,13 +443,13 @@ LOCAL INT32 _igd_root_device_registerAndgetsignal( VOID )
 	
 	if(pthread_sigmask( SIG_SETMASK, &signaltocatch, NULL )!=0)
 	{    
-		RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "Failed to set signal mask");
+		RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "Failed to set signal mask\n");
 		return -1;
 	}
 
 	if(sigwait( &signaltocatch, &receivedsignal )!=0)
 	{   
-		RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "Failed to wait for signal");
+		RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IGD", "Failed to wait for signal\n");
 		return -1;
 	}
 
