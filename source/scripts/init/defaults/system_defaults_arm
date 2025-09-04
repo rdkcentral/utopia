@@ -1449,7 +1449,7 @@ $LatencyMeasure_IPv6Enable=false
 $LatencyMeasure_TCPReportInterval=15
 $LatencyMeasure_PercentileCalc_Enable=false
 #DeviceType default value
-$DeviceType=TEST
+$DeviceType=PROD
 
 #Default value of 3600 seconds to store time in syscfg
 $timeoffset_sleep_time=3600
