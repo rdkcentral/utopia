@@ -348,6 +348,8 @@ extern char dev_type[20];
 extern char mesh_wan_ifname[32];
 #endif
 
+void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4);
+extern char hotspot_wan_ifname[32];
 extern int current_wan_ipv6_num;
 extern char default_wan_ifname[50]; // name of the regular wan interface
 extern char current_wan_ipv6[IF_IPV6ADDR_MAX][40];

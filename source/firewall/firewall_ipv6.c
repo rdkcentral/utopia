@@ -1959,6 +1959,10 @@ void do_ipv6_sn_filter(FILE* fp) {
             fprintf(fp, "-A PREROUTING -i %s -d %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i], mcastAddrStr);
         /* NS Throttling rules for WAN and LAN */
         fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i]);
+	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+	{
+	    fprintf(fp, "-A INPUT -s %s -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 133 -m limit --limit 100/sec -j ACCEPT\n" , current_wan_ip6_addr , current_wan_ifname);
+	}
         fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP\n", ifnames[i]);
     }
 
@@ -2122,35 +2126,6 @@ void applyIpv6ULARules(FILE* fp)
    #endif
 }
 
-void applyHotspotIpv6PostRoutingRules(FILE *fp)
-{
-    FIREWALL_DEBUG("60736: Entering applyHotspotIpv6PostRoutingRules \n");
-    int rc;
-    char *pStr = NULL;
-    errno_t  safec_rc  = -1;
-    char hotspot_wan_ifname[32];
-    memset(hotspot_wan_ifname,0,sizeof(hotspot_wan_ifname));
-    rc = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
-    if(rc == CCSP_SUCCESS && pStr != NULL){
-        FIREWALL_DEBUG("HotSpot wan interface fetched \n");
-        safec_rc = strcpy_s(hotspot_wan_ifname, sizeof(hotspot_wan_ifname),pStr);
-        ERR_CHK(safec_rc);
-        Ansc_FreeMemory_Callback(pStr);
-        pStr = NULL;
-    }
-    FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
-    memset(current_wan_ip6_addr, 0, sizeof(current_wan_ip6_addr));
-    sysevent_get(sysevent_fd, sysevent_token, "tr_brww0_dhcpv6_client_v6addr", current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
-
-    if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
-    {
-	FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr); 
-        fprintf(fp, "-t nat -I POSTROUTING -o %s -j SNAT --to-source %s\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
-        fprintf(fp, "-A INPUT -s %s -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 133 -m limit --limit 100/sec -j ACCEPT\n" , current_wan_ip6_addr , current_wan_ifname);
-    }
-    FIREWALL_DEBUG("60736: Exiting applyHotspotIpv6PostRoutingRules \n");
-}
-
 #endif 
 void do_ipv6_nat_table(FILE* fp)
 {
@@ -2258,7 +2233,7 @@ void do_ipv6_nat_table(FILE* fp)
    #if defined  (WAN_FAILOVER_SUPPORTED)
    if (0 == checkIfULAEnabled())
    {
-       applyHotspotIpv6PostRoutingRules(fp);
+       applyHotspotPostRoutingRules(fp, false);
    }
    #endif
     FIREWALL_DEBUG("Exiting do_ipv6_nat_table \n");
