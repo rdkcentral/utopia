@@ -41,6 +41,8 @@ bin_PROGRAMS = \
     02_multinet \
     02_parodus \
     02_wan \
+    02_systimesetevent \
+    03_connectcheck \
     09_xdns \
     10_firewall \
     10_mcastproxy \
@@ -84,6 +86,8 @@ endif
 02_wan_SOURCES = 02_wan.c
 02_wlan_SOURCES = 02_wlan.c
 03_wan_ipv6_SOURCES = 03_wan_ipv6.c
+02_systimesetevent_SOURCES = 02_systimesetevent.c
+03_connectcheck_SOURCES = 03_connectcheck.c
 04_byoi_SOURCES = 04_byoi.c
 04_byoi_gap_SOURCES = 04_byoi_gap.c
 09_xdns_SOURCES = 09_xdns.c

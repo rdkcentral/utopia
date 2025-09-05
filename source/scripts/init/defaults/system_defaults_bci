@@ -1310,7 +1310,7 @@ $DscpSleepInterval_2=0
 $SWDLDirectEnable=false
 
 #DeviceType default value
-$DeviceType=TEST
+$DeviceType=PROD
 
 #TrackRemotePortUsage default value
 $TrackRemotePortUsage=NULL
