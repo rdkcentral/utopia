@@ -5250,7 +5250,7 @@ static int do_nat_ephemeral(FILE *fp)
 
 void applyHotspotPostRoutingRules(FILE *fp)
 {
-    FIREWALL_DEBUG("60736: Entering applyHotspotPostRoutingRules \n");
+    FIREWALL_DEBUG(" Entering applyHotspotPostRoutingRules \n");
     int rc;
     char *pStr = NULL;
     errno_t  safec_rc  = -1;
@@ -5270,7 +5270,7 @@ void applyHotspotPostRoutingRules(FILE *fp)
     {
         fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
     }
-    FIREWALL_DEBUG("60736: Exiting applyHotspotPostRoutingRules \n");
+    FIREWALL_DEBUG(" Exiting applyHotspotPostRoutingRules \n");
 }
 
 #if defined(_BWG_PRODUCT_REQ_)

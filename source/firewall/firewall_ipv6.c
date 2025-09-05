@@ -2124,7 +2124,7 @@ void applyIpv6ULARules(FILE* fp)
 
 void applyHotspotIpv6PostRoutingRules(FILE *fp)
 {
-    FIREWALL_DEBUG("60736: Entering applyHotspotIpv6PostRoutingRules \n");
+    FIREWALL_DEBUG(" Entering applyHotspotIpv6PostRoutingRules \n");
     int rc;
     char *pStr = NULL;
     errno_t  safec_rc  = -1;
@@ -2148,7 +2148,7 @@ void applyHotspotIpv6PostRoutingRules(FILE *fp)
         fprintf(fp, "-t nat -I POSTROUTING -o %s -j SNAT --to-source %s\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
         fprintf(fp, "-A INPUT -s %s -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 133 -m limit --limit 100/sec -j ACCEPT\n" , current_wan_ip6_addr , current_wan_ifname);
     }
-    FIREWALL_DEBUG("60736: Exiting applyHotspotIpv6PostRoutingRules \n");
+    FIREWALL_DEBUG(" Exiting applyHotspotIpv6PostRoutingRules \n");
 }
 
 #endif 
