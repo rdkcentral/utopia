@@ -5248,6 +5248,31 @@ static int do_nat_ephemeral(FILE *fp)
    return(0);
 }
 
+void applyHotspotPostRoutingRules(FILE *fp)
+{
+    FIREWALL_DEBUG("60736: Entering applyHotspotPostRoutingRules \n");
+    int rc;
+    char *pStr = NULL;
+    errno_t  safec_rc  = -1;
+    char hotspot_wan_ifname[32];
+    memset(hotspot_wan_ifname,0,sizeof(hotspot_wan_ifname));
+    rc = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
+    if(rc == CCSP_SUCCESS && pStr != NULL){
+        FIREWALL_DEBUG("HotSpot wan interface fetched \n");
+        safec_rc = strcpy_s(hotspot_wan_ifname, sizeof(hotspot_wan_ifname),pStr);
+        ERR_CHK(safec_rc);
+        Ansc_FreeMemory_Callback(pStr);
+        pStr = NULL;
+    }
+    FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
+
+    if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+    {
+        fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
+    }
+    FIREWALL_DEBUG("60736: Exiting applyHotspotPostRoutingRules \n");
+}
+
 #if defined(_BWG_PRODUCT_REQ_)
 /*
  *  Procedure     : do_raw_table_staticip
@@ -5400,7 +5425,13 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
+	 if (0 == checkIfULAEnabled())
+	 {
+	     FIREWALL_DEBUG("Applying applyHotspotPostRoutingRules \n");
+	     applyHotspotPostRoutingRules(fp);
+	 } else {
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
+	 }
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
      }
