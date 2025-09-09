@@ -209,7 +209,7 @@ do_start() {
         fi
     else
         CM_IP=""
-        if ([ "$BOX_TYPE" = "rpi" ]) ;then
+        if ([ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]) ;then
             #for Raspberry-pi, use the ipv4 address as default for ssh
             CM_IP=`ip -4 addr show dev $CMINTERFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
         else

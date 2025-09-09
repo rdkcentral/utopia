@@ -129,7 +129,7 @@ handle_l2_status () {
                 fi
                fi
             fi
-            if [ "$BOX_TYPE" = "rpi" ]; then
+            if [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
                  LAN_STATUS=`sysevent get lan-status`
                  if [ "$LAN_STATUS" = "stopped" ]; then
                       echo_t "service_ipv4 : Starting lan-status"
