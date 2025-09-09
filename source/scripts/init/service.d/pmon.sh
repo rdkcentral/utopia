@@ -93,8 +93,8 @@ do_check_process() {
 
 	LOCAL_CONF_FILE=/tmp/pmon.conf$$
 
-	# Add static pmon entries
-	echo "syseventd	/var/run/syseventd.pid /etc/utopia/service.d/syseventd_restart.sh" > $LOCAL_CONF_FILE
+	# Add static pmon entries - commented-out below line - selfheal takes care of it.
+	# echo "syseventd	/var/run/syseventd.pid /etc/utopia/service.d/syseventd_restart.sh" > $LOCAL_CONF_FILE
 
 	# Add dynamic pmon entries stashed in sysevent
 	# by various modules
