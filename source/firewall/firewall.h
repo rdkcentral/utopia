@@ -91,6 +91,11 @@ extern BOOL isMAPTReady;
 #endif // NAT46_KERNEL_SUPPORT
 #endif
 
+#ifdef FEATURE_MAPE
+#define MAPE_TUNNEL_INTERFACE "ip6tnl"
+extern BOOL isMAPEReady;
+#endif
+
 /* HUB4 application specific defines. */
 #ifdef _HUB4_PRODUCT_REQ_
 #ifdef HUB4_BFD_FEATURE_ENABLED
@@ -157,6 +162,11 @@ void do_container_allow(FILE *pFilter, FILE *pMangle, FILE *pNat, int family);
 
 // MAPT related functions
 int do_mapt_rules_v6(FILE *filter_fp);
+
+#ifdef FEATURE_MAPE
+//MAPE related function
+int prepare_mape_rules(FILE *mangle_fp);
+#endif
 
 // HUB4 specific functions
 #ifdef _HUB4_PRODUCT_REQ_
