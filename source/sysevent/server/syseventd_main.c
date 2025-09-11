@@ -1388,6 +1388,8 @@ int main (int argc, char **argv)
       clilen = sizeof(cli_addr);
       int rc = select(maxfd, &rd_set, NULL, NULL, NULL);
       if (-1 == rc) {
+       // stop hogging processor in case of error
+	 sleep(1);
          continue;
       }
 
