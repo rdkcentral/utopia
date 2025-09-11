@@ -451,7 +451,7 @@ dhcp_server_start ()
         return 1
     fi
   
-  if [ "$BOX_TYPE" != "rpi" ] && [ "$BOX_TYPE" != "turris" ]; then
+  if [ "$BOX_TYPE" != "rpi" ] && [ "$BOX_TYPE" != "bpi" ] && [ "$BOX_TYPE" != "turris" ]; then
    DHCP_STATE=`sysevent get lan_status-dhcp`
    #if [ "started" != "$CURRENT_LAN_STATE" ] ; then
    if [ "started" != "$DHCP_STATE" ] ; then
@@ -591,7 +591,7 @@ dhcp_server_start ()
    if [ $? -eq 0 ]; then
    	echo_t "$SERVER process started successfully"
    else
-   	if [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "PUMA7_CGP" ] || [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "turris" ] ; then
+   	if [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "PUMA7_CGP" ] || [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "turris" ] ; then
    
         	COUNTER=0
         	while [ $COUNTER -lt 5 ]; do
@@ -622,7 +622,7 @@ dhcp_server_start ()
    if [ "$PSM_MODE" != "1" ]; then
        if [ -f "/var/tmp/.refreshlan" ];then
             echo_t "RDKB_SYSTEM_BOOT_UP_LOG : Call gw_lan_refresh_from_dhcpscript:`uptime | cut -d "," -f1 | tr -d " \t\n\r"`"
-            if [ "$BOX_TYPE" = "rpi" ]; then
+            if [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
                 reset_eth_usb_ports
             else
                 gw_lan_refresh &
@@ -631,7 +631,7 @@ dhcp_server_start ()
        elif [ ! -f "/var/tmp/lan_not_restart" ] && [ "$1" != "lan_not_restart" ]; then
            if [ x"ready" = x`sysevent get start-misc` ]; then
                echo_t "RDKB_SYSTEM_BOOT_UP_LOG : Call gw_lan_refresh_from_dhcpscript:`uptime | cut -d "," -f1 | tr -d " \t\n\r"`"
-               if [ "$BOX_TYPE" = "rpi" ]; then
+               if [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
                    reset_eth_usb_ports
                else
                    gw_lan_refresh &
