@@ -115,6 +115,7 @@ extern int sysevent_fd;
 extern char sysevent_ip[19];
 extern unsigned short sysevent_port;
 #define PSM_VALUE_GET_STRING(name, str) PSM_Get_Record_Value2(bus_handle, CCSP_SUBSYS, name, NULL, &(str)) 
+#define PSM_HOTSPOT_WAN_IFNAME "dmsb.wanmanager.if.3.Name"
 
 int get_ip6address (char * ifname, char ipArry[][40], int * p_num, unsigned int scope_in);
 
@@ -210,6 +211,7 @@ void do_forwardPorts(FILE *fp);
 int IsValidIPv6Addr(char* ip_addr_string);
 #ifdef WAN_FAILOVER_SUPPORTED
 int checkIfULAEnabled(void);
+void applyHotspotPostRoutingRules(FILE *fp);
 #endif
 void getIpv6Interfaces(char Interface[MAX_NO_IPV6_INF][MAX_LEN_IPV6_INF], int *len);
 void prepare_hotspot_gre_ipv6_rule(FILE *filter_fp);
