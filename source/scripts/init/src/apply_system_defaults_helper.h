@@ -27,7 +27,15 @@
 
 #define APPLY_DEFAULTS_FACTORY_RESET  "/tmp/.apply_defaults_factory_reset"
 
+#if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
+#define PARTNER_ID_MAX_RETRY    5
+int PartnerId_FetchWithRetry(char *PartnerID );
+int WritePartnerIDToFile(char* PartnerID);
+void CheckAndHandleInvalidPartnerIDRecoveryProcess(char *PartnerID);
+#endif // (_RDKB_GLOBAL_PRODUCT_REQ_)
+
 int get_PartnerID( char *PartnerID);
+int getFactoryPartnerId (char *pValue);
 int parse_command_line(int argc, char **argv);
 int set_defaults(void);
 int set_syscfg_partner_values (char *pValue, char *param);

@@ -791,6 +791,11 @@ if [ "$FACTORY_RESET_REASON" = "true" ]; then
        syscfg set X_RDKCENTRAL-COM_LastRebootReason "FirmwareDownloadAndFactoryReset"
        syscfg set X_RDKCENTRAL-COM_LastRebootCounter "1"
        rm -f /nvram/.image_upgrade_and_FR_done
+   elif [ -f "/nvram/.Invalid_PartnerID" ]; then
+       echo "[utopia][init] Detected last reboot reason as Reboot-DueTo-InvalidPartnerID"
+       syscfg set X_RDKCENTRAL-COM_LastRebootReason "Reboot-DueTo-InvalidPartnerID"
+       syscfg set X_RDKCENTRAL-COM_LastRebootCounter "1"
+       rm -f /nvram/.Invalid_PartnerID
    else
        echo "[utopia][init] Detected last reboot reason as factory-reset"
        if [ -e "/usr/bin/onboarding_log" ]; then

@@ -228,6 +228,10 @@ int main( int argc, char **argv )
         get_PartnerID ( PartnerID );
     }
 
+#if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
+    CheckAndHandleInvalidPartnerIDRecoveryProcess(PartnerID);
+#endif // (_RDKB_GLOBAL_PRODUCT_REQ_)
+
     APPLY_PRINT("%s - PartnerID :%s\n", __FUNCTION__, PartnerID );
 
     ptr_etc_json = json_file_parse( PARTNERS_INFO_FILE_ETC );
