@@ -531,6 +531,11 @@ int syscfg_create (const char *file, long int max_file_sz)
     /* Getting all system defaults & validate with current configurations */
     _syscfg_getall_defaults();
     _syscfg_default_validation();
+	if (syscfg_default_entries)
+	{
+	    free (syscfg_default_entries);
+		syscfg_default_count = 0;
+	}
     find_corrupted_strings(_syscfg_get_max_key_len());
 
     shmdt(syscfg_ctx);
@@ -1339,7 +1344,7 @@ int _syscfg_default_validation()
 		{
             if(0 == _syscfg_find(HT_ENTRY_NAME(ctx,entry)))
 			{
-			    printf("\t [%s] not found in default_entries\n", HT_ENTRY_NAME(ctx,entry));
+			    printf("[utopia] - [%s] not found in default_entries\n", HT_ENTRY_NAME(ctx,entry));
 			}
             entry = HT_ENTRY_NEXT(ctx, entry);
         }
@@ -1402,7 +1407,7 @@ void find_corrupted_strings(unsigned int max_key_len)
             }
 found:
             if (longest_super) {
-                printf("\t [%s] May be a corrupted key of [%s]\n", query, longest_super);
+                printf("[utopia] - [%s] May be a corrupted key of [%s]\n", query, longest_super);
             }
         }
     }
