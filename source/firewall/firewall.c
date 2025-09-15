@@ -5440,7 +5440,7 @@ static int do_wan_nat_lan_clients(FILE *fp)
      }
      else
      {
-         fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s", natip4);
+         fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
      }
 #endif
    if (isCacheActive) {

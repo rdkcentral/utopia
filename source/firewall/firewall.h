@@ -91,10 +91,8 @@ extern BOOL isMAPTReady;
 #endif // NAT46_KERNEL_SUPPORT
 #endif
 
-#ifdef FEATURE_MAPE
 #define MAPE_TUNNEL_INTERFACE "ip6tnl"
 extern BOOL isMAPEReady;
-#endif
 
 /* HUB4 application specific defines. */
 #ifdef _HUB4_PRODUCT_REQ_
