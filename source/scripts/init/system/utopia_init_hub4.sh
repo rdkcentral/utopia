@@ -542,10 +542,17 @@ echo "[utopia][init] Detected last reboot reason from driver as $LastRebootReaso
 echo "" > /proc/skyrbd
 
 if [ "$FACTORY_RESET_REASON" = "true" ]; then
-   echo "[utopia][init] Detected last reboot reason as factory-reset"
+   if [ -f "/nvram/.Invalid_PartnerID" ]; then
+      echo "[utopia][init] Detected last reboot reason as Reboot-DueTo-InvalidPartnerID"
+      syscfg set X_RDKCENTRAL-COM_LastRebootReason "Reboot-DueTo-InvalidPartnerID"
+      syscfg set X_RDKCENTRAL-COM_LastRebootCounter "1"
+      rm -f /nvram/.Invalid_PartnerID
+   else
+      echo "[utopia][init] Detected last reboot reason as factory-reset"
 
-   syscfg set X_RDKCENTRAL-COM_LastRebootReason "factory-reset"
-   syscfg set X_RDKCENTRAL-COM_LastRebootCounter "1"
+      syscfg set X_RDKCENTRAL-COM_LastRebootReason "factory-reset"
+      syscfg set X_RDKCENTRAL-COM_LastRebootCounter "1"
+   fi
 else
 #Check last reboot reasons
 case "$LastRebootReason" in
