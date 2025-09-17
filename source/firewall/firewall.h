@@ -148,7 +148,6 @@ int do_ipflooddetectv4(FILE *fp);
 void do_webui_attack_filter(FILE *filter_fp);
 int wan_lan_webui_attack(FILE *fp, const char *interface);
 
-
 // Rule preparation functions
 int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
 int prepare_rabid_rules_v2020Q3B(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
