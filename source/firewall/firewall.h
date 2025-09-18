@@ -145,7 +145,8 @@ int do_wpad_isatap_blockv4 (FILE *fp);
 int do_blockfragippktsv4(FILE *fp);
 int do_portscanprotectv4(FILE *fp);
 int do_ipflooddetectv4(FILE *fp);
-
+void do_webui_attack_filter(FILE *filter_fp);
+int wan_lan_webui_attack(FILE *fp, const char *interface);
 
 // Rule preparation functions
 int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
