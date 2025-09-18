@@ -50,7 +50,6 @@ NTP_CONF_TMP=/tmp/ntp.conf
 NTP_CONF_QUICK_SYNC=/tmp/ntp_quick_sync.conf
 LOCKFILE=/var/tmp/service_ntpd.pid
 BIN=ntpd
-WAN_IPv6_UP=0
 QUICK_SYNC_PID=""
 QUICK_SYNC_DONE=0
 
@@ -171,33 +170,7 @@ wan_wait ()
        #Make sure WAN interface has an IPv4 or IPv6 address before telling NTP to listen on Interface
        WAN_IPv4=`ifconfig -a "$WAN_INTERFACE" | grep inet | grep -v inet6 | tr -s " " | cut -d ":" -f2 | cut -d " " -f1 | head -n1`
 
-       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$LANIPV6Support" = "true" ]; then
-           CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
-           if [ "up" = "$CURRENT_WAN_IPV6_STATUS" ] ; then
-               ULAprefix=`sysevent get ula_address |cut -d ':' -f1`
-               if [ -z "$ULAprefix" ]; then
-                   WAN_IPv6=`ifconfig "$NTPD_IPV6_INTERFACE" | grep inet6 | grep Global | awk '/inet6/{print $3}' | grep -v 'fdd7' | cut -d '/' -f1 | head -n1`
-                else
-                    WAN_IPv6=`ifconfig "$NTPD_IPV6_INTERFACE" | grep inet6 | grep Global | awk '/inet6/{print $3}' | grep -v 'fdd7' | grep -v "$ULAprefix" | cut -d '/' -f1 | head -n1`
-               fi
-               WAN_IPv6_UP=1
-		# SHARMAN-2301
-                #This change is for UK MAP-T SR213. When  NTP servers are IPv4 only and there is no IPv4 WAN IP on the interface we will use $NTPD_IPV6_INTERFACE(currently brlan0) ipv4 ip to sort ntpd daemon socket problems and routing.
-		if [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" == "true" ]; then
-		    MAPT_STATS=$(sysevent get mapt_config_flag)
-		    echo_t "SERVICE_NTPD : MAPT_STATS=$MAPT_STATS"
-		    if [ x"$MAPT_STATS" = x"set" ]; then
-			IPV4_CONN_STATE=$(sysevent get ipv4_connection_state)
-			echo_t "SERVICE_NTPD : IPV4_CONN_STATE=$IPV4_CONN_STATE"
-                        if [ x"$IPV4_CONN_STATE" != x"up" ]; then
-			    WAN_IPv4=`ifconfig "$NTPD_IPV6_INTERFACE" | grep inet\ \addr | cut -d ':' -f2 |cut -d ' ' -f1`
-			fi
-		    fi
-		fi
-           fi
-       else
-           WAN_IPv6=`ifconfig "$WAN_INTERFACE" | grep inet6 | grep Global | awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
-       fi
+       WAN_IPv6=`ifconfig "$WAN_INTERFACE" | grep inet6 | grep Global | awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
 
        if [ -n "$WAN_IPv4" ] || [ -n "$WAN_IPv6" ]; then
           if [ "$2" = "quickSync" ];then
@@ -399,6 +372,7 @@ service_start ()
    syscfg set ntp_status 2
 
    if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] ||  [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" = "true" ]; then
+        #TODO : could be a common code. 
        WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
        if [ "started" != "$CURRENT_WAN_STATUS" ] && [ "up" != "$WAN_IPV6_STATUS" ] ; then
            syscfg set ntp_status 2
@@ -626,22 +600,12 @@ service_start ()
 
        if [ -n "$QUICK_SYNC_WAN_IP" ]; then
            # Try and Force Quick Sync to Run on a single interface
-		   uptime=$(cut -d. -f1 /proc/uptime)
+	   uptime=$(cut -d. -f1 /proc/uptime)
            uptime_ms=$((uptime*1000))
            echo_t "SERVICE_NTPD : Starting NTP Quick Sync" >> $NTPD_LOG_NAME
-		   t2ValNotify "SYST_INFO_NTP_START_split" $uptime_ms
-           if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$ntpHealthCheck" = "true" ]; then
-               if [ $WAN_IPv6_UP -eq 1 ]; then
-                   $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME & 
-                   QUICK_SYNC_PID=$!
-               else
-                   $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -4 -l $NTPD_LOG_NAME &
-                   QUICK_SYNC_PID=$!
-               fi
-           else
-               $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME &
-               QUICK_SYNC_PID=$!
-           fi
+	   t2ValNotify "SYST_INFO_NTP_START_split" $uptime_ms
+           $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME &
+           QUICK_SYNC_PID=$!
            if [ -n "$QUICK_SYNC_PID" ];then
               set_ntp_quicksync_status
            fi
@@ -656,6 +620,7 @@ service_start ()
        systemctl start $BIN
        ret_val=$? ### To ensure proper ret_val is obtained
        if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ]; then
+            #TODO : could be a common code. 
            sysevent set firewall-restart
        fi
    fi
@@ -812,6 +777,7 @@ case "$1" in
   wan-status)
       if [ "started" = "$CURRENT_WAN_STATUS" ] ; then
          if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$ntpHealthCheck" = "true" ]; then
+            #TODO : could be a common code. Will affect common
             NTPD_PROCESS=`pidof $BIN`
             NTP_STATUS=`syscfg get ntp_status`
             if [ $NTP_STATUS == 3 ] && [ -n "$NTPD_PROCESS" ];then
@@ -844,6 +810,7 @@ case "$1" in
       ;;
   ipv6_connection_state)
       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$ntpHealthCheck" = "true" ]; then
+        #TODO : could be a common code. 
          NTPD_PROCESS=`pidof $BIN`
          NTP_STATUS=`syscfg get ntp_status`
          #SKYH4-6932: When IPv6 comes up after ipv4, IPv6 listners won't be added and hence with ipv6 only ntp servers, we will have time syncing problems. So checking time sync status along with ntpd process, if time  isn't  synced there will conf update and ntpd restart.
