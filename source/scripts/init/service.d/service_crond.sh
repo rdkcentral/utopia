@@ -190,7 +190,7 @@ service_start ()
           addCron "48 * * * *  sh /etc/sky/monitor_dhd_dump.sh &"
       fi
 
-      if [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "SR213" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "SCER11BEL" ]; then
+      if [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "SCER11BEL" ]; then
          #RDKB-43895 log the firmware bank informations in selfheal log
          echo "5 */12  * * *  /usr/bin/FwBankInfo" >> $CRONTAB_FILE
       fi
