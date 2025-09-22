@@ -58,6 +58,7 @@
 #include "syscfg_lib.h"   // internal interface
 #include "syscfg.h"       // external interface used by users
 #include "safec_lib_common.h"
+#include <ctype.h>
 
 //#define VERBOSE_DEBUG
 
@@ -73,6 +74,122 @@ static int syscfg_init_internal (void);
 
 static int load_from_file (const char *fname);
 static int commit_to_file (const char *fname);
+
+#define DEFAULT_FILE "/etc/utopia/system_defaults"
+
+typedef struct {
+    char key[MAX_NAME_LEN];
+    char value[MAX_NAME_LEN];
+} ConfigEntry;
+
+typedef struct ConfigNode {
+    ConfigEntry entry;
+    struct ConfigNode *next;
+} ConfigNode;
+
+typedef struct {
+    const char *name;
+    unsigned int len;
+} KeyEntry;
+
+void _syscfg_find_corrupted_keys(unsigned int max_key_len);
+
+ConfigNode **syscfg_default_ht = NULL;
+
+static char *trim(char *in)
+{
+    while (isspace((unsigned char)*in)) in++;
+    char *end = in + strlen(in) - 1;
+    while (end > in && isspace((unsigned char)*end)) *end-- = '\0';
+    return in;
+}
+
+static int parse_line(char *in, char **name, char **value) {
+    char *tok = strchr(in, '=');
+    if (!tok) return -1;
+    *tok = '\0';
+    *name = in;
+    *value = tok + 1;
+    return 0;
+}
+
+static unsigned int hash_index (const char *str)
+{
+    unsigned int hash = 5381 % SYSCFG_SZ;
+    int c;
+
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+
+    return hash % SYSCFG_SZ;
+}
+
+static int _syscfg_add_default_entry(const char *key, const char *value)
+{
+    unsigned int index = hash_index(key);
+    ConfigNode *new_node = malloc(sizeof(ConfigNode));
+    if (!new_node) {
+        ulog_LOG_Err("Memory allocation failed");
+        return ERR_MEM_ALLOC;
+    }
+
+    strncpy(new_node->entry.key, key, MAX_NAME_LEN - 1);
+    new_node->entry.key[MAX_NAME_LEN - 1] = '\0';
+    strncpy(new_node->entry.value, value, MAX_NAME_LEN - 1);
+    new_node->entry.value[MAX_NAME_LEN - 1] = '\0';
+    new_node->next = syscfg_default_ht[index];
+    syscfg_default_ht[index] = new_node;
+
+    return 0;
+}
+
+static int _syscfg_getall_defaults(void)
+{
+   char buf[1024];
+   char *line;
+   char *name;
+   char *value;
+   FILE *fp = NULL;
+
+   fp = fopen (DEFAULT_FILE, "r");
+   if (fp == NULL)
+   {
+      ulog_LOG_Err("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      return -1;
+   }
+
+   size_t size = SYSCFG_SZ * sizeof(ConfigNode *);
+   syscfg_default_ht = (ConfigNode *)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+   if (syscfg_default_ht == MAP_FAILED)
+   {
+       perror("mmap failed");
+       syscfg_default_ht = NULL;
+       return -1;
+   }
+
+   while (fgets (buf, sizeof(buf), fp) != NULL)
+   {
+      line = trim (buf);
+
+      if (line[0] == '$')
+      {
+          int offset = (line[1] == '$') ? 2 : 1;
+          if (parse_line(line + offset, &name, &value) == 0)
+          {
+              _syscfg_add_default_entry(trim(name), trim(value));
+          }
+          else
+          {
+              ulog_LOG_Err("[utopia] [error] set_syscfg_defaults failed to parse line (%s)\n", line);
+          }
+      }
+   }
+   fclose (fp);
+   return 0;
+}
+
 
 /******************************************************************************
  *                External syscfg library access apis
@@ -377,7 +494,7 @@ void syscfg_destroy (void)
         syscfg_initialized = 0;
     }
 }
-
+static int _syscfg_getall_defaults(void);
 /*
  * Procedure     : syscfg_create
  * Purpose       : SYSCFG initialization from persistent storage
@@ -421,6 +538,8 @@ int syscfg_create (const char *file, long int max_file_sz)
     if (0 != rc) {
         ulog_LOG_Err("Error loading from store");
     }
+    /* Getting all system defaults & validate with current configurations */
+    _syscfg_find_corrupted_keys();
 
     shmdt(syscfg_ctx);
 
@@ -507,8 +626,9 @@ static int syscfg_init_internal (void)
  */
 static char *syscfg_parse (const char *str, char **name, char **value)
 {
-    char *n, *p;
-    int len;
+    char *n = NULL;
+    char *p = NULL;
+    int len = 0;
 
     if (NULL == str || NULL == name || NULL == value) {
         return NULL;
@@ -523,7 +643,7 @@ static char *syscfg_parse (const char *str, char **name, char **value)
             memcpy(*name, str, len);
             (*name)[len] = '\0';
             n++;
-            p = strchrnul(n,'\n');
+            p = strchrnul(n,'\0');
             if (p) {
                 len = p - n;
                 *value = malloc(len+1);
@@ -865,8 +985,10 @@ static int make_ht_entry (const char *name, int namelen, const char *value, shmo
         entry->value_sz = valuelen + 1;
         entry->next = 0;
         p_entry_name = HT_ENTRY_NAME(ctx,ht_entry_offset);
+        memset(p_entry_name, 0, namelen + 1);
         memcpy(p_entry_name, name, namelen + 1);
         p_entry_value = HT_ENTRY_VALUE(ctx,ht_entry_offset);
+        memset(p_entry_value, 0, valuelen + 1);
         memcpy(p_entry_value, value, valuelen + 1);
     }
 
@@ -1189,6 +1311,122 @@ static size_t _syscfg_getall2 (char *buf, size_t bufsz, int nolock)
     return (bufsz - len);   /* size does not include final nul terminator */
 }
 
+static int _syscfg_find_in_defaults (const char *name)
+{
+    unsigned int index = hash_index(name);
+    if (index)
+    {
+        ConfigNode *new_node = syscfg_default_ht[index];
+
+        if ( new_node && (strcmp(new_node->entry.key, name) == 0))
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+static void _syscfg_default_ht_destroy(void)
+{
+    if (!syscfg_default_ht)
+    {
+        return;
+    }
+
+    for (size_t i = 0; i < SYSCFG_SZ; ++i)
+    {
+        ConfigNode *n = syscfg_default_ht[i];
+        while (n)
+        {
+            ConfigNode *next = n->next;
+            free(n);
+            n = next;
+        }
+        syscfg_default_ht[i] = NULL;
+    }
+
+    size_t size = SYSCFG_SZ * sizeof(ConfigNode *);
+    if (munmap(syscfg_default_ht, size) == -1)
+    {
+        perror("munmap syscfg_default_ht");
+    }
+    syscfg_default_ht = NULL;
+}
+
+void _syscfg_find_corrupted_keys()
+{
+    int key_count = 0;
+    unsigned int max_key_len = 0;
+
+    if (_syscfg_getall_defaults() < 0)
+    {
+        printf("_syscfg_getall_defaults failed!\n");
+    }
+
+    size_t keys_size = SYSCFG_SZ * sizeof(KeyEntry);
+    KeyEntry *keys = (int *)mmap(NULL, keys_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    if (keys == MAP_FAILED)
+    {
+        perror("mmap failed");
+        rw_unlock(ctx);
+        return;
+    }
+
+    syscfg_shm_ctx *ctx = syscfg_ctx;
+    rw_lock(ctx);
+
+    /* find max string length */
+    for (int i = 0; i < SYSCFG_HASH_TABLE_SZ; i++) {
+        for (shmoff_t entry = ctx->ht[i]; entry; entry = HT_ENTRY_NEXT(ctx, entry)) {
+            const char *key = HT_ENTRY_NAME(ctx, entry);
+            unsigned int len = strlen(key);
+            keys[key_count].name = key;
+            keys[key_count].len = len;
+            if (len > max_key_len)
+                max_key_len = len;
+            key_count++;
+        }
+    }
+
+    for (int i = 0; i < key_count; i++)
+    {
+        const char *query = keys[i].name;
+        unsigned int query_len = keys[i].len;
+        unsigned int longest_len = 0;
+        const char *longest_super = NULL;
+
+        for (int j = 0; j < key_count; j++) {
+            if (i == j || keys[j].len < query_len) continue;
+
+            if (strstr(keys[j].name, query) &&
+                    (strcmp(keys[j].name + strlen(keys[j].name) - strlen(query), query) == 0))
+            {
+                if (keys[j].len > longest_len)
+                {
+                    longest_len = keys[j].len;
+                    longest_super = keys[j].name;
+                    if (longest_len == max_key_len) break;
+                }
+            }
+        }
+
+        if (longest_super) {
+            if (!_syscfg_find_in_defaults(query))
+                printf("[utopia] - [%s] May be a corrupted key of [%s]\n", query, longest_super);
+        }
+    }
+
+    _syscfg_default_ht_destroy();
+
+    if (munmap(keys, keys_size) == -1)
+    {
+        perror("munmap failed");
+    }
+
+    rw_unlock(ctx);
+}
 
 /******************************************************************************
  *          shared-memory create, initialize and attach/detach APIs
@@ -1603,49 +1841,38 @@ static void _syscfg_file_unlock (int fd)
 
 static int load_from_file (const char *fname)
 {
-    int fd;
-    ssize_t count;
-    char *inbuf = NULL, *buf = NULL;
+    char *inbuf = NULL;
     char *name = NULL, *value = NULL;
 
-    fd = open(fname, O_RDONLY);
-    if (-1 == fd) {
+    FILE *fd = fopen(fname, "r");
+    if (NULL == fd) {
         return ERR_IO_FILE_OPEN;
     }
     inbuf = malloc(SYSCFG_SZ);
     if (NULL == inbuf) {
-        close(fd); /*RDKB-7135, CID-33110, free unused resources before exit*/
+        fclose(fd); /*RDKB-7135, CID-33110, free unused resources before exit*/
         return ERR_MEM_ALLOC;
     }
 
-    count = read(fd, inbuf, SYSCFG_SZ);
-    close(fd);
-
-    if (count <= 0) {
-        free(inbuf);
-        return 1;
+    memset(inbuf, 0, SYSCFG_SZ);
+    while (fgets(inbuf, SYSCFG_SZ, fd) != NULL)
+    {
+        // Remove trailing newline, if any
+        inbuf[strcspn(inbuf, "\r\n")] = '\0';
+        syscfg_parse(inbuf, &name, &value);
+        if (name && value) {
+            if (name[0] != '\0')
+                syscfg_set(NULL, name, value);
+            free(name);
+            name = NULL;
+            free(value);
+            value = NULL;
+        }
+        memset(inbuf, 0, SYSCFG_SZ);
     }
 
-    buf = inbuf;
-    /*CID 135472 String not null terminated */
-    buf[count] = '\0';
-    do {
-        buf = syscfg_parse(buf, &name, &value);
-        if (name && value) {
-            syscfg_set(NULL, name, value);
-            free(name);
-            name = NULL; /*RDKB-7135, CID-33405, set null after free*/
-            free(value);
-            value = NULL; /*RDKB-7135, CID-33137, set null after free*/
-        }
-
-        // skip any special chars leftover
-        if (buf && *buf == '\n') {
-            buf++;
-        }
-    } while (buf);
-
     free(inbuf);
+    fclose(fd);
 
     return 0;
 }
@@ -1746,19 +1973,30 @@ static int commit_to_file (const char *fname)
     _syscfg_file_lock(fd);
 
     shmoff_t entry;
+    off_t file_offset = 0;
 
     for (i = 0; i < SYSCFG_HASH_TABLE_SZ; i++) {
         entry = ctx->ht[i];
         while (entry) {
+            memset(buf, 0, sizeof(buf));
             ct = snprintf(buf, sizeof(buf), "%s=%s\n",
                           HT_ENTRY_NAME(ctx,entry), HT_ENTRY_VALUE(ctx,entry));
-            write(fd, buf, ct);
-            entry = HT_ENTRY_NEXT(ctx,entry);
+            if (ct > 0) {
+                ssize_t written = write(fd, buf, ct);
+                if (written < 0) {
+                    ret = ERR_IO_FILE_WRITE;
+                    goto end;
+                }
+                file_offset += written;
+            }
+            entry = HT_ENTRY_NEXT(ctx, entry);
         }
     }
-    _syscfg_file_unlock(fd);
+    ftruncate(fd, file_offset);
 
-    close(fd);
+    end:
+        _syscfg_file_unlock(fd);
+        close(fd);
 
    ret = access(SYSCFG_BKUP_FILE, F_OK);
    if ( ret == 0 ) { 
