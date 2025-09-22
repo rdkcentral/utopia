@@ -92,7 +92,7 @@ typedef struct {
     unsigned int len;
 } KeyEntry;
 
-void _syscfg_find_corrupted_keys(unsigned int max_key_len);
+void _syscfg_find_corrupted_keys();
 
 ConfigNode **syscfg_default_ht = NULL;
 
@@ -160,7 +160,7 @@ static int _syscfg_getall_defaults(void)
    }
 
    size_t size = SYSCFG_SZ * sizeof(ConfigNode *);
-   syscfg_default_ht = (ConfigNode *)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+   syscfg_default_ht = (ConfigNode **)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
    if (syscfg_default_ht == MAP_FAILED)
    {
@@ -1365,12 +1365,12 @@ void _syscfg_find_corrupted_keys()
     }
 
     size_t keys_size = SYSCFG_SZ * sizeof(KeyEntry);
-    KeyEntry *keys = (int *)mmap(NULL, keys_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    KeyEntry *keys = (KeyEntry *)mmap(NULL, keys_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     if (keys == MAP_FAILED)
     {
         perror("mmap failed");
-        rw_unlock(ctx);
+        _syscfg_default_ht_destroy();
         return;
     }
 
