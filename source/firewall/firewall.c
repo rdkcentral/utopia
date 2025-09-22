@@ -1457,7 +1457,23 @@ static int do_wan_nat_lan_clients_mapt(FILE *fp)
     return 0;
 }
 #endif //FEATURE_MAPT
-
+void do_webui_attack_filter(FILE *filter_fp)
+{
+   FIREWALL_DEBUG("Entering do_webui_attack_filter\n");
+   fprintf(filter_fp, ":%s - [0:0]\n", "UPLOAD_ATTACK_FILTER");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", "<?php");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -m string --algo bm --string \"%s\" -j DROP \n", "filename=" , ".php");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -m string --algo bm --string \"%s\" -j DROP \n", "filename=", ".phtml");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".jsp");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".asp");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", "<%@");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".cgi");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".pi");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".sh");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".py");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", "multipart/form-data");
+   FIREWALL_DEBUG("Exiting do_webui_attack_filter\n");
+}
 /*
  *  Procedure     : do_webui_rate_limit
  *  Purpose       : Create chain to ratelimit remote management GUI packets over erouter interface
@@ -3133,6 +3149,7 @@ static int prepare_globals_from_configuration(void)
 
 
 #if defined (AMENITIES_NETWORK_ENABLED)
+#define AMENITY_QUEUE_NUM_START 61
 void updateAmenityNetworkRules(FILE *filter_fp , FILE *mangle_fp , int iptype )
 {
    char query[MAX_QUERY];
@@ -3180,13 +3197,12 @@ void updateAmenityNetworkRules(FILE *filter_fp , FILE *mangle_fp , int iptype )
       FIREWALL_DEBUG(" Applying Amenity network IPv%d rules for %s \n" COMMA iptype COMMA bridgename);
       if(iptype == AF_INET)
       {
-         //will be enabling option 82 rules once prod team confirms
-         //fprintf(filter_fp, "-A FORWARD -o %s -p udp --dport=67:68 -j NFQUEUE --queue-bypass --queue-num %d\n", bridgename, idx+1);
+         //DHCP option 82 handling rule for Amenity bridge interfaces
+         fprintf(filter_fp, "-A FORWARD -o %s -p udp --dport=67:68 -j NFQUEUE --queue-bypass --queue-num %d\n", bridgename, AMENITY_QUEUE_NUM_START+idx);
          fprintf(mangle_fp, "-A POSTROUTING -o %s -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1360 \n" , bridgename);
       }
       else
       {
-         // Adding Accept rule for Amenity interface
          fprintf(filter_fp, "-A INPUT -i %s -j ACCEPT  \n" , bridgename );
          // Allow forward within same Amenity network interface
          fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", bridgename, bridgename);
@@ -6251,6 +6267,26 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
     }
          FIREWALL_DEBUG("Exiting remote_access_set_proto\n");    
     return 0;
+}
+int wan_lan_webui_attack(FILE *fp, const char *interface)
+{
+      int rc = 0;
+      char httpport[64] = {0};
+      char httpsport[64] = {0};
+      char query[MAX_QUERY];
+      //lan side attack protection
+      fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 80 -j UPLOAD_ATTACK_FILTER\n", interface);
+      fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 443 -j UPLOAD_ATTACK_FILTER\n", interface);
+      //wan side attack protection
+      rc = syscfg_get(NULL, "mgmt_wan_httpaccess", query, sizeof(query));
+      rc |= syscfg_get(NULL, "mgmt_wan_httpport", httpport, sizeof(httpport));
+      if ((rc == 0) && atoi(query) == 1)
+          fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport %s -j UPLOAD_ATTACK_FILTER\n", current_wan_ifname, httpport);
+      rc = syscfg_get(NULL, "mgmt_wan_httpsaccess", query, sizeof(query));
+      rc |= syscfg_get(NULL, "mgmt_wan_httpsport", httpsport, sizeof(httpsport));
+      if ((rc == 0) && atoi(query) == 1)
+          fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport %s -j UPLOAD_ATTACK_FILTER\n", current_wan_ifname, httpsport );
+      return 0;
 }
 int lan_access_set_proto(FILE *fp,const char *port, const char *interface)
 {
@@ -12321,7 +12357,8 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
    // Video Analytics Firewall rule to allow port 58081 only from LAN interface
    do_OpenVideoAnalyticsPort (filter_fp);
-   
+
+   do_webui_attack_filter(filter_fp);
    // Create iptable chain to ratelimit remote management(8080, 8181) packets
    do_webui_rate_limit(filter_fp);
        
@@ -12361,6 +12398,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, "-A INPUT -i lo -m state --state NEW -j ACCEPT\n");
    fprintf(filter_fp, "-A INPUT -j general_input\n");
    fprintf(filter_fp, "-A INPUT -i %s -j wan2self\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
+   wan_lan_webui_attack(filter_fp,lan_ifname);
    // Rate limiting the webui-access lan side
    lan_access_set_proto(filter_fp, "80",lan_ifname);
    lan_access_set_proto(filter_fp, "443",lan_ifname);
@@ -13937,7 +13975,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 #else
        fprintf(filter_fp, "-A INPUT ! -i %s -j wan2self_mgmt\n", isBridgeMode == 0 ? lan_ifname : cmdiag_ifname);
 #endif
-
+       do_webui_attack_filter(filter_fp);
        // Create iptable chain to ratelimit remote management packets
        do_webui_rate_limit(filter_fp);
        WAN_FAILOVER_SUPPORT_CHECK
@@ -14084,6 +14122,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 #endif
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "FORWARD");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "OUTPUT");
+   wan_lan_webui_attack(filter_fp,cmdiag_ifname);
    // Rate limiting the webui-access lan side
    lan_access_set_proto(filter_fp, "80",cmdiag_ifname);
    lan_access_set_proto(filter_fp, "443",cmdiag_ifname);

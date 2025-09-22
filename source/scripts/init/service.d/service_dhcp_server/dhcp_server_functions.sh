@@ -1082,6 +1082,7 @@ fi
      echo "dhcp-option=vendor:HIXE12AWR,43,tag=123" >> $LOCAL_DHCP_CONF
      echo "dhcp-option=vendor:WNXE12AWR,43,tag=123" >> $LOCAL_DHCP_CONF
      echo "dhcp-option=vendor:WNXL11BWL,43,tag=123" >> $LOCAL_DHCP_CONF
+     echo "dhcp-option=vendor:RDKBPOD,43,tag=123" >> $LOCAL_DHCP_CONF
    fi
 
    if [ "dns_only" != "$3" ] ; then
@@ -1097,7 +1098,7 @@ fi
       fi
    fi
   
-   if [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "turris" ]; then
+   if [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "turris" ]; then
 	   LAN_STATUS=`sysevent get lan-status`
 	   BRIDGE_MODE=`syscfg get bridge_mode`
 	   if [ "$LAN_STATUS" = "stopped" ] && [ $BRIDGE_MODE == 0 ]; then                
