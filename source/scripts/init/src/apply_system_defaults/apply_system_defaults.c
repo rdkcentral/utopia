@@ -51,7 +51,7 @@
 #include "time.h"
 #include "secure_wrapper.h"
 #include <sys/stat.h>
-#if defined (_XB6_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_SR300_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_)
+#if defined (_XB6_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_SR300_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
 #include "platform_hal.h"
 #endif
 #include <unistd.h>
@@ -691,7 +691,7 @@ static int GetDevicePropertiesEntry (char *pOutput, int size, char *sDevicePropC
 
 static int getFactoryPartnerId (char *pValue)
 {
-#if defined (_XB6_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_SR300_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined (_XB6_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_SR300_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
 	if(0 == platform_hal_getFactoryPartnerId(pValue))
 	{
 		APPLY_PRINT("%s:%d - %s\n",__FUNCTION__, __LINE__,pValue);
@@ -2406,7 +2406,7 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                                     // For Sky, we need to pull the default login from the /tmp/serial.txt file.
                                                     FILE *fp = NULL;
                                                     char DefaultPassword[25] = {0};
-                                                    #if defined (_SCER11BEL_PRODUCT_REQ_)
+                                                    #if defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
                                                     fp = popen("grep 'WIFI_PASSWORD' /tmp/serial.txt | cut -d '=' -f 2 | tr -d [:space:]", "r");
                                                     #else
                                                     fp = popen("grep 'WIFIPASSWORD' /tmp/serial.txt | cut -d '=' -f 2 | tr -d [:space:]", "r");
