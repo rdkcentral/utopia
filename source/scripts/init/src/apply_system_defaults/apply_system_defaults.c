@@ -1329,6 +1329,10 @@ static int ApplyPartnersObjectItemsIntoSysevents( char *pcPartnerID )
                {
                   sysevent_set (global_fd, global_id, "HotSpotSupport", value, 0);
                }
+               else if ( 0 == strcmp ( key, "Device.X_RDK_Features.VlanDiscovery.Enable") )
+               {
+                  sysevent_set (global_fd, global_id, "VlanDiscoverySupport", value, 0);
+               }
 
                pCJsonChildParam = pCJsonChildParam->next;
             }
@@ -2757,6 +2761,10 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                             if( pcAuthMode != NULL )
                                             {
                                                 set_syscfg_partner_values( pcAuthMode, "OAUTHAuthMode" );
+												if (strcmp(pcAuthMode, "sso") == 0)
+                                                {
+                                                    APPLY_PRINT("%s - OAuth AuthMode defaulted to SSO\n", __FUNCTION__);
+                                                }
                                                 pcAuthMode = NULL;
                                             }
                                             else
