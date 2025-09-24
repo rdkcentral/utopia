@@ -227,6 +227,18 @@ AC_ARG_ENABLE([hotspot],
         [enable_hotspot=true])
 AM_CONDITIONAL([ENABLE_HOTSPOT_SERVICE], [test x$enable_hotspot = xtrue])
 
+AC_ARG_ENABLE([igmpmld],
+         AS_HELP_STRING([--enable-igmpmld],[Enable igmpmld]),
+        [
+          case "${enableval}" in
+            yes) enable_igmpmld=true ;;
+            no) enable_igmpmld=false ;;
+            *) AC_MSG_ERROR([bad value ${enableval} for --enable-igmpmld]) ;;
+          esac
+           ],
+        [enable_igmpmld=true])
+AM_CONDITIONAL([ENABLE_MCAST_SERVICE], [test x$enable_igmpmld = xtrue])
+
 AC_CONFIG_FILES(
 	Makefile
 	source/Makefile
