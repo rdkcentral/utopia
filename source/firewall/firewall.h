@@ -211,7 +211,6 @@ void do_forwardPorts(FILE *fp);
 int IsValidIPv6Addr(char* ip_addr_string);
 #ifdef WAN_FAILOVER_SUPPORTED
 int checkIfULAEnabled(void);
-void applyHotspotPostRoutingRules(FILE *fp);
 #endif
 void getIpv6Interfaces(char Interface[MAX_NO_IPV6_INF][MAX_LEN_IPV6_INF], int *len);
 void prepare_hotspot_gre_ipv6_rule(FILE *filter_fp);
