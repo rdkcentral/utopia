@@ -211,7 +211,6 @@ void do_forwardPorts(FILE *fp);
 int IsValidIPv6Addr(char* ip_addr_string);
 #ifdef WAN_FAILOVER_SUPPORTED
 int checkIfULAEnabled(void);
-void applyHotspotPostRoutingRules(FILE *fp);
 #endif
 void getIpv6Interfaces(char Interface[MAX_NO_IPV6_INF][MAX_LEN_IPV6_INF], int *len);
 void prepare_hotspot_gre_ipv6_rule(FILE *filter_fp);
@@ -349,7 +348,7 @@ extern char mesh_wan_ifname[32];
 #endif
 
 void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4);
-extern char hotspot_wan_ifname[32];
+extern char hotspot_wan_ifname[50];
 extern int current_wan_ipv6_num;
 extern char default_wan_ifname[50]; // name of the regular wan interface
 extern char current_wan_ipv6[IF_IPV6ADDR_MAX][40];
