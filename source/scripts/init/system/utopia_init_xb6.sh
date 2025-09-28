@@ -249,6 +249,7 @@ SYSCFG_NEW_BKUP_FILE=$SYSCFG_PERSISTENT_PATH/syscfg_bkup.db
 PSM_CUR_XML_CONFIG_FILE_NAME="$SYSCFG_TMP_LOCATION/bbhm_cur_cfg.xml"
 PSM_BAK_XML_CONFIG_FILE_NAME="$SYSCFG_MOUNT/bbhm_bak_cfg.xml"
 PSM_TMP_XML_CONFIG_FILE_NAME="$SYSCFG_MOUNT/bbhm_tmp_cfg.xml"
+PSM_DEF_XML_CONFIG_FILE_NAME="/usr/ccsp/config/bbhm_def_cfg.xml"
 XDNS_DNSMASQ_SERVERS_CONFIG_FILE_NAME="$SYSCFG_MOUNT/dnsmasq_servers.conf"
 FACTORY_RESET_REASON=false
 HOTSPOT_BLOB="/nvram/hotspot_blob"
@@ -948,4 +949,62 @@ if [ "$(syscfg get MAPT_Enable)" != "true" ] && [ ! -f "/nvram/.mapt_enabled" ];
         touch /nvram/.mapt_enabled
         echo_t "MAPT_Enable is $(syscfg get MAPT_Enable) for $partnerID"
     fi
+fi
+
+if [ "$FACTORY_RESET_REASON" = "false" ]; then
+   #WAN Interface Count
+   wanifcount=`sed -n "/dmsb.wanmanager.wan.interfacecount/p" $PSM_CUR_XML_CONFIG_FILE_NAME | awk -F"[><]" '{print $3}'`
+   if [ "$wanifcount" != "" ]; then
+      wanifdefcount=`sed -n "/dmsb.wanmanager.wan.interfacecount/p" $PSM_DEF_XML_CONFIG_FILE_NAME | awk -F"[><]" '{print $3}'`
+      if [ "$wanifdefcount" != "" ]; then
+         echo "[utopia][init] No. of WAN Interface from $PSM_DEF_XML_CONFIG_FILE_NAME:"$wanifdefcount
+         echo "[utopia][init] No. of WAN Interface from $PSM_CUR_XML_CONFIG_FILE_NAME:"$wanifcount
+         if [ "$wanifcount" != "$wanifdefcount" ]; then
+            delCmd=`sed -i "/dmsb.wanmanager.wan.interfacecount/d" $PSM_CUR_XML_CONFIG_FILE_NAME`
+            echo "[utopia][init] WAN interface count mismatched so deleting this dmsb.wanmanager.wan.interfacecount entry from $PSM_CUR_XML_CONFIG_FILE_NAME to make sure proper interface count"
+         fi
+      fi
+   fi
+
+   #WAN Group Count
+   wangrpcount=`sed -n "/dmsb.wanmanager.group.Count/p" $PSM_CUR_XML_CONFIG_FILE_NAME | awk -F"[><]" '{print $3}'`
+   if [ "$wangrpcount" != "" ]; then
+      wangrpdefcount=`sed -n "/dmsb.wanmanager.group.Count/p" $PSM_DEF_XML_CONFIG_FILE_NAME | awk -F"[><]" '{print $3}'`
+      if [ "$wangrpdefcount" != "" ]; then
+         echo "[utopia][init] No. of WAN Group from $PSM_DEF_XML_CONFIG_FILE_NAME:"$wangrpdefcount
+         echo "[utopia][init] No. of WAN Group from $PSM_CUR_XML_CONFIG_FILE_NAME:"$wangrpcount
+         if [ "$wangrpcount" != "$wangrpdefcount" ]; then
+            delCmd=`sed -i "/dmsb.wanmanager.group.Count/d" $PSM_CUR_XML_CONFIG_FILE_NAME`
+            echo "[utopia][init] WAN group count mismatched so deleting this dmsb.wanmanager.group.Count entry from $PSM_CUR_XML_CONFIG_FILE_NAME to make sure proper group count"
+         fi
+      fi
+   fi
+
+   #DHCP MGR v4 Client Count
+   dhcpmgrCltcount=`sed -n "/dmsb.dhcpmanager.ClientNoOfEntries/p" $PSM_CUR_XML_CONFIG_FILE_NAME | awk -F"[><]" '{print $3}'`
+   if [ "$dhcpmgrCltcount" != "" ]; then
+      dhcpmgrCltdefcount=`sed -n "/dmsb.dhcpmanager.ClientNoOfEntries/p" $PSM_DEF_XML_CONFIG_FILE_NAME | awk -F"[><]" '{print $3}'`
+      if [ "$dhcpmgrCltdefcount" != "" ]; then
+         echo "[utopia][init] No. of DHCP MGR v4 client count from $PSM_DEF_XML_CONFIG_FILE_NAME:"$dhcpmgrCltdefcount
+         echo "[utopia][init] No. of DHCP MGR v4 client count from $PSM_CUR_XML_CONFIG_FILE_NAME:"$dhcpmgrCltcount
+         if [ "$dhcpmgrCltcount" != "$dhcpmgrCltdefcount" ]; then
+            delCmd=`sed -i "/dmsb.dhcpmanager.ClientNoOfEntries/d" $PSM_CUR_XML_CONFIG_FILE_NAME`
+            echo "[utopia][init] DHCP MGR v4 client count mismatched so deleting this dmsb.dhcpmanager.ClientNoOfEntries entry from $PSM_CUR_XML_CONFIG_FILE_NAME to make sure proper v4 client count"
+         fi
+      fi
+   fi
+
+   #DHCP MGR v6 Client Count
+   dhcpmgrv6Cltcount=`sed -n "/dmsb.dhcpmanager.dhcpv6.ClientNoOfEntries/p" $PSM_CUR_XML_CONFIG_FILE_NAME | awk -F"[><]" '{print $3}'`
+   if [ "$dhcpmgrv6Cltcount" != "" ]; then
+      dhcpmgrv6Cltdefcount=`sed -n "/dmsb.dhcpmanager.dhcpv6.ClientNoOfEntries/p" $PSM_DEF_XML_CONFIG_FILE_NAME | awk -F"[><]" '{print $3}'`
+      if [ "$dhcpmgrv6Cltdefcount" != "" ]; then
+         echo "[utopia][init] No. of DHCP MGR v6 client count from $PSM_DEF_XML_CONFIG_FILE_NAME:"$dhcpmgrv6Cltdefcount
+         echo "[utopia][init] No. of DHCP MGR v6 client count from $PSM_CUR_XML_CONFIG_FILE_NAME:"$dhcpmgrv6Cltcount
+         if [ "$dhcpmgrv6Cltcount" != "$dhcpmgrv6Cltdefcount" ]; then
+            delCmd=`sed -i "/dmsb.dhcpmanager.dhcpv6.ClientNoOfEntries/d" $PSM_CUR_XML_CONFIG_FILE_NAME`
+            echo "[utopia][init] DHCP MGR v6 client count mismatched so deleting this dmsb.dhcpmanager.dhcpv6.ClientNoOfEntries entry from $PSM_CUR_XML_CONFIG_FILE_NAME to make sure proper v6 client count"
+         fi
+      fi
+   fi
 fi
