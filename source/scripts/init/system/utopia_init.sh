@@ -388,6 +388,7 @@ fi
     if [ -f /opt/secure/RFC/.RFC_SSHWhiteList.list ]; then
        rm -f /opt/secure/RFC/.RFC_SSHWhiteList.list
     fi
+    rm -f /nvram/webpa_notify_param
 
      touch /nvram/.apply_partner_defaults   
    #>>zqiu
