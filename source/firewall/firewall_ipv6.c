@@ -862,7 +862,7 @@ void do_ipv6_filter_table(FILE *fp){
        * exclude primary lan*/
       prepare_ipv6_multinet(fp);
     #endif
-    #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) //wan0 is not applicable for XER5
+    #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) && !defined(_COSA_QCA_ARM_) //wan0 is not applicable for XER5
       /* not allow ping wan0 from brlan0 */
       int i;
       for(i = 0; i < ecm_wan_ipv6_num; i++){
