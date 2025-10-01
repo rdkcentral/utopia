@@ -467,6 +467,8 @@ char cellular_ifname[32];
 #define SYSEVENT_MAPT_PSID_VALUE "mapt_psid_value"
 #define SYSEVENT_MAPT_PSID_LENGTH "mapt_psid_length"
 
+#define MAPT_V4_MTU_SIZE		"1472"
+
 BOOL isMAPTSet(void);
 static int do_wan_nat_lan_clients_mapt(FILE *fp);
 static char mapt_ip_address[BUFLEN_32];
@@ -1078,6 +1080,10 @@ END:
     return ret;
 }
 
+int getMaptMssClampVal()
+{
+   return (MAPT_V4_MTU_SIZE - IPV4_TOTAL_HEADER_SIZE );
+}
 /*
  ==========================================================================
                      HUB4 MAPT Feature
@@ -1168,7 +1174,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
 #if defined(NAT46_KERNEL_SUPPORT)
     if (strcmp ( devicePartnerId, "sky-uk") == 0) 
     {
-        fprintf(mangle_fp, "-A PREROUTING -i %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss %d\n", NAT46_INTERFACE, NAT46_CLAMP_MSS);
+        fprintf(mangle_fp, "-A PREROUTING -i %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss %d\n", NAT46_INTERFACE, getMaptMssClampVal());
     }
 #endif
 
@@ -1183,15 +1189,15 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
 /* UK MAPT Not connected MQTT broker. */
     if (strcmp ( devicePartnerId, "sky-uk") == 0) {
         fprintf(mangle_fp, "-A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -o %s -j TCPMSS --set-mss %d"
-                       "\n", NAT46_INTERFACE, NAT46_CLAMP_MSS);
+                       "\n", NAT46_INTERFACE, getMaptMssClampVal());
     }else {
         // TCP MSS RULE - SKYH4-5123 - To improve IPv4 Downstream traffic performance
-        fprintf(mangle_fp, "-A FORWARD -p tcp --tcp-flags SYN,RST SYN -o %s -j TCPMSS --set-mss %d\n", NAT46_INTERFACE, NAT46_CLAMP_MSS);
+        fprintf(mangle_fp, "-A FORWARD -p tcp --tcp-flags SYN,RST SYN -o %s -j TCPMSS --set-mss %d\n", NAT46_INTERFACE, getMaptMssClampVal());
     }
 #elif defined (FEATURE_SUPPORT_MAPT_NAT46)
     // RDKB-40515 - [MAP-T] Gw to NOC connectivity failure
     fprintf(mangle_fp, "-A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -o %s -j TCPMSS --set-mss %d"
-                       "\n", NAT46_INTERFACE, NAT46_CLAMP_MSS);
+                       "\n", NAT46_INTERFACE, getMaptMssClampVal());
 #endif
     if (mapt_config_ratio == 1) //config all
     {
@@ -9976,8 +9982,18 @@ static int do_lan2wan_misc(FILE *filter_fp)
 
 static void do_add_TCP_MSS_rules(FILE *mangle_fp)
 {
-    fprintf(mangle_fp, "-I FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
-    fprintf(mangle_fp, "-I OUTPUT -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
+      FIREWALL_DEBUG("Entering do_add_TCP_MSS_rules\n");
+      if(isMAPTReady)
+      {
+         fprintf(mangle_fp, "-I FORWARD -o %s -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss %d\n", NAT46_INTERFACE, getMaptMssClampVal());
+         fprintf(mangle_fp, "-I OUTPUT -o %s -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss %d\n", NAT46_INTERFACE, getMaptMssClampVal());
+      }
+      else
+      {
+         fprintf(mangle_fp, "-I FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
+         fprintf(mangle_fp, "-I OUTPUT -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\n");
+      }
+
 }
 
 /*
