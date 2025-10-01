@@ -467,7 +467,7 @@ char cellular_ifname[32];
 #define SYSEVENT_MAPT_PSID_VALUE "mapt_psid_value"
 #define SYSEVENT_MAPT_PSID_LENGTH "mapt_psid_length"
 
-#define MAPT_V4_MTU_SIZE		"1472"
+#define MAPT_V4_MTU_SIZE		1472
 
 BOOL isMAPTSet(void);
 static int do_wan_nat_lan_clients_mapt(FILE *fp);
