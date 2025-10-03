@@ -533,7 +533,7 @@ fi
    if [ -f /opt/secure/RFC/.RFC_SSHWhiteList.list ]; then
       rm -f /opt/secure/RFC/.RFC_SSHWhiteList.list
    fi
-
+   rm -f /nvram/webpa_notify_param
    echo "[utopia][init] Retarting syscfg using file store ($SYSCFG_NEW_FILE)"
    touch $SYSCFG_NEW_FILE
    touch $SYSCFG_FILE
