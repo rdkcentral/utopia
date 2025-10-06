@@ -1431,7 +1431,6 @@ $DocsisLinkDownTimeOut=900
 
 #Ccsp Ethagent EWAN linkdown timeout default value is 900sec
 $EWanLinkDownTimeout=900
-
 #LLDEnable default value is false
 $LldEnable=false
 
