@@ -1082,6 +1082,7 @@ fi
      echo "dhcp-option=vendor:HIXE12AWR,43,tag=123" >> $LOCAL_DHCP_CONF
      echo "dhcp-option=vendor:WNXE12AWR,43,tag=123" >> $LOCAL_DHCP_CONF
      echo "dhcp-option=vendor:WNXL11BWL,43,tag=123" >> $LOCAL_DHCP_CONF
+     echo "dhcp-option=vendor:RDKBPOD,43,tag=123" >> $LOCAL_DHCP_CONF
    fi
 
    if [ "dns_only" != "$3" ] ; then
