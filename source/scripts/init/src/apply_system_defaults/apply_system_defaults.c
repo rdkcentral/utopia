@@ -691,7 +691,7 @@ static int GetDevicePropertiesEntry (char *pOutput, int size, char *sDevicePropC
 
 static int getFactoryPartnerId (char *pValue)
 {
-#if defined (_XB6_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_SR300_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined (_XB6_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_SR300_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_) 
 	if(0 == platform_hal_getFactoryPartnerId(pValue))
 	{
 		APPLY_PRINT("%s:%d - %s\n",__FUNCTION__, __LINE__,pValue);
