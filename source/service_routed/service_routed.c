@@ -197,7 +197,7 @@ int GetDeviceNetworkMode()
 }
 #endif
 
-#if defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
 /** IsThisCurrentPartnerID() */
 static unsigned char IsThisCurrentPartnerID( const char* pcPartnerID )
 {
@@ -215,7 +215,7 @@ static unsigned char IsThisCurrentPartnerID( const char* pcPartnerID )
 
     return FALSE;
 }
-#endif /** _SCER11BEL_PRODUCT_REQ_ */
+#endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
 
 STATIC int fw_restart(struct serv_routed *sr)
 {
