@@ -195,7 +195,7 @@ do_start() {
                 commandString="$commandString -p [$CM_IPV6]:22"
 	    fi
         fi
-    elif ([ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" = "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]) ; then
+    elif [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" = "true" ]; then
         # In IPv6 only case (MAP-T), and if IPv6 GUA on LAN enabled case, use brlan0 interface to get v6 global address.
         CM_IPV6=`ip -6 addr show dev brlan0 scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
         if [ ! -z "$CM_IPV6" ]; then
@@ -257,7 +257,7 @@ do_start() {
        if  ([ "$MANUFACTURE" = "Technicolor" ] || [ "$MODEL_NUM" = "SG417DBCT" ]) ; then
 	  echo dropbear -E -s -K 60 -b /etc/sshbanner.txt ${commandString} -r ${DROPBEAR_PARAMS_1} -r ${DROPBEAR_PARAMS_2} -a -P ${PID_FILE}
           dropbear -E -s -b /etc/sshbanner.txt $commandString -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -a -P $PID_FILE -K 60 $USE_DEVKEYS 2>>$CONSOLEFILE
-       elif ([ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" = "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]) ; then
+       elif [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" = "true" ]; then
               dropbear -E -s -b /etc/sshbanner.txt $commandString -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -a -P $PID_FILE -K 60 $USE_DEVKEYS 2>>$CONSOLEFILE
        else
 	      dropbear -E -s -b /etc/sshbanner.txt -a -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -p [$CM_IP]:22 -P $PID_FILE $USE_DEVKEYS 2>>$CONSOLEFILE
