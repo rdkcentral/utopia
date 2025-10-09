@@ -564,7 +564,7 @@ STATIC int route_set(struct serv_routed *sr)
 #endif
 
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) ||defined(_SCXF11BFL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) 
     if ( TRUE == IsThisCurrentPartnerID("sky-") )
 #endif /* _SCER11BEL_PRODUCT_REQ_ */
     {
@@ -1021,7 +1021,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     {
     #endif
         #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
-        #if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+        #if defined(_SCER11BEL_PRODUCT_REQ_) 
             if ( FALSE == IsThisCurrentPartnerID("sky-") )
             {
                 sysevent_get(sefd, setok, "lan_prefix", prefix, sizeof(prefix));
@@ -1040,7 +1040,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     if (gModeSwitched == ULA_IPV6)
     {
         #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
-        #if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+        #if defined(_SCER11BEL_PRODUCT_REQ_)
             if ( FALSE == IsThisCurrentPartnerID("sky-") )
             {
                 sysevent_get(sefd, setok, "lan_prefix", last_broadcasted_prefix, sizeof(last_broadcasted_prefix));
@@ -1665,8 +1665,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 			for (start = name_servs; (tok = strtok_r(start, " ", &sp)); start = NULL)
 			{
 			// Modifying rdnss value to fix the zebra config.
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) 
                         if( TRUE == IsThisCurrentPartnerID("sky-") ) 
                         {
                             if (0 == strncmp(lan_addr, tok, strlen(lan_addr)))
@@ -2080,8 +2080,8 @@ STATIC int radv_start(struct serv_routed *sr)
         return -1;
     }
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) ||defined(_SCXF11BFL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
+#if defined(_SCER11BEL_PRODUCT_REQ_) 
     if( TRUE == IsThisCurrentPartnerID("sky-") ) 
 #endif /** _SCER11BEL_PRODUCT_REQ_ */
     {
@@ -2137,7 +2137,7 @@ STATIC int rip_start(struct serv_routed *sr)
     if (!serv_can_start(sr->sefd, sr->setok, "rip"))
         return -1;
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) 
     if( TRUE == IsThisCurrentPartnerID("sky-") ) 
     {
         if (!sr->lan_ready) {
