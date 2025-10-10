@@ -563,7 +563,7 @@ STATIC int route_set(struct serv_routed *sr)
     }
 #endif
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) ||defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
 #if defined(_SCER11BEL_PRODUCT_REQ_) 
     if ( TRUE == IsThisCurrentPartnerID("sky-") )
 #endif /* _SCER11BEL_PRODUCT_REQ_ */
@@ -1020,7 +1020,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     else
     {
     #endif
-        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
         #if defined(_SCER11BEL_PRODUCT_REQ_) 
             if ( FALSE == IsThisCurrentPartnerID("sky-") )
             {
@@ -1039,7 +1039,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
     if (gModeSwitched == ULA_IPV6)
     {
-        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
         #if defined(_SCER11BEL_PRODUCT_REQ_)
             if ( FALSE == IsThisCurrentPartnerID("sky-") )
             {
