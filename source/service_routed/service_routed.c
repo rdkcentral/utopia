@@ -1192,8 +1192,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 	{
 		char val_DNSServersEnabled[ 32 ];
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_)
         if ( TRUE == IsThisCurrentPartnerID("sky-") )
 #endif /** _SCER11BEL_PRODUCT_REQ_ */
         {
@@ -1331,10 +1331,10 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
                 fprintf(fp, "   ipv6 nd ra-interval 30\n"); //Set ra-interval to default 30 secs as per Erouter Specs.
             }
 #else
-#if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_)  && !defined(_SCXF11BFL_PRODUCT_REQ_)) || defined (_WNXL11BWL_PRODUCT_REQ_) 
+#if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_) ) || defined (_WNXL11BWL_PRODUCT_REQ_) 
         fprintf(fp, "   ipv6 nd ra-interval 3\n");
 #else
-#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_)
         if ( FALSE == IsThisCurrentPartnerID("sky-") )
         {
             fprintf(fp, "   ipv6 nd ra-interval 3\n");
@@ -1348,7 +1348,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif
 
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_)
         if ( TRUE == IsThisCurrentPartnerID("sky-") )
         {
             /* SKYH4-5324 : Selfheal is not working from IPv6 only client.
@@ -1393,8 +1393,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         syscfg_get(NULL, "router_managed_flag", m_flag, sizeof(m_flag));
         if (strcmp(m_flag, "1") == 0)
             fprintf(fp, "   ipv6 nd managed-config-flag\n");
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_)
             else if ((strcmp(m_flag, "0") == 0) && ( TRUE == IsThisCurrentPartnerID("sky-") ))
 #else
             else if (strcmp(m_flag, "0") == 0)
@@ -1405,8 +1405,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         syscfg_get(NULL, "router_other_flag", o_flag, sizeof(o_flag));
         if (strcmp(o_flag, "1") == 0)
             fprintf(fp, "   ipv6 nd other-config-flag\n");
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
+#if defined(_SCER11BEL_PRODUCT_REQ_)
             else if ((strcmp(o_flag, "0") == 0) && ( TRUE == IsThisCurrentPartnerID("sky-") ))
 #else
             else if (strcmp(o_flag, "0") == 0)
@@ -2242,7 +2242,7 @@ STATIC int serv_routed_start(struct serv_routed *sr)
         return -1;
     }
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_)
     if( FALSE == IsThisCurrentPartnerID("sky-") ) 
 #endif /** */
     {
