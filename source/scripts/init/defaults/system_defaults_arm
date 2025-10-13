@@ -1264,6 +1264,10 @@ $T2ConfigURL=https://xconf.xcal.tv/loguploader/getT2Settings
 #Defaults for mTLS in T2
 $T2mTLSEnable=true
 
+#Defaults for xMemInsight
+$xMemEnable=false
+$xMemArgs=
+
 #RDM Module Default URL
 $CDLModuleUrl=
 #low_queue_reboot_threshold
