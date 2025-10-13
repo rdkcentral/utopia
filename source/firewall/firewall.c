@@ -12081,6 +12081,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    fprintf(filter_fp, "-A OUTPUT -o lo -p tcp -m tcp --sport 49152:49153 -j ACCEPT\n");
    fprintf(filter_fp, "-A OUTPUT ! -o brlan0 -p tcp -m tcp --sport 49152:49153 -j DROP\n");
+   /* For EasyMesh Controller Communication */
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I OUTPUT -o %s -p tcp --sport 49153 -j ACCEPT\n",get_current_wan_ifname());
+#endif
 #ifdef CONFIG_CISCO_FEATURE_CISCOCONNECT
    fprintf(filter_fp, ":%s - [0:0]\n", "pp_disabled");
    if(isGuestNetworkEnabled) {
@@ -13120,6 +13124,10 @@ int do_block_ports(FILE *filter_fp)
    fprintf(filter_fp, "-A INPUT -i lo -p udp -m udp --dport 1900 -j ACCEPT\n");
 
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 49152:49153 -j DROP\n");
+   /* For EasyMesh Controller Communication */
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n",get_current_wan_ifname());
+#endif
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 1900 -j DROP\n");
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 21515 -j DROP\n");
