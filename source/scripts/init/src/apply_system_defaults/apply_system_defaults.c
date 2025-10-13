@@ -3380,7 +3380,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 	else
 	{
 
-#if !defined (_XB6_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_) && !defined(_SR300_PRODUCT_REQ_)
+#if !defined (_XB6_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_) && !defined(_SR300_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_)
 		//Partner ID is null so need to set default partner ID as "comcast"
 		memset( PartnerID, 0, sizeof( PartnerID ) );
 #if defined (_RDK_REF_PLATFORM_)
