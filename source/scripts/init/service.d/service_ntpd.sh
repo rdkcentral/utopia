@@ -46,10 +46,13 @@ source /etc/device.properties
 SERVICE_NAME="ntpd"
 SELF_NAME="`basename "$0"`"
 NTP_CONF=/etc/ntp.conf
+CH_NTP_CONF=/etc/chrony.conf
 NTP_CONF_TMP=/tmp/ntp.conf
+CH_NTP_CONF_TMP=/tmp/chrony.conf
 NTP_CONF_QUICK_SYNC=/tmp/ntp_quick_sync.conf
+CH_NTP_CONF_QUICK_SYNC=/tmp/chrony_quick_sync.conf
 LOCKFILE=/var/tmp/service_ntpd.pid
-BIN=ntpd
+BIN=chronyd
 WAN_IPv6_UP=0
 QUICK_SYNC_PID=""
 QUICK_SYNC_DONE=0
@@ -624,6 +627,8 @@ service_start ()
        killall $BIN ### This to ensure there is no instance of NTPD running because of multiple wan-start events
        sleep 5
 
+       cp /etc/chrony_quick_sync.conf /tmp/chrony.conf
+
        if [ -n "$QUICK_SYNC_WAN_IP" ]; then
            # Try and Force Quick Sync to Run on a single interface
 		   uptime=$(cut -d. -f1 /proc/uptime)
@@ -632,14 +637,17 @@ service_start ()
 		   t2ValNotify "SYST_INFO_NTP_START_split" $uptime_ms
            if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$ntpHealthCheck" = "true" ]; then
                if [ $WAN_IPv6_UP -eq 1 ]; then
-                   $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME & 
-                   QUICK_SYNC_PID=$!
+                   # $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME & 
+                   $BIN -Q -f /tmp/chrony.conf >> $NTPD_LOG_NAME &
+		   QUICK_SYNC_PID=$!
                else
-                   $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -4 -l $NTPD_LOG_NAME &
+                   # $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -4 -l $NTPD_LOG_NAME &
+                   $BIN -Q -f /tmp/chrony.conf >> $NTPD_LOG_NAME &
                    QUICK_SYNC_PID=$!
                fi
            else
-               $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME &
+               # $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME &
+               $BIN -Q -f /tmp/chrony.conf >> $NTPD_LOG_NAME &
                QUICK_SYNC_PID=$!
            fi
            if [ -n "$QUICK_SYNC_PID" ];then
@@ -673,7 +681,8 @@ service_start ()
            if [ -n "$QUICK_SYNC_WAN_IP" ]; then
                # Try and Force Quick Sync to Run on a single interface
                echo_t "SERVICE_NTPD : Starting NTP Quick Sync" >> $NTPD_LOG_NAME
-               $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME &
+               # $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME &
+               $BIN -Q -f /tmp/chrony.conf >> $NTPD_LOG_NAME &
 	       QUICK_SYNC_PID=$!
 	       if [ -n "$QUICK_SYNC_PID" ];then
                   set_ntp_quicksync_status
