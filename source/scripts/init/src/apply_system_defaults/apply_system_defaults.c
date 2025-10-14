@@ -1631,11 +1631,20 @@ STATIC void addInSysCfgdDB (char *key, char *value)
    //Check whether migration needs to be handled or not
    if( 1 == IsPSMMigrationNeeded )
    {
-      APPLY_PRINT("%s - Adding new member in %s file\n", __FUNCTION__, BOOTSTRAP_INFO_FILE);
-      APPLY_PRINT("%s - PSM Migration needed for %s param so touching %s file\n", __FUNCTION__, key, PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER );
+	   APPLY_PRINT("%s - Adding new member in %s file\n", __FUNCTION__, BOOTSTRAP_INFO_FILE);
+	   APPLY_PRINT("%s - PSM Migration needed for %s param so touching %s file\n", __FUNCTION__, key, PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER );
 
-      //Need to touch /tmp/.apply_partner_defaults_new_psm_member for PSM migration handling
-      creat(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER,S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	   //Need to touch /tmp/.apply_partner_defaults_new_psm_member for PSM migration handling
+	   int fd = open(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	   if (fd == -1)
+	   {
+		   APPLY_PRINT("%s - Failed to create file %s file\n", __FUNCTION__, PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER);
+	   }
+	   if (fd >= 0 )
+	   {
+	       close(fd);
+	       fd = -1;
+	   }
    }
 }
 
@@ -1841,11 +1850,20 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    //Check whether migration needs to be handled or not
    if( 1 == IsPSMMigrationNeeded )
    {
-      APPLY_PRINT("%s - Updating member in %s file\n", __FUNCTION__, BOOTSTRAP_INFO_FILE);
-      APPLY_PRINT("%s - PSM Migration needed for %s param so touching %s file\n", __FUNCTION__, key, PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER );
+	APPLY_PRINT("%s - Updating member in %s file\n", __FUNCTION__, BOOTSTRAP_INFO_FILE);
+	APPLY_PRINT("%s - PSM Migration needed for %s param so touching %s file\n", __FUNCTION__, key, PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER );
 
-      //Need to touch /tmp/.apply_partner_defaults_new_psm_member for PSM migration handling
-      creat(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER,S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	//Need to touch /tmp/.apply_partner_defaults_new_psm_member for PSM migration handling
+	int fd = open(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	if (fd == -1)
+	{
+	   APPLY_PRINT("%s - Failed to create file %s file\n", __FUNCTION__, PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER);
+	}
+	if (fd >= 0 )
+	{
+	   close(fd);
+	   fd = -1;
+	}
    }
 }
 
