@@ -21,6 +21,10 @@
 
 #include "firewall.h"
 #include "firewall_custom.h"
+#include "util.h"
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #define DEVICE_RECOVERY_INTERFACE "eth0"
 #include<errno.h> 
@@ -30,6 +34,9 @@
 #define IPV6_TOTAL_HEADER_SIZE 60
 
 #define MTU_SIZE 1500
+#define PRIMARYLAN_L3NET "dmsb.MultiLAN.PrimaryLAN_l3net" 
+#define HOMESECURITY_L3NET "dmsb.MultiLAN.HomeSecurity_l3net"
+#define LNF_L3NET "dmsb.MultiLAN.LnF_l3net"
 
 extern int  sysevent_fd ;
 extern token_t        sysevent_token;
@@ -42,7 +49,7 @@ static char mesh_wan_ipaddr[32];
 
 extern int mesh_wan_ipv6_num ;
 extern char mesh_wan_ipv6addr[IF_IPV6ADDR_MAX][40];
-
+extern void* bus_handle;
 #if 0
 int cellular_wan_ipv6_num = 0;
 char cellular_wan_ipv6addr[IF_IPV6ADDR_MAX][40];
@@ -143,6 +150,51 @@ static int prepare_subtables_ext_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_f
    fprintf(filter_fp, "add chain ip filter %s\n", "SSH_FILTER");
    return 0;
 }  
+
+void calculate_network_address(const char *ip_start, const char *netmask, char *subnet, size_t len) {
+    struct in_addr addr_start, addr_netmask, addr_network;
+    unsigned int mask_bits = 0;
+
+    // Convert IP addresses and netmask to binary form
+    inet_pton(AF_INET, ip_start, &addr_start);
+    inet_pton(AF_INET, netmask, &addr_netmask);
+
+    // Calculate network address
+    addr_network.s_addr = addr_start.s_addr & addr_netmask.s_addr;
+
+    // Calculate the number of mask bits
+    unsigned int mask = ntohl(addr_netmask.s_addr);
+    while (mask & 0x80000000) {
+        mask_bits++;
+        mask <<= 1;
+    }
+
+    // Convert network address to string
+    char network_str[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &addr_network, network_str, INET_ADDRSTRLEN);
+
+    // Print the result in CIDR notation
+    printf("Network Address: %s/%d\n", network_str, mask_bits);
+    snprintf(subnet, len, "%s/%d", network_str, mask_bits);
+}
+
+void get_ip_and_netmask_addr(int instance,char *inet_addr,char *netmask,int inet_addr_len,int netmask_len  )
+{
+   static char *l3netIPaddr = "dmsb.l3net.%d.V4Addr";
+   static char *l3netSubnetMask = "dmsb.l3net.%d.V4SubnetMask";
+   char IpaddrString[64] = {0};
+   char SubnetMaskString[64] = {0};
+   snprintf(IpaddrString,sizeof(IpaddrString),l3netIPaddr,instance);
+   snprintf(SubnetMaskString,sizeof(SubnetMaskString),l3netSubnetMask,instance);
+   psmGet(bus_handle, IpaddrString, inet_addr, inet_addr_len);
+   psmGet(bus_handle, SubnetMaskString, netmask, netmask_len);
+
+   if (netmask[0] == '\0')
+   {
+      FIREWALL_DEBUG("netmask is null for instance %d, copying default netmask \n" COMMA instance);
+      snprintf(netmask,netmask_len,"255.255.255.0");
+   }
+}
 /*
  *  Procedure     : prepare_ipv4_rule_ex_mode
  *  Purpose       : prepare ipv4 firewall
@@ -154,6 +206,10 @@ static int prepare_subtables_ext_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_f
  */
 int prepare_ipv4_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *filter_fp)
 {
+   char inet_addr[64] = {0};
+   char netmask[64] = {0};
+   char output[64] = {0};
+   char instance[10];
    FIREWALL_DEBUG("Entering prepare_ipv4_rule_ex_mode \n"); 
    prepare_subtables_ext_mode(raw_fp, mangle_fp, nat_fp, filter_fp);
 
@@ -200,27 +256,69 @@ int prepare_ipv4_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE 
    fprintf(filter_fp, "add rule ip filter OUTPUT oifname %s ip saddr 192.168.1.0/28 counter accept\n",DEVICE_RECOVERY_INTERFACE);
 
 // Dropping packets from private ip range 
-   fprintf(filter_fp, "add rule ip filter INPUT ip saddr 10.0.0.0/8 counter drop\n");
-   fprintf(filter_fp, "add rule ip filter FORWARD ip saddr 10.0.0.0/8 counter drop\n");
-   fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr 10.0.0.0/8 counter drop\n");
-
-   fprintf(filter_fp, "add rule ip filter INPUT ip saddr 192.168.0.0/16 counter drop\n");
-   fprintf(filter_fp, "add rule ip filter FORWARD ip saddr 192.168.0.0/16 counter drop\n");
-   fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr 192.168.0.0/16 counter drop\n");
-
-   for (int i=16;i<=31 ;i++)
+   psmGet(bus_handle,PRIMARYLAN_L3NET,instance, sizeof(instance));
+   memset(output,0,sizeof(output));
+   memset(inet_addr,0,sizeof(inet_addr));
+   memset(netmask,0,sizeof(netmask));
+   get_ip_and_netmask_addr(atoi(instance),inet_addr,netmask,sizeof(inet_addr),sizeof(netmask));
+   if ( strlen(inet_addr) != 0)
    {
-      fprintf(filter_fp, "add rule ip filter INPUT ip saddr 172.%d.0.0/16 counter drop\n",i);
-      fprintf(filter_fp, "add rule ip filter FORWARD ip saddr 172.%d.0.0/16 counter drop\n",i);
-      fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr 172.%d.0.0/16 counter drop\n",i);
+      calculate_network_address(inet_addr,netmask,output,sizeof(output));   
+      fprintf(filter_fp, "add rule ip filter INPUT ip saddr %s counter drop\n", output);
+      fprintf(filter_fp, "add rule ip filter FORWARD ip saddr %s counter drop\n", output);
+      fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr %s counter drop\n",output);
+   }
+   else
+   {
+      FIREWALL_DEBUG("inet_addr is null for PRIMARYLAN_L3NET \n");
+
    }
 
+   memset(output,0,sizeof(output));
+   memset(inet_addr,0,sizeof(inet_addr));
+   memset(netmask,0,sizeof(netmask));
+
+   psmGet(bus_handle,LNF_L3NET,instance, sizeof(instance));
+
+
+   get_ip_and_netmask_addr(atoi(instance),inet_addr,netmask,sizeof(inet_addr),sizeof(netmask));
+      if ( strlen(inet_addr) != 0)
+   {
+      calculate_network_address(inet_addr,netmask,output,sizeof(output));
+      fprintf(filter_fp, "add rule ip filter INPUT ip saddr %s counter drop\n", output);
+      fprintf(filter_fp, "add rule ip filter FORWARD ip saddr %s counter drop\n", output);
+      fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr %s counter drop\n",output);
+   }
+   else
+   {
+      FIREWALL_DEBUG("inet_addr is null for LNF_L3NET \n");
+   }
+
+   memset(output,0,sizeof(output));
+   memset(inet_addr,0,sizeof(inet_addr));
+   memset(netmask,0,sizeof(netmask));
+
+   psmGet(bus_handle,HOMESECURITY_L3NET,instance, sizeof(instance));
+   get_ip_and_netmask_addr(atoi(instance),inet_addr,netmask,sizeof(inet_addr),sizeof(netmask));
+
+
+   if ( strlen(inet_addr) != 0)
+   {
+      calculate_network_address(inet_addr,netmask,output,sizeof(output));
+      fprintf(filter_fp, "add rule ip filter INPUT ip saddr %s counter drop\n", output);
+      fprintf(filter_fp, "add rule ip filter FORWARD ip saddr %s counter drop\n", output);
+      fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr %s counter drop\n",output);
+   }
+   else
+   {
+      FIREWALL_DEBUG("inet_addr is null for HOMESECURITY_L3NET \n");
+   }
    fprintf(filter_fp, "add rule ip filter FORWARD iifname %s oifname %s counter accept\n",mesh_wan_ifname,cellular_ifname);
    fprintf(filter_fp, "add rule ip filter FORWARD iifname %s oifname %s counter accept\n",cellular_ifname,mesh_wan_ifname);
 
  //  do_logs(filter_fp);
 
-   fprintf(filter_fp, "insert rule ip filter FORWARD oifname %s ct state invalid  counter drop\n",cellular_ifname);
+   //fprintf(filter_fp, "insert rule ip filter FORWARD oifname %s ct state invalid  counter drop\n",cellular_ifname);
 
    FIREWALL_DEBUG("Exiting prepare_enabled_ipv4_firewall \n"); 
 
