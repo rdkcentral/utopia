@@ -2,7 +2,7 @@
  * If not stated otherwise in this file or this component's Licenses.txt file the
  * following copyright and licenses apply:
  *
- * Copyright 2015 RDK Management
+ * Copyright 2025 RDK Management
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -207,24 +207,24 @@ void handle_dns_query(struct nfq_data *pkt)
             fclose(mac2Ip);
         }
 #if _NFQ_DEBUG_LEVEL == 1
-        printf("system: iptables -F pp_disabled_%u\n", insNum);
+        printf("system: flush chain ip filter pp_disabled_%u\n", insNum);
 #endif
-        v_secure_system("iptables -F pp_disabled_%u", insNum);
+        v_secure_system("flush chain ip filter pp_disabled_%u", insNum);
 
 #if _NFQ_DEBUG_LEVEL == 1
-        printf("system: iptables -A pp_disabled_%u -d %s -p tcp -m multiport --sports 80,443 -m state --state ESTABLISHED -m connbytes --connbytes 0:5 --connbytes-dir reply --connbytes-mode packets -j GWMETA --dis-pp\n", insNum, ipAddr);
+        printf("system: add rule ip filter pp_disabled_%u dst %s tcp sport { 80, 443 } ct state established connbytes 0-5 packets counter jump GWMETA comment \"dis-pp\"", insNum, ipAddr);
 #endif
-        v_secure_system("iptables -A pp_disabled_%u -d %s -p tcp -m multiport --sports 80,443 -m state --state ESTABLISHED -m connbytes --connbytes 0:5 --connbytes-dir reply --connbytes-mode packets -j GWMETA --dis-pp", insNum, ipAddr);
+        v_secure_system("add rule ip filter pp_disabled_%u dst %s tcp sport { 80, 443 } ct state established connbytes 0-5 packets counter jump GWMETA comment \"dis-pp\"", insNum, ipAddr);
 
 #if _NFQ_DEBUG_LEVEL == 1
-        printf("system: iptables -F device_%u_container\n", insNum);
+        printf("system: flush chain ip filter device_%u_container\n", insNum);
 #endif
-        v_secure_system("iptables -F device_%u_container", insNum);
+        v_secure_system("flush chain ip filter device_%u_container", insNum);
         
 #if _NFQ_DEBUG_LEVEL == 1
-        printf("system: iptables -A device_%u_container -d %s -j wan2lan_dnsr_nfqueue_%u\n", insNum, ipAddr, insNum);
+        printf("system: add rule ip filter device_%u_container ip daddr %s jump wan2lan_dnsr_nfqueue_%u", insNum, ipAddr, insNum);
 #endif
-        v_secure_system("iptables -A device_%u_container -d %s -j wan2lan_dnsr_nfqueue_%u", insNum, ipAddr, insNum);
+        v_secure_system("add rule ip filter device_%u_container ip daddr %s jump wan2lan_dnsr_nfqueue_%u", insNum, ipAddr, insNum);
     }
     else
         fprintf(stderr, "nfq_handler: error during nfq_get_payload() in %s\n", __FUNCTION__);

@@ -16,7 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-SUBDIRS = ulog syscfg sysevent services utctx utapi util firewall
+SUBDIRS = ulog syscfg sysevent services utctx utapi util
 
 if FIREWALL_NFT
 SUBDIRS += firewall_nft

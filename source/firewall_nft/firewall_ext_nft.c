@@ -1,11 +1,27 @@
+/*
+* If not stated otherwise in this file or this component's Licenses.txt file the
+* following copyright and licenses apply:
+*
+* Copyright 2025 RDK Management
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
 #ifdef RDKB_EXTENDER_ENABLED
 
 #include "firewall.h"
 #include "firewall_custom.h"
-#include "util.h"
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
+
 #define DEVICE_RECOVERY_INTERFACE "eth0"
 #include<errno.h> 
 
@@ -14,9 +30,6 @@
 #define IPV6_TOTAL_HEADER_SIZE 60
 
 #define MTU_SIZE 1500
-#define PRIMARYLAN_L3NET "dmsb.MultiLAN.PrimaryLAN_l3net" 
-#define HOMESECURITY_L3NET "dmsb.MultiLAN.HomeSecurity_l3net"
-#define LNF_L3NET "dmsb.MultiLAN.LnF_l3net"
 
 extern int  sysevent_fd ;
 extern token_t        sysevent_token;
@@ -29,7 +42,7 @@ static char mesh_wan_ipaddr[32];
 
 extern int mesh_wan_ipv6_num ;
 extern char mesh_wan_ipv6addr[IF_IPV6ADDR_MAX][40];
-extern void* bus_handle;
+
 #if 0
 int cellular_wan_ipv6_num = 0;
 char cellular_wan_ipv6addr[IF_IPV6ADDR_MAX][40];
@@ -68,12 +81,12 @@ void add_if_mss_clamping(FILE *mangle_fp,int family)
          else
             return;
 
-         fprintf(mangle_fp, "-A FORWARD -p tcp --tcp-flags SYN,RST SYN -o %s -j TCPMSS --set-mss %d\n",cellular_ifname,mss_clamp_val); 
-         fprintf(mangle_fp, "-A POSTROUTING -o %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss %d\n",cellular_ifname,mss_clamp_val); 
+         fprintf(mangle_fp, "add rule ip filter FORWARD oifname %s tcp flags & (syn|rst) == syn counter tcp option maxseg size set %d\n",cellular_ifname,mss_clamp_val); 
+         fprintf(mangle_fp, "add rule ip filter POSTROUTING oifname %s tcp flags & (syn|rst) == syn counter tcp option maxseg size set %d\n",cellular_ifname,mss_clamp_val); 
          if ( 0 == isExtProfile())
          {
-            fprintf(mangle_fp, "-A FORWARD -p tcp --tcp-flags SYN,RST SYN -o %s -j TCPMSS --set-mss %d\n",mesh_wan_ifname,mss_clamp_val); 
-            fprintf(mangle_fp, "-A POSTROUTING -o %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss %d\n",mesh_wan_ifname,mss_clamp_val);      
+            fprintf(mangle_fp, "add rule ip filter FORWARD oifname %s tcp flags & (syn|rst) == syn counter tcp option maxseg size set %d\n",mesh_wan_ifname,mss_clamp_val); 
+            fprintf(mangle_fp, "add rule ip filter POSTROUTING oifname %s tcp flags & (syn|rst) == syn counter tcp option maxseg size set %d\n",mesh_wan_ifname,mss_clamp_val);      
          }
 
       }
@@ -102,80 +115,34 @@ static int prepare_subtables_ext_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_f
    /*
     * raw
    */
-   fprintf(raw_fp, "%s\n", "*raw");
+   fprintf(filter_fp, "add table ip raw\n");
 
 
    /*
     * mangle
     */
-   fprintf(mangle_fp, "%s\n", "*mangle");
+   fprintf(filter_fp, "add table ip mangle\n");
 
 
       /*
     * nat
     */
-   fprintf(nat_fp, "%s\n", "*nat");
+   fprintf(filter_fp, "add table ip nat\n");
 
       /*
     * filter
     */
-   fprintf(filter_fp, "%s\n", "*filter");
-   fprintf(filter_fp, "%s\n", ":INPUT ACCEPT [0:0]");
-   fprintf(filter_fp, "%s\n", ":FORWARD ACCEPT [0:0]");
-   fprintf(filter_fp, "%s\n", ":OUTPUT ACCEPT [0:0]");
-
-   fprintf(filter_fp, "%s\n", ":wanattack - [0:0]");
-   fprintf(filter_fp, "%s\n", ":xlog_drop_wanattack - [0:0]");
-   fprintf(filter_fp, "%s\n", ":xlog_accept_wan2lan - [0:0]");
-   fprintf(filter_fp, "%s\n", ":LOG_SSH_DROP - [0:0]");
-   fprintf(filter_fp, "%s\n", ":SSH_FILTER - [0:0]");
+   fprintf(filter_fp, "add table ip filter\n");
+   fprintf(filter_fp, "add chain ip filter %s { type route hook output priority -150; policy accept; }\n","INPUT");
+   fprintf(filter_fp, "add chain ip filter %s { type route hook output priority -150; policy accept; }\n","OUTPUT");
+   fprintf(filter_fp, "add chain ip filter %s { type route hook output priority -150; policy accept; }\n","FORWARD");
+   fprintf(filter_fp, "add chain ip filter %s\n", "wanattack");
+   fprintf(filter_fp, "add chain ip filter %s\n", "xlog_drop_wanattack");
+   fprintf(filter_fp, "add chain ip filter %s\n", "xlog_accept_wan2lan");
+   fprintf(filter_fp, "add chain ip filter %s\n", "LOG_SSH_DROP");
+   fprintf(filter_fp, "add chain ip filter %s\n", "SSH_FILTER");
    return 0;
-}
-
-void calculate_network_address(const char *ip_start, const char *netmask, char *subnet, size_t len) {
-    struct in_addr addr_start, addr_netmask, addr_network;
-    unsigned int mask_bits = 0;
-
-    // Convert IP addresses and netmask to binary form
-    inet_pton(AF_INET, ip_start, &addr_start);
-    inet_pton(AF_INET, netmask, &addr_netmask);
-
-    // Calculate network address
-    addr_network.s_addr = addr_start.s_addr & addr_netmask.s_addr;
-
-    // Calculate the number of mask bits
-    unsigned int mask = ntohl(addr_netmask.s_addr);
-    while (mask & 0x80000000) {
-        mask_bits++;
-        mask <<= 1;
-    }
-
-    // Convert network address to string
-    char network_str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &addr_network, network_str, INET_ADDRSTRLEN);
-
-    // Print the result in CIDR notation
-    printf("Network Address: %s/%d\n", network_str, mask_bits);
-    snprintf(subnet, len, "%s/%d", network_str, mask_bits);
-}
-
-void get_ip_and_netmask_addr(int instance,char *inet_addr,char *netmask,int inet_addr_len,int netmask_len  )
-{
-   static char *l3netIPaddr = "dmsb.l3net.%d.V4Addr";
-   static char *l3netSubnetMask = "dmsb.l3net.%d.V4SubnetMask";
-   char IpaddrString[64] = {0};
-   char SubnetMaskString[64] = {0};
-   snprintf(IpaddrString,sizeof(IpaddrString),l3netIPaddr,instance);
-   snprintf(SubnetMaskString,sizeof(SubnetMaskString),l3netSubnetMask,instance);
-   psmGet(bus_handle, IpaddrString, inet_addr, inet_addr_len);
-   psmGet(bus_handle, SubnetMaskString, netmask, netmask_len);
-
-   if (netmask[0] == '\0')
-   {
-      FIREWALL_DEBUG("netmask is null for instance %d, copying default netmask \n" COMMA instance);
-      snprintf(netmask,netmask_len,"255.255.255.0");
-   }
-}
+}  
 /*
  *  Procedure     : prepare_ipv4_rule_ex_mode
  *  Purpose       : prepare ipv4 firewall
@@ -187,123 +154,74 @@ void get_ip_and_netmask_addr(int instance,char *inet_addr,char *netmask,int inet
  */
 int prepare_ipv4_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *filter_fp)
 {
-   char inet_addr[64] = {0};
-   char netmask[64] = {0};
-   char output[64] = {0};
-   char instance[10];
    FIREWALL_DEBUG("Entering prepare_ipv4_rule_ex_mode \n"); 
    prepare_subtables_ext_mode(raw_fp, mangle_fp, nat_fp, filter_fp);
 
-   fprintf(nat_fp, "-A  POSTROUTING -o %s -j MASQUERADE\n",cellular_ifname);
+   fprintf(nat_fp, "add rule ip nat POSTROUTING oifname %s counter masquerade\n",cellular_ifname);
 
    add_if_mss_clamping(mangle_fp,AF_INET);
    if (strlen(mesh_wan_ipaddr) != 0 )
    {
-      fprintf(nat_fp, "-A  PREROUTING -i %s -p udp --dport 53 -j DNAT --to-destination %s\n",mesh_wan_ifname,mesh_wan_ipaddr);
-      fprintf(nat_fp, "-A  PREROUTING -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",mesh_wan_ifname,mesh_wan_ipaddr);      
+      fprintf(nat_fp, "add rule ip nat PREROUTING iifname %s udp dport 53 counter dnat to %s\n",mesh_wan_ifname,mesh_wan_ipaddr);
+      fprintf(nat_fp, "add rule ip nat PREROUTING iifname %s tcp dport 53 counter dnat to %s\n",mesh_wan_ifname,mesh_wan_ipaddr);      
    }
 
-   fprintf(filter_fp, "-A INPUT -i lo -p udp --dport 53 -j DROP \n");
-   fprintf(filter_fp, "-A INPUT -i lo -p tcp --dport 53 -j DROP \n");
+   fprintf(filter_fp, "add rule ip filter INPUT iifname lo udp dport 53 counter drop \n");
+   fprintf(filter_fp, "add rule ip filter INPUT iifname lo tcp dport 53 counter drop \n");
 
-   fprintf(filter_fp, "-A INPUT -i %s -j wanattack\n", cellular_ifname);
+   fprintf(filter_fp, "add rule ip filter INPUT iifname %s counter jump wanattack\n", cellular_ifname);
 
    do_wan2self_attack(filter_fp,cellular_ipaddr);
 
-   fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n",cellular_ifname);
+   fprintf(filter_fp, "add rule ip filter INPUT iifname %s tcp dport 22 counter jump SSH_FILTER\n",cellular_ifname);
 #if defined(_WNXL11BWL_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_)
-   fprintf(filter_fp, "-A INPUT -i brlan112 -d 169.254.70.0/24 -j ACCEPT\n");
-   fprintf(filter_fp, "-A INPUT -i brlan112 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
-   fprintf(filter_fp, "-A INPUT -i brlan113 -d 169.254.71.0/24 -j ACCEPT\n");
-   fprintf(filter_fp, "-A INPUT -i brlan113 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
-   fprintf(filter_fp, "-A INPUT -i brebhaul -d 169.254.85.0/24 -j ACCEPT\n");
-   fprintf(filter_fp, "-A INPUT -i brebhaul -m pkttype ! --pkt-type unicast -j ACCEPT\n");
+   fprintf(filter_fp, "add rule ip filter INPUT iifname brlan112 ip daddr 169.254.70.0/24 counter accept\n");
+   fprintf(filter_fp, "add rule ip filter INPUT iifname brlan112 pkttype != unicast counter accept\n");
+   fprintf(filter_fp, "add rule ip filter INPUT iifname brlan113 ip daddr 169.254.71.0/24 counter accept\n");
+   fprintf(filter_fp, "add rule ip filter INPUT iifname brlan113 pkttype != unicast counter jump ACCEPT\n");
+   fprintf(filter_fp, "add rule ip filter INPUT iifname brebhaul ip daddr 169.254.85.0/24 counter accept\n");
+   fprintf(filter_fp, "add rule ip filter INPUT iifname brebhaul pkttype != unicast counter accept\n");
 #endif
 
    do_ssh_IpAccessTable(filter_fp, "22", AF_INET, cellular_ifname);
 
-   fprintf(filter_fp, "-A xlog_accept_wan2lan -j ACCEPT\n");
+   fprintf(filter_fp, "add rule ip filter xlog_accept_wan2lan counter accept\n");
 
    // allow mesh wan and mesh bridge private ip range
-   fprintf(filter_fp, "-A INPUT -s 192.168.245.0/24 -j ACCEPT\n");
-   fprintf(filter_fp, "-A FORWARD -s 192.168.245.0/24 -j ACCEPT\n");
-   fprintf(filter_fp, "-A OUTPUT -s 192.168.245.0/24 -j ACCEPT\n");
+   fprintf(filter_fp, "add rule ip filter INPUT ip saddr 192.168.245.0/24 counter accept\n");
+   fprintf(filter_fp, "add rule ip filter FORWARD ip saddr 192.168.245.0/24 counter accept\n");
+   fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr 192.168.245.0/24 counter accept\n");
 
-   fprintf(filter_fp, "-A INPUT -s 192.168.246.0/24 -j ACCEPT\n");
-   fprintf(filter_fp, "-A FORWARD -s 192.168.246.0/24 -j ACCEPT\n");
-   fprintf(filter_fp, "-A OUTPUT -s 192.168.246.0/24 -j ACCEPT\n");
+   fprintf(filter_fp, "add rule ip filter INPUT ip saddr 192.168.246.0/24 counter accept\n");
+   fprintf(filter_fp, "add rule ip filter FORWARD ip saddr 192.168.246.0/24 counter accept\n");
+   fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr 192.168.246.0/24 counter accept\n");
 
-   fprintf(filter_fp, "-A INPUT -i %s -s 192.168.1.0/28 -j ACCEPT\n",DEVICE_RECOVERY_INTERFACE);
-   fprintf(filter_fp, "-A OUTPUT -o %s -s 192.168.1.0/28 -j ACCEPT\n",DEVICE_RECOVERY_INTERFACE);
+   fprintf(filter_fp, "add rule ip filter INPUT iifname %s ip saddr 192.168.1.0/28 counter accept\n",DEVICE_RECOVERY_INTERFACE);
+   fprintf(filter_fp, "add rule ip filter OUTPUT oifname %s ip saddr 192.168.1.0/28 counter accept\n",DEVICE_RECOVERY_INTERFACE);
 
 // Dropping packets from private ip range 
-   psmGet(bus_handle,PRIMARYLAN_L3NET,instance, sizeof(instance));
-   memset(output,0,sizeof(output));
-   memset(inet_addr,0,sizeof(inet_addr));
-   memset(netmask,0,sizeof(netmask));
-   get_ip_and_netmask_addr(atoi(instance),inet_addr,netmask,sizeof(inet_addr),sizeof(netmask));
-   if ( strlen(inet_addr) != 0)
-   {
-      calculate_network_address(inet_addr,netmask,output,sizeof(output));   
-      fprintf(filter_fp, "-A INPUT -s %s -j DROP\n",output);
-      fprintf(filter_fp, "-A FORWARD -s %s -j DROP\n",output);
-      fprintf(filter_fp, "-A OUTPUT -s %s -j DROP\n",output);
-   }
-   else
-   {
-      FIREWALL_DEBUG("inet_addr is null for PRIMARYLAN_L3NET \n");
+   fprintf(filter_fp, "add rule ip filter INPUT ip saddr 10.0.0.0/8 counter drop\n");
+   fprintf(filter_fp, "add rule ip filter FORWARD ip saddr 10.0.0.0/8 counter drop\n");
+   fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr 10.0.0.0/8 counter drop\n");
 
+   fprintf(filter_fp, "add rule ip filter INPUT ip saddr 192.168.0.0/16 counter drop\n");
+   fprintf(filter_fp, "add rule ip filter FORWARD ip saddr 192.168.0.0/16 counter drop\n");
+   fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr 192.168.0.0/16 counter drop\n");
+
+   for (int i=16;i<=31 ;i++)
+   {
+      fprintf(filter_fp, "add rule ip filter INPUT ip saddr 172.%d.0.0/16 counter drop\n",i);
+      fprintf(filter_fp, "add rule ip filter FORWARD ip saddr 172.%d.0.0/16 counter drop\n",i);
+      fprintf(filter_fp, "add rule ip filter OUTPUT ip saddr 172.%d.0.0/16 counter drop\n",i);
    }
 
-   memset(output,0,sizeof(output));
-   memset(inet_addr,0,sizeof(inet_addr));
-   memset(netmask,0,sizeof(netmask));
-   
-   psmGet(bus_handle,LNF_L3NET,instance, sizeof(instance));
-
-
-   get_ip_and_netmask_addr(atoi(instance),inet_addr,netmask,sizeof(inet_addr),sizeof(netmask));
-   if ( strlen(inet_addr) != 0)
-   {
-      calculate_network_address(inet_addr,netmask,output,sizeof(output));
-      fprintf(filter_fp, "-A INPUT -s %s -j DROP\n",output);
-      fprintf(filter_fp, "-A FORWARD -s %s -j DROP\n",output);
-      fprintf(filter_fp, "-A OUTPUT -s %s -j DROP\n",output);
-   }
-   else
-   {
-      FIREWALL_DEBUG("inet_addr is null for LNF_L3NET \n");
-   }
-   
-   memset(output,0,sizeof(output));
-   memset(inet_addr,0,sizeof(inet_addr));
-   memset(netmask,0,sizeof(netmask));
-
-   psmGet(bus_handle,HOMESECURITY_L3NET,instance, sizeof(instance));
-   get_ip_and_netmask_addr(atoi(instance),inet_addr,netmask,sizeof(inet_addr),sizeof(netmask));
-
-   if ( strlen(inet_addr) != 0)
-   {
-      calculate_network_address(inet_addr,netmask,output,sizeof(output));
-      fprintf(filter_fp, "-A INPUT -s %s -j DROP\n",output);
-      fprintf(filter_fp, "-A FORWARD -s %s -j DROP\n",output);
-      fprintf(filter_fp, "-A OUTPUT -s %s -j DROP\n",output);
-   }
-   else
-   {
-      FIREWALL_DEBUG("inet_addr is null for HOMESECURITY_L3NET \n");
-   }
-   fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n",mesh_wan_ifname,cellular_ifname);
-   fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n",cellular_ifname,mesh_wan_ifname);
+   fprintf(filter_fp, "add rule ip filter FORWARD iifname %s oifname %s counter accept\n",mesh_wan_ifname,cellular_ifname);
+   fprintf(filter_fp, "add rule ip filter FORWARD iifname %s oifname %s counter accept\n",cellular_ifname,mesh_wan_ifname);
 
  //  do_logs(filter_fp);
 
-   fprintf(filter_fp, "-I FORWARD -o %s -m state --state INVALID -j DROP\n",cellular_ifname);
+   fprintf(filter_fp, "insert rule ip filter FORWARD oifname %s ct state invalid  counter drop\n",cellular_ifname);
 
-   fprintf(raw_fp, "%s\n", "COMMIT");
-   fprintf(mangle_fp, "%s\n", "COMMIT");
-   fprintf(nat_fp, "%s\n", "COMMIT");
-   fprintf(filter_fp, "%s\n", "COMMIT");
    FIREWALL_DEBUG("Exiting prepare_enabled_ipv4_firewall \n"); 
 
    return 0;
@@ -315,45 +233,45 @@ int filter_ipv6_icmp_limit_rules(FILE *fp)
 
 
       // Should include --limit 10/second for most of ICMP
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 1/0 -m limit --limit 10/sec -j ACCEPT\n"); // No route
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 2 -m limit --limit 10/sec -j ACCEPT\n"); // Packet too big
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 3 -m limit --limit 10/sec -j ACCEPT\n"); // Time exceeded
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 4/1 -m limit --limit 10/sec -j ACCEPT\n"); // Unknown header type
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 4/2 -m limit --limit 10/sec -j ACCEPT\n"); // Unknown option
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type 1/0 limit rate 10/second burst 5 packets counter accept\n"); // No route
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type packet-too-big limit rate 10/second burst 5 packets counter accept\n"); // Packet too big
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type time-exceeded limit rate 10/second burst 5 packets counter accept\n"); // Time exceeded
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type 4/1 limit rate 10/second burst 5 packets counter accept\n"); // Unknown header type
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type 4/2 limit rate 10/second burst 5 packets counter accept\n"); // Unknown option
 
-      fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", cellular_ifname); // Echo request
-      fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", cellular_ifname); // Echo reply
+      fprintf(fp, "add rule ip6 filter INPUT iifname %s meta l4proto ipv6-icmp icmpv6 type echo-request counter jump PING_FLOOD\n", cellular_ifname); // Echo request
+      fprintf(fp, "add rule ip6 filter INPUT iifname %s meta l4proto ipv6-icmp icmpv6 type echo-reply limit rate 10/second burst 5 packets counter accept\n", cellular_ifname); // Echo reply
 
       // Should only come from LINK LOCAL addresses, rate limited except 100/second for NA/NS and RS
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 135 -m limit --limit 100/sec -j ACCEPT\n"); // Allow NS from any type source address
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 136 -m limit --limit 100/sec -j ACCEPT\n"); // NA
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type nd-neighbor-solicit limit rate 100/second burst 5 packets counter accept\n"); // Allow NS from any type source address
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type nd-neighbor-advert limit rate 100/second burst 5 packets counter accept\n"); // NA
 
       // But can also come from UNSPECIFIED addresses, rate limited 100/second for NS (for DAD) and MLD
-      fprintf(fp, "-A INPUT -s ::/128 -p icmpv6 -m icmp6 --icmpv6-type 135 -m limit --limit 100/sec -j ACCEPT\n"); // NS
-      fprintf(fp, "-A INPUT -s ::/128 -p icmpv6 -m icmp6 --icmpv6-type 143 -m limit --limit 100/sec -j ACCEPT\n"); // MLD
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type nd-neighbor-solicit limit rate 100/second burst 5 packets counter accept\n"); // NS
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type 143 limit rate 100/second burst 5 packets counter accept\n"); // MLD
 
       // IPV6 Multicast traffic
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 130 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 131 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 132 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 143 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 151 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 152 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 153 -m limit --limit 10/sec -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp ip6 saddr fe80::/64 icmpv6 type 130 limit rate 10/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp ip6 saddr fe80::/64 icmpv6 type 131 limit rate 10/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp ip6 saddr fe80::/64 icmpv6 type 132 limit rate 10/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp ip6 saddr fe80::/64 icmpv6 type 143 limit rate 10/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp ip6 saddr fe80::/64 icmpv6 type 151 limit rate 10/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp ip6 saddr fe80::/64 icmpv6 type 152 limit rate 10/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp ip6 saddr fe80::/64 icmpv6 type  153 limit rate 10/second burst 5 packets counter accept\n");
 
       // ICMP varies and are rate limited anyway
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 1/0 -m limit --limit 100/sec -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 2 -m limit --limit 100/sec -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 3 -m limit --limit 100/sec -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 4 -m limit --limit 100/sec -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type destination-unreachable limit rate 100/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type packet-too-big limit rate 100/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type time-exceeded limit rate 100/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type parameter-problem limit rate 100/second burst 5 packets counter accept\n");
 
 
       // ICMP messages for MIPv6 (assuming mobile node on the inside)
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 145 -m limit --limit 100/sec -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 147 -m limit --limit 100/sec -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type 145 limit rate 100/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type 147 limit rate 100/second burst 5 packets counter accept\n");
 
-      fprintf(fp, "-A PING_FLOOD -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A PING_FLOOD -j DROP\n");
+      fprintf(fp, "add rule ip6 filter PING_FLOOD limit rate 10/second burst 5 packets counter accept\n");
+      fprintf(fp, "add rule ip6 filter PING_FLOOD counter drop\n");
 
       FIREWALL_DEBUG("Exiting filter_ipv6_icmp_limit_rules \n"); 
 
@@ -377,19 +295,19 @@ int prepare_ipv6_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE 
    /*
     * raw
    */
-   fprintf(raw_fp, "%s\n", "*raw");
+   fprintf(filter_fp, "add table ip6 raw\n");
 
 
    /*
     * mangle
     */
-   fprintf(mangle_fp, "%s\n", "*mangle");
+   fprintf(filter_fp, "add table ip6 mangle\n");
 
 
       /*
     * nat
     */
-   fprintf(nat_fp, "%s\n", "*nat");
+   fprintf(filter_fp, "add table ip6 nat\n");
 
       /*
     * filter
@@ -402,8 +320,8 @@ int prepare_ipv6_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE 
 
       if(mesh_wan_ipv6addr[i][0] != '\0' )
       {
-         fprintf(nat_fp, "-A  PREROUTING -i %s -p udp --dport 53 -j DNAT --to-destination %s\n",mesh_wan_ifname,mesh_wan_ipv6addr[i]);
-         fprintf(nat_fp, "-A  PREROUTING -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",mesh_wan_ifname,mesh_wan_ipv6addr[i]);  
+         fprintf(nat_fp, "add rule ip6 nat PREROUTING iifname %s udp dport 53 counter dnat to %s\n",mesh_wan_ifname,mesh_wan_ipv6addr[i]);
+         fprintf(nat_fp, "add rule ip6 nat PREROUTING iifname %s tcp dport 53 counter dnat to %s\n",mesh_wan_ifname,mesh_wan_ipv6addr[i]);  
       }
     }
 
@@ -412,23 +330,23 @@ int prepare_ipv6_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE 
    get_ip6address(cellular_ifname, cellular_wan_ipv6addr, &cellular_wan_ipv6_num,IPV6_ADDR_SCOPE_GLOBAL);
    #endif
 
-   fprintf(nat_fp, "-A  POSTROUTING -o %s -j MASQUERADE\n",cellular_ifname);
-   fprintf(filter_fp, "%s\n", "*filter");
-   fprintf(filter_fp, "%s\n", ":LOG_SSH_DROP - [0:0]");
-   fprintf(filter_fp, "%s\n", ":SSH_FILTER - [0:0]");
-   fprintf(filter_fp, "%s\n", ":PING_FLOOD - [0:0]");
+   fprintf(nat_fp, "add rule ip6 nat POSTROUTING oifname %s counter masquerade\n",cellular_ifname);
+   fprintf(filter_fp, "add table ip6 filter\n");
+   fprintf(filter_fp, "add chain ip6 filter %s\n", "LOG_SSH_DROP");
+   fprintf(filter_fp, "add chain ip6 filter %s\n", "SSH_FILTER");
+   fprintf(filter_fp, "add chain ip6 filter %s\n", "PING_FLOOD");
 
-   fprintf(filter_fp, "-A INPUT -i lo -p udp --dport 53 -j DROP \n");
-   fprintf(filter_fp, "-A INPUT -i lo -p tcp --dport 53 -j DROP \n");
+   fprintf(filter_fp, "add rule ip6 filter INPUT iifname lo udp dport 53 counter drop\n");
+   fprintf(filter_fp, "add rule ip6 filter INPUT iifname lo tcp dport 53 counter drop\n");
    
-   fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n",cellular_ifname);
+   fprintf(filter_fp, "add rule ip6 filter INPUT iifname %s tcp dport 22 counter jump SSH_FILTER\n",cellular_ifname);
 
    filter_ipv6_icmp_limit_rules(filter_fp);
    do_ssh_IpAccessTable(filter_fp, "22", AF_INET6, cellular_ifname);
 
-   fprintf(filter_fp, "-A  FORWARD -i %s -o %s -j ACCEPT\n",mesh_wan_ifname,cellular_ifname);
-   fprintf(filter_fp, "-A  FORWARD -i %s -o %s -j ACCEPT\n",cellular_ifname,mesh_wan_ifname);
-   fprintf(filter_fp, "-I FORWARD -o %s -m state --state INVALID -j DROP\n",cellular_ifname);
+   fprintf(filter_fp, "add rule ip6 filter FORWARD iifname %s oifname %s counter accept\n",mesh_wan_ifname,cellular_ifname);
+   fprintf(filter_fp, "add rule ip6 filter FORWARD iifname %s oifname %s counter accept\n",cellular_ifname,mesh_wan_ifname);
+   fprintf(filter_fp, "insert rule ip6 filter FORWARD oifname %s ct state invalid  counter drop\n",cellular_ifname);
 
    return 0;
 }
@@ -444,8 +362,8 @@ int prepare_ipv6_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE 
  */
 int service_start_ext_mode ()
 {
-   char *filename1 = "/tmp/.ipt_ext";
-   char *filename2 = "/tmp/.ipt_v6_ext";
+   char *filename1 = "/tmp/.nft_ext";
+   char *filename2 = "/tmp/.nft_v6_ext";
 
    memset(cellular_ipaddr,0,sizeof(cellular_ipaddr));
    memset(mesh_wan_ipaddr,0,sizeof(mesh_wan_ipaddr));
@@ -464,11 +382,11 @@ int service_start_ext_mode ()
 
    /*  ipv4 */
    prepare_ipv4_firewall(filename1);
-   v_secure_system("iptables-restore -c  < /tmp/.ipt_ext 2> /tmp/.ipv4table_ext_error");
+   v_secure_system("nft -f /tmp/.ipt_ext 2> /tmp/.nftv4table_ext_error");
 
 
    prepare_ipv6_firewall(filename2);
-   v_secure_system("ip6tables-restore < /tmp/.ipt_v6_ext 2> /tmp/.ipv6table_ext_error");
+   v_secure_system("nft -f /tmp/.nft_v6 2> /tmp/.nftv6table_ext_error");
 
    FIREWALL_DEBUG("Exiting firewall service_start()\n");
     return 0;
