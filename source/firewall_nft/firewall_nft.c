@@ -1485,7 +1485,7 @@ void do_webui_rate_limit(FILE *filter_fp)
     FIREWALL_DEBUG("Entering do_webui_rate_limit\n");
 
     // Define the custom chain
-    fprintf(filter_fp, "add chain ip filter webui_limit { type filter hook prerouting priority 0; }\n");
+    fprintf(filter_fp, "add chain ip filter webui_limit\n");
 
     // Accept established/related connections
     fprintf(filter_fp, "add rule ip filter webui_limit ct state established,related counter accept\n");
@@ -3098,9 +3098,9 @@ static int prepare_globals_from_configuration(void)
 
    fprintf(fp, "add rule ip filter xlog_accept_wan2lan counter accept\n");
 
-   fprintf(fp, "-A xlog_accept_wan2self -j ACCEPT\n");
+   fprintf(fp, "add rule ip filter xlog_drop_wan2lan counter drop\n");
 #if !(defined INTEL_PUMA7) && !(defined _COSA_BCM_ARM_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined(_COSA_QCA_ARM_)
-   fprintf(fp, "-A xlog_drop_wan2lan -j DROP\n");
+   fprintf(fp, "add rule ip filter xlog_drop_wan2lan counter drop\n");
 #endif
    fprintf(fp, "add rule ip filter xlog_drop_wan2self counter drop\n");
 
@@ -5916,7 +5916,9 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
       return(0);
    }
 
-   char *logRateLimit = "-m limit --limit 6/h --limit-burst 1";
+   //char *logRateLimit = "-m limit --limit 6/h --ilmit-burst 1";
+   char *logRateLimit = "limit rate over 6/hour burst 1 packets";
+
 
    // Define framework chains
    /*fprintf(fp, "-N wanattack\n");
@@ -5947,7 +5949,7 @@ fprintf(fp, "add rule ip filter wanattack counter jump PortScanning\n");
 fprintf(fp, "add rule ip filter wanattack counter jump BlockPrivateSourceIP\n");
 
    // Link framework chains to root chains
-   fprintf(fp, "add rule ip filter input counter jump wanattack\n");
+   fprintf(fp, "add rule ip filter INPUT counter jump wanattack\n");
 
    //Smurf attack, actually the below rules are to prevent us from being the middle-man host
 #if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_)
@@ -5991,7 +5993,7 @@ fprintf(fp, "add rule ip filter wanattack counter jump BlockPrivateSourceIP\n");
    fprintf(fp, "add rule ip filter ICMPSmurfAttack ip protocol icmp icmp type timestamp-request counter jump xlog_drop_wanattack\n");
 
 //ICMP Flooding. Mark traffic bit rate > 5/s as attack and limit 6 log entries per hour
-fprintf(fp, "add rule ip filter ICMPFlooding ip protocol icmp limit rate 5/second burst 10 counter return\n");
+fprintf(fp, "add rule ip filter ICMPFlooding ip protocol icmp limit rate 5/second burst 10 packets counter return\n");
 #if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "add rule ip filter ICMPFlooding ip protocol icmp %s log prefix \"DoS Attack - ICMP Flooding\" level debug\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
@@ -6013,7 +6015,7 @@ fprintf(fp, "add rule ip filter ICMPFlooding ip protocol icmp limit rate 5/secon
    fprintf(fp, "add rule ip filter ICMPFlooding ip protocol icmp jump xlog_drop_wanattack\n");
 
    //TCP SYN Flooding
-   fprintf(fp, "add rule ip filter TCPSYNFlooding tcp flags syn limit rate 10/second burst 20 return\n");
+   fprintf(fp, "add rule ip filter TCPSYNFlooding tcp flags syn limit rate 10/second burst 20 packets counter return\n");
 #if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "add rule ip filter TCPSYNFlooding tcp flags syn %s log prefix \"DoS Attack - TCP SYN Flooding\" level debug\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
@@ -6094,7 +6096,7 @@ fprintf(fp, "add rule ip filter RFC1918Spoofing ip daddr 255.255.255.255 jump xl
     *  Drop excessive RST packets to avoid SMURF attacks, by given the
     *  next real data packet in the sequence a better chance to arrive first.
     */
-   fprintf(fp, "add rule ip filter TCPResetAttack tcp flags rst/rst limit rate 2/second burst 2 jump xlog_accept_wan2lan\n");
+   fprintf(fp, "add rule ip filter TCPResetAttack tcp flags & (rst) == rst limit rate 2/second burst 2 packets counter jump xlog_accept_wan2lan\n");
 
    /*
     * SYN Flood
@@ -6200,9 +6202,9 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
         }
     if (family == AF_INET) {
         if ((0 == strcmp(httpport, port)) || (0 == strcmp(httpsport, port))) {
-          fprintf(filt_fp, "add rule ip filter wan2self_mgmt iifname \"%s\" tcp dport %s counter jump webui_limit\n", interface, port);
+          fprintf(filt_fp, "add rule ip filter wan2self_mgmt iifname \"%s\" tcp dport %s jump webui_limit\n", interface, port);
         } else {
-          fprintf(filt_fp, "add rule ip6 filter wan2self_mgmt iifname %s %s tcp dport %s accept \n", interface, src, port);
+          fprintf(filt_fp, "add rule ip6 filter wan2self_mgmt iifname \"%s\" %s tcp dport %s accept \n", interface, src, port);
         }          
     } else { 
 #if defined(_COSA_BCM_MIPS_) //Fix  for XF3-5627
@@ -6215,12 +6217,12 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
 #endif
       if ((0 == strcmp(httpport, port)) || (0 == strcmp(httpsport, port))) {
          if (family == AF_INET6) {
-            fprintf(filt_fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport %s counter jump webui_limit\n", interface, port);
+            fprintf(filt_fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport %s jump webui_limit\n", interface, port);
          } else {
-            fprintf(filt_fp, "add rule ip filter INPUT iifname \"%s\" tcp dport %s counter jump webui_limit\n", interface, port); 
+            fprintf(filt_fp, "add rule ip filter INPUT iifname \"%s\" tcp dport %s jump webui_limit\n", interface, port); 
       }
       } else {
-         fprintf(filt_fp, "add rule ip filter input iifname %s ip saddr %s tcp dport %s accept\n", interface, src, port);  
+         fprintf(filt_fp, "add rule ip filter input iifname \"%s\" ip saddr %s tcp dport %s accept\n", interface, src, port);  
       }
     }
          FIREWALL_DEBUG("Exiting remote_access_set_proto\n");    
@@ -6229,11 +6231,11 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
 int lan_access_set_proto(FILE *fp,const char *port, const char *interface)
 {
 	if ((0 == strcmp("80", port)) || (0 == strcmp("443", port))) {
-	   fprintf(fp, "add rule ip filter INPUT iifname \"%s\" tcp dport %s counter jump webui_limit\n", interface, port);
+	   fprintf(fp, "add rule ip filter INPUT iifname \"%s \"tcp dport %s jump webui_limit\n", interface, port);
 	}
 	else
 	{
-	    fprintf(fp, "add rule ip filter INPUT iifname %s tcp dport %s accept\n", interface, port);
+	    fprintf(fp, "add rule ip filter INPUT iifname \"%s\" tcp dport %s accept\n", interface, port);
 	}
 	return 0;
 }
@@ -13434,6 +13436,7 @@ void RmConntrackEntry(char *IPaddr)
         v_secure_system("nft insert rule ip filter FORWARD ip saddr %s tcp ct state new accept", IPaddr);
     }
 }
+/*
 int CleanIPConntrack(char *physAddress)
 {
 #ifdef CORE_NET_LIB
@@ -13500,6 +13503,7 @@ int CleanIPConntrack(char *physAddress)
 #endif
     return 0;
 }
+*/
 int IsFileExists(const char *fname)
 {
     FILE *file;
@@ -13540,7 +13544,7 @@ memset(buf,0,200);
 			mac[strlen(mac) - 1] = '\0';
                   if(validate_mac(mac))
                   {
-                        CleanIPConntrack(mac);
+                        //CleanIPConntrack(mac);
                   }
 		}
 		  v_secure_pclose(fp);
