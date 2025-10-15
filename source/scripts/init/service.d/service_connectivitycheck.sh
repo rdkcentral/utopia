@@ -61,7 +61,7 @@ else
     if [ ! -f $CONNCHECK_FILE ]; then
         touch $CONNCHECK_FILE
     fi
-    t2CountNotify "SYST_WARN_connectivitycheck_nourl_set"
+    t2CountNotify "SYS_WARN_connectivitycheck_nourl_set"
     # Send dbus-send
     if [ -x "$DBUS_SEND_BIN" ]; then
         $DBUS_SEND_BIN --system --type=method_call --dest=org.freedesktop.nm_connectivity /org/freedesktop/nm_connectivity org.freedesktop.nm_connectivity.NotifyFullyConnected
@@ -81,7 +81,7 @@ while true; do
         if [ ! -f $CONNCHECK_FILE ]; then
             touch $CONNCHECK_FILE
         fi
-        t2CountNotify "SYST_WARN_connectivitycheck_time_expire"
+        t2CountNotify "SYS_WARN_connectivitycheck_time_expire"
         # Send dbus-send
         if [ -x "$DBUS_SEND_BIN" ]; then
             $DBUS_SEND_BIN --system --type=method_call --dest=org.freedesktop.nm_connectivity /org/freedesktop/nm_connectivity org.freedesktop.nm_connectivity.NotifyFullyConnected
