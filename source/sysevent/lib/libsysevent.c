@@ -1739,7 +1739,7 @@ int SE_msg_send (int fd, char *sendmsg)
    SE_msg_hdr_mbytes_fixup(msg_hdr);
 
    // keep track of the number of bytes in the msg (including the header)
-   int bytes_to_write = ntohl(msg_hdr->mbytes);
+   unsigned int bytes_to_write = ntohl(msg_hdr->mbytes);
    se_buffer send_msg_buffer;
    if (bytes_to_write + sizeof(se_msg_footer) > sizeof(send_msg_buffer)) {
       return(-2);
@@ -1781,14 +1781,14 @@ int SE_msg_send (int fd, char *sendmsg)
    }
 }
 
-int SE_msg_send_data (int fd, char *sendmsg,int msgsize)
+int SE_msg_send_data (int fd, char *sendmsg, unsigned int msgsize)
 {
    se_msg_hdr *msg_hdr = (se_msg_hdr *)sendmsg;
    int fileread = access("/tmp/sysevent_debug", F_OK);
    SE_msg_hdr_mbytes_fixup(msg_hdr);
 
    // keep track of the number of bytes in the msg (including the header)
-   int bytes_to_write = ntohl(msg_hdr->mbytes);
+   unsigned int bytes_to_write = ntohl(msg_hdr->mbytes);
    unsigned int bin_size = sysevent_get_binmsg_maxsize();
    char *send_msg_buffer = sendmsg;
    if (bytes_to_write + sizeof(se_msg_footer) > bin_size) {
@@ -1796,7 +1796,7 @@ int SE_msg_send_data (int fd, char *sendmsg,int msgsize)
    } else {
        if (fileread == 0)
        {
-           v_secure_system("echo fname %s: bytestowrite %d before msg copy >> /tmp/sys_d.txt",__FUNCTION__,bytes_to_write);
+           v_secure_system("echo fname %s: bytestowrite %u before msg copy >> /tmp/sys_d.txt",__FUNCTION__,bytes_to_write);
        }
       // add a transport message footer to help ensure message integrity during transport
       se_msg_footer footer;
@@ -1811,7 +1811,7 @@ int SE_msg_send_data (int fd, char *sendmsg,int msgsize)
    int rc;
    if (fileread == 0)
    {
-       v_secure_system("echo fname before write %s: %d >> /tmp/sys_d.txt",__FUNCTION__, bytes_to_write);
+       v_secure_system("echo fname before write %s: %u >> /tmp/sys_d.txt",__FUNCTION__, bytes_to_write);
    }
    while (0 < bytes_to_write && 0 < num_retries) {
       rc = write(fd, send_msg_buffer+bytes_sent, bytes_to_write);
@@ -1890,7 +1890,7 @@ int SE_msg_send_receive (int fd, char *sendmsg, char *replymsg, unsigned int *re
    return(msgtype); 
 }
 
-int SE_msg_send_receive_data (int fd, char *sendmsg, int sendmsg_size, char *replymsg, unsigned int *replymsg_size)
+int SE_msg_send_receive_data (int fd, char *sendmsg, unsigned int sendmsg_size, char *replymsg, unsigned int *replymsg_size)
 {
    int rc = SE_msg_send_data(fd, sendmsg,sendmsg_size);
    if (0 != rc) {
@@ -3256,7 +3256,7 @@ static int sysevent_set_data_private (const int fd, const token_t token, const c
    }
 
    // prepare the body of the se_set_msg
-   int   remaining_buf_bytes;
+   unsigned int   remaining_buf_bytes;
    send_msg_body->source  = htonl(source);
    send_msg_body->tid     = htonl(tid);
    char *send_data_ptr    = (char *)&(send_msg_body->data);

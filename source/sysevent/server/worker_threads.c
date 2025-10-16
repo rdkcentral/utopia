@@ -643,7 +643,7 @@ static int handle_get_request_data(const int fd, const token_t who, se_get_msg *
    } else {
       if (!rc) {
          char *data_str    = (char *)&(reply_msg_body->data);
-         int buf_size      = bin_size;
+         unsigned int buf_size      = bin_size;
          buf_size         -= sizeof(se_msg_hdr);
          buf_size         -= sizeof(se_get_reply_msg);
          int strsize       = SE_msg_add_string(data_str, buf_size, subject_str);
@@ -1620,7 +1620,7 @@ static int handle_send_notification_msg_data(const int local_fd, const token_t w
    }
 
    // prepare the message
-   int  remaining_buf_bytes;
+   unsigned int  remaining_buf_bytes;
    send_msg_body->source  = msg->source;
    send_msg_body->tid     = msg->tid;
    char *send_data_ptr    = (char *)&(send_msg_body->data);
