@@ -281,15 +281,15 @@ int dnsmasq_server_start()
 #else
 #ifdef XDNS_ENABLE
     char *XDNS_Enable=NULL;
-    char *Box_Type=NULL;
     getValueFromDevicePropsFile("XDNS_ENABLE", &XDNS_Enable);
-    getValueFromDevicePropsFile("MODEL_NUM", &Box_Type);
     if (XDNS_Enable != NULL)
     {
         fprintf(g_fArmConsoleLog, "\n%s Inside non XB3 block  g_cXdns_Enabled=%s XDNS_Enable=%s.......\n",__FUNCTION__,g_cXdns_Enabled,XDNS_Enable);
         if (!strncasecmp(g_cXdns_Enabled, "true", 4) || !strncasecmp(XDNS_Enable, "true", 4)) //If XDNS is ENABLED
         {
             char DNSSEC_FLAG[8]={0};
+            char *Box_Type=NULL;
+            getValueFromDevicePropsFile("MODEL_NUM", &Box_Type);
             syscfg_get(NULL, "XDNS_DNSSecEnable", DNSSEC_FLAG, sizeof(DNSSEC_FLAG));
             if(Box_Type != NULL)
             {

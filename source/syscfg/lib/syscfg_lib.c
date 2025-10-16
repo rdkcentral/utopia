@@ -166,6 +166,10 @@ static int _syscfg_getall_defaults(void)
    {
        perror("mmap failed");
        syscfg_default_ht = NULL;
+       
+       fclose (fp);
+       fp = NULL;
+       
        return -1;
    }
 
