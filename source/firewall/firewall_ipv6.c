@@ -2223,19 +2223,25 @@ void do_ipv6_nat_table(FILE* fp)
 		}
    }
 #ifdef _PLATFORM_RASPBERRYPI_
-   fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
+   if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+   {
+    #if defined  (WAN_FAILOVER_SUPPORTED)
+       if (0 == checkIfULAEnabled())
+       {
+	   applyHotspotPostRoutingRules(fp, false);
+       }
+   #endif
+   }
+   else
+   {
+       fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
+   }
 #endif
 
 #ifdef _PLATFORM_BANANAPI_R4_
    fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
 #endif
 
-   #if defined  (WAN_FAILOVER_SUPPORTED)
-   if (0 == checkIfULAEnabled())
-   {
-       applyHotspotPostRoutingRules(fp, false);
-   }
-   #endif
     FIREWALL_DEBUG("Exiting do_ipv6_nat_table \n");
 }
 
