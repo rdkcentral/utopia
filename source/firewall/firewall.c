@@ -9075,6 +9075,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 {
     int rc;
     char query[MAX_QUERY];
+    int kmp_filter_bytes = 128; //filter upper limit in bytes
    FIREWALL_DEBUG("Entering do_parcon_mgmt_site_keywd\n"); 
 #ifdef CONFIG_CISCO_PARCON_WALLED_GARDEN
     int isHttps = 0;
@@ -9313,7 +9314,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
             {
                 // consider the case that user input whole url.
                 if(strstr(query, "://") != 0) {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", strstr(query, "://") + 3, drop_log);
+                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --to %d --icase -j %s\n", strstr(query, "://") + 3, kmp_filter_bytes, drop_log);
 #if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
                      if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
@@ -9325,7 +9326,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                      }
 #endif
                 } else {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", query, drop_log);
+                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --to %d --icase -j %s\n", query, kmp_filter_bytes, drop_log);
 #if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
                      if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
