@@ -9344,7 +9344,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 
                 // Log warning for very short keywords
                 if (strlen(queryKw) < 3) {
-                    FIREWALL_DEBUG("Keyword '%s' too short to safely match\n", queryKw);
+                    FIREWALL_DEBUG("Keyword too short to safely match\n");
                 }
 
                 // Match using httphost
