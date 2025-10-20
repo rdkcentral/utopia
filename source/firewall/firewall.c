@@ -9068,6 +9068,28 @@ static int do_parcon_mgmt_service(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
+// convert_word_to_host_hex converts string to lowercase hex
+static int convert_word_to_host_hex(const char *input, char *output, size_t outsize)
+{
+    if (!input || !output || outsize == 0) return 0;
+
+    size_t len = strlen(input);
+    if (len == 0 || outsize < len * 2 + 1) return 0;
+
+    for (size_t i = 0; i < len; ++i) {
+        unsigned char c = (unsigned char)input[i];
+
+        if (isspace(c) || !isprint(c) || c == '"' || c == '\\') {
+            return 0;
+        }
+
+        snprintf(output + i * 2, outsize - i * 2, "%02x", tolower(c));
+    }
+
+    output[len * 2] = '\0';
+    return 1;
+}
+
 /*
  * add parental control managed site/keyword rules
  */
@@ -9309,33 +9331,45 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 
                 block_url_by_ipaddr(fp, query + host_name_offset, drop_log, iptype, ins_num, nstdPort);
             }
-            else if (strncasecmp(method, "KEYWD", 5)==0)
+            else if (strncasecmp(method, "KEYWD", 5) == 0)
             {
-                // consider the case that user input whole url.
-                if(strstr(query, "://") != 0) {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", strstr(query, "://") + 3, drop_log);
-#if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-#if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-                     if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
-#endif
-                     {
-                        //In Hub4 keyword blocking feature is not working with FORWARD chain rules as CPE (dnsmasq) acts as DNS Proxy.
-                        //Add rules in INPUT chain to resolve this issue.
-                        fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                     }
-#endif
-                } else {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", query, drop_log);
-#if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-#if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-                     if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
-#endif
-                     {
-                        fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                     }
-#endif
+                const char *queryKw = query;
+                char hexKw[256] = {0};
+                int kmpAlgoLen = 128; //upto 128 bytes
+
+                // Extract hostname part if full URL
+                if (strstr(query, "://") != NULL) {
+                    queryKw = strstr(query, "://") + 3;
                 }
-            }
+
+                // Log warning for very short keywords
+                if (strlen(queryKw) < 3) {
+                    FIREWALL_DEBUG("Keyword '%s' too short to safely match\n", queryKw);
+                }
+
+                // Match using httphost
+                fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m httphost --host \"%s\" -j %s\n", queryKw, drop_log);
+
+                // Match using "Host: <domain>" string
+                fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"Host: %s\" --algo kmp --to %d --icase -j %s\n",
+                    queryKw, kmpAlgoLen, drop_log);
+
+                // Match using hex-string
+                if (convert_word_to_host_hex(queryKw, hexKw, sizeof(hexKw))) {
+                    fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --algo kmp --to %d --hex-string \"|0D0A486F73743A20%s|\" -j %s\n",
+                        kmpAlgoLen, hexKw, drop_log);
+                }
+
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+                if (strncmp(devicePartnerId, "sky-", 4) == 0)
+#endif
+                {
+                    // In Hub4, DNS proxy prevents FORWARD chain rules from working — use INPUT
+                    fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site\n", lan_ifname);
+                }
+#endif
+            }	    
         }
     }
    FIREWALL_DEBUG("Exiting do_parcon_mgmt_site_keywd\n"); 
