@@ -133,7 +133,7 @@ handle_ipv4_status() {
             IGD `sysevent get ipv4_${1}-ifname` &
             sysevent set ${SERVICE_NAME}_${1}-pid $!
             #RDKB-44364:To avoid IGD process init failure due to UPNP_E_SOCKET_BIND [-203] error
-	    if [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" == "SCER11BEL" ]; then
+	    if [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ]; then
                check_IGD_is_up ${1}
             fi
         fi
