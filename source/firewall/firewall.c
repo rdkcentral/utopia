@@ -9068,28 +9068,6 @@ static int do_parcon_mgmt_service(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
-// convert_word_to_host_hex converts string to lowercase hex
-static int convert_word_to_host_hex(const char *input, char *output, size_t outsize)
-{
-    if (!input || !output || outsize == 0) return 0;
-
-    size_t len = strlen(input);
-    if (len == 0 || outsize < len * 2 + 1) return 0;
-
-    for (size_t i = 0; i < len; ++i) {
-        unsigned char c = (unsigned char)input[i];
-
-        if (isspace(c) || !isprint(c) || c == '"' || c == '\\') {
-            return 0;
-        }
-
-        snprintf(output + i * 2, outsize - i * 2, "%02x", tolower(c));
-    }
-
-    output[len * 2] = '\0';
-    return 1;
-}
-
 /*
  * add parental control managed site/keyword rules
  */
