@@ -122,7 +122,7 @@ int daemon_node_id;
 int daemon_node_msg_num;
 
 // Port for server to listen on.
-static short global_client_accept_port;
+static unsigned short global_client_accept_port;
 
 // worker threads semaphore
 sem_t worker_sem;
@@ -428,6 +428,205 @@ static void reinit_signal_handler (int signum)
 }
 
 /*
+ * Procedure     : initialize_listening_sockets
+ * Purpose       : Creates, binds, and listens on the TCP and UDS sockets
+ *                 for incoming client connections. This function is safe
+ *                 to call to recover sockets if they are closed unexpectedly.
+ * Parameters    : None
+ * Return Code   :
+ *    0             : All sockets initialized successfully
+ *    else          : An error code indicating failure
+ */
+static int initialize_listening_sockets(void)
+{
+#ifdef NO_IPV6
+   /*
+    * Initialize the ipv4 TCP socket used by clients to register
+    */
+   if (global_tcp_fd < 0) {
+      if ( 0 > (global_tcp_fd = socket(AF_INET, SOCK_STREAM, 0)) ) {
+         SE_INC_LOG(ERROR,
+            printf("TCP Socket open error (errno %d) %s\n", errno, strerror(errno));
+         )
+         global_tcp_fd = -1;
+         return(ERR_WELL_KNOWN_SOCKET);
+      }
+
+      int oldflags = fcntl (global_tcp_fd, F_GETFD, 0);
+      if (0 > oldflags) {
+        fcntl (global_tcp_fd, F_SETFD, FD_CLOEXEC);
+      } else {
+        oldflags |= FD_CLOEXEC;
+        fcntl (global_tcp_fd, F_SETFD, oldflags);
+      }
+
+      int on = 1;
+      if ( 0 > (setsockopt( global_tcp_fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on))) ) {
+         SE_INC_LOG(ERROR,
+            printf("Unable to set SO_REUSEADDR (error %d) %s\n", errno, strerror(errno));
+         )
+      }
+
+      struct sockaddr_in se_server_addr;
+      memset(&se_server_addr, 0, sizeof(se_server_addr));
+      se_server_addr.sin_family      = AF_INET;
+      se_server_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+      se_server_addr.sin_port        = htons(global_client_accept_port);
+
+      if (0 > (bind(global_tcp_fd, (struct sockaddr *) &se_server_addr, sizeof(se_server_addr))) ) {
+         close(global_tcp_fd);
+         global_tcp_fd = -1;
+         SE_INC_LOG(ERROR,
+            printf("Unable to bind TCP Socket (error %d) %s\n", errno, strerror(errno));
+         )
+         return(ERR_WELL_KNOWN_SOCKET);
+      }
+
+      if (0 > listen(global_tcp_fd, 10)) {
+         close(global_tcp_fd);
+         global_tcp_fd = -1;
+         SE_INC_LOG(ERROR,
+            printf("Unable to listen to TCP Socket (errno %d) %s\n", errno, strerror(errno));
+         )
+         return(ERR_WELL_KNOWN_SOCKET);
+      }
+      ulogf(ULOG_SYSTEM, UL_SYSEVENT, "Successfully initialized TCPv4 listening socket.");
+   }
+#else
+   /*
+    * Initialize the ipv6/ipv4 TCP socket used by clients to register
+    */
+   if (global_tcp_fd < 0) {
+      int force_ipv4 = 0;
+      if ( 0 > (global_tcp_fd = socket(AF_INET6, SOCK_STREAM, 0)) ) {
+         SE_INC_LOG(ERROR,
+            printf("IPv6 TCP Socket open error (errno %d) %s\n", errno, strerror(errno));
+            printf("Trying IPv4\n");
+         )
+         global_tcp_fd = -1;
+         if ( 0 > (global_tcp_fd = socket(AF_INET, SOCK_STREAM, 0)) ) {
+            SE_INC_LOG(ERROR,
+               printf("IPv4 TCP Socket open error (errno %d) %s\n", errno, strerror(errno));
+               printf("Nothing left to try\n");
+            )
+            global_tcp_fd = -1;
+            return(ERR_WELL_KNOWN_SOCKET);
+         } else {
+            force_ipv4 = 1;
+         }
+      }
+
+      int oldflags = fcntl (global_tcp_fd, F_GETFD, 0);
+      if (0 > oldflags) {
+         if (fcntl (global_tcp_fd, F_SETFD, FD_CLOEXEC)) { 
+            close(global_tcp_fd); 
+            global_tcp_fd = -1; 
+            return -1; 
+         }
+      }  else {
+            oldflags |= FD_CLOEXEC;
+            if (fcntl (global_tcp_fd, F_SETFD, oldflags)) { 
+               close(global_tcp_fd); 
+               global_tcp_fd = -1; 
+               return -1; 
+            }
+      }
+
+      int on = 1;
+      if ( 0 > (setsockopt( global_tcp_fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on))) ) {
+         SE_INC_LOG(ERROR,
+            printf("ipv6 Unable to set SO_REUSEADDR (error %d) %s\n", errno, strerror(errno));
+         )
+      }
+
+      if (!force_ipv4) {
+         struct sockaddr_in6 server6;
+         server6.sin6_family = AF_INET6;
+         server6.sin6_addr = in6addr_loopback;
+         server6.sin6_port = htons(global_client_accept_port);
+         if (0 > (bind(global_tcp_fd, (struct sockaddr *) &server6, sizeof(server6))) ) {
+            close(global_tcp_fd);
+            global_tcp_fd = -1;
+            SE_INC_LOG(ERROR,
+               printf("Unable to bind ipv6 TCP Socket (error %d) %s\n", errno, strerror(errno));
+            )
+            return(ERR_WELL_KNOWN_SOCKET);
+         }
+      } else {
+         struct sockaddr_in se_server_addr;
+         memset(&se_server_addr, 0, sizeof(se_server_addr));
+         se_server_addr.sin_family      = AF_INET;
+         se_server_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+         se_server_addr.sin_port        = htons(global_client_accept_port);
+         if (0 > (bind(global_tcp_fd, (struct sockaddr *) &se_server_addr, sizeof(se_server_addr))) ) {
+            close(global_tcp_fd);
+            global_tcp_fd = -1;
+            SE_INC_LOG(ERROR,
+               printf("Unable to bind TCP Socket (error %d) %s\n", errno, strerror(errno));
+            )
+            return(ERR_WELL_KNOWN_SOCKET);
+         }
+      }
+
+      if (0 > listen(global_tcp_fd, 10)) {
+         close(global_tcp_fd);
+         global_tcp_fd = -1;
+         SE_INC_LOG(ERROR,
+            printf("Unable to listen to ipv6 TCP Socket (errno %d) %s\n", errno, strerror(errno));
+         )
+         return(ERR_WELL_KNOWN_SOCKET);
+      }
+      ulogf(ULOG_SYSTEM, UL_SYSEVENT, "Successfully initialized TCP listening socket.");
+   }
+#endif // NO_IPV6
+
+   /*
+    * Initialize the UDS connection oriented socket used by clients to register
+    */
+   if (global_uds_connection_fd < 0) {
+      if ( 0 > (global_uds_connection_fd = socket(AF_UNIX, SOCK_STREAM, 0)) ) {
+         SE_INC_LOG(ERROR,
+            printf("UDS Socket open error (errno %d) %s\n", errno, strerror(errno));
+         )
+         global_uds_connection_fd = -1;
+         return(ERR_WELL_KNOWN_SOCKET);
+      }
+
+      unlink(UDS_PATH);
+
+      struct sockaddr_un se_server_uds_addr;
+      size_t             se_server_uds_addr_length;
+      errno_t  safec_rc = -1;
+
+      memset(&se_server_uds_addr, 0, sizeof(se_server_uds_addr));
+      se_server_uds_addr.sun_family = AF_UNIX;
+      safec_rc = sprintf_s(se_server_uds_addr.sun_path, sizeof(se_server_uds_addr.sun_path), "%s", UDS_PATH);
+      if( safec_rc < EOK) { ERR_CHK(safec_rc); }
+      se_server_uds_addr_length     = sizeof(se_server_uds_addr.sun_family) + strlen(se_server_uds_addr.sun_path);
+
+      if (0 > (bind(global_uds_connection_fd, (struct sockaddr *) &se_server_uds_addr, se_server_uds_addr_length)) ) {
+         close(global_uds_connection_fd);
+         global_uds_connection_fd = -1;
+         SE_INC_LOG(ERROR,
+            printf("Unable to bind UDS Socket (error %d) %s\n", errno, strerror(errno));
+         )
+         return(ERR_WELL_KNOWN_SOCKET);
+      }
+
+      if (0 > listen(global_uds_connection_fd, 10)) {
+         close(global_uds_connection_fd);
+         global_uds_connection_fd = -1;
+         SE_INC_LOG(ERROR,
+            printf("Unable to listen to UDS Socket (errno %d) %s\n", errno, strerror(errno));
+         )
+         return(ERR_WELL_KNOWN_SOCKET);
+      }
+      ulogf(ULOG_SYSTEM, UL_SYSEVENT, "Successfully initialized UDS listening socket.");
+   }
+   return(0);
+}
+
+/*
  * Procedure     : initialize_system
  * Purpose       : Initialize the system
  * Parameters    : None
@@ -480,7 +679,6 @@ static int initialize_system(void)
 
    // initialize the logging subsysem
    ulog_init();
-
 
    daemon_init();
 
@@ -781,204 +979,8 @@ static int initialize_system(void)
    srand(seed);
    daemon_node_id      = rand();
    daemon_node_msg_num = 1;
-
-#ifdef NO_IPV6
-   /*
-    * Initialize the ipv4 TCP socket used by clients to register
-    */
-   if ( 0 > (global_tcp_fd = socket(AF_INET, SOCK_STREAM, 0)) ) {
-      SE_INC_LOG(ERROR,
-         printf("TCP Socket open error (errno %d) %s\n", errno, strerror(errno));
-      )
-      global_tcp_fd = -1;
-      return(ERR_WELL_KNOWN_SOCKET);
-   }
-
-   // the fcntl allows sysevent daemon to give up its tcp connections
-   //  quickly if it dies abnormally
-   int oldflags = fcntl (global_tcp_fd, F_GETFD, 0);
-   if (0 > oldflags) {
-     fcntl (global_tcp_fd, F_SETFD, FD_CLOEXEC);
-   } else {
-     oldflags |= FD_CLOEXEC;
-     fcntl (global_tcp_fd, F_SETFD, oldflags);
-   }
-
-   // Enable address reuse
-   int on = 1;
-   if ( 0 > (setsockopt( global_tcp_fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on))) ) {
-      SE_INC_LOG(ERROR,
-         printf("Unable to set SO_REUSEADDR (error %d) %s\n", errno, strerror(errno));
-      )
-   }
-
-  // bind our local address
-   struct sockaddr_in se_server_addr;
-
-   memset(&se_server_addr, 0, sizeof(se_server_addr));
-   se_server_addr.sin_family      = AF_INET;
-   se_server_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-   se_server_addr.sin_port        = htons(global_client_accept_port);
-
-   if (0 > (bind(global_tcp_fd, (struct sockaddr *) &se_server_addr, sizeof(se_server_addr))) ) {
-      close(global_tcp_fd);
-      global_tcp_fd = -1;
-      SE_INC_LOG(ERROR,
-         printf("Unable to bind TCP Socket (error %d) %s\n", errno, strerror(errno));
-      )
-      return(ERR_WELL_KNOWN_SOCKET);
-   }
-
-   if (0 > listen(global_tcp_fd, 10)) {
-      close(global_tcp_fd);
-      global_tcp_fd = -1;
-      SE_INC_LOG(ERROR,
-         printf("Unable to listen to TCP Socket (errno %d) %s\n", errno, strerror(errno));
-      )
-      return(ERR_WELL_KNOWN_SOCKET);
-   }
-#else  
-   /*
-    * Initialize the ipv6/ipv4 TCP socket used by clients to register
-    */
-   int force_ipv4 = 0;
-
-   if ( 0 > (global_tcp_fd = socket(AF_INET6, SOCK_STREAM, 0)) ) {
-      SE_INC_LOG(ERROR,
-         printf("IPv6 TCP Socket open error (errno %d) %s\n", errno, strerror(errno));
-         printf("Trying IPv4\n");
-      )
-      global_tcp_fd = -1;
-      // We couldnt initialize using ipv6 socket, so fall back to ipv4 only
-      if ( 0 > (global_tcp_fd = socket(AF_INET, SOCK_STREAM, 0)) ) {
-         SE_INC_LOG(ERROR,
-            printf("IPv4 TCP Socket open error (errno %d) %s\n", errno, strerror(errno));
-            printf("Nothing left to try\n");
-         )
-         global_tcp_fd = -1;
-         return(ERR_WELL_KNOWN_SOCKET);
-      } else {
-         force_ipv4 = 1;
-      }
-   }
-      
-   // the fcntl allows sysevent daemon to give up its tcp connections
-   //  quickly if it dies abnormally
-   int oldflags = fcntl (global_tcp_fd, F_GETFD, 0);
-   if (0 > oldflags) {
-     /* CID 73196: Unchecked return value from library */
-       if (fcntl (global_tcp_fd, F_SETFD, FD_CLOEXEC))
-       {
-	   close(global_tcp_fd);
-           return -1;
-       }
-
-   } else {
-     oldflags |= FD_CLOEXEC;
-     if (fcntl (global_tcp_fd, F_SETFD, oldflags))
-     {
-         close(global_tcp_fd);
-         return -1;
-     }
-   }
-
-   // Enable address reuse
-   int on = 1;
-   if ( 0 > (setsockopt( global_tcp_fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on))) ) {
-      SE_INC_LOG(ERROR,
-         printf("ipv6 Unable to set SO_REUSEADDR (error %d) %s\n", errno, strerror(errno));
-      )
-   }
-
-   if (!force_ipv4) {
-      // bind our local address
-      struct sockaddr_in6 server6;
-
-      server6.sin6_family = AF_INET6;
-      server6.sin6_addr = in6addr_loopback;
-      server6.sin6_port = htons(global_client_accept_port);
-
-      if (0 > (bind(global_tcp_fd, (struct sockaddr *) &server6, sizeof(server6))) ) {
-         close(global_tcp_fd);
-         global_tcp_fd = -1;
-         SE_INC_LOG(ERROR,
-            printf("Unable to bind ipv6 TCP Socket (error %d) %s\n", errno, strerror(errno));
-         )
-         return(ERR_WELL_KNOWN_SOCKET);
-      }
-   } else {
-      // bind our local address
-        struct sockaddr_in se_server_addr;
-
-        memset(&se_server_addr, 0, sizeof(se_server_addr));
-        se_server_addr.sin_family      = AF_INET;
-        se_server_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        se_server_addr.sin_port        = htons(global_client_accept_port);
-
-        if (0 > (bind(global_tcp_fd, (struct sockaddr *) &se_server_addr, sizeof(se_server_addr))) ) {
-           close(global_tcp_fd);
-           global_tcp_fd = -1;
-           SE_INC_LOG(ERROR,
-              printf("Unable to bind TCP Socket (error %d) %s\n", errno, strerror(errno));
-           )
-           return(ERR_WELL_KNOWN_SOCKET);
-        }
-   }
-
-   if (0 > listen(global_tcp_fd, 10)) {
-      close(global_tcp_fd);
-      global_tcp_fd = -1;
-      SE_INC_LOG(ERROR,
-         printf("Unable to listen to ipv6 TCP Socket (errno %d) %s\n", errno, strerror(errno));
-      )
-      return(ERR_WELL_KNOWN_SOCKET);
-   }
-#endif // NO_IPV6
-
-   /*
-    * Initialize the UDS connection oriented socket used by clients to register
-    */
-   if ( 0 > (global_uds_connection_fd = socket(AF_UNIX, SOCK_STREAM, 0)) ) {
-      SE_INC_LOG(ERROR,
-         printf("UDS Socket open error (errno %d) %s\n", errno, strerror(errno));
-      )
-      global_uds_connection_fd = -1;
-      return(ERR_WELL_KNOWN_SOCKET);
-   }
-
-  unlink(UDS_PATH);
-
-  // bind our local address
-   struct sockaddr_un se_server_uds_addr;
-   size_t             se_server_uds_addr_length;
-   errno_t  safec_rc = -1;
-
-   memset(&se_server_uds_addr, 0, sizeof(se_server_uds_addr));
-   se_server_uds_addr.sun_family = AF_UNIX;
-   safec_rc = sprintf_s(se_server_uds_addr.sun_path, sizeof(se_server_uds_addr.sun_path), "%s", UDS_PATH);
-   if( safec_rc < EOK)
-   {
-       ERR_CHK(safec_rc);
-   }
-   se_server_uds_addr_length     = sizeof(se_server_uds_addr.sun_family) + strlen(se_server_uds_addr.sun_path);
-
-   if (0 > (bind(global_uds_connection_fd, (struct sockaddr *) &se_server_uds_addr, se_server_uds_addr_length)) ) {
-      close(global_uds_connection_fd);
-      global_uds_connection_fd = -1;
-      SE_INC_LOG(ERROR,
-         printf("Unable to bind UDS Socket (error %d) %s\n", errno, strerror(errno));
-      )
-      return(ERR_WELL_KNOWN_SOCKET);
-   }
-
-   if (0 > listen(global_uds_connection_fd, 10)) {
-      close(global_uds_connection_fd);
-      global_uds_connection_fd = -1;
-      SE_INC_LOG(ERROR,
-         printf("Unable to listen to UDS Socket (errno %d) %s\n", errno, strerror(errno));
-      )
-      return(ERR_WELL_KNOWN_SOCKET);
-   }
+   
+   initialize_listening_sockets();
 
    return(0);
 }
@@ -1021,7 +1023,7 @@ static int get_options(int argc, char **argv)
 
       switch (c) {
          case 'p':
-            global_client_accept_port = (0x0000FFFF & (unsigned short) atoi(optarg));
+            global_client_accept_port = (unsigned short) atoi(optarg);
             break;
 
 #ifdef SE_SERVER_CODE_DEBUG
@@ -1208,6 +1210,7 @@ int main (int argc, char **argv)
 //  debugLevel = SHOW_ERROR | SHOW_SEMAPHORE;
 //  debugLevel = SHOW_ERROR|SHOW_SANITY;
   debugLevel = SHOW_ERROR;
+//  debugLevel = SHOW_ERROR | SHOW_MESSAGES | SHOW_INFO | SHOW_TRIGGER_MGR | SHOW_DATA_MGR | SHOW_LISTENER | SHOW_CLIENT_MGR | SHOW_MESSAGE_VERBOSE;
 #endif
 
    memset(&stat_info, 0, sizeof(stat_info));
@@ -1252,7 +1255,6 @@ int main (int argc, char **argv)
          }
       }
    }
-
 
 
 #ifdef REDIRECT_CODE_DEBUG
@@ -1375,19 +1377,44 @@ int main (int argc, char **argv)
       int    maxfd = 0;
       FD_ZERO(&rd_set);
       if ( 0 <= global_tcp_fd) {
-         FD_SET(global_tcp_fd, &rd_set);
-         maxfd = (global_tcp_fd + 1);
-      } 
-      if ( 0 <= global_uds_connection_fd) {
-         FD_SET(global_uds_connection_fd, &rd_set);
-         if (maxfd <= global_uds_connection_fd) {
-            maxfd = (global_uds_connection_fd + 1);
+         if (fcntl(global_tcp_fd, F_GETFD) == -1) {
+            printf("global_tcp_fd is invalid, re-initializing");
+            close(global_tcp_fd);
+            global_tcp_fd = -1;
+            // Re-initialize only the listening sockets
+            if (0 != initialize_listening_sockets()) {
+                printf("Failed to re-initialize listening sockets, will retry.");
+            }
+            else {
+               continue;
+            }
+         } else {
+            FD_SET(global_tcp_fd, &rd_set);
+            maxfd = (global_tcp_fd + 1);
          }
-      } 
+      }
+      if ( 0 <= global_uds_connection_fd) {
+         if (fcntl(global_uds_connection_fd, F_GETFD) == -1) {
+            printf("global_uds_connection_fd is invalid, re-initializing");
+            close(global_uds_connection_fd);
+            global_uds_connection_fd = -1;
+            unlink(UDS_PATH);
+            // Re-initialize only the listening sockets
+            if (0 != initialize_listening_sockets()) {
+                printf("Failed to re-initialize listening sockets, will retry.");
+            }
+         } else {
+            FD_SET(global_uds_connection_fd, &rd_set);
+            if (maxfd <= global_uds_connection_fd) {
+               maxfd = (global_uds_connection_fd + 1);
+            }
+         }
+      }
 
       clilen = sizeof(cli_addr);
       int rc = select(maxfd, &rd_set, NULL, NULL, NULL);
       if (-1 == rc) {
+         sleep(1);
          continue;
       }
 
@@ -1397,9 +1424,17 @@ int main (int argc, char **argv)
        */
       if (FD_ISSET(global_uds_connection_fd, &rd_set)) {
          newsockfd = accept(global_uds_connection_fd, (struct sockaddr *) &cli_addr, &clilen);
+         if (newsockfd < 0) {
+            printf("accept() failed with error %d", errno);
+            continue;
+         }
       }
       else if (FD_ISSET(global_tcp_fd, &rd_set)) {
          newsockfd = accept(global_tcp_fd, (struct sockaddr *) &cli_addr, &clilen);
+         if (newsockfd < 0) {
+            printf("accept() failed with error %d", errno);
+            continue;
+         }
       } else {
          continue;
       }
