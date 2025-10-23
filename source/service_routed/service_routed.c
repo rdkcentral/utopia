@@ -931,11 +931,11 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     char wan_interface[64] = {0};
 #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
 #define PSM_MESH_WAN_IFNAME "dmsb.Mesh.WAN.Interface.Name"
-    char mesh_wan_ifname[32];
+    char mesh_wan_ifname[32] = {0};
     char *pStr = NULL;
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME,pStr);
     if(return_status == CCSP_SUCCESS && pStr != NULL){
-        strncpy(mesh_wan_ifname,pStr ,sizeof(mesh_wan_ifname));
+        snprintf(mesh_wan_ifname, sizeof(mesh_wan_ifname), "%s",pStr);
         Ansc_FreeMemory_Callback(pStr);
         pStr = NULL;
     } 

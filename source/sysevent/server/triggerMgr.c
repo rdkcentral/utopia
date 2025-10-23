@@ -334,7 +334,7 @@ static int prepare_action_type_function_msg (se_buffer buffer, int trigger_id, t
    return(0);
 }
 
-static int prepare_action_type_function_msg_data (char *buffer, int buf_length, int trigger_id, trigger_action_t *action, 
+static int prepare_action_type_function_msg_data (char *buffer, unsigned int buf_length, int trigger_id, trigger_action_t *action, 
                                              const char* const name, const char* const value,const int value_length)
 {
    // figure out how much space the se_msg_strings will take
@@ -469,7 +469,7 @@ static int prepare_action_type_message_msg (se_buffer buffer, const int trigger_
    return(0);
 }
 
-static int prepare_action_type_message_msg_data (char* buffer, const int buf_length, const int trigger_id, trigger_action_t *action, const char*  const name, const char* const value, const int value_length, const int source, const int tid)
+static int prepare_action_type_message_msg_data (char* buffer, const unsigned int buf_length, const int trigger_id, trigger_action_t *action, const char*  const name, const char* const value, const int value_length, const int source, const int tid)
 {
 
    // if the action owner has disconnected, then there is no need to send this message

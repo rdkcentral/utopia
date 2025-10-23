@@ -356,7 +356,7 @@ INT32 IGD_get_GenericPortMapping_entry(INOUT struct action_event *event)
 
                     ret = PAL_UPNP_SOAP_E_ACTION_FAILED;
                     event->request->error_code = ret;
-                    strncpy(event->request->error_str, PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED), PAL_UPNP_LINE_SIZE);
+                    snprintf(event->request->error_str,sizeof(event->request->error_str),"%s",PAL_upnp_get_error_message(PAL_UPNP_SOAP_E_ACTION_FAILED));
                 }
             }   // end if (portmapIndex.portMapIndex >= entryNum)
         } else {   //IGD_pii_get_portmapping_entry_num error
