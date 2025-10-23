@@ -1974,6 +1974,10 @@ void do_ipv6_sn_filter(FILE* fp) {
             fprintf(fp, "-A PREROUTING -i %s -d %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i], mcastAddrStr);
         /* NS Throttling rules for WAN and LAN */
         fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i]);
+	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+	{
+	    fprintf(fp, "-A INPUT -s %s -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 133 -m limit --limit 100/sec -j ACCEPT\n" , current_wan_ip6_addr , current_wan_ifname);
+	}
         fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP\n", ifnames[i]);
     }
 
@@ -2123,22 +2127,24 @@ int checkIfULAEnabled()
 
 void applyIpv6ULARules(FILE* fp)
 {
-   #ifdef RDKB_EXTENDER_ENABLED  
+   #if defined  (RDKB_EXTENDER_ENABLED)
       if(strlen(current_wan_ipv6[0]) > 0)
       {
-          FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipv6); 
-
-         fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n",current_wan_ifname);
+	  FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipv6); 
+	  fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n",current_wan_ifname);
       }
    #else
+      FIREWALL_DEBUG("Applying applyIpv6ULARules \n");
       applyRoutingRules(fp,GLOBAL_IPV6);
       applyRoutingRules(fp,ULA_IPV6);
 
    #endif
 }
+
 #endif 
 void do_ipv6_nat_table(FILE* fp)
 {
+    FIREWALL_DEBUG("Entering do_ipv6_nat_table \n");
     char IPv6[INET6_ADDRSTRLEN] = "0";
     fprintf(fp, "*nat\n");
 	fprintf(fp, ":%s - [0:0]\n", "prerouting_devices");
@@ -2232,7 +2238,19 @@ void do_ipv6_nat_table(FILE* fp)
 		}
    }
 #ifdef _PLATFORM_RASPBERRYPI_
-   fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
+   if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+   {
+    #if defined  (WAN_FAILOVER_SUPPORTED)
+       if (0 == checkIfULAEnabled())
+       {
+	   applyHotspotPostRoutingRules(fp, false);
+       }
+   #endif
+   }
+   else
+   {
+       fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
+   }
 #endif
 
 #ifdef _PLATFORM_BANANAPI_R4_
