@@ -113,7 +113,7 @@ handle_l2_status () {
 		echo_t "service_ipv4 : Triggering RDKB_FIREWALL_RESTART"
 		t2CountNotify "RF_INFO_RDKB_FIREWALL_RESTART"
 				sysevent set firewall-restart
-                if [ "$BOX_TYPE" != "HUB4" ] && [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "SR213" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "SCER11BEL" ]; then
+                if [ "$BOX_TYPE" != "HUB4" ] && [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "SR213" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "SCER11BEL" ] && [ "$BOX_TYPE" != "SCXF11BFL" ]; then
 				uptime=$(cut -d. -f1 /proc/uptime)
 				if [ -e "/usr/bin/onboarding_log" ]; then
 				    /usr/bin/onboarding_log "RDKB_FIREWALL_RESTART:$uptime"
@@ -129,7 +129,7 @@ handle_l2_status () {
                 fi
                fi
             fi
-            if [ "$BOX_TYPE" = "rpi" ]; then
+            if [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
                  LAN_STATUS=`sysevent get lan-status`
                  if [ "$LAN_STATUS" = "stopped" ]; then
                       echo_t "service_ipv4 : Starting lan-status"

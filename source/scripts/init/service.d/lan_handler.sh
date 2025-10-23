@@ -349,7 +349,7 @@ case "$1" in
 		echo_t "THE INSTANT=$INST"
 		echo_t "THE INSTANT=$INST"
         #(use a simpler test than this -- but Hacky, since it assumes everything we want is not XB3!!)if [ "$BOX_TYPE" = "TCCBR" ] || [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Technicolor" ] || [ "$BOX_TYPE" = "XB7" -a "$MANUFACTURE" = "Technicolor" ] ; then
-	if ( [ "$BOX_TYPE" != "XB3" ] && ( [ "$MANUFACTURE" = "Technicolor" ] || [ "$MANUFACTURE" = "Sercomm" ] ) )  || [ "$BOX_TYPE" = "rpi" ] ; then
+	if ( [ "$BOX_TYPE" != "XB3" ] && ( [ "$MANUFACTURE" = "Technicolor" ] || [ "$MANUFACTURE" = "Sercomm" ] ) )  || [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
                 	COUNTER=1
 			while [ $COUNTER -lt 10 ]; do
 				echo_t "RDKB_SYSTEM_BOOT_UP_LOG : INST returned null , retrying $COUNTER"
@@ -393,7 +393,7 @@ case "$1" in
                 sysevent set homesecurity_lan_l3net ${HSINST}
                 sysevent set primary_lan_l3net ${INST}
 	#BRLAN0 ISSUE : Manually invoking lan-start to fix brlan0 failure during intial booting. Root cause for event has to be identified
-	   	if [ "$RPI_SPECIFIC" = "rpi" ]; then
+	   	if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
         		        sleep 2
                                 L3NET=`sysevent get primary_lan_l3net`
                                 if [ -z "$L3NET" ]; then
@@ -418,7 +418,7 @@ case "$1" in
       
         # Laninit complete happens as part of the service_dhcp_server.sh itself.Firewall restart happens as part of service_ip4 itself.In the above code we #are setting many sysevents related to LAN hence adding the lan_init complete logs here.Also as oer the logs , we moving to bring the eth interface after this.Hence lan in
 	# compelte can brought in here.
-        if [ "$RPI_SPECIFIC" = "rpi" ]; then
+        if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
             if [ -e "/usr/bin/print_uptime" ]; then
                 /usr/bin/print_uptime "Laninit_complete"
             fi
@@ -502,11 +502,11 @@ case "$1" in
    ;;
 
    lan-start)
-        if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "SCER11BEL" ]; then
+        if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]; then
              L3Net=`sysevent get primary_lan_l3net`
              if [ -z "$L3Net" ]; then
                  echo_t "RDKB_SYSTEM_BOOT_UP_LOG : L3Net is null"
-                     if [ "$RPI_SPECIFIC" = "rpi" ]; then
+                     if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
                          L3Net=4
                          sysevent set primary_lan_l3net $L3Net
                      else

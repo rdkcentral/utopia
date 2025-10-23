@@ -122,7 +122,7 @@ MWO_PATH="/nvram/mwo"
 CHANNEL_KEEPOUT_PATH="/nvram/mesh"
 
 ENCRYPT_SYSCFG=false
-if [ "$MODEL_NUM" = "VTER11QEL" ] || [ "$MODEL_NUM" = "SCER11BEL" ]; then
+if [ "$MODEL_NUM" = "VTER11QEL" ] || [ "$MODEL_NUM" = "SCER11BEL" ] || [ "$MODEL_NUM" = "SCXF11BFL" ]; then
    ENCRYPT_SYSCFG=true
 fi
 
@@ -136,7 +136,7 @@ if [ -d $SYSCFG_ENCRYPTED_PATH ]; then
        fi
 fi
 
-if [ "$MODEL_NUM" = "SCER11BEL" ]; then
+if [ "$MODEL_NUM" = "SCER11BEL" ] || [ "$MODEL_NUM" = "SCXF11BFL" ]; then
      if [ "$ENCRYPT_SYSCFG" = false ]; then
              if [ ! -f $SYSCFG_BKUP_FILE ] && [ -f $SYSCFG_NEW_FILE ]; then
                  echo_t "[utopia][init] DOWNGRADE to unsecured syscfg.db"
@@ -655,6 +655,11 @@ if [ "$FACTORY_RESET_REASON" = "true" ]; then
        syscfg set X_RDKCENTRAL-COM_LastRebootReason "FirmwareDownloadAndFactoryReset"
        syscfg set X_RDKCENTRAL-COM_LastRebootCounter "1"
        rm -f /nvram/.image_upgrade_and_FR_done
+   elif [ -f "/nvram/.Invalid_PartnerID" ]; then
+       echo "[utopia][init] Detected last reboot reason as Reboot-DueTo-InvalidPartnerID"
+       syscfg set X_RDKCENTRAL-COM_LastRebootReason "Reboot-DueTo-InvalidPartnerID"
+       syscfg set X_RDKCENTRAL-COM_LastRebootCounter "1"
+       rm -f /nvram/.Invalid_PartnerID
    else
        echo_t "[utopia][init] Detected last reboot reason as factory-reset"
        if [ -e "/usr/bin/onboarding_log" ]; then
@@ -847,6 +852,6 @@ if [ "$BOX_TYPE" = "VNTXER5" ]; then
    fi
 fi
 
-if [ "$BOX_TYPE" = "SCER11BEL" ]; then
+if [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$MODEL_NUM" = "SCXF11BFL" ]; then
        /etc/reset_reason_log.sh &
 fi

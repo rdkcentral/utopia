@@ -125,7 +125,7 @@ service_start ()
             STATUS=`sysevent get wan-status`
             if [ "stopped" != "$STATUS" ] ; then
                 ulog forwarding status "stopping wan"
-		if [ "$RPI_SPECIFIC" != "rpi" ] ; then
+		if [ "$RPI_SPECIFIC" != "rpi" ] && [ "$BOX_TYPE" != "bpi" ] ; then
                 	sysevent set wan-stop
 		fi
                 wait_till_state wan stopped
@@ -146,7 +146,7 @@ service_start ()
    	    	done
 
             fi
-	    if [ "$RPI_SPECIFIC" = "rpi" ] ; then
+	    if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
 		    LAN_STATUS=`sysevent get lan-status`
 		    if [ "$LAN_STATUS" = "stopped" ] ; then
 				router_mode
@@ -175,7 +175,7 @@ service_start ()
          sysevent set firewall-restart
       else
          ulog forwarding status "starting wan"
-	if [ "$RPI_SPECIFIC" = "rpi" ] ; then
+	if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
 	 	STATUS=`sysevent get wan-status`
 		if [ "started" != "$STATUS" ] ; then
         	    sysevent set wan-start
