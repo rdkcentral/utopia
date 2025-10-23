@@ -1480,31 +1480,20 @@ static int do_wan_nat_lan_clients_mapt(FILE *fp)
  * Return Values  :
  *    0              : Success
  */
-void do_webui_rate_limit(FILE *filter_fp)
+void do_webui_rate_limit(FILE *filter_fp,const char *version)
 {
     FIREWALL_DEBUG("Entering do_webui_rate_limit\n");
-
-    // Define the custom chain
-    fprintf(filter_fp, "add chain ip filter webui_limit\n");
-
-    // Accept established/related connections
-    fprintf(filter_fp, "add rule ip filter webui_limit ct state established,related counter accept\n");
-
-#if defined(_HUB4_PRODUCT_REQ_)
-    // Limit new TCP connections to 4/sec with burst of 10
-    fprintf(filter_fp, "add rule ip filter webui_limit tcp flags & (fin|syn|rst|ack) == syn limit rate 4/second burst 10 packets counter accept\n");
-#else
-    // Limit new TCP connections to 10/sec with burst of 20
-    fprintf(filter_fp, "add rule ip filter webui_limit tcp flags & (fin|syn|rst|ack) == syn limit rate 10/second burst 20 packets counter accept\n");
-#endif
-
-    // Log packets exceeding rate
-    fprintf(filter_fp, "add rule ip filter webui_limit limit rate 1/second burst 1 packets log prefix \"WebUI Rate Limited: \" level info\n");
-
-    // Drop all other traffic
-    fprintf(filter_fp, "add rule ip filter webui_limit counter drop\n");
-
+    fprintf(filter_fp, "add chain %s filter %s\n", version, "webui_limit");
+    fprintf(filter_fp, "add rule %s filter webui_limit ct state related,established  counter accept\n", version);
+ #if defined(_HUB4_PRODUCT_REQ_)
+    fprintf(filter_fp, "add rule %s filter webui_limit tcp flags & (fin | syn | rst | ack) == syn limit rate 4/second burst 10 accept\n", version);
+ #else
+    fprintf(filter_fp, "add rule %s filter webui_limit tcp flags & (fin|syn|rst|ack) == syn limit rate 10/second burst 20 packets counter accept\n", version);
+ #endif
+    fprintf(filter_fp, "add rule %s filter webui_limit limit rate 1/second burst 1 packets counter log prefix \"WebUI Rate Limited: \" level info\n", version);
+    fprintf(filter_fp, "add rule %s filter webui_limit counter drop\n", version);
     FIREWALL_DEBUG("Exiting do_webui_rate_limit\n");
+
 }
 
 
@@ -6202,7 +6191,7 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
         }
     if (family == AF_INET) {
         if ((0 == strcmp(httpport, port)) || (0 == strcmp(httpsport, port))) {
-          fprintf(filt_fp, "add rule ip filter wan2self_mgmt iifname \"%s\" tcp dport %s jump webui_limit\n", interface, port);
+          fprintf(filt_fp, "add rule ip filter wan2self_mgmt iifname \"%s\" tcp dport %s counter jump webui_limit\n", interface, port);
         } else {
           fprintf(filt_fp, "add rule ip6 filter wan2self_mgmt iifname \"%s\" %s tcp dport %s accept \n", interface, src, port);
         }          
@@ -6217,9 +6206,9 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
 #endif
       if ((0 == strcmp(httpport, port)) || (0 == strcmp(httpsport, port))) {
          if (family == AF_INET6) {
-            fprintf(filt_fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport %s jump webui_limit\n", interface, port);
+            fprintf(filt_fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport %s counter jump webui_limit\n", interface, port);
          } else {
-            fprintf(filt_fp, "add rule ip filter INPUT iifname \"%s\" tcp dport %s jump webui_limit\n", interface, port); 
+            fprintf(filt_fp, "add rule ip filter INPUT iifname \"%s\" tcp dport %s counter jump webui_limit\n", interface, port); 
       }
       } else {
          fprintf(filt_fp, "add rule ip filter input iifname \"%s\" ip saddr %s tcp dport %s accept\n", interface, src, port);  
@@ -11443,7 +11432,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    do_OpenVideoAnalyticsPort (filter_fp);
    
    // Create iptable chain to ratelimit remote management(8080, 8181) packets
-   do_webui_rate_limit(filter_fp);
+   do_webui_rate_limit(filter_fp,"ip");
        
 #if !defined(_COSA_INTEL_XB3_ARM_)
    filterPortMap(filter_fp);
@@ -12903,7 +12892,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 #endif
 
        // Create iptable chain to ratelimit remote management packets
-       do_webui_rate_limit(filter_fp);
+       do_webui_rate_limit(filter_fp,"ip");
        WAN_FAILOVER_SUPPORT_CHECK
        do_remote_access_control(NULL, filter_fp, AF_INET);
        WAN_FAILOVER_SUPPORT_CHECk_END
@@ -13436,7 +13425,7 @@ void RmConntrackEntry(char *IPaddr)
         v_secure_system("nft insert rule ip filter FORWARD ip saddr %s tcp ct state new accept", IPaddr);
     }
 }
-/*
+
 int CleanIPConntrack(char *physAddress)
 {
 #ifdef CORE_NET_LIB
@@ -13503,7 +13492,7 @@ int CleanIPConntrack(char *physAddress)
 #endif
     return 0;
 }
-*/
+
 int IsFileExists(const char *fname)
 {
     FILE *file;
@@ -13544,7 +13533,7 @@ memset(buf,0,200);
 			mac[strlen(mac) - 1] = '\0';
                   if(validate_mac(mac))
                   {
-                        //CleanIPConntrack(mac);
+                        CleanIPConntrack(mac);
                   }
 		}
 		  v_secure_pclose(fp);

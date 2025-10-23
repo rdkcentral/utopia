@@ -242,7 +242,6 @@ AC_CONFIG_FILES(
 	Makefile
 	source/Makefile
 	source/dhcpproxy/Makefile
-	source/firewall/Makefile
 	source/firewall_log/Makefile
 	source/igd/Makefile
 	source/igd/src/Makefile

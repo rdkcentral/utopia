@@ -200,7 +200,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family);
 
 // Port functions
 int do_block_ports(FILE *filter_fp);
-void do_webui_rate_limit(FILE *filter_fp);
+void do_webui_rate_limit(FILE *filter_fp,const char *version);
 int lan_access_set_proto(FILE *fp, const char *port, const char *interface);
 int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *filter_fp_v6);
 int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *filter_fp_v6);
