@@ -90,6 +90,9 @@
 #elif defined(_XER5_PRODUCT_REQ_)
     #undef CONFIG_VENDOR_MODEL
     #define CONFIG_VENDOR_MODEL "VTER11QEL"
+#elif defined(_XB9_PRODUCT_REQ_)
+    #undef CONFIG_VENDOR_MODEL
+    #define CONFIG_VENDOR_MODEL "CWA438TCOM"
 #elif defined(_XB10_PRODUCT_REQ_)
     #undef CONFIG_VENDOR_MODEL
  #if defined (IGD_SERCOMMXB10_INFO)

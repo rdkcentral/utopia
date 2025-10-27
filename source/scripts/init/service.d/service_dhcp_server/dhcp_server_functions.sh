@@ -1202,7 +1202,7 @@ fi
 			   echo "${PREFIX}""dhcp-option=l2sd0.4090,6,$WAN_DHCP_NS" >> $LOCAL_DHCP_CONF
 		   fi
 
-        elif [ "$MODEL_NUM" = "CGM4331COM" ] || [ "$MODEL_NUM" = "CGM4981COM" ] || [ "$MODEL_NUM" = "CGM601TCOM" ] || [ "$MODEL_NUM" = "SG417DBCT" ] || [ "$MODEL_NUM" = "TG4482A" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$MODEL_NUM" = "CGA4332COM" ]  || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "SCXF11BFL" ] || [ "$BOX_TYPE" = "VNTXER5" ]; then
+        elif [ "$MODEL_NUM" = "CGM4331COM" ] || [ "$MODEL_NUM" = "CGM4981COM" ] || [ "$MODEL_NUM" = "CGM601TCOM" ] || [ "$MODEL_NUM" = "CWA438TCOM" ] || [ "$MODEL_NUM" = "SG417DBCT" ] || [ "$MODEL_NUM" = "TG4482A" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$MODEL_NUM" = "CGA4332COM" ]  || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "SCXF11BFL" ] || [ "$BOX_TYPE" = "VNTXER5" ]; then
             echo "interface=brlan112" >> $LOCAL_DHCP_CONF
             if [ "$BOX_TYPE" = "WNXL11BWL" ]; then
               echo "dhcp-range=169.254.70.5,169.254.70.253,255.255.255.0,infinite" >> $LOCAL_DHCP_CONF
