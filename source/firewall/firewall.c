@@ -9312,15 +9312,14 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
             else if (strncasecmp(method, "KEYWD", 5)==0)
             {
                 const char *keyword = NULL;
-                char hostStr[] = "Host:";
                 int range_max = 1024; //max payload bytes to filter
-		int range_incr = 64; //byte ranges to filter
+                int range_multiplier = 2;
 
                 // Extract keyword if user input is a full URL
                 if (strstr(query, "://") != NULL) {
                     keyword = strstr(query, "://") + 3;
                 } else {
-                    keyword = query;
+                   keyword = query;
                 }
 
                 if (keyword == NULL || strlen(keyword) == 0) {
@@ -9329,18 +9328,18 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 }
 
                 // Create rules for various ranges of payload to filter
-                int from;
-                for (from = 0; from < range_max; from += range_incr) {
-                    int to = from + range_incr;
-                    char chainName[64];
+                int from,to;
+                for ( from = 0, to = 64; from < range_max; from = to, to *= range_multiplier ) 
+                {
+                    char chainName[30]; // linux chainname length is max 29 chars
 
-                    // Create new chain LOG_SiteBlocked_check_kw_<from>_<to>
-                    snprintf(chainName, sizeof(chainName), "LOG_SiteBlocked_check_kw_%d_%d", from, to);
-                    fprintf(fp, "-N %s\n", chainName);
+                    // Create new chain
+                    snprintf(chainName, sizeof(chainName), "LOG_SiteBlk_KW_%d_%d", from, to);
+                    fprintf(fp, ":%s - [0:0]\n", chainName);
 
                     // Add rule to jump to private chain if "Host:" is found in this offset range
-                    fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
-                        hostStr, from, to, chainName);
+                    fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"Host:\" --algo kmp --from %d --to %d --icase -j %s\n",
+                        from, to, chainName);
 
                     // Add rule to match keyword in private chain within same offset range
                     fprintf(fp, "-A %s -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
@@ -9358,11 +9357,11 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
                  if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
-                 {
+                {
                     //In Hub4 keyword blocking feature is not working with FORWARD chain rules as CPE (dnsmasq) acts as DNS Proxy.
                     //Add rules in INPUT chain to resolve this issue.
                     fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                 }
+                }
 #endif
             }
         }
