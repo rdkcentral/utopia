@@ -864,7 +864,42 @@ void firewall_log( char* fmt, ...)
     va_end(args);
     return;
 }
-
+// Function to resolve a URL to an IP address (IPv4 or IPv6)
+char* resolve_ip(const char* url, int iptype) {
+    struct addrinfo hints, *res, *p;
+    int status;
+    char ipstr[INET6_ADDRSTRLEN]; // Buffer to store the IP address (IPv6 max size)
+    // Initialize the hints structure
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = (iptype == 4) ? AF_INET : AF_INET6; // AF_INET for IPv4, AF_INET6 for IPv6
+    hints.ai_socktype = SOCK_STREAM; // Stream socket (e.g., TCP)
+    // Perform DNS resolution
+    if ((status = getaddrinfo(url, NULL, &hints, &res)) != 0) {
+        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+        return NULL;
+    }
+    // Loop through the results and pick the first valid address
+    for (p = res; p != NULL; p = p->ai_next) {
+        void* addr;
+        // Get the pointer to the address itself
+        if (p->ai_family == AF_INET) { // IPv4
+            struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
+            addr = &(ipv4->sin_addr);
+        } else if (p->ai_family == AF_INET6) { // IPv6
+            struct sockaddr_in6* ipv6 = (struct sockaddr_in6*)p->ai_addr;
+            addr = &(ipv6->sin6_addr);
+        } else {
+            continue; // Skip if it's not the requested IP type
+        }
+        // Convert the IP address to a string
+        inet_ntop(p->ai_family, addr, ipstr, sizeof(ipstr));
+        break; // Use the first valid result
+    }
+    freeaddrinfo(res); // Free the linked list
+    // Return the resolved IP address as a dynamically allocated string
+    char* result = strdup(ipstr);
+    return result;
+}
 #ifdef WAN_FAILOVER_SUPPORTED
 unsigned int Get_Device_Mode()
 {
@@ -1945,7 +1980,22 @@ static int to_syslog_level (int log_leveli)
       return LOG_NOTICE;
    }
 }
-
+/*
+ *  Procedure     : netmask_to_cidr
+ *  Purpose       : convert netmask to CIDR value
+ */
+int netmask_to_cidr(const char *netmask) {
+   int cidr = 0;
+   unsigned int mask[4];
+   sscanf(netmask, "%u.%u.%u.%u", &mask[0], &mask[1], &mask[2], &mask[3]);
+   for (int i = 0; i < 4; i++) {
+       while (mask[i]) {
+           cidr += (mask[i] & 1);
+           mask[i] >>= 1;
+       }
+   }
+   return cidr;
+}
 typedef struct v6sample {
            unsigned int bitsToMask;
            char intrName[20];
@@ -3393,8 +3443,8 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
               LOG_PRINT_MAIN("Enabling Single Port Forwarding --- BOTH" );
 #endif
              
-	     fprintf(nat_fp, "add rule ip nat prerouting_fromwan tcp ip daddr %s dport %s counter jump dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
-             fprintf(nat_fp, "add rule ip nat prerouting_fromwan udp ip daddr %s dport %s counter jump dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
+	     fprintf(nat_fp, "add rule ip nat prerouting_fromwan ip daddr %s tcp dport %s counter dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
+             fprintf(nat_fp, "add rule ip nat prerouting_fromwan ip daddr %s udp dport %s counter dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
           }
 #endif //IVI_KERNEL_SUPPORT
           }
@@ -3405,7 +3455,7 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
     if ( (0 == strcmp("both", prot) || 0 == strcmp("tcp", prot)) && (privateIpCheck(toip)) )
 	  {
 	     if (isNatReady) {
-            fprintf(nat_fp, "add rule ip nat prerouting_fromwan tcp ip daddr %s dport %s counter jump dnat to %s%s\n", natip4, external_port, toip, port_modifier);
+            fprintf(nat_fp, "add rule ip nat prerouting_fromwan ip daddr %s tcp dport %s counter dnat to %s%s\n", natip4, external_port, toip, port_modifier);
          }
 
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
@@ -3415,7 +3465,7 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
       
              int tcp_protocol = 100;
              int ret =0;
-             fprintf(nat_fp, "add rule ip nat prerouting_fromwan tcp ip daddr %s dport %s counter jump dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
+             fprintf(nat_fp, "add rule ip nat prerouting_fromwan ip daddr %s tcp dport %s counter dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
              if (isBothProtocol == FALSE)
              {
 #ifdef FEATURE_MAPT_DEBUG
@@ -3432,14 +3482,14 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
 #ifdef FEATURE_MAPT_DEBUG
               LOG_PRINT_MAIN("Enabling Single Port Forwarding --- TCP" );
 #endif
-                fprintf(nat_fp, "add rule ip nat prerouting_fromwan tcp ip daddr %s dport %s counter jump dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
+                fprintf(nat_fp, "add rule ip nat prerouting_fromwan ip daddr %s tcp dport %s counter dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
             }
 #endif //IVI_KERNEL_SUPPORT
          }
 #endif //FEATURE_MAPT
          if(isHairpin){
              if (isNatReady) {
-               fprintf(nat_fp, "add rule ip nat prerouting_fromlan tcp ip daddr %s dport %s counter jump dnat to %s%s\n", natip4, external_port, toip, port_modifier);
+               fprintf(nat_fp, "add rule ip nat prerouting_fromlan ip daddr %s tcp dport %s counter dnat to %s%s\n", natip4, external_port, toip, port_modifier);
                 #ifndef INTEL_PUMA7
                 if(strcmp(internal_port, "0")){
                     tmp = internal_port; 
@@ -3447,7 +3497,7 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
                     tmp = external_port;
                 }
                 //ARRISXB6-4723 - Below SNAT rule is causing access issues for LAN-wifi clients when port forwarding is enabled in XB6, hence the conditional check.
-                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%s tcp ip daddr %s dport %s counter jump snat to %s\n", lan_3_octets, lan_netmask, toip, tmp, natip4);
+                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s tcp dport %s counter snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, tmp, natip4);
                 #endif
             }
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
@@ -3455,41 +3505,39 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
           {
               if(isMAPTReady)
               {
-                  fprintf(nat_fp, "add rule ip nat prerouting_fromlan tcp ip daddr %s dport %s counter jump dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
-
+                  fprintf(nat_fp, "add rule ip nat prerouting_fromlan ip daddr %s tcp dport %s counter dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
                   if(strcmp(internal_port, "0")){
                       tmp = internal_port; 
                   }else{
                       tmp = external_port;
                   }
-
-                  fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%s tcp ip daddr %s dport %s counter jump snat to %s\n", lan_3_octets, lan_netmask, toip, tmp, mapt_ip_address);
+                  fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s tcp dport %s counter  snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, tmp, mapt_ip_address);
               }
           }
 #endif
          }else if (!isNatRedirectionBlocked) {
-            fprintf(nat_fp, "add rule ip nat prerouting_fromlan tcp ip daddr %s dport %s counter jump dnat to %s%s\n", lan_ipaddr, external_port, toip, port_modifier);
+            fprintf(nat_fp, "add rule ip nat prerouting_fromlan ip daddr %s tcp dport %s counter dnat to %s%s\n", lan_ipaddr, external_port, toip, port_modifier);
          
             if (isNatReady) {
-               fprintf(nat_fp, "add rule ip nat prerouting_fromlan tcp ip daddr %s dport %s counter jump dnat to %s%s\n", natip4, external_port, toip, port_modifier);
+               fprintf(nat_fp, "add rule ip nat prerouting_fromlan ip daddr %s tcp dport %s counter dnat to %s%s\n", natip4, external_port, toip, port_modifier);
             }
 
             if(strcmp(internal_port, "0")){
-                fprintf(nat_fp, "add ruel ip nat postrouting_tolan ip saddr %s.0/%s tcp ip daddr %s dport %s counter jump snat to %s\n", lan_3_octets, lan_netmask, toip, internal_port, lan_ipaddr);
+                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s tcp dport %s counter  snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, internal_port, lan_ipaddr);
             }else{
-                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%s tcp ip daddr %s dport %s counter jump snat to %s\n", lan_3_octets, lan_netmask, toip, external_port, lan_ipaddr);
+                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s tcp dport %s counter  snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, external_port, lan_ipaddr);
             }
          }
          if (filter_fp) {
             if(strcmp(internal_port, "0")){
-                fprintf(filter_fp, "add rule ip filter wan2lan_forwarding_accept tcp ip daddr %s dport %scounter jump  xlog_accept_wan2lan\n", toip, internal_port);
+                fprintf(filter_fp, "add rule ip filter wan2lan_forwarding_accept ip daddr %s tcp dport %scounter jump  xlog_accept_wan2lan\n", toip, internal_port);
 #ifdef PORTMAPPING_2WAY_PASSTHROUGH
-            fprintf(filter_fp, "add rule ip filter lan2wan_forwarding_accept tcp ip saddr %s sport %s counter jump xlog_accept_lan2wan\n", toip, internal_port);
+            fprintf(filter_fp, "add rule ip filter lan2wan_forwarding_accept ip saddr %s tcp sport %s counter jump xlog_accept_lan2wan\n", toip, internal_port);
 #endif
          }else{
-            fprintf(filter_fp, "add rule ip filter wan2lan_forwarding_accept tcp ip daddr %s dport %s counter jump xlog_accept_wan2lan\n", toip, external_port);
+            fprintf(filter_fp, "add rule ip filter wan2lan_forwarding_accept ip daddr %s tcp dport %s counter jump xlog_accept_wan2lan\n", toip, external_port);
 #ifdef PORTMAPPING_2WAY_PASSTHROUGH
-            fprintf(filter_fp, "add rule ip filter lan2wan_forwarding_accept tcp ip saddr %s sport %s counter jump xlog_accept_lan2wan\n", toip, external_port);
+            fprintf(filter_fp, "add rule ip filter lan2wan_forwarding_accept ip saddr %s tcp sport %s counter jump xlog_accept_lan2wan\n", toip, external_port);
 #endif
          }
 
@@ -3498,7 +3546,7 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
       if ((0 == strcmp("both", prot) || 0 == strcmp("udp", prot)) &&  (privateIpCheck(toip)) )	
 	  {
 		 if (isNatReady) {
-            fprintf(nat_fp, "add rule ip nat prerouting_fromwan udp ip daddr %s dport %s counter jump dnat to %s%s\n", natip4, external_port, toip, port_modifier);
+            fprintf(nat_fp, "add rule ip nat prerouting_fromwan ip daddr %s udp dport %s counter dnat to %s%s\n", natip4, external_port, toip, port_modifier);
          }
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
          if(isMAPTReady)
@@ -3506,7 +3554,7 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
 #if defined(IVI_KERNEL_SUPPORT)
              char udp_protocol[BUFLEN_8] = "010";
              int ret = 0;
-             fprintf(nat_fp, "add rule ip nat prerouting_fromwan udp ip daddr %s dport %s counter jump dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
+             fprintf(nat_fp, "add rule ip nat prerouting_fromwan ip daddr %s udp dport %s counter dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
              if (isBothProtocol == FALSE)
              {
 #ifdef FEATURE_MAPT_DEBUG
@@ -3523,15 +3571,14 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
 #ifdef FEATURE_MAPT_DEBUG
               LOG_PRINT_MAIN("Enabling Single Port Forwarding --- UDP" );
 #endif
-                 fprintf(nat_fp, "add rule ip nat prerouting_fromwan  udp ip daddr %s dport %s counter jump dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
+                 fprintf(nat_fp, "add rule ip nat prerouting_fromwan ip daddr %s udp dport %s counter jump dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
              }
 #endif //IVI_KERNEL_SUPPORT
          }
 #endif //FEATURE_MAPT
          if(isHairpin){
              if (isNatReady) {
-               fprintf(nat_fp, "add rule ip nat prerouting_fromlan udp ip daddr %s dport %s counter jump dnat to %s%s\n", natip4, external_port, toip, port_modifier);
-
+               fprintf(nat_fp, "add rule ip nat prerouting_fromlan ip daddr %s udp dport %s counter dnat to %s%s\n", natip4, external_port, toip, port_modifier);
                #ifndef INTEL_PUMA7 
                 if(strcmp(internal_port, "0")){
                     tmp = internal_port; 
@@ -3539,7 +3586,7 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
                     tmp = external_port;
                 }
                 //ARRISXB6-4723 - Below SNAT rule is causing access issues for LAN-wifi clients when port forwarding is enabled in XB6, hence the conditional check.
-                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%s udp ip daddr %s dport %s counter jump snat to %s\n", lan_3_octets, lan_netmask, toip, tmp, natip4);
+                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s udp dport %s counter  snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, tmp, natip4);
                 #endif
             }
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
@@ -3548,7 +3595,7 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
             {
                 if(IsValidIPv4Addr(mapt_ip_address))
                 {
-                    fprintf(nat_fp, "add rule ip nat prerouting_fromlan udp ip daddr %s dport %s counter jump dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
+                    fprintf(nat_fp, "add rule ip nat prerouting_fromlan ip daddr %s udp dport %s counter  dnat to %s%s\n", mapt_ip_address, external_port, toip, port_modifier);
                 }
             }
             if(strcmp(internal_port, "0")){
@@ -3556,36 +3603,33 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
             }else{
                 tmp = external_port;
             }
-
             if(IsValidIPv4Addr(mapt_ip_address))
             {
-                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%s  udp ip daddr %s dport %s counter jump snat to %s\n", lan_3_octets, lan_netmask, toip, tmp, mapt_ip_address);
+                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s udp dport %s counter  snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, tmp, mapt_ip_address);
             }
         }
 #endif
          }else if (!isNatRedirectionBlocked) {
-            fprintf(nat_fp, "add rule ip nat prerouting_fromlan udp ip daddr %s dport %s counter jump dnat to %s%s\n", lan_ipaddr, external_port, toip, port_modifier);
-
+            fprintf(nat_fp, "add rule ip nat prerouting_fromlan ip daddr %s udp dport %s counter dnat to %s%s\n", lan_ipaddr, external_port, toip, port_modifier);
             if (isNatReady) {
-               fprintf(nat_fp, "add rule ip nat prerouting_fromlan udp ip daddr %s dport %s counter jump dnat to %s%s\n", natip4, external_port, toip, port_modifier);
+               fprintf(nat_fp, "add rule ip nat prerouting_fromlan ip daddr %s udp dport %s counter dnat to %s%s\n", natip4, external_port, toip, port_modifier);
             }
-
             if(strcmp(internal_port, "0")){
-                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%s udp ip daddr %s dport %s counter jump snat to %s\n", lan_3_octets, lan_netmask, toip, internal_port, lan_ipaddr);
+                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s udp dport %s counter  snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, internal_port, lan_ipaddr);
             }else{
-                fprintf(nat_fp, "add ruel ip nat postrouting_tolan ip saddr %s.0/%s udp ip daddr %s dport %s copunter jump snat to %s\n", lan_3_octets, lan_netmask, toip, external_port, lan_ipaddr);
+                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s udp dport %s copunter  snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, external_port, lan_ipaddr);
             }
          }
          if (filter_fp) {
             if(strcmp(internal_port, "0")){
-                fprintf(filter_fp, "add rule ip filter wan2lan_forwarding_accept udp ip daddr %s dport %s counter jump xlog_accept_wan2lan\n", toip, internal_port);
+                fprintf(filter_fp, "add rule ip filter wan2lan_forwarding_accept ip daddr %s udp dport %s counter jump xlog_accept_wan2lan\n", toip, internal_port);
 #ifdef PORTMAPPING_2WAY_PASSTHROUGH
-            fprintf(filter_fp, "add rule ip filter lan2wan_forwarding_accept  udp ip saddr %s sport %s counter jump xlog_accept_lan2wan\n", toip, internal_port);
+            fprintf(filter_fp, "add rule ip filter lan2wan_forwarding_accept  ip saddr %s udp sport %s counter jump xlog_accept_lan2wan\n", toip, internal_port);
 #endif
          }else{
-            fprintf(filter_fp, "add rule ip filter wan2lan_forwarding_accept udp ip daddr %s dport %s counter jump xlog_accept_wan2lan\n",  toip, external_port);
+            fprintf(filter_fp, "add rule ip filter wan2lan_forwarding_accept ip daddr %s udp dport %s counter jump xlog_accept_wan2lan\n",  toip, external_port);
 #ifdef PORTMAPPING_2WAY_PASSTHROUGH
-            fprintf(filter_fp, "add rule ip filter lan2wan_forwarding_accept udp ip saddr %s sport %s counter jump xlog_accept_lan2wan\n", toip, external_port);
+            fprintf(filter_fp, "add rule ip filter lan2wan_forwarding_accept ip saddr %s udp sport %s counter jump xlog_accept_lan2wan\n", toip, external_port);
 #endif
             }
          }
@@ -3911,7 +3955,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
             int index;
             int range = 0;
             int ret =0;
-            fprintf(nat_fp, "add rule ip nat prerouting_fromwan tcp ip daddr %s dport %s:%s counter jump dnat to %s%s\n", mapt_ip_address, sdport, edport, toip, target_internal_port);
+            fprintf(nat_fp, "add rule ip nat prerouting_fromwan tcp ip daddr %s dport %s:%s counter dnat to %s%s\n", mapt_ip_address, sdport, edport, toip, target_internal_port);
             if (isBothProtocol == FALSE)
             {
                     range = atoi(edport) - atoi(sdport);
@@ -3942,7 +3986,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
              if (isNatReady) {
                  fprintf(nat_fp, "add rule ip nat prerouting_fromlan ip daddr %s tcp dport %s-%s counter dnat to %s%s\n", natip4, sdport, edport, toip, target_internal_port);
  
-                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s/%s tcp ip daddr %s tcp dport %s counter snat to %s\n", lan_3_octets, lan_netmask, toip, match_internal_port, natip4);
+                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s tcp dport %s counter snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, match_internal_port, natip4);
             }
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
          if(isMAPTReady)
@@ -3950,7 +3994,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
              fprintf(nat_fp, "add rule ip nat rerouting_fromlan tcp ip daddr %s dport %s:%s counter dnat to %s%s\n", mapt_ip_address, sdport, edport, toip, target_internal_port);
              if (IsValidIPv4Addr(mapt_ip_address))
              {
-                 fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%s tcp ip daddr %s dport %s counter snat to %s\n", lan_3_octets, lan_netmask, toip, match_internal_port, mapt_ip_address);
+                 fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s dport %s counter snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, match_internal_port, mapt_ip_address);
              }
          }
 #endif 
@@ -3960,8 +4004,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
             if (isNatReady) {
                fprintf(nat_fp, "add rule ip nat prerouting_fromlan ip daddr %s tcp dport %s-%s counter dnat to %s%s\n", natip4, sdport, edport, toip, target_internal_port);
             }
-
-            fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s/%s tcp ip daddr %s tcp dport %s counter snat to %s\n", lan_3_octets, lan_netmask, toip, match_internal_port, lan_ipaddr);
+            fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s tcp dport %s counter snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, match_internal_port, lan_ipaddr);
          }
 
          if (filter_fp) {
@@ -4017,7 +4060,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
              if (isNatReady) {
                 fprintf(nat_fp, "add rule ip nat postrouting_tolan ip daddr %s udp dport %s-%s counter dnat to %s%s\n", natip4, sdport, edport, toip, target_internal_port);
  
-                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s/%s udp ip daddr %s udp dport %s counter snat to %s\n", lan_3_octets, lan_netmask, toip, match_internal_port, natip4);
+                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s udp dport %s counter snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, match_internal_port, natip4);
             }
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
          if(isMAPTReady)
@@ -4026,7 +4069,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
              {
                  fprintf(nat_fp, "add rule ip nat prerouting_fromlan udp ip daddr %s dport %s:%s counter dnat to %s%s\n", mapt_ip_address, sdport, edport, toip, target_internal_port);
             
-                 fprintf(nat_fp, " add rule ip nat postrouting_tolan ip saddr %s.0/%s udp ip daddr %s dport %s counter snat to %s\n", lan_3_octets, lan_netmask, toip, match_internal_port, mapt_ip_address);
+                 fprintf(nat_fp, " add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s dport %s counter snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, match_internal_port, mapt_ip_address);
              }
          }
 #endif
@@ -4036,8 +4079,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
             if (isNatReady) {
                fprintf(nat_fp, "add rule ip nat postrouting_tolan ip daddr %s udp dport %s-%s counter dnat to %s%s\n", natip4, sdport, edport, toip, target_internal_port);
             }
-
-            fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s/%s udp ip daddr %s udp dport %s counter snat to %s\n", lan_3_octets, lan_netmask, toip, match_internal_port, lan_ipaddr);
+            fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d udp ip daddr %s udp dport %s counter snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, match_internal_port, lan_ipaddr);
         }
 
         if(filter_fp){
@@ -4156,7 +4198,6 @@ static int do_wellknown_ports_forwarding(FILE *nat_fp, FILE *filter_fp)
       char *port_prot;
       char *port_val;
       char  line[MAX_QUERY];
-
       while (NULL != (next_token = match_keyword(wkp_fp, name, ' ', line, sizeof(line))) ) {
          char port_str[50];
          sscanf(next_token, "%50s ", port_str);
@@ -4174,23 +4215,18 @@ static int do_wellknown_ports_forwarding(FILE *nat_fp, FILE *filter_fp)
          } else {
            snprintf(port_modifier, sizeof(port_modifier), ":%s", toport);
          }
-
 		 if  (privateIpCheck(toip))
 		 {
 		 	if (isWanReady) {
-	            fprintf(nat_fp, "add rule ip nat prerouting_fromwan %s %s ip daddr %s dport %s counter jump dnat to %s.%s%s\n", port_prot, port_prot, current_wan_ipaddr, port_val, lan_3_octets, toip, port_modifier);
+	            fprintf(nat_fp, "add rule ip nat prerouting_fromwan %s %s ip daddr %s dport %s counter dnat to %s.%s%s\n", port_prot, port_prot, current_wan_ipaddr, port_val, lan_3_octets, toip, port_modifier);
     	     }
-
         	 if (!isNatRedirectionBlocked) {
         	    fprintf(nat_fp, "add rule ip nat prerouting_fromlan  %s  %s ip daddr %s dport %s counter dnat to %s.%s%s\n", port_prot, port_prot, lan_ipaddr, port_val, lan_3_octets, toip, port_modifier);
-
             	if (isWanReady) {
-        	       fprintf(nat_fp, "add rule ip nat prerouting_fromlan  %s  %s ip daddr %s dport %s counter jump dnat to %s.%s%s\n", port_prot, port_prot, current_wan_ipaddr, port_val, lan_3_octets, toip, port_modifier);
+                       fprintf(nat_fp, "add rule ip nat prerouting_fromlan  %s  %s ip daddr %s dport %s counter dnat to %s.%s%s\n", port_prot, port_prot, current_wan_ipaddr, port_val, lan_3_octets, toip, port_modifier);
             	}
-
-        	    fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%s  %s  %s ip daddr %s.%s dport %s counter jump snat to %s\n", lan_3_octets, lan_netmask, port_prot, port_prot, lan_3_octets, toip, '\0' == toport[0] ? port_val : toport, lan_ipaddr);
+                  fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d  %s  %s ip daddr %s.%s dport %s counter  snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), port_prot, port_prot, lan_3_octets, toip, '\0' == toport[0] ? port_val : toport, lan_ipaddr);
          	}
-
 		    if(filter_fp) {
             	fprintf(filter_fp, "add rule ip filter wan2lan_forwarding_accept  %s  %s ip daddr %s.%s dport %s counter jump xlog_accept_wan2lan\n", port_prot, port_prot, lan_3_octets, toip, '\0' == toport[0] ? port_val : toport);
          	}
@@ -4326,7 +4362,6 @@ static int do_ephemeral_port_forwarding(FILE *nat_fp, FILE *filter_fp)
 			if (isNatReady) {
                fprintf(nat_fp, "add rule ip nat prerouting_fromwan tcp ip daddr %s %s %s counter dnat to %s%s\n", natip4, external_dest_port, external_ip, toip, port_modifier);
             }
-
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
         if (isMAPTReady)
         {
@@ -4339,15 +4374,12 @@ static int do_ephemeral_port_forwarding(FILE *nat_fp, FILE *filter_fp)
             if (!isNatRedirectionBlocked) {
                if (0 == strcmp("none", fromip)) {
                   fprintf(nat_fp, "add rule ip nat prerouting_fromlan tcp ip daddr %s %s %s counter dnat to %s%s\n", lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
-
                   if (isNatReady) {
                      fprintf(nat_fp, "add rule ip nat prerouting_fromlan tcp ip daddr %s %s %s counter dnat to %s%s\n", natip4, external_dest_port, external_ip, toip, port_modifier);
                   }
-
-                  fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%s tcp ip daddr %s dport %s counter snat to %s\n", lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
+                  fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s dport %s counter snat to %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, dport, lan_ipaddr);
                }
             }
-
             if(filter_fp) {
                 fprintf(filter_fp, "add rule ip filter wan2lan_forwarding_accept tcp %s ip daddr %s dport %s counter jump xlog_accept_wan2lan\n", external_ip, toip, dport);
             }
@@ -4372,11 +4404,9 @@ static int do_ephemeral_port_forwarding(FILE *nat_fp, FILE *filter_fp)
                   fprintf(nat_fp, "add rule ip nat prerouting_fromlan udp ip daddr %s %s %s counter dnat to %s%s\n", lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
 
                   if (isNatReady) {
-                     fprintf(nat_fp, "add rule ip nat prerouting_fromlan udp ip daddr %s %s %s counter jump dnat to  %s%s\n", natip4, external_dest_port, external_ip, toip, port_modifier);
+                     fprintf(nat_fp, "add rule ip nat prerouting_fromlan udp ip daddr %s %s %s counter dnat to  %s%s\n", natip4, external_dest_port, external_ip, toip, port_modifier);
                   }
-
-                  fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%s udp ip daddr %s dport %s counter jump snat to  %s\n", lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
-
+                  fprintf(nat_fp, "add rule ip nat postrouting_tolan ip saddr %s.0/%d ip daddr %s dport %s counter snat to  %s\n", lan_3_octets, netmask_to_cidr(lan_netmask), toip, dport, lan_ipaddr);
                }
             }
 
@@ -4514,19 +4544,6 @@ static int do_port_forwarding(FILE *nat_fp, FILE *filter_fp)
  *  Return Values :
  *     0               : done
  */
- int netmask_to_cidr(const char *netmask) {
-   int cidr = 0;
-   unsigned int mask[4];
-   sscanf(netmask, "%u.%u.%u.%u", &mask[0], &mask[1], &mask[2], &mask[3]);
-   for (int i = 0; i < 4; i++) {
-       while (mask[i]) {
-           cidr += (mask[i] & 1);
-           mask[i] >>= 1;
-       }
-   }
-   return cidr;
-}
-
 static int do_nonat(FILE *filter_fp)
 {
 
@@ -4727,8 +4744,7 @@ if(status_http_ert == 0){
 
    //snprintf(dst_str, sizeof(dst_str), "--to-destination %s.%s ", lan_3_octets, tohost);
    /* tohost is now a full ip address */
-   snprintf(dst_str, sizeof(dst_str), "--to-destination %s ", tohost);
-
+   snprintf(dst_str, sizeof(dst_str), "%s", tohost);
    switch (src_type) {
       case(0):
          if (isNatReady &&
@@ -4744,7 +4760,7 @@ if(status_http_ert == 0){
 #endif
             fprintf(nat_fp, "add rule ip nat prerouting_fromwan_todmz ip protocol tcp ip daddr %s tcp dport != { %s,%s} counter dnat to %s\n", natip4, Httpport, Httpsport, dst_str);
             
-            fprintf(nat_fp, "add rule ip nat prerouting_fromwan_todmz ip protocol udp ip daddr %s tcp dport != { %s,%s} counter dnat to %s\n", natip4, Httpport, Httpsport, dst_str);
+            fprintf(nat_fp, "add rule ip nat prerouting_fromwan_todmz ip protocol udp ip daddr %s udp dport != { %s,%s} counter dnat to %s\n", natip4, Httpport, Httpsport, dst_str);
 #if defined(SPEED_BOOST_SUPPORTED)
    }
 #endif
@@ -6001,7 +6017,7 @@ fprintf(fp, "add rule ip filter ICMPFlooding ip protocol icmp limit rate 5/secon
 #else
    fprintf(fp, "add rule ip filter ICMPFlooding ip protocol icmp %s nflog group 1 prefix \"DoS Attack - ICMP Flooding\" snaplen 50\n", logRateLimit);
 #endif /*_HUB4_PRODUCT_REQ_*/
-   fprintf(fp, "add rule ip filter ICMPFlooding ip protocol icmp jump xlog_drop_wanattack\n");
+   //fprintf(fp, "add rule ip filter ICMPFlooding ip protocol icmp jump xlog_drop_wanattack\n");
 
    //TCP SYN Flooding
    fprintf(fp, "add rule ip filter TCPSYNFlooding tcp flags syn limit rate 10/second burst 20 packets counter return\n");
@@ -7522,7 +7538,7 @@ static int do_parental_control_allow_trusted(FILE *fp, int iptype, const char* l
             if ((0 == ret) && (strlen(mac) > 0))
             {
                 this_iptype == 4 ? ++count_v4 : ++count_v6;
-                fprintf(fp, "add rule ip filter %s ether ip saddr %s counter return\n", table_name, mac);
+                fprintf(fp, "add rule ip filter %s ether saddr %s counter return\n", table_name, mac);
             }
             else
             {   // !!! fail safe for ipv6: check and get mac address using ipv4.
@@ -7541,7 +7557,7 @@ static int do_parental_control_allow_trusted(FILE *fp, int iptype, const char* l
                             if ((0 == ret) && (strlen(mac) > 0))
                             {
                                 ++count_v6;
-                                fprintf(fp, "add rule ip6 filter %s ether ip saddr %s counter return\n", table_name, mac);
+                                fprintf(fp, "add rule ip6 filter %s ether saddr %s counter return\n", table_name, mac);
                             }
                         }
                     }
@@ -7634,19 +7650,25 @@ void block_url_by_ipaddr(FILE *fp, char *url, char *dropLog, int ipver, char *in
             if(len > 0 && ipAddr[len-1] == '\n')
                 ipAddr[len-1] = '\0';
             
+             char addrtype[8]="ip" ;
+             if(ipver == 6)
+	     {
+                memset(addrtype, 0, sizeof(addrtype));
+                strncpy(addrtype, "ip6", sizeof(addrtype-1));
+	     }
             //Check the ipaddr, url and droplog are not NULL
             if((len > 0) && (url != NULL) && (dropLog != NULL))
             {   
                 if(nstdPort[0] == '\0')
                 {
-                    fprintf(fp, "add rule ip filter lan2wan_pc_site ip daddr %s tcp dport 80 comment \"host match %s\" jump %s\n", ipAddr, url, dropLog);
-                    fprintf(fp, "add rule ip filter lan2wan_pc_site ip daddr %s tcp dport 443 comment \"host match %s\" jump %s\n", ipAddr, url, dropLog);
+                    fprintf(fp, "add rule %s filter lan2wan_pc_site %s daddr %s tcp dport 80 jump %s \n", addrtype,addrtype,ipAddr, dropLog);
+                    fprintf(fp, "add rule %s filter lan2wan_pc_site %s daddr %s tcp dport 443 jump %s \n", addrtype,addrtype, ipAddr, dropLog);
                 }
                 else
-                    fprintf(fp, "add rule ip filter lan2wan_pc_site ip daddr %s tcp dport %s comment \"host match %s\" jump %s\n", ipAddr, nstdPort, url, dropLog);
+                    fprintf(fp, "add rule %s filter lan2wan_pc_site %s daddr %s tcp dport %s jump %s \n", addrtype,addrtype,ipAddr, nstdPort, dropLog);
             }
             else
-                fprintf(fp, "add rule ip filter lan2wan_pc_site ip daddr %s tcp dport %s comment \"host match %s\" jump %s\n", ipAddr, nstdPort, url, dropLog);
+                fprintf(fp, "add rule %s filter lan2wan_pc_site %s daddr %s tcp dport %s jump %s \n", addrtype , addrtype , ipAddr, nstdPort, dropLog);
         }
 
         fclose(ipRecords);
@@ -8073,16 +8095,27 @@ static int do_parcon_mgmt_device(FILE *fp, int iptype, FILE *cron_fp)
          if (0 != rc || '\0' == query[0]) continue;
          if(flag == 1)
          {
-            fprintf(fp, "add rule ip filter prerouting_devices ip protocol tcp ether ip saddr %s accept\n",query);
+            fprintf(fp, "add rule ip nat prerouting_devices ip protocol tcp ether ip saddr %s accept\n",query);
          }
          else
          {
 //Managed Devices - Reports not get generated. so we need to log below rules 
-			fprintf(fp, "add chain ip filter LOG_DeviceBlocked_%d_DROP\n", idx);
-                        fprintf(fp, "add rule ip filter LOG_DeviceBlocked_%d_DROP ip protocol tcp ether ip saddr %s limit rate 1/minute burst 1 log prefix \"LOG_DeviceBlocked_%d_DROP\" level %s\n", idx, query, idx, get_log_level(syslog_level));
-                        fprintf(fp, "add rule ip filter LOG_DeviceBlocked_%d_DROP jump prerouting_redirect\n", idx);
-                        fprintf(fp, "add rule ip filter prerouting_devices ip protocol tcp ether ip saddr %s jump LOG_DeviceBlocked_%d_DROP\n", query, idx);
-                        fprintf(fp, "add rule ip filter prerouting_devices ip protocol udp ether ip saddr %s jump LOG_DeviceBlocked_%d_DROP\n", query, idx);
+		if (iptype == 4)
+                {
+                        fprintf(fp, "add chain ip nat LOG_DeviceBlocked_%d_DROP\n", idx);
+                        fprintf(fp, "add rule ip nat LOG_DeviceBlocked_%d_DROP limit rate 1/minute burst 1 packets log prefix \"LOG_DeviceBlocked_%d_DROP\" level %s\n", idx, idx, get_log_level(syslog_level));
+                        fprintf(fp, "add rule ip nat LOG_DeviceBlocked_%d_DROP jump prerouting_redirect\n", idx);
+                        fprintf(fp, "add rule ip nat prerouting_devices ip protocol tcp ether saddr %s jump LOG_DeviceBlocked_%d_DROP\n", query, idx);
+                        fprintf(fp, "add rule ip nat prerouting_devices ip protocol udp ether saddr %s jump LOG_DeviceBlocked_%d_DROP\n", query, idx);
+                }
+                else
+                {
+                        fprintf(fp, "add chain ip6 nat LOG_DeviceBlocked_%d_DROP\n", idx);
+                        fprintf(fp, "add rule ip6 nat LOG_DeviceBlocked_%d_DROP limit rate 1/minute burst 1 packets log prefix \"LOG_DeviceBlocked_%d_DROP\" level %s\n", idx, idx, get_log_level(syslog_level));
+			fprintf(fp, "add rule ip6 nat LOG_DeviceBlocked_%d_DROP jump prerouting_redirect\n", idx);
+			fprintf(fp, "add rule ip6 nat prerouting_devices meta l4proto tcp ether saddr %s jump LOG_DeviceBlocked_%d_DROP\n", query, idx);
+			fprintf(fp, "add rule ip6 nat prerouting_devices meta l4proto udp ether saddr %s jump LOG_DeviceBlocked_%d_DROP\n", query, idx);
+                }
             if(cron_fp)
             {
                v_secure_system("echo %s >> /tmp/conn_mac", query);
@@ -8093,11 +8126,10 @@ static int do_parcon_mgmt_device(FILE *fp, int iptype, FILE *cron_fp)
       if (!allow_all) 
 	  {
 // Managed Devices - Reports not get generated. so we need to log below rules 
-		fprintf(fp, "add chain ip filter LOG_DeviceBlocked_DROP\n");
-                fprintf(fp, "add rule ip filter LOG_DeviceBlocked_DROP limit rate 1/minute burst 1 log prefix \"LOG_DeviceBlocked_DROP\" level %s\n", get_log_level(syslog_level));
-                fprintf(fp, "add rule ip filter LOG_DeviceBlocked_DROP jump prerouting_redirect\n");
-
-        fprintf(fp, "add rule ip filter prerouting_devices ip protocol tcp jump LOG_DeviceBlocked_DROP\n");
+		fprintf(fp, "add chain ip nat LOG_DeviceBlocked_DROP\n");
+                fprintf(fp, "add rule ip nat LOG_DeviceBlocked_DROP limit rate 1/minute burst 1 packets log prefix \"LOG_DeviceBlocked_DROP\" level %s drop\n", get_log_level(syslog_level));
+                fprintf(fp, "add rule ip nat LOG_DeviceBlocked_DROP jump prerouting_redirect\n");
+        fprintf(fp, "add rule ip nat prerouting_devices ip protocol tcp jump LOG_DeviceBlocked_DROP\n");
       }
    }
    FIREWALL_DEBUG("Exiting do_parcon_mgmt_device\n"); 
@@ -8160,14 +8192,24 @@ static int do_parcon_device_cloud_mgmt(FILE *fp, int iptype, FILE *cron_fp)
 //Managed Devices - Reports not get generated. so we need to log below rules 
 	if(devMacs2)
 	{
-
+		if (iptype == 4)
+		{
 			fprintf(fp, "add chain ip filter LOG_DeviceBlocked_%d_DROP\n", idx+1);
-                        fprintf(fp, "add rule ip filter LOG_DeviceBlocked_%d_DROP limit rate 1/minute burst 1 log prefix \"LOG_DeviceBlocked_%d_DROP\" level %s\n", idx+1, idx+1, get_log_level(syslog_level));
+			fprintf(fp, "add rule ip filter LOG_DeviceBlocked_%d_DROP limit rate 1/minute burst 1 log prefix \"LOG_DeviceBlocked_%d_DROP\" level %d\n", idx+1, idx+1, syslog_level);
                         fprintf(fp, "add rule ip filter LOG_DeviceBlocked_%d_DROP jump prerouting_redirect\n", idx+1);
-
             fprintf(fp, "add rule ip filter prerouting_devices ip protocol tcp ether src %s jump LOG_DeviceBlocked_%d_DROP\n", devMacs2->mac, idx+1);
             fprintf(fp, "add rule ip filter prerouting_devices ip protocol udp ether src %s jump LOG_DeviceBlocked_%d_DROP\n", devMacs2->mac, idx+1);                     
-
+                }
+                else
+                {
+                        fprintf(fp, "add chain ip6 filter LOG_DeviceBlocked_%d_DROP\n", idx+1);
+                        fprintf(fp, "add rule ip6 filter LOG_DeviceBlocked_%d_DROP limit rate 1/minute burst 1 log prefix \"LOG_DeviceBlocked_%d_DROP\" level %d\n", idx+1, idx+1, syslog_level);
+                        fprintf(fp, "add rule ip6 filter LOG_DeviceBlocked_%d_DROP jump prerouting_redirect\n", idx+1);
+                        fprintf(fp, "add rule ip6 filter prerouting_devices meta l4proto tcp ether src %s jump LOG_DeviceBlocked_%d_DROP\n", devMacs2->mac, idx+1);
+                        fprintf(fp, "add rule ip6 filter prerouting_devices meta l4proto udp ether src %s jump LOG_DeviceBlocked_%d_DROP\n", devMacs2->mac, idx+1);
+                }
+                fprintf(fp, "add rule ip filter prerouting_devices ip protocol tcp ether src %s jump LOG_DeviceBlocked_%d_DROP\n", devMacs2->mac, idx+1);
+                fprintf(fp, "add rule ip filter prerouting_devices ip protocol udp ether src %s jump LOG_DeviceBlocked_%d_DROP\n", devMacs2->mac, idx+1); 
                v_secure_system("echo %s >> /tmp/conn_mac", devMacs2->mac);
 	}
 	++devMacs2;
@@ -8291,7 +8333,14 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
     if(iptype == 4)
         fprintf(nat_fp, "add rule ip nat prerouting_fromlan jump managedsite_based_parcon\n");
 #endif
-
+    char addrtype[8]="ip" ;
+    char proto[16]="ip protocol tcp" ;
+    if(iptype == 6)
+    {
+         memset(proto, 0, sizeof(proto));
+         memset(addrtype, 0, sizeof(addrtype));
+         strncpy(addrtype, "ip6", sizeof(addrtype-1));
+    }
     query[0] = '\0';
     rc = syscfg_get(NULL, "managedsites_enabled", query, sizeof(query)); 
     if (rc == 0 && query[0] != '\0' && query[0] != '0') // managed site list enabled
@@ -8306,7 +8355,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 #ifdef CONFIG_CISCO_PARCON_WALLED_GARDEN
         if(iptype == 4){
             ruleIndex = do_parental_control_allow_trusted(nat_fp, iptype, "ManagedSiteTrust", "managedsite_based_parcon");
-            fprintf(nat_fp, "add rule ip nat managedsite_based_parcon jump parcon_walled_garden\n");
+            fprintf(nat_fp, "add rule %s nat managedsite_based_parcon jump parcon_walled_garden\n",addrtype);
         }
 #endif
 
@@ -8370,13 +8419,13 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                     strncat(hexUrl, "00",sizeof(hexUrl));
                     if(is_dnsr_nfq == 2 )
                         *tmp=':';
-                    fprintf(fp, "add chain ip filter wan2lan_dnsr_nfqueue_%s\n", ins_num);
-                    fprintf(fp, "add rule ip filter wan2lan_dnsr_nfqueue string \"|%s|\" @kmp jump wan2lan_dnsr_nfqueue_%s\n", hexUrl, ins_num);
-                    fprintf(fp, "add rule ip filter wan2lan_dnsr_nfqueue_%s mark set 0x%x\n", ins_num, atoi(ins_num));
+                    fprintf(fp, "add chain %s filter wan2lan_dnsr_nfqueue_%s\n", addrtype, ins_num);
+                    fprintf(fp, "add rule %s filter wan2lan_dnsr_nfqueue string \"|%s|\" @kmp jump wan2lan_dnsr_nfqueue_%s\n", addrtype, hexUrl, ins_num);
+                    fprintf(fp, "add rule %s filter wan2lan_dnsr_nfqueue_%s mark set 0x%x\n", addrtype, ins_num, atoi(ins_num));
                     if(iptype == 4)
-                        fprintf(fp, "add rule ip filter wan2lan_dnsr_nfqueue_%s limit rate 1/minute burst 1 jump nfqueue %s\n", ins_num, DNSR_GET_QUEUE_CONFIG); 
+                        fprintf(fp, "add rule %s filter wan2lan_dnsr_nfqueue_%s limit rate 1/minute burst 1 jump nfqueue %s\n", addrtype, ins_num, DNSR_GET_QUEUE_CONFIG); 
                     else
-                        fprintf(fp, "add rule ip6 filter wan2lan_dnsr_nfqueue_%s limit rate 1/minute burst 1 jump nfqueue %s\n", ins_num, DNSV6R_GET_QUEUE_CONFIG);
+                        fprintf(fp, "add rule %s filter wan2lan_dnsr_nfqueue_%s limit rate 1/minute burst 1 jump nfqueue %s\n", addrtype, ins_num, DNSV6R_GET_QUEUE_CONFIG);
                 }
             } 
 #endif
@@ -8385,17 +8434,28 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 
             char drop_log[40];
 	    snprintf(drop_log, sizeof(drop_log), "LOG_SiteBlocked_%d_DROP", idx);
+	    if(iptype == 4)
+	    {
             fprintf(fp, "add chain ip filter LOG_SiteBlocked_%d_DROP\n", idx);
-            fprintf(fp, "add rule ip filter LOG_SiteBlocked_%d_DROP limit rate 1/minute burst 1 log prefix \"LOG_SiteBlocked_%d_DROP \" level %s\n", idx, idx, get_log_level(syslog_level));
+		    fprintf(fp, "add rule ip filter LOG_SiteBlocked_%d_DROP limit rate 1/minute burst 1 packets counter log prefix \"LOG_SiteBlocked_%d_DROP \" level info \n", idx, idx );
+	    }
+	    else
+	    {
+		    fprintf(fp, "add chain ip6 filter LOG_SiteBlocked_%d_DROP\n", idx);
+		    fprintf(fp, "add rule ip6 filter LOG_SiteBlocked_%d_DROP limit rate 1/minute burst 1 packets counter log prefix \"LOG_SiteBlocked_%d_DROP \" level info \n", idx, idx );
+	    }
 #ifdef CONFIG_CISCO_PARCON_WALLED_GARDEN
-            fprintf(fp, "add rule ip filter LOG_SiteBlocked_%d_DROP mark set 0x%x\n", idx, atoi(ins_num));
+            fprintf(fp, "add rule %s filter LOG_SiteBlocked_%d_DROP mark set 0x%x\n", addrtype,idx, atoi(ins_num));
             if(iptype==4){
-                fprintf(fp, "add rule ip filter LOG_SiteBlocked_%d_DROP nfqueue num %s\n", idx, HTTP_GET_QUEUE_CONFIG);
-                fprintf(nat_fp, "add chain ip nat LOG_SiteBlocked_%d_DROP\n", idx);
-                fprintf(nat_fp, "add rule ip nat LOG_SiteBlocked_%d_DROP limit rate 1/minute burst 1 packets log prefix \"LOG_SiteBlocked_%d_DROP\" level %s\n", idx, idx, get_log_level(syslog_level));
+                fprintf(fp, "add rule %s filter LOG_SiteBlocked_%d_DROP nfqueue num %s\n", addrtype idx, HTTP_GET_QUEUE_CONFIG);
+                fprintf(nat_fp, "add chain %s nat LOG_SiteBlocked_%d_DROP\n", addrtype , idx);
+                fprintf(nat_fp, "add rule %s nat LOG_SiteBlocked_%d_DROP limit rate 1/minute burst 1 packets log prefix \"LOG_SiteBlocked_%d_DROP\" level %s \n", addrtype, idx, idx, get_log_level(syslog_level));
             }else    
-                fprintf(fp, "add rule ip6 filter LOG_SiteBlocked_%d_DROP nfqueue num %s\n", idx, HTTPV6_GET_QUEUE_CONFIG);
+                fprintf(fp, "add rule %s filter LOG_SiteBlocked_%d_DROP nfqueue num %s\n", addrtype, idx, HTTPV6_GET_QUEUE_CONFIG);
 #else
+	    if(iptype == 4)
+     		    fprintf(fp, "add rule ip filter LOG_SiteBlocked_%d_DROP drop\n", idx);
+ 	    else
             fprintf(fp, "add rule ip6 filter LOG_SiteBlocked_%d_DROP drop\n", idx);
 #endif
             if (strncasecmp(method, "URL", 3)==0)
@@ -8465,20 +8525,21 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                         *pch = '\0';
 #if defined (INTEL_PUMA7)
                     //Intel Proposed RDKB Generic Bug Fix from XB6 SDK
-                    fprintf(fp, "add rule ip filter lan2wan_pc_site ip protocol tcp tcp dport %s ip6 daddr %s counter string data \"%s\" offset 0 length %s jump LOG_SiteBlocked_%d_DROP\n", nstdPort, query + host_name_offset, nstdPort, idx);
+                    fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport %s %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto , addrtype , nstdPort, resolve_ip(query + host_name_offset , iptype) , idx);
 #else
-                    fprintf(fp, "add rule ip filter lan2wan_pc_site ip protocol tcp tcp dport %s string data \"%s:%s\" counter jump LOG_SiteBlocked_%d_DROP\n", nstdPort, query + host_name_offset, nstdPort, idx);
+		if(iptype == 4)
+ 			fprintf(fp, "add rule ip filter lan2wan_pc_site ip protocol tcp tcp dport %s ip daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", nstdPort, resolve_ip(query + host_name_offset,4), idx);
 #endif
 #ifdef CONFIG_CISCO_PARCON_WALLED_GARDEN
                     if(iptype == 4){
                         if(isHttps){
-                            fprintf(nat_fp, "add rule ip nat parcon_walled_garden ip protocol tcp tcp dport %s meta match set %s dst counter comment \"host match %s\" jump LOG_SiteBlocked_%d_DROP\n", \
-                                    nstdPort, ins_num, query, idx);
-                            fprintf(nat_fp, "add rule ip nat LOG_SiteBlocked_%d_DROP ip protocol tcp tcp dport %s counter jump REDIRECT to  %s\n\n", idx, nstdPort, PARCON_WALLED_GARDEN_HTTPS_PORT_SITEBLK);
+                            fprintf(nat_fp, "add rule %s nat parcon_walled_garden %s tcp dport %s %s daddr %s dst counter jump LOG_SiteBlocked_%d_DROP\n", \
+                                    addrtype, proto, nstdPort, addrtype, resolve_ip(query ,iptype), idx);
+                            fprintf(nat_fp, "add rule %s nat LOG_SiteBlocked_%d_DROP %s tcp dport %s counter jump REDIRECT to  %s\n\n", addrtype, idx, proto, nstdPort, PARCON_WALLED_GARDEN_HTTPS_PORT_SITEBLK);
                         }else{
-                            fprintf(nat_fp, "add rule ip nat parcon_walled_garden ip protocol tcp tcp dport %s meta match set %s dst counter comment \"host match %s\" jump LOG_SiteBlocked_%d_DROP\n", \
-                                    nstdPort, ins_num, query, idx);
-                            fprintf(nat_fp, "add rule ip nat LOG_SiteBlocked_%d_DROP ip protocol tcp counter jump REDIRECT to %s\n\n", idx, PARCON_WALLED_GARDEN_HTTP_PORT_SITEBLK);
+                            fprintf(nat_fp, "add rule %s nat parcon_walled_garden %s tcp dport %s %s daddr %s dst counter jump LOG_SiteBlocked_%d_DROP\n", \
+                                   addrtype,proto, nstdPort, addrtype, resolve_ip(query , iptype), idx);
+                            fprintf(nat_fp, "add rule %s nat LOG_SiteBlocked_%d_DROP %s counter jump REDIRECT to %s\n\n", addrtype,idx, proto, PARCON_WALLED_GARDEN_HTTP_PORT_SITEBLK);
                         }
                     }
                     
@@ -8491,24 +8552,24 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 {
 #if defined (INTEL_PUMA7)
 					//Intel Proposed RDKB Generic Bug Fix from XB6 SDK
-					fprintf(fp, "add rule ip filter lan2wan_pc_site ip protocol tcp tcp dport 80 ip daddr @%s meta match string \"%s\" counter jump LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, query + host_name_offset, idx);
-                                       fprintf(fp, "add rule ip filter lan2wan_pc_site ip protocol tcp tcp dport 443 ip daddr @%s meta match string \"%s\" counter jump LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, query + host_name_offset, idx);
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
-                    fprintf(fp, "add rule ip filter lan2wan_pc_site ip protocol tcp tcp dport 80 ip daddr \"%s\" counter jump LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
-                    fprintf(fp, "add rule ip filter lan2wan_pc_site ip protocol tcp tcp dport 443 ip daddr \"%s\" counter jump LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
+                    fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport 80 %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto, addrtype, resolve_ip(query + host_name_offset, iptype), idx);
+                    fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport 443 %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto, addrtype, resolve_ip(query + host_name_offset , iptype), idx);
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_)  || defined(_PLATFORM_BANANAPI_R4_)
+                    fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport 80 %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto, addrtype, resolve_ip(query + host_name_offset , iptype), idx);
+                    fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport 443 %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto, addrtype, resolve_ip(query + host_name_offset , iptype) , idx);
 #elif !defined(_XER5_PRODUCT_REQ_)
-					fprintf(fp, "add rule ip filter lan2wan_pc_site ip protocol tcp tcp dport 80 ip daddr \"%s\" meta l4proto tcp ip daddr \"%s\" counter jump LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, query + host_name_offset, idx);
-                    fprintf(fp, "add rule ip filter lan2wan_pc_site ip protocol tcp tcp dport 443 ip daddr \"%s\" meta l4proto tcp ip daddr \"%s\" counter jump LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, query + host_name_offset, idx);
+                    fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport 80 %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto, addrtype, resolve_ip(query + host_name_offset ,iptype), idx);
+                    fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport 443 %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto, addrtype, resolve_ip(query + host_name_offset , iptype), idx);
 #endif
 #ifdef CONFIG_CISCO_PARCON_WALLED_GARDEN
                     if(iptype == 4)
                     {
-                        fprintf(nat_fp, "add rule ip nat parcon_walled_garden ip protocol tcp tcp dport 80 ip daddr @%s meta l4proto tcp ip daddr @%s comment \"host match %s\" counter jump LOG_SiteBlocked_%d_DROP\n", \
-                                ins_num, query, idx);
-                        fprintf(nat_fp, "add rule ip nat parcon_walled_garden ip protocol tcp tcp dport 443 ip daddr @%s meta l4proto tcp ip daddr @%s comment \"host match %s\" counter jump LOG_SiteBlocked_%d_DROP\n", \
-                                ins_num, query, idx);
-                        fprintf(nat_fp, "add rule ip nat LOG_SiteBlocked_%d_DROP ip protocol tcp tcp dport 443 counter redirect to %s\n\n", idx, PARCON_WALLED_GARDEN_HTTPS_PORT_SITEBLK);
-                        fprintf(nat_fp, "add rule ip nat LOG_SiteBlocked_%d_DROP ip protocol tcp tcp dport 80 counter redirect to %s\n\n", idx, PARCON_WALLED_GARDEN_HTTP_PORT_SITEBLK);
+                        fprintf(nat_fp, "add rule %s nat parcon_walled_garden %s tcp dport 80 %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", \
+                                addrtype, proto , addrtype, resolve_ip(query , iptype), idx);
+                        fprintf(nat_fp, "add rule %s nat parcon_walled_garden %s tcp dport 443 %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", \
+                                addrtype, proto , addrtype, resolve_ip(query , iptype), query, idx);
+                        fprintf(nat_fp, "add rule %s nat LOG_SiteBlocked_%d_DROP %s tcp dport 443 counter redirect to %s\n\n", addrtype,idx, proto, PARCON_WALLED_GARDEN_HTTPS_PORT_SITEBLK);
+                        fprintf(nat_fp, "add rule %s nat LOG_SiteBlocked_%d_DROP %s tcp dport 80 counter redirect to %s\n\n",addrtype, idx, proto,PARCON_WALLED_GARDEN_HTTP_PORT_SITEBLK);
                     }
 #endif
                 }
@@ -8519,7 +8580,8 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
             {
                 // consider the case that user input whole url.
                 if(strstr(query, "://") != 0) {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", strstr(query, "://") + 3, drop_log);
+                  fprintf(fp, "add rule %s filter lan2wan_pc_site string data \"%s\" algo kmp icase jump %s\n", 
+    addrtype, strstr(query, "://") + 3, drop_log);
 #if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
                      if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
@@ -8527,18 +8589,18 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                      {
                     //In Hub4 keyword blocking feature is not working with FORWARD chain rules as CPE (dnsmasq) acts as DNS Proxy.
                     //Add rules in INPUT chain to resolve this issue.
-                    fprintf(fp, "insert rule ip filter input iifname %s jump lan2wan_pc_site\n", lan_ifname);
+                    fprintf(fp, "insert rule %s filter input iifname %s jump lan2wan_pc_site\n", addrtype, lan_ifname);
                      }
 #endif
                 } else {
-                     fprintf(fp, "add rule ip filter lan2wan_pc_site string data \"%s\" algo kmp icase jump %s\n", query, drop_log);
+                     fprintf(fp, "add rule %s filter lan2wan_pc_site string data \"%s\" algo kmp icase jump %s\n", addrtype, query, drop_log);
 #if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
                      if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
                     
 #endif
                   {
-                     fprintf(fp, "insert rule ip filter input iifname %s jump lan2wan_pc_site\n", lan_ifname);
+                     fprintf(fp, "insert rule %s filter input iifname %s jump lan2wan_pc_site\n", addrtype, lan_ifname);
                   }
 #endif
                 }
@@ -8761,8 +8823,8 @@ static int do_prepare_port_range_triggers(FILE *mangle_fp, FILE *filter_fp)
 
       if (0 == strcmp("both", prot) || 0 == strcmp("tcp", prot)) {
 #ifdef CONFIG_KERNEL_NF_TRIGGER_SUPPORT
-         fprintf(nat_fp, "add rule ip nat prerouting_fromlan_trigger tcp dport { %s-%s } trigger out proto %s match %s:%s relate %s:%s\n", sdport, edport,  fprot, sdport, edport, sfport, efport);
-
+         fprintf(nat_fp,"add rule ip nat prerouting_fromlan_trigger tcp dport %s-%s ct state new mark set 0x2\n" , sdport , edport );
+         fprintf(nat_fp,"add rule ip nat prerouting_fromlan_trigger tcp sport %s-%s ct mark 0x2 snat to :%s-%s\n" , sfport , efport , sdport , edport );
          fprintf(filter_fp, "add rule ip filter lan2wan_triggers tcp dport %s-%s counter jump xlog_accept_lan2wan\n", sdport, edport);
          fprintf(filter_fp, "add rule ip filter lan2wan_triggers tcp sport %s-%s counter jump xlog_accept_lan2wan\n", sfport, efport);
 
@@ -8775,7 +8837,8 @@ static int do_prepare_port_range_triggers(FILE *mangle_fp, FILE *filter_fp)
   
       if (0 == strcmp("both", prot) || 0 == strcmp("udp", prot)) {
 #ifdef CONFIG_KERNEL_NF_TRIGGER_SUPPORT
-        fprintf(nat_fp, "add rule ip nat prerouting_fromlan_trigger udp dport { %s-%s } trigger out proto %s match %s:%s relate %s:%s\n", sdport, edport, fprot, sdport, edport, sfport, efport);
+        fprintf(nat_fp,"add rule ip nat prerouting_fromlan_trigger udp dport %s-%s ct state new mark set 0x2\n" , sdport , edport );
+         fprintf(nat_fp,"add rule ip nat prerouting_fromlan_trigger udp sport %s-%s ct mark 0x2 snat to :%s-%s\n" , sfport , efport , sdport , edport );
          
          fprintf(filter_fp, "add rule ip filter lan2wan_triggers udp dport %s-%s counter jump xlog_accept_lan2wan\n", sdport, edport);
          fprintf(filter_fp, "add rule ip filter lan2wan_triggers udp sport %s-%s counter jump xlog_accept_lan2wan\n", sfport, efport);
@@ -8789,12 +8852,12 @@ static int do_prepare_port_range_triggers(FILE *mangle_fp, FILE *filter_fp)
 
 #ifdef CONFIG_KERNEL_NF_TRIGGER_SUPPORT
       if (0 == strcmp("both", fprot) || 0 == strcmp("tcp", fprot)) {
-         fprintf(nat_fp, "add rule ip nat prerouting_fromwan_trigger tcp dport { %s-%s } trigger dnat\n", sfport, efport);
-         fprintf(filter_fp, "add rule ip filter wan2lan_trigger tcp dport { %s-%s } trigger in\n", sfport, efport);
+         fprintf(nat_fp, "add rule ip nat prerouting_fromwan_trigger tcp dport %s-%s ct state new mark set 0x1\n", sfport, efport);
+         fprintf(filter_fp, "add rule ip filter input tcp dport %s-%s ct mark 0x1 accept\n", sfport, efport);
       }
       if (0 == strcmp("both", fprot) || 0 == strcmp("udp", fprot)) {
-         fprintf(nat_fp, "add rule ip nat prerouting_fromwan_trigger udp dport { %s-%s } trigger dnat\n", sfport, efport);
-         fprintf(filter_fp, "add rule ip filter wan2lan_trigger udp dport { %s-%s } trigger in\n", sfport, efport);
+         fprintf(nat_fp, "add rule ip nat prerouting_fromwan_trigger udp dport %s-%s ct state new mark set 0x1\n", sfport, efport);
+         fprintf(filter_fp, "add rule ip filter input udp dport %s-%s ct mark 0x1 accept\n", sfport, efport);
       }
 #endif
    }
@@ -10121,7 +10184,7 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
 
     FIREWALL_DEBUG("Entering prepare_multinet_filter_forward\n"); 	 
 
-    do_block_ports (filter_fp);
+    do_block_ports (filter_fp,"ip");
 
     //L3 rules
     inst_resp[0] = 0;
@@ -12109,27 +12172,25 @@ static int do_raw_table_puma7(FILE *fp)
               
 ===========================================================================
 */
-int do_block_ports(FILE *filter_fp)
+int do_block_ports(FILE *filter_fp, const char *version)
 {
    int retPsmGet = CCSP_SUCCESS;
    char *strValue = NULL;
 
    /* Blocking block page ports except for brlan0 interface */
-   fprintf(filter_fp, "add rule ip filter INPUT iifname \"brlan0\" tcp dport 21515 counter accept\n");
-   fprintf(filter_fp, "add rule ip filter INPUT tcp dport 21515 counter drop\n");
-
+   fprintf(filter_fp, "add rule %s filter INPUT iifname \"brlan0\" tcp dport 21515 counter accept\n", version);
+   fprintf(filter_fp, "add rule %s filter INPUT tcp dport 21515 counter drop\n", version);
    /* Blocking zebra ports except for brlan0 interface */
-   fprintf(filter_fp, "add rule ip filter INPUT iifname != \"brlan0\" tcp dport 2601 counter drop\n");
-   fprintf(filter_fp, "add rule ip filter INPUT iifname != \"brlan0\" udp dport 2601 counter drop\n");
-
+   fprintf(filter_fp, "add rule %s filter INPUT iifname != \"brlan0\" tcp dport 2601 counter drop\n", version);
+   fprintf(filter_fp, "add rule %s filter INPUT iifname != \"brlan0\" udp dport 2601 counter drop\n", version);
    /* Blocking IGD ports except for brlan0 interface */
-   fprintf(filter_fp, "add rule ip filter INPUT iifname \"lo\" tcp dport 49152-49153 counter accept\n");
-   fprintf(filter_fp, "add rule ip filter INPUT iifname \"lo\" udp dport 1900 counter accept\n");
+   fprintf(filter_fp, "add rule %s filter INPUT iifname \"lo\" tcp dport 49152-49153 counter accept\n", version);
+   fprintf(filter_fp, "add rule %s filter INPUT iifname \"lo\" udp dport 1900 counter accept\n", version);
 
-   fprintf(filter_fp, "add rule ip filter INPUT iifname != \"brlan0\" tcp dport 49152-49153 counter drop\n");
-   fprintf(filter_fp, "add rule ip filter INPUT iifname != \"brlan0\" udp dport 1900 counter drop\n");
-   fprintf(filter_fp, "add rule ip filter INPUT iifname != \"brlan0\" tcp dport 21515 counter drop\n");
-   fprintf(filter_fp, "add rule ip filter INPUT iifname != \"brlan0\" udp dport 21515 counter drop\n");
+   fprintf(filter_fp, "add rule %s filter INPUT iifname != \"brlan0\" tcp dport 49152-49153 counter drop\n", version);
+   fprintf(filter_fp, "add rule %s filter INPUT iifname != \"brlan0\" udp dport 1900 counter drop\n", version);
+   fprintf(filter_fp, "add rule %s filter INPUT iifname != \"brlan0\" tcp dport 21515 counter drop\n", version);
+   fprintf(filter_fp, "add rule %s filter INPUT iifname != \"brlan0\" udp dport 21515 counter drop\n", version);
 
 
    /*	RDKB-22836 :
@@ -12922,7 +12983,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    fprintf(filter_fp, "add rule ip filter INPUT iifname %s tcp dport 22 counter jump SSH_FILTER\n", ecm_wan_ifname);
    //if (erouterSSHEnable || bEthWANEnable)
    fprintf(filter_fp, "add rule ip filter INPUT iifname %s tcp dport 22 counter jump SSH_FILTER\n",current_wan_ifname);
-   fprintf(filter_fp, "add rule ip filter LOG_SSH_DROP nflog prefix \"SSH Connection Blocked: \" level %s tcp sequence options ip options limit rate 1/minute burst 1\n", get_log_level(syslog_level));
+   fprintf(filter_fp, "add rule ip filter LOG_SSH_DROP limit rate 1/minute log prefix \"SSH Connection Blocked:\" level %s counter\n", get_log_level(syslog_level));
    fprintf(filter_fp, "add rule ip filter LOG_SSH_DROP counter drop\n");
 
    fprintf(filter_fp, "add rule ip filter INPUT iifname %s udp dport 161 counter jump xlog_drop_lan2self\n", cmdiag_ifname); //SNMP filter

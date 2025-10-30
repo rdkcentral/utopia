@@ -199,7 +199,7 @@ void do_tr69_whitelistTable(FILE *fp, int family);
 int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family);
 
 // Port functions
-int do_block_ports(FILE *filter_fp);
+int do_block_ports(FILE *filter_fp, const char *version);
 void do_webui_rate_limit(FILE *filter_fp,const char *version);
 int lan_access_set_proto(FILE *fp, const char *port, const char *interface);
 int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *filter_fp_v6);

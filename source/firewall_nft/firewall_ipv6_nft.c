@@ -567,7 +567,7 @@ fprintf(fp, "add chain ip filter %s\n", IPOE_HEALTHCHECK);
    fprintf(fp, "add rule ip6 filter mtadosattack counter drop\n");
 #endif
 
-   do_block_ports(fp);	
+   do_block_ports(fp,"ip6");
    //nft rules added
    fprintf(fp, "add chain ip6 filter %s\n", "LOG_SSH_DROP");
    fprintf(fp, "add chain ip6 filter %s\n", "SSH_FILTER");
@@ -1975,20 +1975,17 @@ void do_ipv6_sn_filter(FILE* fp) {
     for (i = 0; i < numifs; ++i) {
         snprintf(ifIpv6AddrKey, sizeof(ifIpv6AddrKey), "ipv6_%s_dhcp_solicNodeAddr", ifnames[i]);
         sysevent_get(sysevent_fd, sysevent_token, ifIpv6AddrKey, mcastAddrStr, sizeof(mcastAddrStr));
-        if (mcastAddrStr[0] != '\0')
-            //fprintf(fp, "-A PREROUTING -i %s -d %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i], mcastAddrStr);
+        if (IsValidIPv6Addr(mcastAddrStr))
             fprintf(fp,"add rule ip6 mangle PREROUTING iifname \"%s\" meta l4proto ipv6-icmp ip6 daddr %s icmpv6 type nd-neighbor-solicit limit rate 20/second burst 5 packets counter accept\n",ifnames[i], mcastAddrStr);
 
         
         snprintf(ifIpv6AddrKey, sizeof(ifIpv6AddrKey), "ipv6_%s_ll_solicNodeAddr", ifnames[i]);
         sysevent_get(sysevent_fd, sysevent_token, ifIpv6AddrKey, mcastAddrStr, sizeof(mcastAddrStr));
-        if (mcastAddrStr[0] != '\0')
-            //fprintf(fp, "-A PREROUTING -i %s -d %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i], mcastAddrStr);
+        if (IsValidIPv6Addr(mcastAddrStr))
             fprintf(fp,"add rule ip6 mangle PREROUTING iifname \"%s\" meta l4proto ipv6-icmp ip6 daddr %s icmpv6 type nd-neighbor-solicit limit rate 20/second burst 5 packets counter accept\n",ifnames[i], mcastAddrStr);
+
         /* NS Throttling rules for WAN and LAN */
-        //fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i]);
         fprintf(fp,"add rule ip6 mangle PREROUTING iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type nd-neighbor-solicit limit rate 20/second burst 5 packets counter accept\n",ifnames[i]);
-        //fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP\n", ifnames[i]);
         fprintf(fp,"add rule ip6 mangle PREROUTING iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type nd-neighbor-solicit counter drop\n",ifnames[i]);
 
     }
