@@ -5288,7 +5288,7 @@ void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
 	{
 	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv4\n");
 	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipaddr);
-	    fprintf(fp, "-A postrouting_towan -o %s -j SNAT --to-source %s\n" COMMA current_wan_ifname COMMA current_wan_ipaddr);
+	    fprintf(fp, "-A postrouting_towan -o %s -j SNAT --to-source %s\n" , current_wan_ifname, current_wan_ipaddr);
 	}
     }
     else
@@ -5302,7 +5302,7 @@ void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
 	{
 	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv6\n");
 	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
-	    fprintf(fp, "-A POSTROUTING -o %s -j SNAT --to-source %s\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
+	    fprintf(fp, "-A POSTROUTING -o %s -j SNAT --to-source %s\n", current_wan_ifname, current_wan_ip6_addr);
 	}
 
     }
@@ -5461,12 +5461,14 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
+         #ifdef WAN_FAILOVER_SUPPORTED
 	 if (0 == checkIfULAEnabled())
 	 {
 	     applyHotspotPostRoutingRules(fp, true);
 	 } else {
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
 	 }
+         #endif
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
      }
