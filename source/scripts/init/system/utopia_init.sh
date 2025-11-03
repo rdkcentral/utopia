@@ -855,7 +855,3 @@ fi
 if [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$MODEL_NUM" = "SCXF11BFL" ]; then
        /etc/reset_reason_log.sh &
 fi
-
-if [ "$BOX_TYPE" = "SCER11BEL" ]; then
-       sysctl -w kernel.pid_max=32768
-fi
