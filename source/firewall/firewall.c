@@ -15493,7 +15493,7 @@ bool IsHotspotActive(void)
 
     if (rbus_get(g_rbusHandle, TR181_ACTIVE_INTERFACE, &value) != RBUS_ERROR_SUCCESS)
     {
-        FIREWALL_DEBUG("rbus get failed for %s", TR181_ACTIVE_INTERFACE);
+        FIREWALL_DEBUG("rbus get failed ");
         return false;
     }
 
@@ -15505,8 +15505,6 @@ bool IsHotspotActive(void)
         FIREWALL_DEBUG("RBUS value empty/null for active interface");
         return false;
     }
-
-    FIREWALL_DEBUG("WAN Interfaces status = %s", val);
 
     char buf[256];
     strncpy(buf, val, sizeof(buf)-1);
