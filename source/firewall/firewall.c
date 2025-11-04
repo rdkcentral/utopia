@@ -2470,15 +2470,18 @@ static int prepare_globals_from_configuration(void)
          }      
    }
 
-   // Update WIFI hotspot interface name -> from PSM
+   // Update WIFI hotspot interface name -> from CurrentActiveInterface
    memset(hotspot_wan_ifname,0,sizeof(hotspot_wan_ifname));
-   rc = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
-   if(rc == CCSP_SUCCESS && pStr != NULL){
-	   FIREWALL_DEBUG("HotSpot wan interface fetched \n");
-	   safec_rc = strcpy_s(hotspot_wan_ifname, sizeof(hotspot_wan_ifname),pStr);
-	   ERR_CHK(safec_rc);
-	   Ansc_FreeMemory_Callback(pStr);
-	   pStr = NULL;
+   if (IsHotspotActive())  // Device.X_RDK_WanManager.InterfaceActiveStatus: value: HOTSPOT,1
+   {
+       char CurrentActiveInterface[128] = {0};
+       if (rbus_getStringValue(CurrentActiveInterface, "Device.X_RDK_WanManager.CurrentActiveInterface") == 0)
+       {
+	   // Copy CurrentActiveInterface to hotspot_wan_ifname
+	   strncpy(hotspot_wan_ifname, CurrentActiveInterface, sizeof(hotspot_wan_ifname)-1);
+	   hotspot_wan_ifname[sizeof(hotspot_wan_ifname)-1] = '\0';
+	   FIREWALL_DEBUG("HotSpot wan interface fetched %s \n", hotspot_wan_ifname);
+       }
    }
    FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
 
@@ -15459,4 +15462,74 @@ int do_wpad_isatap_blockv6 (FILE *filter_fp)
 #endif
 
     return 0;
+}
+
+/**********************************************************************
+ * Function:  IsHotspotActive
+ * Description:
+ *     Checks whether the HOTSPOT interface is currently active by
+ *     querying the RBUS parameter TR181_ACTIVE_INTERFACE, which
+ *     contains the status of WAN interfaces in the format:
+ *        INTERFACE_NAME,STATUS|INTERFACE_NAME,STATUS|...
+ *     Example: "HOTSPOT,1|WANOE,0|DSL,0"
+ *
+ *     - Returns true if HOTSPOT is present and has status = 1.
+ *     - Returns false if HOTSPOT is not present or status != 1.
+ *
+ * Output:
+ *     bool - true if HOTSPOT is active, false otherwise
+ *
+ * Notes:
+ *     - RBUS string is copied locally before tokenization to avoid
+ *       modifying the original RBUS value.
+ *     - Logs relevant info at each step.
+ **********************************************************************/
+bool IsHotspotActive(void)
+{
+    rbusValue_t value;
+    char* val = NULL;
+
+    if (rbus_get(rbus_handle, TR181_ACTIVE_INTERFACE, &value) != RBUS_ERROR_SUCCESS)
+    {
+        FIREWALL_DEBUG("rbus get failed for %s", TR181_ACTIVE_INTERFACE);
+        return false;
+    }
+
+    val = rbusValue_ToString(value,0,0);
+    rbusValue_Release(value);
+
+    if(!val || strlen(val) == 0)
+    {
+        FIREWALL_DEBUG("RBUS value empty/null for active interface");
+        return false;
+    }
+
+    FIREWALL_DEBUG("WAN Interfaces status = %s", val);
+
+    char buf[256];
+    strncpy(buf, val, sizeof(buf)-1);
+    buf[sizeof(buf)-1] = '\0';
+
+    char *token = strtok(buf, "|");
+    while (token != NULL)
+    {
+        if (strncmp(token, "HOTSPOT,", 8) == 0)
+        {
+            // check last char = '1'
+            if (token[strlen(token)-1] == '1')
+            {
+                FIREWALL_DEBUG("HOTSPOT interface is ACTIVE");
+                return true;
+            }
+            else
+            {
+                FIREWALL_DEBUG("HOTSPOT interface is NOT active");
+                return false;
+            }
+        }
+        token = strtok(NULL, "|");
+    }
+
+    FIREWALL_DEBUG("HOTSPOT not present in active interface list");
+    return false;
 }

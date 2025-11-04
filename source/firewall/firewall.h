@@ -114,8 +114,8 @@ extern void* bus_handle ;
 extern int sysevent_fd;
 extern char sysevent_ip[19];
 extern unsigned short sysevent_port;
+bool IsHotspotActive(void);
 #define PSM_VALUE_GET_STRING(name, str) PSM_Get_Record_Value2(bus_handle, CCSP_SUBSYS, name, NULL, &(str)) 
-#define PSM_HOTSPOT_WAN_IFNAME "dmsb.wanmanager.if.3.Name"
 
 int get_ip6address (char * ifname, char ipArry[][40], int * p_num, unsigned int scope_in);
 
