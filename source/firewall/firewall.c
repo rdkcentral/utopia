@@ -353,6 +353,7 @@ NOT_DEF:
 #include <sys/mman.h>
 #include "secure_wrapper.h"
 #include "util.h"
+#include <rbus/rbus.h>
 
 
 #if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
@@ -698,6 +699,7 @@ bool isDefHttpsPortUsed = FALSE ;
 int current_wan_ipv6_num = 0;
 char default_wan_ifname[50]; // name of the regular wan interface
 char hotspot_wan_ifname[50];
+rbusHandle_t g_rbusHandle;
 int rfstatus;
 /*
  * For timed internet access rules we use cron 
@@ -2480,7 +2482,7 @@ static int prepare_globals_from_configuration(void)
 	   // Copy CurrentActiveInterface to hotspot_wan_ifname
 	   strncpy(hotspot_wan_ifname, CurrentActiveInterface, sizeof(hotspot_wan_ifname)-1);
 	   hotspot_wan_ifname[sizeof(hotspot_wan_ifname)-1] = '\0';
-	   FIREWALL_DEBUG("HotSpot wan interface fetched %s \n", hotspot_wan_ifname);
+	   FIREWALL_DEBUG("HotSpot wan interface fetched  \n");
        }
    }
    FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
@@ -15489,7 +15491,7 @@ bool IsHotspotActive(void)
     rbusValue_t value;
     char* val = NULL;
 
-    if (rbus_get(rbus_handle, TR181_ACTIVE_INTERFACE, &value) != RBUS_ERROR_SUCCESS)
+    if (rbus_get(g_rbusHandle, TR181_ACTIVE_INTERFACE, &value) != RBUS_ERROR_SUCCESS)
     {
         FIREWALL_DEBUG("rbus get failed for %s", TR181_ACTIVE_INTERFACE);
         return false;
@@ -15533,3 +15535,26 @@ bool IsHotspotActive(void)
     FIREWALL_DEBUG("HOTSPOT not present in active interface list");
     return false;
 }
+
+int rbus_getStringValue(char* value, char* path)
+{
+    int rc = 0;
+    rbusValue_t strVal = NULL;
+
+
+    rc = rbus_get(g_rbusHandle, path, &strVal);
+
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        if(strVal != NULL)
+        {
+            rbusValue_Release(strVal);
+        }
+        return 1;
+    }
+
+    snprintf(value, 128, (char *)rbusValue_GetString(strVal, NULL));
+    rbusValue_Release(strVal);
+    return 0;
+}
+
