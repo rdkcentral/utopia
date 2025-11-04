@@ -9361,32 +9361,59 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 
                 block_url_by_ipaddr(fp, query + host_name_offset, drop_log, iptype, ins_num, nstdPort);
             }
-            else if (strncasecmp(method, "KEYWD", 5)==0)
+	    else if (strncasecmp(method, "KEYWD", 5) == 0)
             {
-                // consider the case that user input whole url.
-                if(strstr(query, "://") != 0) {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", strstr(query, "://") + 3, drop_log);
-#if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-#if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-                     if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
-#endif
-                     {
-                        //In Hub4 keyword blocking feature is not working with FORWARD chain rules as CPE (dnsmasq) acts as DNS Proxy.
-                        //Add rules in INPUT chain to resolve this issue.
-                        fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                     }
-#endif
+                const char *keyword = NULL;
+                char hostStr[] = "Host:";
+                int range_max = 1024; //max payload bytes to filter
+		int range_incr = 64; //byte ranges to filter
+
+                // Extract keyword if user input is a full URL
+                if (strstr(query, "://") != NULL) {
+                    keyword = strstr(query, "://") + 3;
                 } else {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", query, drop_log);
+                    keyword = query;
+                }
+
+                if (keyword == NULL || strlen(keyword) == 0) {
+                    fprintf(stderr, "Warning: Empty keyword, skipping rule generation.\n");
+                    return(0);
+                }
+
+                // Create rules for various ranges of payload to filter
+                int from;
+                for (from = 0; from < range_max; from += range_incr) {
+                    int to = from + range_incr;
+                    char chainName[64];
+
+                    // Create new chain LOG_SiteBlocked_check_kw_<from>_<to>
+                    snprintf(chainName, sizeof(chainName), "LOG_SiteBlocked_check_kw_%d_%d", from, to);
+                    fprintf(fp, "-N %s\n", chainName);
+
+                    // Add rule to jump to private chain if "Host:" is found in this offset range
+                    fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
+                        hostStr, from, to, chainName);
+
+                    // Add rule to match keyword in private chain within same offset range
+                    fprintf(fp, "-A %s -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
+                        chainName, keyword, from, to, drop_log);
+
+                    // Default rule to return if not matched
+                    fprintf(fp, "-A %s -j RETURN\n", chainName);
+                }
+
+                // Add rule for https filter
+                fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 443 -m string --string \"%s\" --algo kmp --icase -j %s\n",
+                    keyword, drop_log);
+
 #if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-                     if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
+                if (strncmp(devicePartnerId, "sky-", 4) == 0)
 #endif
-                     {
-                        fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                     }
-#endif
+                {
+                    fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site\n", lan_ifname);
                 }
+#endif
             }
         }
     }
