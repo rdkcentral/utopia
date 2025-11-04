@@ -537,11 +537,20 @@ fi
 
 echo_t "[utopia][init] Applying iptables settings"
 
+nft_enable=`syscfg get nft_enable`
+
 lan_ifname=`syscfg get lan_ifname`
 cmdiag_ifname=`syscfg get cmdiag_ifname`
 ecm_wan_ifname=`syscfg get ecm_wan_ifname`
 wan_ifname=`sysevent get wan_ifname`
 
+if [ "$nft_enable" != "1" ];then
+        ln -sf /usr/bin/firewall_ipt /usr/bin/firewall
+else
+        ln -sf /usr/bin/firewall_nft /usr/bin/firewall
+fi
+
+if [ "$nft_enable" != "1" ];then
 #disable telnet / ssh ports
 iptables -A INPUT -i "$lan_ifname" -p tcp --dport 23 -j DROP
 iptables -A INPUT -i "$lan_ifname" -p tcp --dport 22 -j DROP
@@ -556,6 +565,7 @@ ip6tables -A INPUT -i "$cmdiag_ifname" -p tcp --dport 22 -j DROP
 #protect from IPv6 NS flooding
 ip6tables -t mangle -A PREROUTING -i "$ecm_wan_ifname" -d ff00::/8 -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP
 ip6tables -t mangle -A PREROUTING -i "$wan_ifname" -d ff00::/8 -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP
+fi
 
 #/sbin/ulogd -c /etc/ulogd.conf -d
 

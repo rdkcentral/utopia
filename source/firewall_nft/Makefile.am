@@ -20,14 +20,14 @@ AM_CFLAGS = -D_GNU_SOURCE
 AM_CFLAGS += -pthread
 AM_CPPFLAGS = -I$(top_srcdir)/source/include -I$(top_srcdir)/source/util/utils $(DBUS_CFLAGS)
 AM_LDFLAGS = -lccsp_common -lsecure_wrapper -lnetfilter_queue -lnfnetlink $(DBUS_LIBS) -pthread -lrt
-bin_PROGRAMS = firewall nfq_handler
-firewall_SOURCES = firewall_nft.c firewall_ipv6_nft.c firewall_priv_nft.c firewall_interface_nft.c  firewall_ext_nft.c
+bin_PROGRAMS = firewall_nft nfq_handler
+firewall_nft_SOURCES = firewall_nft.c firewall_ipv6_nft.c firewall_priv_nft.c firewall_interface_nft.c  firewall_ext_nft.c
 if CPC_FIREWALL_ENABLE
-firewall_SOURCES += firewall_lib.c firewall_dsl.c rabid.c
+firewall_nft_SOURCES += firewall_lib.c firewall_dsl.c rabid.c
 AM_LDFLAGS += -lrdkconfig
 endif
 nfq_handler_SOURCES = raw_socket_send.c nfq_handler_nft.c
-firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
+firewall_nft_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                  $(top_builddir)/source/sysevent/lib/libsysevent.la \
                  $(top_builddir)/source/ulog/libulog.la \
                  $(top_builddir)/source/util/utils/libutopiautil.la
