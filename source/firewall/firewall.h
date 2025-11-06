@@ -355,6 +355,8 @@ extern char mesh_wan_ifname[32];
 #define WAN_DBUS_PATH        "/com/cisco/spvtg/ccsp/wanmanager"
 #define WAN_COMPONENT_NAME   "eRT.com.cisco.spvtg.ccsp.wanmanager"
 #define WAN_INTERFACE_STATUS_PARAM_NAME "Device.X_RDK_WanManager.InterfaceActiveStatus"
+#define ANSC_STATUS_SUCCESS 0
+#define ANSC_STATUS_FAILURE 1
 void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4);
 extern char hotspot_wan_ifname[50];
 extern int current_wan_ipv6_num;
