@@ -2411,7 +2411,7 @@ static int prepare_globals_from_configuration(void)
 #ifdef CORE_NET_LIB
         libnet_status ret;
         ret = get_ipv6_address(wanInterface, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
-        if (ret == CNL_STATUS_SUCCESS) {
+        if (ret == ANSC_STATUS_SUCCESS) {
             FIREWALL_DEBUG("Successfully retrived global IPv6 address for %s\n" COMMA wanInterface);
 	    current_wan_ip6_addr[sizeof(current_wan_ip6_addr) - 1] = '\0';
 	}
@@ -2427,7 +2427,7 @@ static int prepare_globals_from_configuration(void)
 	char interface_ipv6[BUFLEN_64] = "erouter0";
         libnet_status stat;
       	stat = get_ipv6_address(interface_ipv6, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
-        if (stat == CNL_STATUS_SUCCESS) {
+        if (stat == ANSC_STATUS_SUCCESS) {
             FIREWALL_DEBUG("Successfully retrived IPv6 address for erouter0\n");
 	    current_wan_ip6_addr[sizeof(current_wan_ip6_addr) - 1] = '\0';
         }
@@ -2482,7 +2482,7 @@ static int prepare_globals_from_configuration(void)
    {
         // Get the current active interface from RDK Bus
         if (WanManager_RdkBus_GetParamValues(
-                WAN_COMPONENT_NAME, WAN_DBUS_PATH, "Device.X_RDK_WanManager.CurrentActiveInterface", hotspot_wan_ifname) == CNL_STATUS_SUCCESS)
+                WAN_COMPONENT_NAME, WAN_DBUS_PATH, "Device.X_RDK_WanManager.CurrentActiveInterface", hotspot_wan_ifname) == ANSC_STATUS_SUCCESS)
         {
 	    FIREWALL_DEBUG("HotSpot wan interface fetched  \n");
         }
@@ -14512,7 +14512,7 @@ int CleanIPConntrack(char *physAddress)
        return -1;
     }
     libnet_status status = neighbour_get_list(neigh_data, mac_filter, if_filter, af_filter);
-    if (status != CNL_STATUS_SUCCESS) {
+    if (status != ANSC_STATUS_SUCCESS) {
         FIREWALL_DEBUG("Failed to list neighbours for %s\n" COMMA physAddress);
         free(mac_filter);
         neighbour_free_neigh(neigh_data);
@@ -15508,7 +15508,7 @@ ANSC_STATUS WanManager_RdkBus_GetParamValues(
             free_parameterValStruct_t(bus_handle, nval, retVal);
         }
 
-        return CNL_STATUS_SUCCESS;
+        return ANSC_STATUS_SUCCESS;
     }
 
     // Free the allocated memory for the return value struct if an error occurred
@@ -15517,7 +15517,7 @@ ANSC_STATUS WanManager_RdkBus_GetParamValues(
         free_parameterValStruct_t(bus_handle, nval, retVal);
     }
 
-    return CNL_STATUS_FAILURE;
+    return ANSC_STATUS_FAILURE;
 }
 /**********************************************************************
  * Function:  IsHotspotActive
@@ -15540,7 +15540,7 @@ bool IsHotspotActive()
     char acTmpReturnValue[BUFLEN_256] = { 0 };
 
     // Query the WAN Manager for the Interface Active Status
-    if (CNL_STATUS_FAILURE == WanManager_RdkBus_GetParamValues(
+    if (ANSC_STATUS_FAILURE == WanManager_RdkBus_GetParamValues(
             WAN_COMPONENT_NAME, WAN_DBUS_PATH, WAN_INTERFACE_STATUS_PARAM_NAME, acTmpReturnValue))
     {
         FIREWALL_DEBUG("%s %d Failed to get param value \n" COMMA __FUNCTION__ COMMA __LINE__);
