@@ -353,6 +353,10 @@ NOT_DEF:
 #include <sys/mman.h>
 #include "secure_wrapper.h"
 #include "util.h"
+#include "ccsp_custom.h"
+#include "ccsp_psm_helper.h"
+#include <ccsp_base_api.h>
+#include "ccsp_memory.h"
 #include <rbus/rbus.h>
 
 
@@ -2474,16 +2478,14 @@ static int prepare_globals_from_configuration(void)
 
    // Update WIFI hotspot interface name -> from CurrentActiveInterface
    memset(hotspot_wan_ifname,0,sizeof(hotspot_wan_ifname));
-   if (IsHotspotActive())  // Device.X_RDK_WanManager.InterfaceActiveStatus: value: HOTSPOT,1
+   if (IsHotspotActive())
    {
-       char CurrentActiveInterface[128] = {0};
-       if (rbus_getStringValue(CurrentActiveInterface, "Device.X_RDK_WanManager.CurrentActiveInterface") == 0)
-       {
-	   // Copy CurrentActiveInterface to hotspot_wan_ifname
-	   strncpy(hotspot_wan_ifname, CurrentActiveInterface, sizeof(hotspot_wan_ifname)-1);
-	   hotspot_wan_ifname[sizeof(hotspot_wan_ifname)-1] = '\0';
-	   FIREWALL_DEBUG("HotSpot wan interface fetched  \n");
-       }
+        // Get the current active interface from RDK Bus
+        if (WanManager_RdkBus_GetParamValues(
+                WAN_COMPONENT_NAME, WAN_DBUS_PATH, "Device.X_RDK_WanManager.CurrentActiveInterface", hotspot_wan_ifname) == CNL_STATUS_SUCCESS)
+        {
+	    FIREWALL_DEBUG("HotSpot wan interface fetched  \n");
+        }
    }
    FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
 
@@ -15466,11 +15468,62 @@ int do_wpad_isatap_blockv6 (FILE *filter_fp)
     return 0;
 }
 
+// Function to query parameters from RDK Bus
+ANSC_STATUS WanManager_RdkBus_GetParamValues(
+    char *pComponent,
+    char *pBus,
+    char *pParamName,
+    char *pReturnVal)
+{
+    parameterValStruct_t   **retVal = NULL;
+    char                   *ParamName[ 1 ] = { 0 };
+    int                    ret = 0, nval = 0;
+
+    // Assign the address for the parameter name
+    ParamName[0] = pParamName;
+
+    // Make the request to get the parameter value from the RDK bus
+    ret = CcspBaseIf_getParameterValues(
+        bus_handle,
+        pComponent,
+        pBus,
+        ParamName,
+        1,
+        &nval,
+        &retVal
+    );
+
+    // Copy the value if the request was successful
+    if (CCSP_SUCCESS == ret)
+    {
+        // Copy the value to the return buffer
+        if (NULL != retVal[0]->parameterValue)
+        {
+            memcpy(pReturnVal, retVal[0]->parameterValue, strlen(retVal[0]->parameterValue) + 1);
+        }
+
+        // Free the allocated memory for the return value struct
+        if (retVal)
+        {
+            free_parameterValStruct_t(bus_handle, nval, retVal);
+        }
+
+        return CNL_STATUS_SUCCESS;
+    }
+
+    // Free the allocated memory for the return value struct if an error occurred
+    if (retVal)
+    {
+        free_parameterValStruct_t(bus_handle, nval, retVal);
+    }
+
+    return CNL_STATUS_FAILURE;
+}
 /**********************************************************************
  * Function:  IsHotspotActive
  * Description:
  *     Checks whether the HOTSPOT interface is currently active by
- *     querying the RBUS parameter TR181_ACTIVE_INTERFACE, which
+ *     querying the parameter TR181_ACTIVE_INTERFACE, which
  *     contains the status of WAN interfaces in the format:
  *        INTERFACE_NAME,STATUS|INTERFACE_NAME,STATUS|...
  *     Example: "HOTSPOT,1|WANOE,0|DSL,0"
@@ -15481,78 +15534,45 @@ int do_wpad_isatap_blockv6 (FILE *filter_fp)
  * Output:
  *     bool - true if HOTSPOT is active, false otherwise
  *
- * Notes:
- *     - RBUS string is copied locally before tokenization to avoid
- *       modifying the original RBUS value.
- *     - Logs relevant info at each step.
  **********************************************************************/
-bool IsHotspotActive(void)
+bool IsHotspotActive()
 {
-    rbusValue_t value;
-    char* val = NULL;
+    char acTmpReturnValue[BUFLEN_256] = { 0 };
 
-    if (rbus_get(g_rbusHandle, TR181_ACTIVE_INTERFACE, &value) != RBUS_ERROR_SUCCESS)
+    // Query the WAN Manager for the Interface Active Status
+    if (CNL_STATUS_FAILURE == WanManager_RdkBus_GetParamValues(
+            WAN_COMPONENT_NAME, WAN_DBUS_PATH, WAN_INTERFACE_STATUS_PARAM_NAME, acTmpReturnValue))
     {
-        FIREWALL_DEBUG("rbus get failed ");
+        FIREWALL_DEBUG("%s %d Failed to get param value \n" COMMA __FUNCTION__ COMMA __LINE__);
         return false;
     }
 
-    val = rbusValue_ToString(value,0,0);
-    rbusValue_Release(value);
+    // Tokenize the response to check for HOTSPOT
+    char buf[BUFLEN_256];
+    strncpy(buf, acTmpReturnValue, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
 
-    if(!val || strlen(val) == 0)
-    {
-        FIREWALL_DEBUG("RBUS value empty/null for active interface");
-        return false;
-    }
-
-    char buf[256];
-    strncpy(buf, val, sizeof(buf)-1);
-    buf[sizeof(buf)-1] = '\0';
-
-    char *token = strtok(buf, "|");
+    char* token = strtok(buf, "|");
     while (token != NULL)
     {
+        // Check if HOTSPOT is in the token and its value is 1
         if (strncmp(token, "HOTSPOT,", 8) == 0)
         {
-            // check last char = '1'
-            if (token[strlen(token)-1] == '1')
+            // Last character should be '1' to be active
+            if (token[strlen(token) - 1] == '1')
             {
-                FIREWALL_DEBUG("HOTSPOT interface is ACTIVE");
+                FIREWALL_DEBUG("HOTSPOT interface is ACTIVE\n");
                 return true;
             }
             else
             {
-                FIREWALL_DEBUG("HOTSPOT interface is NOT active");
+                FIREWALL_DEBUG("HOTSPOT interface is NOT active\n");
                 return false;
             }
         }
+
         token = strtok(NULL, "|");
     }
 
-    FIREWALL_DEBUG("HOTSPOT not present in active interface list");
     return false;
 }
-
-int rbus_getStringValue(char* value, char* path)
-{
-    int rc = 0;
-    rbusValue_t strVal = NULL;
-
-
-    rc = rbus_get(g_rbusHandle, path, &strVal);
-
-    if(rc != RBUS_ERROR_SUCCESS)
-    {
-        if(strVal != NULL)
-        {
-            rbusValue_Release(strVal);
-        }
-        return 1;
-    }
-
-    snprintf(value, 128, (char *)rbusValue_GetString(strVal, NULL));
-    rbusValue_Release(strVal);
-    return 0;
-}
-
