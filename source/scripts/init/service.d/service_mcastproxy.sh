@@ -113,7 +113,7 @@ fi
 else
    cat $LOCAL_CONF_FILE > $CONF_FILE
    rm -f $LOCAL_CONF_FILE
-   if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" == "WNXL11BWL" ] || [ "$BOX_TYPE" == "rpi" ] || [ "$BOX_TYPE" == "bpi" ] || [ "$BOX_TYPE" == "SCER11BEL" ]; then
+   if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" == "WNXL11BWL" ] || [ "$BOX_TYPE" == "rpi" ] || [ "$BOX_TYPE" == "bpi" ] || [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ]; then
        $BIN $CONF_FILE &
    else 
        $BIN -c $CONF_FILE &

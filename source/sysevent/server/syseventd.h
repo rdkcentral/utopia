@@ -96,11 +96,8 @@ extern sem_t worker_sem;
 // e.g Multinet process is taking more time to finish in some of the field units.
 #define MAX_ACTIVATION_BLOCKING_SECS 300
 
-#if defined (_64BIT_ARCH_SUPPORT_)
-#define WORKER_THREAD_STACK_SIZE  8192*1024 /* the default stack size per process is 8MB */
-#else
-#define WORKER_THREAD_STACK_SIZE  65536
-#endif
+/* Scale stack size based on pointer size - larger for 64-bit architectures */
+#define WORKER_THREAD_STACK_SIZE  (sizeof(void*) == 8 ? 8192*1024 : 65536)
 
 #define SANITY_THREAD_STACK_SIZE  65536
 

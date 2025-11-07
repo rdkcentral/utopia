@@ -1568,6 +1568,7 @@ int prepare_dhcp_conf (char *input)
         fprintf(l_fLocal_Dhcp_ConfFile, "dhcp-option=vendor:WNXE12AWR,43,tag=123\n");
         fprintf(l_fLocal_Dhcp_ConfFile, "dhcp-option=vendor:SE401,43,tag=123\n");
         fprintf(l_fLocal_Dhcp_ConfFile, "dhcp-option=vendor:WNXL11BWL,43,tag=123\n");
+        fprintf(l_fLocal_Dhcp_ConfFile, "dhcp-option=vendor:RDKBPOD,43,tag=123\n");
 
         // Set dnsmasq tag for XLE as "extender".
         fprintf(l_fLocal_Dhcp_ConfFile, "dhcp-vendorclass=set:extender,WNXL11BWL\n");
@@ -1926,7 +1927,7 @@ int prepare_dhcp_conf (char *input)
             #endif /*WIFI_MANAGE_SUPPORTED*/
         }
 
-#if defined(_WNXL11BWL_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_)
+#if defined(_WNXL11BWL_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_)
         fprintf(l_fLocal_Dhcp_ConfFile, "interface=brlan112\n");
         fprintf(l_fLocal_Dhcp_ConfFile, "dhcp-range=169.254.70.5,169.254.70.253,255.255.255.0,infinite\n");
 

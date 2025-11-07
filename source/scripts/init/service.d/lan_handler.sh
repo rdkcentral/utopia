@@ -502,7 +502,7 @@ case "$1" in
    ;;
 
    lan-start)
-        if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "SCER11BEL" ]; then
+        if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]; then
              L3Net=`sysevent get primary_lan_l3net`
              if [ -z "$L3Net" ]; then
                  echo_t "RDKB_SYSTEM_BOOT_UP_LOG : L3Net is null"

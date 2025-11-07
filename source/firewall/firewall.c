@@ -697,6 +697,7 @@ char current_wan_ip6_addr[128];
 bool isDefHttpsPortUsed = FALSE ;
 int current_wan_ipv6_num = 0;
 char default_wan_ifname[50]; // name of the regular wan interface
+char hotspot_wan_ifname[50];
 int rfstatus;
 /*
  * For timed internet access rules we use cron 
@@ -1455,7 +1456,23 @@ static int do_wan_nat_lan_clients_mapt(FILE *fp)
     return 0;
 }
 #endif //FEATURE_MAPT
-
+void do_webui_attack_filter(FILE *filter_fp)
+{
+   FIREWALL_DEBUG("Entering do_webui_attack_filter\n");
+   fprintf(filter_fp, ":%s - [0:0]\n", "UPLOAD_ATTACK_FILTER");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", "<?php");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -m string --algo bm --string \"%s\" -j DROP \n", "filename=" , ".php");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -m string --algo bm --string \"%s\" -j DROP \n", "filename=", ".phtml");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".jsp");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".asp");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", "<%@");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".cgi");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".pi");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".sh");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".py");
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", "multipart/form-data");
+   FIREWALL_DEBUG("Exiting do_webui_attack_filter\n");
+}
 /*
  *  Procedure     : do_webui_rate_limit
  *  Purpose       : Create chain to ratelimit remote management GUI packets over erouter interface
@@ -2452,6 +2469,19 @@ static int prepare_globals_from_configuration(void)
                pStr = NULL;
          }      
    }
+
+   // Update WIFI hotspot interface name -> from PSM
+   memset(hotspot_wan_ifname,0,sizeof(hotspot_wan_ifname));
+   rc = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
+   if(rc == CCSP_SUCCESS && pStr != NULL){
+	   FIREWALL_DEBUG("HotSpot wan interface fetched \n");
+	   safec_rc = strcpy_s(hotspot_wan_ifname, sizeof(hotspot_wan_ifname),pStr);
+	   ERR_CHK(safec_rc);
+	   Ansc_FreeMemory_Callback(pStr);
+	   pStr = NULL;
+   }
+   FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
+
    memset(mesh_wan_ipv6addr,0,sizeof(mesh_wan_ipv6addr));
    get_ip6address(mesh_wan_ifname, mesh_wan_ipv6addr, &mesh_wan_ipv6_num,IPV6_ADDR_SCOPE_GLOBAL);
    #endif 
@@ -5248,6 +5278,37 @@ static int do_nat_ephemeral(FILE *fp)
    return(0);
 }
 
+void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
+{
+    FIREWALL_DEBUG(" Entering applyHotspotPostRoutingRules \n");
+    char sysEventName[256];
+    if (isIpv4 == true)
+    {
+	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+	{
+	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv4\n");
+	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipaddr);
+	    fprintf(fp, "-A postrouting_towan -o %s -j SNAT --to-source %s\n" , current_wan_ifname, current_wan_ipaddr);
+	}
+    }
+    else
+    {
+	memset(current_wan_ip6_addr, 0, sizeof(current_wan_ip6_addr));
+	memset(sysEventName, 0, sizeof(sysEventName));
+	snprintf(sysEventName, sizeof(sysEventName),"tr_%s_dhcpv6_client_v6addr", hotspot_wan_ifname);
+	sysevent_get(sysevent_fd, sysevent_token, sysEventName, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
+
+	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+	{
+	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv6\n");
+	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
+	    fprintf(fp, "-A POSTROUTING -o %s -j SNAT --to-source %s\n", current_wan_ifname, current_wan_ip6_addr);
+	}
+
+    }
+    FIREWALL_DEBUG(" Exiting applyHotspotPostRoutingRules \n");
+}
+
 #if defined(_BWG_PRODUCT_REQ_)
 /*
  *  Procedure     : do_raw_table_staticip
@@ -5400,7 +5461,14 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
+         #ifdef WAN_FAILOVER_SUPPORTED
+	 if (0 == checkIfULAEnabled())
+	 {
+	     applyHotspotPostRoutingRules(fp, true);
+	 } else {
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
+	 }
+         #endif
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
      }
@@ -5930,7 +5998,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    fprintf(fp, "-A INPUT -j wanattack\n");
 
    //Smurf attack, actually the below rules are to prevent us from being the middle-man host
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
    fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request %s -j LOG --log-prefix \"DoS Attack - Smurf Attack\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -5950,7 +6018,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request -j xlog_drop_wanattack\n");
    // ICMP Smurf Attack (timestamp)
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A ICMPSmurfAttack -p icmp -m icmp --icmp-type timestamp-request %s -j LOG --log-prefix \"DoS Attack - Smurf Attack\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -5972,7 +6040,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 
    //ICMP Flooding. Mark traffic bit rate > 5/s as attack and limit 6 log entries per hour
    fprintf(fp, "-A ICMPFlooding -p icmp -m limit --limit 5/s --limit-burst 10 -j RETURN\n");
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A ICMPFlooding -p icmp %s -j LOG --log-prefix \"DoS Attack - ICMP Flooding\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -5994,7 +6062,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 
    //TCP SYN Flooding
    fprintf(fp, "-A TCPSYNFlooding -p tcp --syn -m limit --limit 10/s --limit-burst 20 -j RETURN\n");
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)/* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A TCPSYNFlooding -p tcp --syn %s -j LOG --log-prefix \"DoS Attack - TCP SYN Flooding\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6018,7 +6086,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    if(isWanReady) {
        /* Allow multicast packet through */
       fprintf(fp, "-A LANDAttack -p udp -s %s -d 224.0.0.0/8 -j RETURN\n", wan_ip);
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
       fprintf(fp, "-A LANDAttack -s %s %s -j LOG --log-prefix \"DoS Attack - LAND Attack\" --log-level 7\n", wan_ip, logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
        if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6206,6 +6274,26 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
     }
          FIREWALL_DEBUG("Exiting remote_access_set_proto\n");    
     return 0;
+}
+int wan_lan_webui_attack(FILE *fp, const char *interface)
+{
+      int rc = 0;
+      char httpport[64] = {0};
+      char httpsport[64] = {0};
+      char query[MAX_QUERY];
+      //lan side attack protection
+      fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 80 -j UPLOAD_ATTACK_FILTER\n", interface);
+      fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 443 -j UPLOAD_ATTACK_FILTER\n", interface);
+      //wan side attack protection
+      rc = syscfg_get(NULL, "mgmt_wan_httpaccess", query, sizeof(query));
+      rc |= syscfg_get(NULL, "mgmt_wan_httpport", httpport, sizeof(httpport));
+      if ((rc == 0) && atoi(query) == 1)
+          fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport %s -j UPLOAD_ATTACK_FILTER\n", current_wan_ifname, httpport);
+      rc = syscfg_get(NULL, "mgmt_wan_httpsaccess", query, sizeof(query));
+      rc |= syscfg_get(NULL, "mgmt_wan_httpsport", httpsport, sizeof(httpsport));
+      if ((rc == 0) && atoi(query) == 1)
+          fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport %s -j UPLOAD_ATTACK_FILTER\n", current_wan_ifname, httpsport );
+      return 0;
 }
 int lan_access_set_proto(FILE *fp,const char *port, const char *interface)
 {
@@ -9958,7 +10046,7 @@ static void do_add_TCP_MSS_rules(FILE *mangle_fp)
 static int do_lan2wan(FILE *mangle_fp, FILE *filter_fp, FILE *nat_fp)
 {
    FIREWALL_DEBUG("Entering do_lan2wan\n");
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_)
    if (isNatReady)
    {
        FILE *f = NULL;
@@ -12045,6 +12133,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    fprintf(filter_fp, "-A OUTPUT -o lo -p tcp -m tcp --sport 49152:49153 -j ACCEPT\n");
    fprintf(filter_fp, "-A OUTPUT ! -o brlan0 -p tcp -m tcp --sport 49152:49153 -j DROP\n");
+   /* For EasyMesh Controller Communication */
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I OUTPUT -o %s -p tcp --sport 49153 -j ACCEPT\n",get_current_wan_ifname());
+#endif
 #ifdef CONFIG_CISCO_FEATURE_CISCOCONNECT
    fprintf(filter_fp, ":%s - [0:0]\n", "pp_disabled");
    if(isGuestNetworkEnabled) {
@@ -12233,7 +12325,8 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
    // Video Analytics Firewall rule to allow port 58081 only from LAN interface
    do_OpenVideoAnalyticsPort (filter_fp);
-   
+
+   do_webui_attack_filter(filter_fp);
    // Create iptable chain to ratelimit remote management(8080, 8181) packets
    do_webui_rate_limit(filter_fp);
        
@@ -12272,6 +12365,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
    fprintf(filter_fp, "-A INPUT -i lo -m state --state NEW -j ACCEPT\n");
    fprintf(filter_fp, "-A INPUT -j general_input\n");
+   wan_lan_webui_attack(filter_fp,lan_ifname);
    // Rate limiting the webui-access lan side
    lan_access_set_proto(filter_fp, "80",lan_ifname);
    lan_access_set_proto(filter_fp, "443",lan_ifname);
@@ -13082,6 +13176,10 @@ int do_block_ports(FILE *filter_fp)
    fprintf(filter_fp, "-A INPUT -i lo -p udp -m udp --dport 1900 -j ACCEPT\n");
 
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 49152:49153 -j DROP\n");
+   /* For EasyMesh Controller Communication */
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n",get_current_wan_ifname());
+#endif
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 1900 -j DROP\n");
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 21515 -j DROP\n");
@@ -13604,7 +13702,7 @@ WAN_FAILOVER_SUPPORT_CHECk_END
    prepare_MoCA_bridge_firewall(raw_fp, mangle_fp, nat_fp, filter_fp);
 #endif
 
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_)
  /* To avoid open ssh connection to CM IP TCXB6-2879*/
    if (!isBridgeMode)
    {
@@ -13845,7 +13943,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 #else
        fprintf(filter_fp, "-A INPUT ! -i %s -j wan2self_mgmt\n", isBridgeMode == 0 ? lan_ifname : cmdiag_ifname);
 #endif
-
+       do_webui_attack_filter(filter_fp);
        // Create iptable chain to ratelimit remote management packets
        do_webui_rate_limit(filter_fp);
        WAN_FAILOVER_SUPPORT_CHECK
@@ -13962,7 +14060,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    lan_http_access(filter_fp);
    #endif
 
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_)
    if (isBridgeMode)
    {
        FILE *f = NULL;
@@ -13992,6 +14090,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 #endif
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "FORWARD");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "OUTPUT");
+   wan_lan_webui_attack(filter_fp,cmdiag_ifname);
    // Rate limiting the webui-access lan side
    lan_access_set_proto(filter_fp, "80",cmdiag_ifname);
    lan_access_set_proto(filter_fp, "443",cmdiag_ifname);
