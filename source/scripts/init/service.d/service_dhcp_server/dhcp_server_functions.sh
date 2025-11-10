@@ -774,55 +774,32 @@ updateManageWifiBridgeDetails ()
     fi
 }
 
-is_valid_private_ipv4() {
+is_valid_ipv4() {
     local ip="$1"
 
-    # Basic format check
-    [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] || return 1
+    local valid_octet='(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
 
-    # Split into octets
-    local IFS='.'
-    local octets=($ip)
-
-    # Check each octet is 0-255
-    for octet in "${octets[@]}"; do
-        [[ $octet -le 255 ]] || return 1
-    done
-
-    # Check if it's in private IP ranges (RFC 1918)
-    local first=${octets[0]}
-    local second=${octets[1]}
-
-    # 10.0.0.0/8 (10.0.0.0 - 10.255.255.255)
-    if [[ $first -eq 10 ]]; then
-        return 0
+    # Basic IPv4 format and octet vaidation
+    if [[ ! $ip =~ ^${valid_octet}\.${valid_octet}\.${valid_octet}\.${valid_octet}$ ]]; then
+        return 1
     fi
 
-    # 172.16.0.0/12 (172.16.0.0 - 172.31.255.255)
-    if [[ $first -eq 172 && $second -ge 16 && $second -le 31 ]]; then
-        return 0
-    fi
-
-    # 192.168.0.0/16 (192.168.0.0 - 192.168.255.255)
-    if [[ $first -eq 192 && $second -eq 168 ]]; then
-        return 0
-    fi
-
-    # Not a private IP
-    return 1
+    return 0
 }
 
 replace_localhost_with_lan_ip() {
     local lan_ip=$(syscfg get lan_ipaddr 2>/dev/null)
 
-    if ! is_valid_private_ipv4 "$lan_ip"; then
+    if ! is_valid_ipv4 "$lan_ip"; then
         echo "REPLACE_LOCALHOST_DNS : Warning: Invalid or non-private LAN IP: '$lan_ip'" >&2
         return
     fi
 
-    # Check if 127.0.0.1 exists and replace directly
+    # Check if 127.0.0.1 exists and replace
     if grep -q "127\.0\.0\.1" /etc/resolv.conf; then
-        if echo "nameserver $lan_ip" > /etc/resolv.conf 2>/dev/null; then
+        local temp=$(cat /etc/resolv.conf)
+        temp="${temp//127.0.0.1/$lan_ip}"
+        if echo "$temp" > /etc/resolv.conf 2>/dev/null; then
             echo "REPLACE_LOCALHOST_DNS : Successfully updated resolv.conf with private LAN IP: $lan_ip"
         else
             echo "REPLACE_LOCALHOST_DNS : Error: Failed to write to resolv.conf" >&2
@@ -1450,7 +1427,7 @@ fi
    echo "DHCP SERVER : Completed preparing DHCP configuration"
 
     if [ "$WanFailOverSupportEnable" = true ] && [ "$rdkb_extender" != "true" ] ; then
-	replace_localhost_with_lan_ip
+        replace_localhost_with_lan_ip
     fi
 }
 
