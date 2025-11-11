@@ -5425,8 +5425,11 @@ static int do_wan_nat_lan_clients(FILE *fp)
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
   if (!isMAPTReady)
 #endif //FEATURE_MAPT
-     if(!IS_EMPTY_STRING(natip4))
-     {
+      if (0 == checkIfULAEnabled())
+      {
+	  applyHotspotPostRoutingRules(fp, true);
+      } else if(!IS_EMPTY_STRING(natip4))
+      {
          fprintf(fp, "-A postrouting_towan -s 10.0.0.0/8 -j SNAT --to-source %s\n", natip4);
          fprintf(fp, "-A postrouting_towan -s 192.168.0.0/16 -j SNAT --to-source %s\n", natip4);
          fprintf(fp, "-A postrouting_towan -s 172.16.0.0/12 -j SNAT --to-source %s\n", natip4);
@@ -5468,14 +5471,12 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
-         #ifdef WAN_FAILOVER_SUPPORTED
 	 if (0 == checkIfULAEnabled())
 	 {
 	     applyHotspotPostRoutingRules(fp, true);
 	 } else {
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
 	 }
-         #endif
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
      }

@@ -212,9 +212,7 @@ void do_forwardPorts(FILE *fp);
 
 // Utility functions
 int IsValidIPv6Addr(char* ip_addr_string);
-#ifdef WAN_FAILOVER_SUPPORTED
 int checkIfULAEnabled(void);
-#endif
 ANSC_STATUS WanManager_RdkBus_GetParamValues(char *pComponent,char *pBus,char *pParamName,char *pReturnVal);
 
 void getIpv6Interfaces(char Interface[MAX_NO_IPV6_INF][MAX_LEN_IPV6_INF], int *len);
