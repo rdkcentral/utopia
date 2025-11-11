@@ -2089,7 +2089,6 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
 }
 #endif
 
-#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
 int checkIfULAEnabled()
 {
     // temp check , need to replace with CurrInterface Name or if device is XLE
@@ -2110,6 +2109,7 @@ int checkIfULAEnabled()
       return -1;
 }
 
+#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
 void applyIpv6ULARules(FILE* fp)
 {
    #if defined  (RDKB_EXTENDER_ENABLED)
