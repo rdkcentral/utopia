@@ -5424,6 +5424,7 @@ static int do_wan_nat_lan_clients(FILE *fp)
   {/*fix RDKB-21704, SNAT is required only for private IP ranges. */
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
   if (!isMAPTReady)
+  {
 #endif //FEATURE_MAPT
       if (0 == checkIfULAEnabled())
       {
@@ -5461,6 +5462,9 @@ static int do_wan_nat_lan_clients(FILE *fp)
             #endif /*WIFI_MANAGE_SUPPORTED*/
          }
      }
+#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
+     }
+#endif
   }
   else
   {
