@@ -60,7 +60,7 @@ SERVICE_NAME="dhcp_server"
 
 #DHCP_CONF=/etc/dnsmasq.conf
 DHCP_CONF=/var/dnsmasq.conf
-RESOLV_CONF=/etc/resolv.conf
+RESOLV_CONF=/nvram/resolv.conf
 BIN=dnsmasq
 SERVER=${BIN}
 PMON=/etc/utopia/service.d/pmon.sh
