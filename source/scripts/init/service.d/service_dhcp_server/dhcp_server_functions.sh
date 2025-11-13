@@ -791,7 +791,7 @@ replace_localhost_with_lan_ip() {
     local lan_ip=$(syscfg get lan_ipaddr 2>/dev/null)
 
     if ! is_valid_ipv4 "$lan_ip"; then
-        echo "REPLACE_LOCALHOST_DNS : Warning: Invalid or non-private LAN IP: '$lan_ip'" >&2
+        echo "REPLACE_LOCALHOST_DNS : Warning: Invalid LAN IP: '$lan_ip'" >&2
         return
     fi
 
