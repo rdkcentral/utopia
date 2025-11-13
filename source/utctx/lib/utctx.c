@@ -43,7 +43,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
+#include "secure_wrapper.h"
+#define LOG_FILE "/rdklogs/logs/Consolelog.txt.0"
 
 /* Utopia transaction node */
 typedef struct _UtopiaTransact_Node
@@ -1058,17 +1059,21 @@ static int s_UtopiaEvent_Set(UtopiaContext* pUtopiaCtx, char* pszKey, char* pszV
 /* Utopia system event listener helper function */
 static int s_UtopiaEvent_Wait(UtopiaContext* pUtopiaCtx, char* pszEventName, char* pszEventValue, int iTimeout)
 {
+	v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Wait: Entered pszEventName >>" LOG_FILE"; date >> "LOG_FILE);
     if (pszEventName == 0)
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Wait: psZEventName==0 >>" LOG_FILE"; date >> "LOG_FILE);
         return 0;
     }
 
     if (pszEventValue == 0)
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Wait: psZEventValue==0 >>" LOG_FILE"; date >> "LOG_FILE);
         UTCTX_LOG_DBG3("%s: Waiting %d seconds for sysevent %s value to change...\n", __FUNCTION__, iTimeout, pszEventName);
     }
     else
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Wait: psZEventValue not 0 >>" LOG_FILE"; date >> "LOG_FILE);
         UTCTX_LOG_DBG4("%s: Waiting %d seconds for sysevent %s value to change to %s...\n", __FUNCTION__, iTimeout, pszEventName, pszEventValue);
     }
 #ifndef UTCTX_UNITTEST
@@ -1098,6 +1103,7 @@ static int s_UtopiaEvent_Wait(UtopiaContext* pUtopiaCtx, char* pszEventName, cha
             /* If not a notification message then ignore it */
             if (SE_MSG_NOTIFICATION == msgType)
             {
+		    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Wait: SE_MSG_NOTIFICATION >>" LOG_FILE"; date >> "LOG_FILE);
                 /* Extract the name and value from the return message data */
                 int iNameBytes;
                 int iValueBytes;
@@ -1115,11 +1121,13 @@ static int s_UtopiaEvent_Wait(UtopiaContext* pUtopiaCtx, char* pszEventName, cha
                 {
                     if (pszValue == 0)
                     {
+			    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Wait:: pszValue == 0)>>" LOG_FILE"; date >> "LOG_FILE);
                         return 0;
                     }
                     else if (pszEventValue == 0 ||
                              strcmp(pszValue, pszEventValue) == 0)
                     {
+			v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Wait: pszEventValue == 0 || strcmp(pszValue, pszEventValue) == 0 >>" LOG_FILE"; date >> "LOG_FILE);
                         return 1;
                     }
                 }
@@ -1127,15 +1135,18 @@ static int s_UtopiaEvent_Wait(UtopiaContext* pUtopiaCtx, char* pszEventName, cha
         }
         else
         {
+		v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Wait: reutrn0 event timedout >>" LOG_FILE"; date >> "LOG_FILE);
             /* Event timed out */
             return 0;
         }
     }
     /* Should never get here */
-    return 0;
+    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Wait: return 0 Should never get here >>" LOG_FILE"; date >> "LOG_FILE);
+    return 0; 
 #else
     (void)iTimeout;
     (void)pUtopiaCtx;
+    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Wait: return:1 >>"LOG_FILE"; date >> "LOG_FILE);
     return 1;
 #endif
 }
@@ -1151,15 +1162,18 @@ static void s_UtopiaEvent_SetNotify(UtopiaContext* pUtopiaCtx, char* pszWaitKey)
     (void)pszWaitKey;
     (void)pUtopiaCtx;
 #endif
+    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_SetNotify pszWaitKey:>>" LOG_FILE "; date >> "LOG_FILE);
     UTCTX_LOG_DBG2("%s: Setting notify on sysevent %s...\n", __FUNCTION__, pszWaitKey);
 }
 
 /* Utopia system event trigger helper function */
 static void s_UtopiaEvent_Trigger(UtopiaContext* pUtopiaCtx)
 {
+	v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: Entered >>" LOG_FILE"; date >> "LOG_FILE);
     /* Handle auth file update */
     if ((pUtopiaCtx->bfEvents & Utopia_Event_HTTPServer_Restart) == Utopia_Event_HTTPServer_Restart)
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b1 >>" LOG_FILE"; date >> "LOG_FILE);
         s_Utopia_AuthFileUpdate(pUtopiaCtx);
     }
 
@@ -1168,12 +1182,14 @@ static void s_UtopiaEvent_Trigger(UtopiaContext* pUtopiaCtx)
         pUtopiaCtx->iEventHandle == 0 &&
         ((pUtopiaCtx->iEventHandle = SysEvent_Open(UTCTX_EVENT_ADDRESS, UTCTX_EVENT_PORT, UTCTX_EVENT_VERSION, UTCTX_EVENT_NAME, (token_t *)&pUtopiaCtx->uiEventToken)) == 0))
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b2 >>" LOG_FILE"; date >> "LOG_FILE);
         return;
     }
 
     /* Reboot overides all */
     if ((pUtopiaCtx->bfEvents & Utopia_Event_Reboot) == Utopia_Event_Reboot)
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b3 >>" LOG_FILE"; date >> "LOG_FILE);
         UTCTX_LOG_DBG1("%s: Rebooting...\n", __FUNCTION__);
 
         /* Signal that a reboot is occurring */
@@ -1182,16 +1198,19 @@ static void s_UtopiaEvent_Trigger(UtopiaContext* pUtopiaCtx)
     else
     {
         unsigned int i;
+	v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b4 >>" LOG_FILE"; date >> "LOG_FILE);
 
         /* Loop over each of the events */
         for (i = 1; i < Utopia_Event__LAST__; i = i << 1)
         {
+		v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b5 >>" LOG_FILE"; date >> "LOG_FILE);
             if (Utopia_EventSet(pUtopiaCtx->bfEvents, i))
             {
                 /* If this is a DHCP server restart and we are doing a lan restart, then skip */
                 if (((Utopia_Event)i != Utopia_Event_DHCPServer_Restart ||
                      !Utopia_EventSet(pUtopiaCtx->bfEvents, Utopia_Event_LAN_Restart)))
                 {
+			v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b6 >>" LOG_FILE"; date >> "LOG_FILE);
                     unsigned int ix = s_UtopiaEvent_EnumToIndex((Utopia_Event)i);
 
                     /* RDKB-7126, CID-33554, Out-of-bounds read
@@ -1206,54 +1225,67 @@ static void s_UtopiaEvent_Trigger(UtopiaContext* pUtopiaCtx)
                     /* Set the event notification if we need to */
                     if (g_Utopia_Events[ix].pszWaitKey != 0)
                     {
+			    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b7 >>" LOG_FILE"; date >> "LOG_FILE);
                         s_UtopiaEvent_SetNotify(pUtopiaCtx, g_Utopia_Events[ix].pszWaitKey);
                     }
 
                     /* Trigger the event */
+		    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b8 >>" LOG_FILE"; date >> "LOG_FILE);
                     UTCTX_LOG_CFG2("%s: Trigger %s\n", __FUNCTION__, g_Utopia_Events[ix].pszEventKey);
+		    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: >> " LOG_FILE "; date >> "LOG_FILE);
                     SysEvent_Trigger(pUtopiaCtx->iEventHandle, pUtopiaCtx->uiEventToken, g_Utopia_Events[ix].pszEventKey, 0);
 
+		    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b9 >>" LOG_FILE"; date >> "LOG_FILE);
                     /* Wait for a sysevent value to change if needed */
                     if (g_Utopia_Events[ix].pszWaitKey != 0)
                     {
+			    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b10 >>" LOG_FILE"; date >> "LOG_FILE);
                         s_UtopiaEvent_Wait(pUtopiaCtx, g_Utopia_Events[ix].pszWaitKey, g_Utopia_Events[ix].pszWaitValue, g_Utopia_Events[ix].iWaitTimeout);
+			v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: b11 >>" LOG_FILE"; date >> "LOG_FILE);
                     }
                 }
             }
         }
     }
+    v_secure_system("echo -n 61855-dbg: s_UtopiaEvent_Trigger: Exit >>" LOG_FILE"; date >> "LOG_FILE);
 }
 
 /* Helper function for adding utopia transaction node */
 static UtopiaTransact_Node* s_UtopiaTransact_Add(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszNamespace, char* pszKey, char* pszValue)
 {
     UtopiaTransact_Node* pNode;
+    v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Add: Entered >>" LOG_FILE"; date >> "LOG_FILE);
 
     if (pszKey == 0)
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Add:  pszkey is zero return 0  >>" LOG_FILE"; date >> "LOG_FILE);
         return 0;
     }
 
     /* Allocate a transaction node */
     if ((pNode = (UtopiaTransact_Node*)calloc(1, sizeof(UtopiaTransact_Node))) == 0)
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Add: pNode mem allocation failed return 0 >>" LOG_FILE"; date >> "LOG_FILE);
         return 0;
     }
 
 
     if ((pNode->pszKey = strdup(pszKey)) == NULL) {
         free(pNode);
+	v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Add: strdup failed return NULL >>" LOG_FILE"; date >> "LOG_FILE);
         return NULL;
     }
 
     if (pszNamespace && (pNode->pszNamespace = strdup(pszNamespace)) == NULL) //CID:56805
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Add:pszNamespace strdup failed return NULL >>" LOG_FILE"; date >> "LOG_FILE);
 	free(pNode->pszKey);
         free(pNode);
         return NULL;
     }
     if (pszValue && (pNode->pszValue = strdup(pszValue)) == NULL) // CID:56805 : Wrong sizeof argument
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Add: pszValue return NULL Wrong sizeof argument >>" LOG_FILE"; date >> "LOG_FILE);
         free(pNode->pszKey);
         if (pNode->pszNamespace)
         {
@@ -1263,12 +1295,14 @@ static UtopiaTransact_Node* s_UtopiaTransact_Add(UtopiaContext* pUtopiaCtx, Utop
         return NULL;
     }
 
+    v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Add: Set the utopia index, namespace, key, and value >>" LOG_FILE"; date >> "LOG_FILE);
     /* Set the utopia index, namespace, key, and value */
     pNode->ixUtopia = ixUtopia;
     /* Add the node to the transaction list */
     pNode->pNext = pUtopiaCtx->pHead;
     pUtopiaCtx->pHead = pNode;
 
+    v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Add:  return pNode -> exit >>" LOG_FILE"; date >> "LOG_FILE);
     return pNode;
 }
 
@@ -1279,13 +1313,16 @@ static UtopiaTransact_Node* s_UtopiaTransact_Find(UtopiaContext* pUtopiaCtx, Uto
 
     (void)ixUtopia;
 
+    v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Find: entered>>" LOG_FILE "; date >> "LOG_FILE);
     if (pszKey == 0)
     {
+	   v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Find: pszKey is equal 0>>" LOG_FILE "; date >> "LOG_FILE);
         UTCTX_LOG_ERR2("%s: pszKey is NULL, ixUtopia= %d\n", __FUNCTION__, (int)ixUtopia);
         return 0;
     }
     if (pUtopiaCtx == 0)
     {
+	    v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Find: pUtopiaCtx is equal 0>>" LOG_FILE "; date >> "LOG_FILE);
         UTCTX_LOG_ERR2("%s: pUtopiaCtx is NULL, ixUtopia= %d\n", __FUNCTION__, (int)ixUtopia);
         return 0;
     }
@@ -1296,10 +1333,12 @@ static UtopiaTransact_Node* s_UtopiaTransact_Find(UtopiaContext* pUtopiaCtx, Uto
         if (pNode->pszKey != 0  && strcmp(pNode->pszKey, pszKey) == 0 &&
             (pNode->pszNamespace == 0 || pszNamespace == 0 || strcmp(pNode->pszNamespace, pszNamespace) == 0))
         {
+		v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Find: exit return pNode>>" LOG_FILE "; date >> "LOG_FILE);
             return pNode;
         }
     }
 
+    v_secure_system("echo -n 61855-dbg: s_UtopiaTransact_Find: exit return 0>>" LOG_FILE "; date >> "LOG_FILE);
     return 0;
 }
 
@@ -1374,67 +1413,112 @@ static int UtopiaTransact_Set(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, c
                        char* pszValue)
 {
     UtopiaTransact_Node* pNode;
+    char cmd[4096];
 
+    v_secure_system("echo -n 61855-dbg: Entered in UtopiaTransact_Set: >>" LOG_FILE "; date >> "LOG_FILE);
     if (pszNamespace != 0)
     {
+        snprintf(cmd, sizeof(cmd), "61855-dbg: UtopiaTransact_Set(): pszNamespace:%s, pszKey:%s, pszValue%s", pszNamespace, (pszKey ? pszKey : "(null)"), (pszValue ? pszValue : "(null)"));
+	v_secure_system("echo %s>>" LOG_FILE, cmd);
         UTCTX_LOG_CFG4("%s: key %s::%s, value %s\n", __FUNCTION__, pszNamespace, pszKey, pszValue);
     }
     else
     {
+	    snprintf(cmd, sizeof(cmd), "61855-dbg: UtopiaTransact_Set(): pszKey:%s, pszValue%s", (pszKey ? pszKey : "(null)"), (pszValue ? pszValue : "(null)"));
+	    v_secure_system("echo %s>>" LOG_FILE, cmd);
         UTCTX_LOG_CFG3("%s: key %s, value %s\n", __FUNCTION__, pszKey, pszValue);
     }
 
+    v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b1 >>" LOG_FILE "; date >> "LOG_FILE);
     /* See if the value is in the transaction list */
     if ((pNode = s_UtopiaTransact_Find(pUtopiaCtx, ixUtopia, pszNamespace, pszKey)) != 0)
     {
+
+    v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b2 >>" LOG_FILE "; date >> "LOG_FILE);
         /* Free the old value */
         if (pNode->pszValue)
         {
+	    v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b3 >>" LOG_FILE "; date >> "LOG_FILE);	
             free(pNode->pszValue);
         }
 
         /* Allocate memory and copy value if needed */
         if (pszValue)
         {
+		v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b4 >>" LOG_FILE "; date >> "LOG_FILE);
             pNode->pszValue = strdup(pszValue); //CID 62572: Wrong sizeof argument
 	    if (! pNode->pszValue)
             {
+		    v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b5 >>" LOG_FILE "; date >> "LOG_FILE);
                 return 0;
             }
         }
         else
         {
+		v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b6 >>" LOG_FILE "; date >> "LOG_FILE);
             pNode->pszValue = 0;
         }
     }
     else
     {
+	    v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b7 >>" LOG_FILE "; date >> "LOG_FILE);
         char pszBuffer[UTOPIA_BUF_SIZE] = {'\0'};
+	    s_UtopiaEvent_Get(pUtopiaCtx, pszKey, pszBuffer, sizeof(pszBuffer));
+            snprintf(cmd, sizeof(cmd), "61855-dbg: UtopiaTransact_Set(): pszValue:%s, pszBuffer:%s", (pszValue ? pszValue : "(null)"), (pszBuffer!=0 ? pszBuffer : "(null)"));
+            v_secure_system("echo %s>>" LOG_FILE, cmd);
 
         /* Check to see if the value is changing before adding it to transaction list */
-        if ((Utopia_IsEvent(ixUtopia) &&
-             ((s_UtopiaEvent_Get(pUtopiaCtx, pszKey, pszBuffer, sizeof(pszBuffer)) == 0 && pszValue != 0) ||
-              (s_UtopiaEvent_Get(pUtopiaCtx, pszKey, pszBuffer, sizeof(pszBuffer)) != 0 && pszValue == 0) ||
-              (pszValue != 0 && strcmp(pszValue, pszBuffer) != 0))) ||
-            ((SysCfg_Get(pszNamespace, pszKey, pszBuffer, sizeof(pszBuffer)) == 0 && pszValue != 0) ||
-             (SysCfg_Get(pszNamespace, pszKey, pszBuffer, sizeof(pszBuffer)) != 0 && pszValue == 0) ||
-             (pszValue != 0 && strcmp(pszValue, pszBuffer) != 0)))
+        int cfg_get_result = -1;
+        int condition_result = 0;
+        
+        if (Utopia_IsEvent(ixUtopia)) {
+            cfg_get_result = s_UtopiaEvent_Get(pUtopiaCtx, pszKey, pszBuffer, sizeof(pszBuffer));
+            snprintf(cmd, sizeof(cmd), "61855-dbg: UtopiaTransact_Set(): Event - s_UtopiaEvent_Get result:%d, pszBuffer:'%s'", cfg_get_result, pszBuffer);
+            v_secure_system("echo %s>>" LOG_FILE, cmd);
+            
+            condition_result = ((cfg_get_result == 0 && pszValue != 0) ||
+                              (cfg_get_result != 0 && pszValue == 0) ||
+                              (pszValue != 0 && strcmp(pszValue, pszBuffer) != 0));
+        } else {
+            cfg_get_result = SysCfg_Get(pszNamespace, pszKey, pszBuffer, sizeof(pszBuffer));
+            snprintf(cmd, sizeof(cmd), "61855-dbg: UtopiaTransact_Set(): Config - SysCfg_Get result:%d, pszBuffer:'%s'", cfg_get_result, pszBuffer);
+            v_secure_system("echo %s>>" LOG_FILE, cmd);
+            
+            condition_result = ((cfg_get_result == 0 && pszValue != 0) ||
+                              (cfg_get_result != 0 && pszValue == 0) ||
+                              (pszValue != 0 && strcmp(pszValue, pszBuffer) != 0));
+        }
+        
+        snprintf(cmd, sizeof(cmd), "61855-dbg: UtopiaTransact_Set(): Final condition_result:%d", condition_result);
+        v_secure_system("echo %s>>" LOG_FILE, cmd);
+        
+        if (condition_result)
         {
+		v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b8 >>" LOG_FILE "; date >> "LOG_FILE);
             /* Acquire write lock */
             if (UtopiaRWLock_WriteLock(&pUtopiaCtx->rwLock) == 0)
             {
+		    v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b9 >>" LOG_FILE "; date >> "LOG_FILE);
                 return 0;
             }
 
+	    v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b10 >>" LOG_FILE "; date >> "LOG_FILE);
             if ((pNode = s_UtopiaTransact_Add(pUtopiaCtx, ixUtopia, pszNamespace, pszKey, pszValue)) == 0)
             {
+		    v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b11 >>" LOG_FILE "; date >> "LOG_FILE);
                 return 0;
             }
 
+	    v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b12 >>" LOG_FILE "; date >> "LOG_FILE);
+	    snprintf(cmd, sizeof(cmd), "61855-dbg: UtopiaTransact_Set: before bit field set : pUtopiaCtx->bfEvents:%d", pUtopiaCtx->bfEvents);
+	    v_secure_system("echo %s>>" LOG_FILE, cmd);
             /* Update the events bitfield */
             pUtopiaCtx->bfEvents |= Utopia_ToEvent(pNode->ixUtopia);
+	    snprintf(cmd, sizeof(cmd), "61855-dbg: UtopiaTransact_Set: after bit field set : pUtopiaCtx->bfEvents:%d", pUtopiaCtx->bfEvents);
+	    v_secure_system("echo %s>>" LOG_FILE, cmd);
         }
     }
+    v_secure_system("echo -n 61855-dbg: UtopiaTransact_Set b13 >>" LOG_FILE "; date >> "LOG_FILE);
     return 1;
 }
 
@@ -2013,13 +2097,21 @@ int Utopia_UnsetNamed2(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* ps
 
 int Utopia_SetEvent(UtopiaContext* pUtopiaCtx, Utopia_Event event)
 {
+	char cmd[256];
     if (pUtopiaCtx)
     {
+	    
+	    snprintf(cmd, sizeof(cmd), "61855-dbg: Utopia_SetEvent: pUtopiaCtx->bfEvents:%d, event:%d", pUtopiaCtx->bfEvents,(int)event);
+	    v_secure_system("echo %s>>" LOG_FILE, cmd);
         pUtopiaCtx->bfEvents |= event;
+	snprintf(cmd, sizeof(cmd), "61855-dbg: Utopia_SetEvent: pUtopiaCtx->bfEvents:%d", pUtopiaCtx->bfEvents);
+	v_secure_system("echo %s>>" LOG_FILE, cmd);
         return 1;
     }
     else
     {
+	snprintf(cmd, sizeof(cmd), "61855-dbg: Utopia_SetEvent failed event:%d", (int)event);
+	v_secure_system("echo %s>>" LOG_FILE, cmd);
         UTCTX_LOG_ERR2("%s: Failed event %d\n", __FUNCTION__, (int)event);
         return 0;
     }
@@ -2032,6 +2124,7 @@ int Utopia_SetEvent(UtopiaContext* pUtopiaCtx, Utopia_Event event)
 
 int Utopia_Init(UtopiaContext* pUtopiaCtx)
 {
+v_secure_system("echo -n 61855-dbg: Entry Utopia_Init >>"LOG_FILE"; date >> "LOG_FILE);
     UTCTX_LOG_INIT();
 
     UTCTX_LOG_DBG1("%s: Initializing\n", __FUNCTION__);
@@ -2041,6 +2134,7 @@ int Utopia_Init(UtopiaContext* pUtopiaCtx)
     pUtopiaCtx->uiEventToken = 0;
     pUtopiaCtx->pHead = 0;
 
+    v_secure_system("echo -n 61855-dbg: going to RWLockInit and return >>"LOG_FILE"; date >> "LOG_FILE);
     /* Initialize the UtopiaRWLock and syscfg system */
     return (UtopiaRWLock_Init(&pUtopiaCtx->rwLock) && SysCfg_Init());
 }
@@ -2050,38 +2144,52 @@ void Utopia_Free(UtopiaContext* pUtopiaCtx, int fCommit)
     UtopiaTransact_Node* pNode;
     UtopiaTransact_Node* pNext;
     int fValuesSet = 0;
+    char cmd[256];
 
+    v_secure_system("echo -n 61855-dbg: Entered in Utopia_Free >>" LOG_FILE "; date >> "LOG_FILE);
     UTCTX_LOG_DBG1("%s: Freeing\n", __FUNCTION__);
+    snprintf(cmd, sizeof(cmd), "61855-dbg: Utopia_Free: pUtopiaCtx->bfEvents:%d", pUtopiaCtx->bfEvents);
+    v_secure_system("echo %s>>" LOG_FILE, cmd);
 
     if (fCommit)
     {
+	    v_secure_system("echo -n 61855-dbg: Utopia_Free: b1 >>" LOG_FILE"; date >> "LOG_FILE);
         /* For anything that will disrupt the lan, we need to immediately set the lan-restarting flag */
         if (Utopia_EventSet(pUtopiaCtx->bfEvents, Utopia_Event_Reboot) ||
             Utopia_EventSet(pUtopiaCtx->bfEvents, Utopia_Event_LAN_Restart) ||
             Utopia_EventSet(pUtopiaCtx->bfEvents, Utopia_Event_WLAN_Restart))
         {
+		v_secure_system("echo -n 61855-dbg: Utopia_Free: b2 >>" LOG_FILE"; date >> "LOG_FILE);
             /* Initialize the event handle if it's not yet been happened */
             if (pUtopiaCtx->iEventHandle == 0)
             {
+		    v_secure_system("echo -n 61855-dbg: Utopia_Free: b3 >>" LOG_FILE"; date >> "LOG_FILE);
                 pUtopiaCtx->iEventHandle = SysEvent_Open(UTCTX_EVENT_ADDRESS, UTCTX_EVENT_PORT,
                                                          UTCTX_EVENT_VERSION, UTCTX_EVENT_NAME,
                                                          (token_t *)&pUtopiaCtx->uiEventToken);
 		/* CID 58554 : Improper use of negative value */
 		if (pUtopiaCtx->iEventHandle < 0)
 		{
+			v_secure_system("echo -n 61855-dbg: Utopia_Free: b4 >>" LOG_FILE"; date >> "LOG_FILE);
 		    UTCTX_LOG_DBG1("%s: EventHandle can't be negative\n",__FUNCTION__);
 	            return;
 	        }
             }
-
+             v_secure_system("echo -n 61855-dbg: Utopia_Free: b5 >>" LOG_FILE"; date >> "LOG_FILE);
+             snprintf(cmd, sizeof(cmd), "61855-dbg: Utopia_Free: pUtopiaCtx->iEventHandle:%d, pUtopiaCtx->uiEventToken:%lu", pUtopiaCtx->iEventHandle, pUtopiaCtx->uiEventToken);
+             v_secure_system("echo %s>>" LOG_FILE, cmd);
+	     snprintf(cmd, sizeof(cmd), "61855-dbg: Utopia_Free:Utopia_ToKey(UtopiaValue_LAN_Restarting):%s", Utopia_ToKey(UtopiaValue_LAN_Restarting));
+	     v_secure_system("echo %s>>" LOG_FILE, cmd);
             SysEvent_Trigger(pUtopiaCtx->iEventHandle, pUtopiaCtx->uiEventToken, Utopia_ToKey(UtopiaValue_LAN_Restarting), 0);
         }
     }
 
+    v_secure_system("echo -n 61855-dbg: Utopia_Free: b6 fCommit:%d>>" LOG_FILE, fCommit);
     /* Set and free the transact list */
     pNode = pUtopiaCtx->pHead;
     while (pNode)
     {
+	    v_secure_system("echo -n 61855-dbg: Utopia_Free: b7 >>" LOG_FILE"; date >> "LOG_FILE);
         /* Only set values if we did't have an error */
         if (fCommit)
         {
@@ -2089,33 +2197,40 @@ void Utopia_Free(UtopiaContext* pUtopiaCtx, int fCommit)
 
             if (pNode->pszValue == 0)
             {
+		    v_secure_system("echo -n 61855-dbg: Utopia_Free: b8 >>" LOG_FILE"; date >> "LOG_FILE);
                 SysCfg_Unset(pNode->pszNamespace, pNode->pszKey);
             }
             else
             {
                 if (Utopia_IsEvent(pNode->ixUtopia))
                 {
+			v_secure_system("echo -n 61855-dbg: Utopia_Free: b9 >>" LOG_FILE"; date >> "LOG_FILE);
                     s_UtopiaEvent_Set(pUtopiaCtx, pNode->pszKey, pNode->pszValue);
                 }
                 else
                 {
+			v_secure_system("echo -n 61855-dbg: Utopia_Free: b10 >>" LOG_FILE"; date >> "LOG_FILE);
                     SysCfg_Set(pNode->pszNamespace, pNode->pszKey, pNode->pszValue);
                 }
             }
         }
 
+	v_secure_system("echo -n 61855-dbg: Utopia_Free: b11 >>" LOG_FILE"; date >> "LOG_FILE);
         /* Free */
         pNext = pNode->pNext;
         if (pNode->pszNamespace)
         {
+		v_secure_system("echo -n 61855-dbg: Utopia_Free: b12 >>" LOG_FILE"; date >> "LOG_FILE);
             free(pNode->pszNamespace);
         }
         if (pNode->pszKey)
         {
+		v_secure_system("echo -n 61855-dbg: Utopia_Free: b13 >>" LOG_FILE"; date >> "LOG_FILE);
             free(pNode->pszKey);
         }
         if (pNode->pszValue)
         {
+		v_secure_system("echo -n 61855-dbg: Utopia_Free: b14 >>" LOG_FILE"; date >> "LOG_FILE);
             free(pNode->pszValue);
         }
         free(pNode);
@@ -2123,29 +2238,37 @@ void Utopia_Free(UtopiaContext* pUtopiaCtx, int fCommit)
     }
 
     /* Commit the syscfg values if any where set */
+    v_secure_system("echo -n 61855-dbg: Utopia_Free: b15 : >>" LOG_FILE"; date >> "LOG_FILE);
     if (fValuesSet)
     {
+	    v_secure_system("echo -n 61855-dbg: Utopia_Free: b16 >>" LOG_FILE"; date >> "LOG_FILE);
         SysCfg_Commit();
     }
     else
     {
+	    v_secure_system("echo -n 61855-dbg: Utopia_Free: b17 >>" LOG_FILE"; date >> "LOG_FILE);
         SysCfg_Free();
     }
 
     /* Free up the UtopiaRWLock */
+    v_secure_system("echo -n 61855-dbg: Utopia_Free: b18 >>" LOG_FILE"; date >> "LOG_FILE);
     UtopiaRWLock_Free(&pUtopiaCtx->rwLock);
 
     /* Trigger events if we didn't have an error */
     if (fCommit)
     {
+	    v_secure_system("echo -n 61855-dbg: Utopia_Free: b19 >>" LOG_FILE"; date >> "LOG_FILE);
         s_UtopiaEvent_Trigger(pUtopiaCtx);
     }
 
     /* Close the SysEvent handle if we need to */
     if (pUtopiaCtx->iEventHandle)
     {
+	    v_secure_system("echo -n 61855-dbg: Utopia_Free: b20 >>" LOG_FILE"; date >> "LOG_FILE);
         SysEvent_Close(pUtopiaCtx->iEventHandle, pUtopiaCtx->uiEventToken);
     }
+
+    v_secure_system("echo -n 61855-dbg: Exit Utopia_Free >>"LOG_FILE"; date >> "LOG_FILE);
 }
 
 

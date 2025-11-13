@@ -71,6 +71,7 @@
 
 #define CRC32_TABLE_SIZE 256
 #define POLYNOMIAL 0xEDB88320L
+#define LOG_FILE "/rdklogs/logs/Consolelog.txt.0"
 
 #define CALCULATE_CRC32_TABLE_ENTRY(X) (((X) & 1) ? (POLYNOMIAL^ ((X) >> 1)) : ((X) >> 1))
 
@@ -1574,6 +1575,7 @@ int Utopia_GetMACAddressClone (UtopiaContext *ctx, boolean_t *enable, char macad
  */
 int Utopia_SetRouteNAT (UtopiaContext *ctx, napt_mode_t enable)
 {
+	v_secure_system("echo -n 61855-dbg: Entered in Utopia_SetRouteNAT >>" LOG_FILE"; date >> "LOG_FILE);
     UTOPIA_SETINT(ctx, UtopiaValue_NATEnabled, enable);
     return SUCCESS;
 }
@@ -7174,7 +7176,7 @@ int Utopia_GetLanMngmLanNapt(UtopiaContext *ctx, napt_mode_t *enable){
 int Utopia_SetLanMngmLanNapt(UtopiaContext *ctx, napt_mode_t enable){
     /* Not use */
     (void)ctx; 
-
+    v_secure_system("echo -n 61855-dbg: Entered in Utopia_SetLanMngmLanNapt >>" LOG_FILE"; date >> "LOG_FILE);
     return Utopia_SetRouteNAT (ctx, enable);
 }
 
