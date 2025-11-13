@@ -2381,7 +2381,9 @@ static int prepare_globals_from_configuration(void)
    syscfg_get(NULL, "firewall_levelv6", firewall_levelv6, sizeof(firewall_levelv6));
 
    syscfg_get(NULL, "ecm_wan_ifname", ecm_wan_ifname, sizeof(ecm_wan_ifname));
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    syscfg_get(NULL, "emta_wan_ifname", emta_wan_ifname, sizeof(emta_wan_ifname));
+#endif
    syscfg_get(NULL, "eth_wan_enabled", eth_wan_enabled, sizeof(eth_wan_enabled));
    if (0 == strcmp("true", eth_wan_enabled))
       bEthWANEnable = TRUE;
@@ -6697,6 +6699,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
            remote_access_set_proto(filter_fp, nat_fp, port, iprangeAddr[i], family, ecm_wan_ifname);
    }
 
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    /* eMTA SSH access */
    rc = syscfg_get(NULL, "mgmt_mta_sshaccess", query, sizeof(query));
    rc |= syscfg_get(NULL, "mgmt_wan_sshport", port, sizeof(port));
@@ -6718,6 +6721,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
        for(i = 0; i < count && family == AF_INET && srcany == 0; i++)
            remote_access_set_proto(filter_fp, nat_fp, port, iprangeAddr[i], family, emta_wan_ifname);
    }
+#endif
 
 #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
     // RDKB-21814 
@@ -12471,7 +12475,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", current_wan_ifname);
-#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
@@ -12507,8 +12511,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    {
       fprintf(filter_fp, "-A INPUT -i %s -p icmp --icmp-type 8 -m limit --limit 3/second -j %s\n", ecm_wan_ifname, "xlog_accept_wan2self"); // ICMP PING
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_ports\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
       fprintf(filter_fp, "-A INPUT -i %s -p icmp --icmp-type 8 -m limit --limit 3/second -j %s\n", emta_wan_ifname, "xlog_accept_wan2self"); // ICMP PING
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_ports\n", emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n");
@@ -12588,7 +12594,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
          fprintf(filter_fp, "-A INPUT -i %s -j ACCEPT\n", ecm_wan_ifname);
       }
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
       if (emta_wan_ifname[0]) // spare eMTA wan interface from Utopia firewall
       {
          fprintf(filter_fp, "-A INPUT -i %s -p udp --dport 80 -j DROP\n", emta_wan_ifname);
@@ -12830,7 +12836,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    {
        fprintf(filter_fp, "-A general_input -i %s -p udp --dport 68 -j ACCEPT\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
        fprintf(filter_fp, "-A general_input -i %s -p udp --dport 68 -j ACCEPT\n", emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    }

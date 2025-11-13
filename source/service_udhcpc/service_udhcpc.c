@@ -99,6 +99,7 @@
 #define RESOLV_CONF_TMP "/tmp/resolv_temp.conf"
 #define  BUFSIZE 4196
 
+#if !defined (NO_MTA_FEATURE_SUPPORT)
 #define MTA_DHCPV4_PRIMARY_ADDR "MTA_DHCPv4_PrimaryAddress"
 #define MTA_DHCPV4_SECONDARY_ADDR "MTA_DHCPv4_SecondaryAddress"
 #define MTA_DHCPV6_PRIMARY_ADDR "MTA_DHCPv6_PrimaryAddress"
@@ -106,6 +107,7 @@
 #define MTA_IP_PREF "MTA_IP_PREF"
 #define DHCP_MTA_OPTION "dhcp_mta_option"
 #define RECEIVED "received"
+#endif
 
 #ifdef UNIT_TEST_DOCKER_SUPPORT 
 #define STATIC 
@@ -231,6 +233,7 @@ STATIC char *GetDeviceProperties (char *param)
     return valPtr;
 }
 
+#if !defined(NO_MTA_FEATURE_SUPPORT)
 #if defined (EROUTER_DHCP_OPTION_MTA) && defined (FEATURE_RDKB_WAN_MANAGER)
 STATIC void clear_mta_params ()
 {
@@ -295,7 +298,7 @@ STATIC void set_mta_config ()
     }
 
 }
-
+#endif
 #endif
 
 STATIC int handle_defconfig (udhcpc_script_t *pinfo)

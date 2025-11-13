@@ -1423,6 +1423,7 @@ static void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"DSCP_InitialOutputMark" );
       }
    }
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.StartupIPMode") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "StartupIPMode" ) )
@@ -1451,6 +1452,7 @@ static void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"IPv6PrimaryDhcpServerOptions" );
       }
    }
+#endif
    if ( 0 == strcmp ( key, "Device.X_RDK_WebConfig.URL") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "WEBCONFIG_INIT_URL" ) )
@@ -1515,6 +1517,7 @@ static void addInSysCfgdDB (char *key, char *value)
          IsPSMMigrationNeeded = 1;
       }
    }
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.IPv6SecondaryDhcpServerOptions") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "IPv6SecondaryDhcpServerOptions" ) )
@@ -1522,6 +1525,7 @@ static void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"IPv6SecondaryDhcpServerOptions" );
       }
    }
+#endif
    if ( 0 == strcmp ( key, "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.HomeSec.SSIDprefix") )
    {
       set_syscfg_partner_values( value,"XHS_SSIDprefix" );
@@ -2915,6 +2919,7 @@ int apply_partnerId_default_values (char *data, char *PartnerID)
 					  APPLY_PRINT("%s - Default Value of InitialOutputMark is NULL\n", __FUNCTION__ );
 					}
 
+#if !defined (NO_MTA_FEATURE_SUPPORT)
 					paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.StartupIPMode"), "ActiveValue");
                                         if ( paramObjVal != NULL )
                                         {
@@ -2989,6 +2994,7 @@ if ( paramObjVal != NULL )
        {
             APPLY_PRINT("%s - Default Value of Secondary dhcp server option is NULL\n", __FUNCTION__ );
        }
+#endif
 
 					paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.WANsideSSH.Enable"), "ActiveValue");
 					if ( paramObjVal != NULL )

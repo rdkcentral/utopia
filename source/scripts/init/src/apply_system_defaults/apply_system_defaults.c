@@ -1391,6 +1391,7 @@ STATIC void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"DSCP_InitialOutputMark" );
       }
    }
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.StartupIPMode") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "StartupIPMode" ) )
@@ -1419,6 +1420,7 @@ STATIC void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"IPv6PrimaryDhcpServerOptions" );
       }
    }
+#endif
    if ( 0 == strcmp ( key, "Device.X_RDK_WebConfig.URL") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "WEBCONFIG_INIT_URL" ) )
@@ -1483,6 +1485,7 @@ STATIC void addInSysCfgdDB (char *key, char *value)
          IsPSMMigrationNeeded = 1;
       }
    }
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.IPv6SecondaryDhcpServerOptions") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "IPv6SecondaryDhcpServerOptions" ) )
@@ -1490,11 +1493,13 @@ STATIC void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"IPv6SecondaryDhcpServerOptions" );
       }
    }
+#endif
    if ( 0 == strcmp ( key, "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.HomeSec.SSIDprefix") )
    {
       set_syscfg_partner_values( value,"XHS_SSIDprefix" );
       IsPSMMigrationNeeded = 1;
    }
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    if ( 0 == strcmp ( key, "Default_VoIP_Configuration_FileName") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "Default_VoIP_Configuration_FileName" ) )
@@ -1502,7 +1507,7 @@ STATIC void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"Default_VoIP_Configuration_FileName" );
       }
    }
-
+#endif
 #if defined (SPEED_BOOST_SUPPORTED)
 
    if ( 0 == strcmp ( key, "Device.RouterAdvertisement.X_RDK_PvD.FQDN") )
@@ -1667,6 +1672,7 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    {
          set_syscfg_partner_values( value,"DSCP_InitialOutputMark" );
    }
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.StartupIPMode") )
    {
          set_syscfg_partner_values( value,"StartupIPMode" );
@@ -1679,6 +1685,7 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    {
          set_syscfg_partner_values( value,"IPv4SecondaryDhcpServerOptions" );
    }
+#endif
    if ( 0 == strcmp ( key, "Device.X_RDK_WebConfig.URL") )
    {
          set_syscfg_partner_values( value,"WEBCONFIG_INIT_URL" );
@@ -1718,7 +1725,8 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    {
          set_syscfg_partner_values( value,"DNS_TEXT_URL" );
          IsPSMMigrationNeeded = 1;
-   }   
+   }
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.IPv6PrimaryDhcpServerOptions") )
    {
          set_syscfg_partner_values( value,"IPv6PrimaryDhcpServerOptions" );
@@ -1727,6 +1735,7 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    {
          set_syscfg_partner_values( value,"IPv6SecondaryDhcpServerOptions" );
    }
+#endif
    if ( 0 == strcmp ( key, "Device.ManagementServer.EnableCWMP") )
    {
          set_syscfg_partner_values( value,"Syndication_EnableCWMP" );
@@ -1750,10 +1759,12 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    {
          set_syscfg_partner_values( value,"AllowEthernetWAN" );
    }
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    if ( 0 == strcmp ( key, "Default_VoIP_Configuration_FileName") )
    {
          set_syscfg_partner_values( value,"Default_VoIP_Configuration_FileName" );
    }
+#endif
 
 #if defined (SPEED_BOOST_SUPPORTED)
 
@@ -2304,11 +2315,13 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 	*maxAddress = NULL,
         *allow_ethernet_wan = NULL,
         *initialForwardedMark = NULL,
-        *initialOutputMark = NULL,
-        *startupipmode = NULL,
+        *initialOutputMark = NULL;
+#if !defined (NO_MTA_FEATURE_SUPPORT)
+	char *startupipmode = NULL,
         *pridhcpoption = NULL,
         *secdhcpoption = NULL,
         *voiceDefaultConfigFile = NULL;
+#endif
     int	    isNeedToApplyPartnersDefault = 1;
     int	    isNeedToApplyPartnersPSMDefault = 0;
     char    ntpServer[64]     = {0};
@@ -2956,7 +2969,7 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 					{
 					  APPLY_PRINT("%s - Default Value of InitialOutputMark is NULL\n", __FUNCTION__ );
 					}
-
+#if !defined (NO_MTA_FEATURE_SUPPORT)
 					paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.StartupIPMode"), "ActiveValue");
                                         if ( paramObjVal != NULL )
                                         {
@@ -2971,7 +2984,6 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 				        {
 				            APPLY_PRINT("%s - Default Value of StartupIPMode is NULL\n", __FUNCTION__ );
 				        }
-
 
                paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Default_VoIP_Configuration_FileName"), "ActiveValue");
                if ( paramObjVal != NULL )
@@ -3047,7 +3059,7 @@ if ( paramObjVal != NULL )
        {
             APPLY_PRINT("%s - Default Value of Secondary dhcp server option is NULL\n", __FUNCTION__ );
        }
-
+#endif
 					paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.WANsideSSH.Enable"), "ActiveValue");
 					if ( paramObjVal != NULL )
 					{
