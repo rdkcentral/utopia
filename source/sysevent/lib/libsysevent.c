@@ -69,11 +69,12 @@
 #include "libsysevent_internal.h"
 #include <stdlib.h>
 #include "secure_wrapper.h"
+#define LOG_FILE "/rdklogs/logs/Consolelog.txt.0"
 
 // how many times does library attempt to connect to a non blocking socket returning EINPROGRESS
 #define NUM_CONNECT_ATTEMPTS 10   
 
-//#define RUNTIME_DEBUG 1
+#define RUNTIME_DEBUG 1
 #ifdef RUNTIME_DEBUG
 char *debug_filename = "/var/log/sysevent_lib.err";
 #endif  // RUNTIME_DEBUG
@@ -4015,6 +4016,7 @@ int sysevent_setnotification(const int fd, const token_t token, char *subject, a
    int                       subbytes; 
 
    async_id->trigger_id = async_id->action_id = htonl(0);
+   v_secure_system("echo -n entered in sysevent_setnotification >>" LOG_FILE"; date >> "LOG_FILE);
    if (NULL == subject) { 
       return(ERR_BAD_BUFFER);
    }
@@ -4022,6 +4024,8 @@ int sysevent_setnotification(const int fd, const token_t token, char *subject, a
    if (0 > fd) {
       return(ERR_NOT_CONNECTED);
    }
+
+   v_secure_system("echo -n entered in sysevent_setnotification(): subject:%s >>" LOG_FILE, subject);
 
    // figure out how much space the se_msg_strings will take
    subbytes  = SE_string2size(subject);
@@ -4031,6 +4035,7 @@ int sysevent_setnotification(const int fd, const token_t token, char *subject, a
                        subbytes - sizeof(void *);
 
    if (send_msg_size >= sizeof(send_msg_buffer)) { 
+	   v_secure_system("echo -n entered in sysevent_setnotification retrun err-msg-too-long >>" LOG_FILE"; date >> "LOG_FILE);
       return(ERR_MSG_TOO_LONG);
    }
 
@@ -4039,6 +4044,7 @@ int sysevent_setnotification(const int fd, const token_t token, char *subject, a
                                                            sizeof(send_msg_buffer), 
                                                            SE_MSG_SET_ASYNC_MESSAGE, 
                                                            token)) ) {
+	   v_secure_system("echo -n entered in sysevent_setnotification retrun err-msg-prepare >>" LOG_FILE"; date >> "LOG_FILE);
       return(ERR_MSG_PREPARE);
    } 
 
@@ -4055,6 +4061,7 @@ int sysevent_setnotification(const int fd, const token_t token, char *subject, a
                                       remaining_buf_bytes,
                                       subject);
    if (0 == strsize) {
+	   v_secure_system("echo -n entered in sysevent_setnotification retrun err-cantset-str >>" LOG_FILE"; date >> "LOG_FILE);
       return(ERR_CANNOT_SET_STRING);
    }
 
@@ -4084,16 +4091,20 @@ int sysevent_setnotification(const int fd, const token_t token, char *subject, a
             goto async_reply_received;
          }
       }
+      v_secure_system("echo -n entered in sysevent_setnotification retrun err-server-error-0 >>" LOG_FILE"; date >> "LOG_FILE);
       return(ERR_SERVER_ERROR);
    }
 
 async_reply_received:
    if (0 != reply_msg_body->status) {
-      return(ERR_SERVER_ERROR);
+	   v_secure_system("echo -n entered in sysevent_setnotification retrun err-server-error >>" LOG_FILE"; date >> "LOG_FILE);
+      return(ERR_SERVER_ERROR); 
    } else {
       async_id->trigger_id = (reply_msg_body->async_id).trigger_id;
       async_id->action_id = (reply_msg_body->async_id).action_id;
    }
+
+   v_secure_system("echo -n entered in exit sysevent_setnotification return 0 >>" LOG_FILE"; date >> "LOG_FILE);
 
    return(0);
 }
