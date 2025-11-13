@@ -2307,21 +2307,6 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 	cJSON 	*partnerObj 	= NULL;
 	cJSON 	*json 			= NULL;
 	cJSON	*paramObjVal	= NULL;
-#if !defined (NO_MTA_FEATURE_SUPPORT)
-	char 	*userName 		= NULL, 
-		    *defaultAdminIP = NULL,	 
-		    *passWord 		= NULL,	 
-		    *subnetRange 	= NULL,
-	*minAddress = NULL,
-	*maxAddress = NULL,
-        *allow_ethernet_wan = NULL,
-        *initialForwardedMark = NULL,
-        *initialOutputMark = NULL,
-        *startupipmode = NULL,
-        *pridhcpoption = NULL,
-        *secdhcpoption = NULL,
-        *voiceDefaultConfigFile = NULL;
-#else
        char    *userName               = NULL,
                *defaultAdminIP = NULL,
 	       *passWord           = NULL,
@@ -2331,6 +2316,11 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
         *allow_ethernet_wan = NULL,
         *initialForwardedMark = NULL,
         *initialOutputMark = NULL;
+#if !defined (NO_MTA_FEATURE_SUPPORT)
+	char *startupipmode = NULL,
+        *pridhcpoption = NULL,
+        *secdhcpoption = NULL,
+        *voiceDefaultConfigFile = NULL;
 #endif
     int	    isNeedToApplyPartnersDefault = 1;
     int	    isNeedToApplyPartnersPSMDefault = 0;
