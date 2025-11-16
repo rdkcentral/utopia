@@ -697,6 +697,7 @@ char current_wan_ip6_addr[128];
 bool isDefHttpsPortUsed = FALSE ;
 int current_wan_ipv6_num = 0;
 char default_wan_ifname[50]; // name of the regular wan interface
+char hotspot_wan_ifname[50];
 int rfstatus;
 /*
  * For timed internet access rules we use cron 
@@ -2468,6 +2469,19 @@ static int prepare_globals_from_configuration(void)
                pStr = NULL;
          }      
    }
+
+   // Update WIFI hotspot interface name -> from PSM
+   memset(hotspot_wan_ifname,0,sizeof(hotspot_wan_ifname));
+   rc = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
+   if(rc == CCSP_SUCCESS && pStr != NULL){
+	   FIREWALL_DEBUG("HotSpot wan interface fetched \n");
+	   safec_rc = strcpy_s(hotspot_wan_ifname, sizeof(hotspot_wan_ifname),pStr);
+	   ERR_CHK(safec_rc);
+	   Ansc_FreeMemory_Callback(pStr);
+	   pStr = NULL;
+   }
+   FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
+
    memset(mesh_wan_ipv6addr,0,sizeof(mesh_wan_ipv6addr));
    get_ip6address(mesh_wan_ifname, mesh_wan_ipv6addr, &mesh_wan_ipv6_num,IPV6_ADDR_SCOPE_GLOBAL);
    #endif 
@@ -5264,6 +5278,37 @@ static int do_nat_ephemeral(FILE *fp)
    return(0);
 }
 
+void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
+{
+    FIREWALL_DEBUG(" Entering applyHotspotPostRoutingRules \n");
+    char sysEventName[256];
+    if (isIpv4 == true)
+    {
+	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+	{
+	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv4\n");
+	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipaddr);
+	    fprintf(fp, "-A postrouting_towan -o %s -j SNAT --to-source %s\n" , current_wan_ifname, current_wan_ipaddr);
+	}
+    }
+    else
+    {
+	memset(current_wan_ip6_addr, 0, sizeof(current_wan_ip6_addr));
+	memset(sysEventName, 0, sizeof(sysEventName));
+	snprintf(sysEventName, sizeof(sysEventName),"tr_%s_dhcpv6_client_v6addr", hotspot_wan_ifname);
+	sysevent_get(sysevent_fd, sysevent_token, sysEventName, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
+
+	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+	{
+	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv6\n");
+	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
+	    fprintf(fp, "-A POSTROUTING -o %s -j SNAT --to-source %s\n", current_wan_ifname, current_wan_ip6_addr);
+	}
+
+    }
+    FIREWALL_DEBUG(" Exiting applyHotspotPostRoutingRules \n");
+}
+
 #if defined(_BWG_PRODUCT_REQ_)
 /*
  *  Procedure     : do_raw_table_staticip
@@ -5416,7 +5461,14 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
+         #ifdef WAN_FAILOVER_SUPPORTED
+	 if (0 == checkIfULAEnabled())
+	 {
+	     applyHotspotPostRoutingRules(fp, true);
+	 } else {
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
+	 }
+         #endif
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
      }
@@ -9311,30 +9363,59 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
             }
             else if (strncasecmp(method, "KEYWD", 5)==0)
             {
-                // consider the case that user input whole url.
-                if(strstr(query, "://") != 0) {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", strstr(query, "://") + 3, drop_log);
-#if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-#if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-                     if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
-#endif
-                     {
-                        //In Hub4 keyword blocking feature is not working with FORWARD chain rules as CPE (dnsmasq) acts as DNS Proxy.
-                        //Add rules in INPUT chain to resolve this issue.
-                        fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                     }
-#endif
+                const char *keyword = NULL;
+                int range_max = 1024; //max payload bytes to filter
+                int range_multiplier = 2;
+
+                // Extract keyword if user input is a full URL
+                if (strstr(query, "://") != NULL) {
+                    keyword = strstr(query, "://") + 3;
                 } else {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", query, drop_log);
+                   keyword = query;
+                }
+
+                if (keyword == NULL || strlen(keyword) == 0) {
+                    fprintf(stderr, "Warning: Empty keyword, skipping rule generation.\n");
+                    return(0);
+                }
+
+                // Create rules for various ranges of payload to filter
+                int from,to;
+                for (from = 0, to = 64; from < range_max; from = to, to = (to * range_multiplier > range_max) ? range_max : to * range_multiplier)
+                {
+                    char chainName[64] = {'\0'};
+
+                    // Create new chain
+                    // linux iptables chainname length is max 29 chars
+                    snprintf(chainName, sizeof(chainName), "LOG_SiteBlk_KW_%d_%d", from, to);
+                    fprintf(fp, ":%s - [0:0]\n", chainName);
+
+                    // Add rule to jump to private chain if "Host:" is found in this offset range
+                    fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"Host:\" --algo kmp --from %d --to %d --icase -j %s\n",
+                        from, to, chainName);
+
+                    // Add rule to match keyword in private chain within same offset range
+                    fprintf(fp, "-A %s -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
+                        chainName, keyword, from, to, drop_log);
+
+                    // Default rule to return if not matched
+                    fprintf(fp, "-A %s -j RETURN\n", chainName);
+                }
+
+                // Add rule for https filter
+                fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 443 -m string --string \"%s\" --algo kmp --icase -j %s\n",
+                    keyword, drop_log);
+
 #if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-                     if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
+                 if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
-                     {
-                        fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                     }
-#endif
+                {
+                    //In Hub4 keyword blocking feature is not working with FORWARD chain rules as CPE (dnsmasq) acts as DNS Proxy.
+                    //Add rules in INPUT chain to resolve this issue.
+                    fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
                 }
+#endif
             }
         }
     }
