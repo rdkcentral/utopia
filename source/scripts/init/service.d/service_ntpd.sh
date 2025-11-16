@@ -629,7 +629,7 @@ service_start ()
 		   uptime=$(cut -d. -f1 /proc/uptime)
            uptime_ms=$((uptime*1000))
            echo_t "SERVICE_NTPD : Starting NTP Quick Sync" >> $NTPD_LOG_NAME
-		   t2ValNotify "SYS_INFO_NTP_START_split" $uptime_ms
+		   t2ValNotify "SYS_INFO_NTPSTART_split" $uptime_ms
            if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$ntpHealthCheck" = "true" ]; then
                if [ $WAN_IPv6_UP -eq 1 ]; then
                    $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME & 
