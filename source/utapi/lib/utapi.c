@@ -494,7 +494,7 @@ int Utopia_UnsetDHCPServerStaticHosts (UtopiaContext *ctx)
     if (count > 0) {
         int i;
         for (i = 0; i < count; i++) {
-            Utopia_UnsetIndexed(ctx, UtopiaValue_DHCP_StaticHost, i + 1);
+            UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_DHCP_StaticHost, i + 1);
         }
         UTOPIA_SETINT(ctx, UtopiaValue_DHCP_NumStaticHosts, 0);
     }
@@ -1878,13 +1878,12 @@ int Utopia_GetStaticRouteTable (int *count, routeStatic_t **out_sroute)
         return UT_SUCCESS;
     }
 
-    sroute = (routeStatic_t *) malloc(sizeof(routeStatic_t) * (*count));
+    sroute = (routeStatic_t *) calloc((size_t)(*count), sizeof(routeStatic_t));
     if (NULL == sroute) {
         fclose(fp);/*RDKB-7128, CID-33470, free unused resources before exit*/
         return ERR_INSUFFICIENT_MEM;
     }
-    bzero(sroute, sizeof(routeStatic_t) * (*count));
-    
+    memset(sroute, 0, (size_t)(*count));
     // Seek to beginning of file
     fseek(fp, 0, SEEK_SET);
     
@@ -1979,9 +1978,9 @@ static const char *s_blockssl = "blockssl";
 static int setFWBlockingRule (UtopiaContext *ctx, int w2l_rule_index,
                               const char *ns, const char *name, const char *result)
 {
-     Utopia_SetIndexed(ctx, UtopiaValue_FW_W2LWellKnown, w2l_rule_index, (char *) ns);
-     Utopia_SetIndexed(ctx, UtopiaValue_FW_W2LWK_Name,   w2l_rule_index, (char *) name);
-     Utopia_SetIndexed(ctx, UtopiaValue_FW_W2LWK_Result, w2l_rule_index, (char *) result);
+     UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_FW_W2LWellKnown, w2l_rule_index, (char *) ns);
+     UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_FW_W2LWK_Name,   w2l_rule_index, (char *) name);
+     UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_FW_W2LWK_Result, w2l_rule_index, (char *) result);
 
      return SUCCESS;
 }
@@ -1989,9 +1988,9 @@ static int setFWBlockingRule (UtopiaContext *ctx, int w2l_rule_index,
 #if 0
 static int unsetFWBlockingRule (UtopiaContext *ctx, int w2l_rule_index)
 {
-     Utopia_UnsetIndexed(ctx, UtopiaValue_FW_W2LWK_Name,   w2l_rule_index);
-     Utopia_UnsetIndexed(ctx, UtopiaValue_FW_W2LWK_Result, w2l_rule_index);
-     Utopia_UnsetIndexed(ctx, UtopiaValue_FW_W2LWellKnown, w2l_rule_index);
+     UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_FW_W2LWK_Name,   w2l_rule_index);
+     UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_FW_W2LWK_Result, w2l_rule_index);
+     UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_FW_W2LWellKnown, w2l_rule_index);
 
      return SUCCESS;
 }
@@ -4411,7 +4410,7 @@ static int s_setiap (UtopiaContext *ctx, int index, iap_entry_t *iap)
 
     int wkappcount = 0, appcount = 0;
 
-    Utopia_UnsetIndexed(ctx, UtopiaValue_IAP_BlockPing, index);
+    UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_IAP_BlockPing, index);
     if (iap->block.app_count > 0) {
         appentry_t *app = iap->block.app_list;
         if (app) {
@@ -6733,8 +6732,15 @@ int Utopia_Get_BYOI_Current_Provider(UtopiaContext *ctx,  hsdStatus_t *hsdStatus
     sysevent_get(se_fd, se_token, "current_hsd_mode", buf, sizeof(buf));
 
     int status = s_StrToEnum(g_hsdStatus, buf);
-    *hsdStatus = status;
-    
+    if( -1 == status )
+    {
+       *hsdStatus = NONE;
+    }
+    else
+    {
+       *hsdStatus = status;
+    }
+
     return UT_SUCCESS;
 }
 
@@ -6913,7 +6919,7 @@ int Utopia_Set_DeviceTime_Enable(UtopiaContext *ctx, unsigned char enable)
      return ERR_UTCTX_INIT;
   }
   val = (FALSE == enable) ? 0 : 1 ;
-  Utopia_SetInt(ctx,UtopiaValue_NTP_Enabled,val);
+  UTOPIA_SETINT_NORETURN(ctx,UtopiaValue_NTP_Enabled,val);
   return SUCCESS;
 }
 
@@ -6938,7 +6944,7 @@ int Utopia_Set_DeviceTime_DaylightEnable(UtopiaContext *ctx, unsigned char enabl
      return ERR_UTCTX_INIT;
   }
   val = (FALSE == enable) ? 0 : 1 ;
-  Utopia_SetInt(ctx,UtopiaValue_NTP_DaylightEnable,val);
+  UTOPIA_SETINT_NORETURN(ctx,UtopiaValue_NTP_DaylightEnable,val);
   return SUCCESS;
 }
 
@@ -7343,7 +7349,7 @@ int Utopia_set_lan_host_comments(UtopiaContext *ctx, unsigned char *pMac, unsign
 		}
 		if(index1 == count){
 			Utopia_UnsetNamed(ctx, UtopiaValue_USGv2_Lan_Clients_Mac, macStr1);
-			Utopia_UnsetIndexed(ctx, UtopiaValue_USGv2_Lan_Clients, index1);
+			UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_USGv2_Lan_Clients, index1);
 		}else{/*user the last one to replace index1*/
 			macStr2[0] = 0;
 			Utopia_GetIndexedKey(ctx, UtopiaValue_USGv2_Lan_Clients, count, macStr2, sizeof(macStr2));
@@ -7358,22 +7364,22 @@ int Utopia_set_lan_host_comments(UtopiaContext *ctx, unsigned char *pMac, unsign
                         if (0 == Utopia_SetNamed(ctx, UtopiaValue_USGv2_Lan_Clients_Mac, macStr2, (char *)buffer)) {
                                 ulogf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_SetNamed failed:%d ", __FUNCTION__,index1);
                         }
-			Utopia_SetIndexed(ctx, UtopiaValue_USGv2_Lan_Clients, index1, macStr2);
-			Utopia_UnsetIndexed(ctx, UtopiaValue_USGv2_Lan_Clients, count);
+			UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_USGv2_Lan_Clients, index1, macStr2);
+			UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_USGv2_Lan_Clients, count);
 		}
-		Utopia_SetInt(ctx, UtopiaValue_USGv2_Lan_Clients_Count, count-1);
+		UTOPIA_SETINT_NORETURN(ctx, UtopiaValue_USGv2_Lan_Clients_Count, count-1);
 	}else{
 		if(strlen(pComments) >= 64)
 			return(ERR_INVALID_ARGS);
 		if(index1 <= 0){/*a new one*/
-			Utopia_SetIndexed(ctx, UtopiaValue_USGv2_Lan_Clients, count+1, macStr1);
+			UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_USGv2_Lan_Clients, count+1, macStr1);
 			snprintf(buffer, sizeof(buffer),"%d+%s",count+1,pComments);
 			/* CID 62086: Unchecked return value */
 			if (0  == Utopia_SetNamed(ctx, UtopiaValue_USGv2_Lan_Clients_Mac, macStr1, (char *)buffer))
 			{
                             ulogf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_SetNamed failed:%d ", __FUNCTION__, index1);
 			}
-			Utopia_SetInt(ctx, UtopiaValue_USGv2_Lan_Clients_Count, count+1);
+			UTOPIA_SETINT_NORETURN(ctx, UtopiaValue_USGv2_Lan_Clients_Count, count+1);
 		}else{
 			snprintf(buffer, sizeof(buffer),"%d+%s",index1,pComments);
                         /* CID 62086: Unchecked return value */
@@ -7696,14 +7702,14 @@ int Utopia_SetDynamicDnsClientByIndex(UtopiaContext *ctx, unsigned long ulIndex,
     int index = ulIndex + 1;
 
     snprintf(tokenbuf, sizeof(tokenbuf), "arddnsclient_%d", index);
-    Utopia_SetIndexed(ctx, UtopiaValue_DynamicDnsClient, index, tokenbuf);
+    UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient, index, tokenbuf);
 
     Utopia_SetIndexedInt(ctx, UtopiaValue_DynamicDnsClient_InsNum, index, DynamicDnsClient->InstanceNumber);
-    Utopia_SetIndexed(ctx, UtopiaValue_DynamicDnsClient_Alias, index, (char*)DynamicDnsClient->Alias);
+    UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_Alias, index, (char*)DynamicDnsClient->Alias);
     Utopia_SetIndexedBool(ctx, UtopiaValue_DynamicDnsClient_Enable, index, DynamicDnsClient->Enable);
-    Utopia_SetIndexed(ctx, UtopiaValue_DynamicDnsClient_Username, index, (char *)DynamicDnsClient->Username);
-    Utopia_SetIndexed(ctx, UtopiaValue_DynamicDnsClient_Password, index, (char *)DynamicDnsClient->Password);
-    Utopia_SetIndexed(ctx, UtopiaValue_DynamicDnsClient_Server, index, (char *)DynamicDnsClient->Server);
+    UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_Username, index, (char *)DynamicDnsClient->Username);
+    UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_Password, index, (char *)DynamicDnsClient->Password);
+    UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_Server, index, (char *)DynamicDnsClient->Server);
 
     return 0;
 }
@@ -7712,7 +7718,7 @@ int Utopia_SetDynamicDnsClientInsAndAliasByIndex(UtopiaContext *ctx, unsigned lo
 {
     int index = ulIndex+1;
     Utopia_SetIndexedInt(ctx, UtopiaValue_DynamicDnsClient_InsNum, index, ins);
-    Utopia_SetIndexed(ctx, UtopiaValue_DynamicDnsClient_Alias, index, (char*)alias);
+    UTOPIA_SETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_Alias, index, (char*)alias);
     return 0;
 }
 
@@ -7723,7 +7729,7 @@ int Utopia_AddDynamicDnsClient(UtopiaContext *ctx, const DynamicDnsClient_t *Dyn
     Utopia_GetNumberOfDynamicDnsClient(ctx, &index);
 
     g_DynamicDnsClientCount++;
-    Utopia_SetInt(ctx, UtopiaValue_DynamicDnsClientCount, g_DynamicDnsClientCount);
+    UTOPIA_SETINT_NORETURN(ctx, UtopiaValue_DynamicDnsClientCount, g_DynamicDnsClientCount);
 
     Utopia_SetDynamicDnsClientByIndex(ctx, index, DynamicDnsClient);
 
@@ -7759,14 +7765,14 @@ int Utopia_DelDynamicDnsClient(UtopiaContext *ctx, unsigned long ins)
             Utopia_SetDynamicDnsClientByIndex(ctx, index, &DynamicDnsClient);
         }
     }
-    Utopia_UnsetIndexed(ctx, UtopiaValue_DynamicDnsClient_InsNum, count);
-    Utopia_UnsetIndexed(ctx, UtopiaValue_DynamicDnsClient_Enable, count);
-    Utopia_UnsetIndexed(ctx, UtopiaValue_DynamicDnsClient_Alias, count);
-    Utopia_UnsetIndexed(ctx, UtopiaValue_DynamicDnsClient_Username, count);
-    Utopia_UnsetIndexed(ctx, UtopiaValue_DynamicDnsClient_Password, count);
-    Utopia_UnsetIndexed(ctx, UtopiaValue_DynamicDnsClient_Server, count);
+    UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_InsNum, count);
+    UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_Enable, count);
+    UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_Alias, count);
+    UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_Username, count);
+    UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_Password, count);
+    UTOPIA_UNSETINDEXED_NORETURN(ctx, UtopiaValue_DynamicDnsClient_Server, count);
     g_DynamicDnsClientCount--;
-    Utopia_SetInt(ctx, UtopiaValue_DynamicDnsClientCount, g_DynamicDnsClientCount);
+    UTOPIA_SETINT_NORETURN(ctx, UtopiaValue_DynamicDnsClientCount, g_DynamicDnsClientCount);
     return 0;
 }
 

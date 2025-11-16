@@ -896,11 +896,11 @@ INT32 IGD_pii_add_portmapping_entry( IN INT32 WanDeviceIndex,
                 snprintf(pmap.name,sizeof(pmap.name),"%s",portmapEntry->description);
             }
             pmap.external_port = portmapEntry->externalPort;
-            if (portmapEntry->remoteHost != NULL) {
+            if (portmapEntry->remoteHost[0] != '\0') {
                 snprintf(pmap.external_host,sizeof(pmap.external_host),"%s",portmapEntry->remoteHost);
             }
             pmap.internal_port = portmapEntry->internalPort;
-            if (portmapEntry->internalClient != NULL) {
+            if (portmapEntry->internalClient[0] != '\0') {
                 snprintf(pmap.internal_host,sizeof(pmap.internal_host),"%s",portmapEntry->internalClient);
             }
             pmap.lease = portmapEntry->leaseTime;

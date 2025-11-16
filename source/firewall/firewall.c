@@ -522,7 +522,7 @@ enum{
     NAT_DISABLE_STATICIP,
 };
 #define PCMD_LIST "/tmp/.pcmd"
-
+#define MAX_DEV_LIST 2048
 typedef struct _decMacs_
 {
 char mac[19];
@@ -2158,7 +2158,7 @@ static int bIsContainerEnabled( void)
     deviceFilePtr = fopen( DEVICE_PROPERTIES, "r" );
 
     if (deviceFilePtr) {
-        while (fscanf(deviceFilePtr , "%s", fileContent) != EOF ) {
+        while (fscanf(deviceFilePtr , "%254s", fileContent) != EOF ) {
             if ((pContainerSupport = strstr(fileContent, "CONTAINER_SUPPORT")) != NULL) {
                 offsetValue = strlen("CONTAINER_SUPPORT=");
                 pContainerSupport = pContainerSupport + offsetValue;
@@ -8137,9 +8137,12 @@ static int determine_enforcement_schedule2(FILE *cron_fp, const char *namespace)
    today_bits = (1 << local_now.tm_wday);
    if(!(today_bits & policy_days)) {
    } else {
-      if (1 == h24) {
+      /*DEADCODE
+       * if (1 == h24) {
          within_policy_start_stop = 1;
-      } else {
+      } else 
+      */
+      {
          int startPassedHours, startPassedMins;
          int stopPassedHours, stopPassedMins;
          int startPass, stopPass;
@@ -8958,10 +8961,25 @@ memset(buf, 0, sizeof(buf));
        while( fgets ( buf, sizeof(buf), fp ) != NULL ) 
        {
            if(count == 0){
-               numDev = atoi(buf);            		
+               if (1 != sscanf(buf, "%4d", &numDev))
+	       {
+                  FIREWALL_DEBUG("invalid data\n");
+	       }
                printf("numDev = %d \n" COMMA numDev);
-               *devCount = numDev;
-               devMacs = (devMacSt *)calloc(numDev,sizeof(devMacSt));
+
+	       if(numDev > 0 && numDev < MAX_DEV_LIST)
+	       {
+                  *devCount = numDev;
+	       }
+	       else if (numDev > MAX_DEV_LIST)
+	       {
+                  *devCount = MAX_DEV_LIST;
+	       }
+	       else
+	       {
+                  *devCount = 0;
+	       }
+               devMacs = (devMacSt *)calloc(*devCount,sizeof(devMacSt));
                dev = devMacs;
            }
            else

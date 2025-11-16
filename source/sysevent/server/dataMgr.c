@@ -352,9 +352,6 @@ static data_element_t *get_data_element(const char *name)
       }
    }
    // take possession of the new data element
-   if (NULL == de_ptr) {
-      return(NULL);
-   }
    de_ptr->used = 1;
    de_ptr->name = sysevent_strdup(local_name, __FILE__, __LINE__);
    if (NULL == de_ptr->name) {
@@ -488,9 +485,6 @@ static data_element_t *set_unique_data_element(const char *name)
    }
 
    // take possession of the new data element
-   if (NULL == de_ptr) {
-      return(NULL);
-   }
    de_ptr->used = 1;
    char unique_name_buf[512];
    unique_counter++;
@@ -602,14 +596,17 @@ static int get_next_unique_data_element_iterator(const char *name, unsigned int 
    }
 
    unsigned int i;
-   for (i=iterator+1; i<global_data_elements.max_elements; i++) {
-      cur_element = NULL;
+   if (iterator < (global_data_elements.max_elements - 1)) // prevents integer overflow
+   {
+      for (i=iterator+1; i<global_data_elements.max_elements; i++) {
+         cur_element = NULL;
 
-      cur_element = &((global_data_elements.elements)[i]);
+         cur_element = &((global_data_elements.elements)[i]);
 
-      if (0 != cur_element->used && NULL != cur_element->name &&  0 == strncasecmp(local_name, cur_element->name, strlen(local_name))) {
-         return(i);
-      }
+         if (0 != cur_element->used && NULL != cur_element->name &&  0 == strncasecmp(local_name, cur_element->name, strlen(local_name))) {
+			   return(i);
+	   }
+       }
    }
 
    // not found
@@ -1126,9 +1123,6 @@ int DATA_MGR_set_bin(char *name, char *value, int val_length, int source, int ti
       local_value = NULL;
    } else {
       local_value = value;
-      if (NULL == local_value) {
-         return(ERR_ALLOC_MEM);
-      } 
    }
 
     if (0 == fileret)

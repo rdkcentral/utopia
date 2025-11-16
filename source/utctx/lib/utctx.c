@@ -1502,7 +1502,7 @@ static int s_UtopiaTransact_GetAll(UtopiaContext* pUtopiaCtx, char* pszBuffer, u
     }
 
     /* Next, call syscfg get all */
-    if (SysCfg_GetAll(pState, sizeof(pState), &iSize) == 0)
+    if (SysCfg_GetAll(pState, UTOPIA_STATE_SIZE, &iSize) == 0)
     {
         free(pState);
         return 0;
@@ -2089,7 +2089,10 @@ void Utopia_Free(UtopiaContext* pUtopiaCtx, int fCommit)
 
             if (pNode->pszValue == 0)
             {
-                SysCfg_Unset(pNode->pszNamespace, pNode->pszKey);
+                if(0 != SysCfg_Unset(pNode->pszNamespace, pNode->pszKey))
+		{
+		    UTCTX_LOG_DBG1("%s: SysCfg_Unset failed\n",__FUNCTION__);
+		}
             }
             else
             {

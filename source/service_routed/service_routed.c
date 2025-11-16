@@ -935,7 +935,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     char *pStr = NULL;
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME,pStr);
     if(return_status == CCSP_SUCCESS && pStr != NULL){
-        strncpy(mesh_wan_ifname,pStr ,sizeof(mesh_wan_ifname));
+	snprintf(mesh_wan_ifname, sizeof(mesh_wan_ifname), "%s", pStr);
         Ansc_FreeMemory_Callback(pStr);
         pStr = NULL;
     } 
@@ -1436,7 +1436,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
             responsefd = NULL;
    	}
         syscfg_get( NULL, "redirection_flag", buf, sizeof(buf));
-    	if( buf != NULL )
+     // if( buf != NULL ) NO_EFFECT - always true
     	{
 		if ((strncmp(buf,"true",4) == 0) && iresCode == 204)
 		{

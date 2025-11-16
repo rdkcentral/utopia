@@ -128,6 +128,18 @@ static int convert = 0;
    }\
 }\
 
+static int create_file_644(const char *path)
+{
+   int fd = open(path,
+                O_WRONLY | O_CREAT | O_TRUNC,
+		S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+   if (fd == -1) {
+	perror("open failed");
+	return -1;
+   }
+   close(fd);
+   return 0;
+}
 
 static char *trim (char *in)
 {
@@ -833,7 +845,7 @@ void CheckAndHandleInvalidPartnerIDRecoveryProcess(char *PartnerID) {
                 APPLY_PRINT("%s - syscfg_set failed\n", __FUNCTION__);
             }
 
-            creat("/nvram/.Invalid_PartnerID", 0644);
+	    create_file_644("/nvram/.Invalid_PartnerID");
             v_secure_system("/rdklogger/backupLogs.sh");
 
         }
@@ -856,6 +868,8 @@ void CheckAndHandleInvalidPartnerIDRecoveryProcess(char *PartnerID) {
 static int get_PartnerID (char *PartnerID)
 {
 	char buf[PARTNER_ID_LEN];
+        FILE *FilePtr = NULL;
+
 	memset(buf, 0, sizeof(buf));
 	//int isValidPartner = 0;
 
@@ -865,9 +879,10 @@ static int get_PartnerID (char *PartnerID)
 	  *  If not available then read it from HAL and create the /nvram/.partner_ID file
 	  *     then apply defaults based on current partnerID	  
 	  */
-	if ( access( PARTNERID_FILE , F_OK ) != 0 )	 
-	{
 
+	FilePtr = fopen( PARTNERID_FILE, "r" );
+	if ( NULL == FilePtr )	 
+	{
 		APPLY_PRINT("%s - %s is not there\n", __FUNCTION__, PARTNERID_FILE );
 		if( ( 0 == getFactoryPartnerId( PartnerID ) ) && ( PartnerID [ 0 ] != '\0' ) )
 		{
@@ -910,31 +925,22 @@ static int get_PartnerID (char *PartnerID)
 	}
 	else
 	{
-		FILE	   *FilePtr 			= NULL;
-		char		fileContent[ 256 ]	= { 0 };
 
-	        /* TODO CID 135527: Time of check time of use 
-                *  As per code flow either access() or fopen() will be invoked
-                *  so we could not hit the TOCTOU issue. It could be a false positive.*/
-		FilePtr = fopen( PARTNERID_FILE, "r" );
-		
-		if ( FilePtr ) 
-		{
-			char *pos;
-		
-			fgets( fileContent, 256, FilePtr );
-			fclose( FilePtr );
-			FilePtr = NULL;
-			
-			// Remove line \n charecter from string  
-			if ( ( pos = strchr( fileContent, '\n' ) ) != NULL )
-			 *pos = '\0';
+		char *pos;
+	        char fileContent[ 256 ]	= { 0 };
 
-			sprintf( PartnerID, "%s", fileContent );
+		fgets( fileContent, 256, FilePtr );
+		fclose( FilePtr );
+		FilePtr = NULL;
 
-			APPLY_PRINT("%s - PartnerID from File: %s\n",__FUNCTION__,PartnerID );
-			validatePartnerId ( PartnerID );
-		}
+		// Remove line \n charecter from string  
+		if ( ( pos = strchr( fileContent, '\n' ) ) != NULL )
+			*pos = '\0';
+
+		sprintf( PartnerID, "%s", fileContent );
+
+		APPLY_PRINT("%s - PartnerID from File: %s\n",__FUNCTION__,PartnerID );
+		validatePartnerId ( PartnerID );
 		unlink("/nvram/.partner_ID");
 	}
 	set_syscfg_partner_values(PartnerID,"PartnerID");
@@ -1071,7 +1077,10 @@ static void ValidateAndUpdatePartnerVersionParam (cJSON *root_etc_json, cJSON *r
          FILE *fp = fopen(CLEAR_TRACK_FILE, "r");
          if (fp)
          {
-             fscanf(fp, "%u", &flags);
+             if(1 != fscanf(fp, "%u", &flags))
+	     {
+		printf("%s: failed to read file %s", __FUNCTION__, CLEAR_TRACK_FILE);
+	     }
              fclose(fp);
          }
          if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
@@ -1635,7 +1644,7 @@ STATIC void addInSysCfgdDB (char *key, char *value)
       APPLY_PRINT("%s - PSM Migration needed for %s param so touching %s file\n", __FUNCTION__, key, PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER );
 
       //Need to touch /tmp/.apply_partner_defaults_new_psm_member for PSM migration handling
-      creat(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER,S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      create_file_644(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER);
    }
 }
 
@@ -1845,7 +1854,7 @@ STATIC void updateSysCfgdDB (char *key, char *value)
       APPLY_PRINT("%s - PSM Migration needed for %s param so touching %s file\n", __FUNCTION__, key, PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER );
 
       //Need to touch /tmp/.apply_partner_defaults_new_psm_member for PSM migration handling
-      creat(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER,S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      create_file_644(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER);
    }
 }
 
@@ -1967,7 +1976,10 @@ static int init_bootstrap_json (char *partner_nvram_obj, char *partner_etc_obj, 
          FILE *fp = fopen(CLEAR_TRACK_FILE, "r");
          if (fp)
          {
-             fscanf(fp, "%u", &flags);
+             if(1 != fscanf(fp, "%u", &flags))
+	     {
+		printf("%s: failed to read file %s", __FUNCTION__, CLEAR_TRACK_FILE);
+	     }
              fclose(fp);
          }
          if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
@@ -2036,7 +2048,10 @@ STATIC int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner
          FILE *fp = fopen(CLEAR_TRACK_FILE, "r");
          if (fp)
          {
-             fscanf(fp, "%u", &flags);
+             if (1 != fscanf(fp, "%u", &flags))
+	     {
+		printf("%s: failed to read file %s", __FUNCTION__, CLEAR_TRACK_FILE);
+	     }
              fclose(fp);
          }
          if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
@@ -2272,7 +2287,10 @@ STATIC int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner
          FILE *fp = fopen(CLEAR_TRACK_FILE, "r");
          if (fp)
          {
-             fscanf(fp, "%u", &flags);
+             if (1 != fscanf(fp, "%u", &flags))
+	     {
+		printf("%s: failed to read file %s", __FUNCTION__, CLEAR_TRACK_FILE);
+	     }
              fclose(fp);
          }
          if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
@@ -3414,7 +3432,10 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
    FILE *fp = fopen(CLEAR_TRACK_FILE, "r");
    if (fp)
    {
-      fscanf(fp, "%u", &flags);
+      if(1 != fscanf(fp, "%u", &flags))
+      {
+         printf("%s: failed to read file %s", __FUNCTION__, CLEAR_TRACK_FILE);
+      }
       fclose(fp);
    }
 
@@ -3449,7 +3470,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
                v_secure_system("cp "PARTNERS_INFO_FILE_ETC " " PARTNERS_INFO_FILE);
 
                //Need to touch /tmp/.apply_partner_defaults_psm for PSM migration handling
-               creat(PARTNER_DEFAULT_MIGRATE_PSM,S_IRUSR |S_IWUSR |S_IRGRP |S_IROTH); // FIX: RDKB-20566 to handle migration
+	       create_file_644(PARTNER_DEFAULT_MIGRATE_PSM); // FIX: RDKB-20566 to handle migration
             }
             else
                free( ptr_nvram_json );

@@ -1238,7 +1238,7 @@ int main (int argc, char **argv)
          unlink(SE_SERVER_PID_FILE);
       } else {
          char cmdline[500];
-         if ((ret = fscanf(fp, "%s", cmdline)) <= 0)
+         if ((ret = fscanf(fp, "%499s", cmdline)) <= 0)
 	 {
 	    printf("read error of %s\n",filename);
 	 }
@@ -1360,7 +1360,12 @@ int main (int argc, char **argv)
    // start the sanity thread
    pthread_t sanity_thread_id;
    pthread_attr_setstacksize(&thread_attr, SANITY_THREAD_STACK_SIZE);
-   pthread_create(&sanity_thread_id, &thread_attr, sanity_thread_main, (void *)NULL);
+   if (0 != pthread_create(&sanity_thread_id, &thread_attr, sanity_thread_main, (void *)NULL))
+   {
+      SE_INC_LOG(ERROR,
+         printf("Unable to create sanity thread. (%d) %s. ", errno, strerror(errno));
+      )
+   }
 
    // all that this main thread does is listen on a well known port for 
    // clients to register. And when they do, set them up in the clients

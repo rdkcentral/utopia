@@ -1309,7 +1309,7 @@ int prepare_dhcp_conf (char *input)
     else
 	{
                 /* CID 60600: Unchecked return value from library */
-                if ((ret = fscanf(l_fNetRes,"%s", l_cNetwork_Res)) != 1)
+                if ((ret = fscanf(l_fNetRes,"%7s", l_cNetwork_Res)) != 1)
 	        {
 		   fprintf(g_fArmConsoleLog, "read error of %s \n",NETWORK_RES_FILE);
 		}

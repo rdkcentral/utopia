@@ -388,7 +388,7 @@ int Utopia_ValidateLanDhcpPoolRange(UtopiaContext *ctx, const unsigned long mina
         IsBroadcast(maxaddr, lan_ip, lan_netmask) || 
         IsNetworkAddr(maxaddr, lan_ip, lan_netmask)|| 
         !IsSameNetwork(maxaddr, lan_ip, lan_netmask)|| 
-        minaddr == lan_ip){
+        maxaddr == lan_ip){
         return ERR_INVALID_PORT_RANGE;
     }
 
@@ -782,7 +782,10 @@ int Utopia_DelDhcp4SPool_SAddress(UtopiaContext *ctx, unsigned long ulPoolInstan
 
     count = count - 1; /* InstanceNumber deletion */
     UTOPIA_SETINT(ctx, UtopiaValue_DHCP_NumStaticHosts, count);
-    Utopia_UnsetIndexed(ctx, UtopiaValue_DHCP_StaticHost, ulIndex + 1);
+    if(0 == Utopia_UnsetIndexed(ctx, UtopiaValue_DHCP_StaticHost, ulIndex + 1))
+    {
+       ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_UnsetIndexed failed !!!", __FUNCTION__);
+    }
     if(count != 0)
     {
        ulIndex++;
@@ -798,7 +801,10 @@ int Utopia_DelDhcp4SPool_SAddress(UtopiaContext *ctx, unsigned long ulPoolInstan
           Utopia_SetIndexedInt(ctx, UtopiaValue_DHCP_StaticHost_InsNum, ulIndex ,sAddr.InstanceNumber);
           UTOPIA_SETINDEXED(ctx, UtopiaValue_DHCP_StaticHost_Alias, ulIndex , sAddr.Alias);
         }
-        Utopia_UnsetIndexed(ctx, UtopiaValue_DHCP_StaticHost,ulIndex);
+        if (0 == Utopia_UnsetIndexed(ctx, UtopiaValue_DHCP_StaticHost,ulIndex))
+        {
+           ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_UnsetIndexed failed !!!", __FUNCTION__);
+	}
     }
     return SUCCESS;
 }
@@ -825,7 +831,10 @@ int Utopia_SetDhcpV4SPool_SAddress(UtopiaContext *ctx, unsigned long ulPoolInsta
     if(0 == pSAddr_t->InstanceNumber)
         return ERR_INVALID_ARGS;
     ulIndex = g_IndexMapStaticAddr[pSAddr_t->InstanceNumber];
-    Utopia_UnsetIndexed(ctx, UtopiaValue_DHCP_StaticHost, ulIndex + 1);
+    if (0 == Utopia_UnsetIndexed(ctx, UtopiaValue_DHCP_StaticHost, ulIndex + 1))
+    {
+       ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_UnsetIndexed failed !!!", __FUNCTION__);
+    }
     addrVal.s_addr = pSAddr_t->Yiaddr.Value;
     rc = strcpy_s(strVal,sizeof(strVal),inet_ntoa(addrVal));
     ERR_CHK(rc);

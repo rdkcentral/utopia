@@ -1340,7 +1340,10 @@ int Utopia_AddWifiSSID(UtopiaContext *ctx, void *entry)
         if(i == count){ /* We found an empty SSID */
             g_IndexMapSSID[cfg_t.InstanceNumber] = count;
             count += 1; /* Increment the count */
-            Utopia_SetInt(ctx,UtopiaValue_WLAN_SSID_Num,count);
+           if(SUCCESS != Utopia_SetInt(ctx,UtopiaValue_WLAN_SSID_Num,count))
+	   {
+              ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_SetInt failed !!!", __FUNCTION__);
+	   }
             allocateMultiSSID_Struct(i);
             /* Fill in the wifiTRPlatform_multiSSID */
             if( 0 == strncmp(cfg_t.WiFiRadioName,"wl0",3)) {
@@ -1365,7 +1368,10 @@ int Utopia_AddWifiSSID(UtopiaContext *ctx, void *entry)
            /* Set the Instance Number in syscfg */
            Utopia_SetNamedInt(ctx,UtopiaValue_WLAN_SSID_Instance_Num,wifiTRPlatform_multiSSID[i].ssid_name,cfg_t.InstanceNumber);
            /* Set Radio for this index */
-           Utopia_SetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,i,cfg_t.WiFiRadioName);
+           if(0 == Utopia_SetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,i,cfg_t.WiFiRadioName))
+	   {
+              ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_SetIndexed failed !!!", __FUNCTION__);
+	   }
            /* Call SetCfg to set other parameters */
            Utopia_SetWifiSSIDCfg(ctx,&cfg_t);
            /* Get the static and dynamic info */
@@ -1429,7 +1435,10 @@ int Utopia_DelWifiSSID(UtopiaContext *ctx, unsigned long ulInstanceNumber)
           safec_rc = strcpy_s(wifiTRPlatform_multiSSID[ulIndex].ap_name, STR_SZ,wifiTRPlatform_multiSSID[ulIndex+1].ap_name );
           ERR_CHK(safec_rc);
           Utopia_GetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,(ulIndex + 1),ifCfg,sizeof(ifCfg));
-          Utopia_SetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,ulIndex,ifCfg);
+          if( 0 == Utopia_SetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,ulIndex,ifCfg))
+	  {
+             ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_SetIndexed failed !!!", __FUNCTION__);
+	  }
           Utopia_GetNamedInt(ctx,UtopiaValue_WLAN_SSID_Instance_Num,wifiTRPlatform_multiSSID[ulIndex+1].ssid_name,(int *)&ulInsNum);
           g_IndexMapSSID[ulInsNum] = ulIndex; /* Point the instance number to correct index */
        }
@@ -1973,7 +1982,7 @@ int Utopia_GetWifiAPSecCfg(UtopiaContext *ctx,char *pSSID, void *cfg)
               cfg_t->RekeyingInterval = atol(ptr->param_val);
         }else if(!strcasecmp(ptr->param_name,"WEPKey")) {
             cfg_t->WEPKeyp[0] = '\0' ; /*Default Empty */
-            if(ptr->param_val)
+            if(ptr->param_val[0] != '\0')
             {
                 if (WIFI_SECURITY_WEP_64 == cfg_t->ModeEnabled)
                     getHexGeneric(ptr->param_val,cfg_t->WEPKeyp,5);
@@ -1983,23 +1992,23 @@ int Utopia_GetWifiAPSecCfg(UtopiaContext *ctx,char *pSSID, void *cfg)
          }else if(!strcasecmp(ptr->param_name,"KeyPassphrase")) {
             safec_rc = strcpy_s(cfg_t->KeyPassphrase, sizeof(cfg_t->KeyPassphrase),"wpa2psk"); /*Default Value */
             ERR_CHK(safec_rc);
-            if(ptr->param_val){
+            if(ptr->param_val[0] != '\0'){
                 safec_rc = strcpy_s(cfg_t->KeyPassphrase, sizeof(cfg_t->KeyPassphrase),ptr->param_val);
                 ERR_CHK(safec_rc);
             }
          }else if(!strcasecmp(ptr->param_name,"EncryptionMethod")) {
             cfg_t->EncryptionMethod = WIFI_SECURITY_AES_TKIP; /*Default Value */
-            if(ptr->param_val)
+            if(ptr->param_val[0] != '\0')
                 cfg_t->EncryptionMethod = atoi(ptr->param_val);
          }else if(!strcasecmp(ptr->param_name,"RadiusServerIP")) {
-            if(ptr->param_val)
+            if(ptr->param_val[0] != '\0')
                 cfg_t->RadiusServerIPAddr.Value = inet_addr(ptr->param_val);
          }else if(!strcasecmp(ptr->param_name,"RadiusServerPort")) {
             cfg_t->RadiusServerPort = 1812; /* Default Value */
-            if(ptr->param_val)
+            if(ptr->param_val[0] != '\0')
                 cfg_t->RadiusServerPort = atoi(ptr->param_val);  
          }else if (!strcasecmp(ptr->param_name,"RadiusSharedSecret")) {
-            if(ptr->param_val){
+            if(ptr->param_val[0] != '\0'){
                 safec_rc = strcpy_s(cfg_t->RadiusSecret, sizeof(cfg_t->RadiusSecret),ptr->param_val);
                 ERR_CHK(safec_rc);
             }

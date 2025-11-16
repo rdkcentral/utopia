@@ -151,10 +151,16 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
     iVal = (deviceMocaIntfCfg->Enable == FALSE)? 0:1;
     if(iVal == 1){
         v_secure_system("mocacfg moca up");
-	Utopia_Set(pCtx, UtopiaValue_Moca_Enable, "up");
+	if(0 == Utopia_Set(pCtx, UtopiaValue_Moca_Enable, "up"))
+        {
+            ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed to set up", __FUNCTION__);
+        }
     }else{
 	v_secure_system("mocacfg moca down");
-	Utopia_Set(pCtx, UtopiaValue_Moca_Enable, "down");
+        if(0 == Utopia_Set(pCtx, UtopiaValue_Moca_Enable, "down"))
+        {
+            ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed to set down", __FUNCTION__);
+        }
     }
 
     if(deviceMocaIntfCfg->PreferredNC == FALSE)
@@ -167,7 +173,10 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
         rc = strcpy_s(buf, sizeof(buf), "master");
         ERR_CHK(rc);
     }
-    Utopia_Set(pCtx, UtopiaValue_Moca_PreferredNC, buf);
+    if(0 == Utopia_Set(pCtx, UtopiaValue_Moca_PreferredNC, buf))
+    {
+        ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed to set preferredNC", __FUNCTION__);
+    }
     v_secure_system("mocacfg -s moca nc %s", buf);
 
     if(deviceMocaIntfCfg->PrivacyEnabledSetting == FALSE)
@@ -180,10 +189,16 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
         rc = strcpy_s(buf, sizeof(buf), "enable");
         ERR_CHK(rc);
     }
-    Utopia_Set(pCtx, UtopiaValue_Moca_PrivEnabledSet, buf);
+    if(0 == Utopia_Set(pCtx, UtopiaValue_Moca_PrivEnabledSet, buf))
+    {
+        ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed to set privacyEn", __FUNCTION__);
+    }
     v_secure_system("mocacfg -s moca privacy %s", buf);
 
-    Utopia_Set(pCtx, UtopiaValue_Moca_Alias, deviceMocaIntfCfg->Alias);
+    if(0 == Utopia_Set(pCtx, UtopiaValue_Moca_Alias, deviceMocaIntfCfg->Alias))
+    {
+        ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed to set Alias", __FUNCTION__);
+    }
 
     rc = sprintf_s(buf, sizeof(buf), "%02X%02X%02X%02X%02X%02X%02X%02X", 
                    deviceMocaIntfCfg->FreqCurrentMaskSetting[0],
@@ -199,15 +214,24 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
         ERR_CHK(rc);
     }
     buf[16] = '\0';
-    Utopia_Set(pCtx, UtopiaValue_Moca_FreqCurMaskSet, buf);
+    if(0 == Utopia_Set(pCtx, UtopiaValue_Moca_FreqCurMaskSet, buf))
+    {
+        ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed to set freq mask", __FUNCTION__);
+    }
     Utopia_RawSet(pCtx, NULL, "FreqMode", "manual");
     v_secure_system("mocacfg -s moca fmode manual");
     v_secure_system("mocacfg -s moca fplan 0x%s", buf);
 
-    Utopia_Set(pCtx, UtopiaValue_Moca_KeyPassPhrase, deviceMocaIntfCfg->KeyPassphrase);
+    if (0 == Utopia_Set(pCtx, UtopiaValue_Moca_KeyPassPhrase, deviceMocaIntfCfg->KeyPassphrase))
+    {
+        ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed to set keyPassPhrase", __FUNCTION__);
+    }
     v_secure_system("mocacfg -s moca ppassword %s", deviceMocaIntfCfg->KeyPassphrase);
  
-    Utopia_SetInt(pCtx, UtopiaValue_Moca_TxPowerLimit, deviceMocaIntfCfg->TxPowerLimit); 
+    if(0 != Utopia_SetInt(pCtx, UtopiaValue_Moca_TxPowerLimit, deviceMocaIntfCfg->TxPowerLimit))
+    {
+        ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed Utopia_SetInt", __FUNCTION__);
+    }
     rc = sprintf_s(key_val, sizeof(key_val), "%lu", deviceMocaIntfCfg->TxPowerLimit);
     if(rc < EOK)
     {
@@ -216,7 +240,10 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
     
     v_secure_system("mocacfg -s moca maxtxpower %s", key_val);
 
-    Utopia_SetInt(pCtx, UtopiaValue_Moca_PwrCntlPhyTarget, deviceMocaIntfCfg->PowerCntlPhyTarget);
+    if (SUCCESS != Utopia_SetInt(pCtx, UtopiaValue_Moca_PwrCntlPhyTarget, deviceMocaIntfCfg->PowerCntlPhyTarget))
+    {
+        ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed Utopia_SetInt", __FUNCTION__);
+    }
     rc = sprintf_s(key_val, sizeof(key_val), "%lu", deviceMocaIntfCfg->PowerCntlPhyTarget);
     if(rc < EOK)
     {
@@ -224,7 +251,11 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
     }
     v_secure_system("mocacfg -s moca phyrate %s", key_val);
 
-    Utopia_SetInt(pCtx, UtopiaValue_Moca_BeaconPwrLimit, deviceMocaIntfCfg->BeaconPowerLimit);
+    if (SUCCESS != Utopia_SetInt(pCtx, UtopiaValue_Moca_BeaconPwrLimit, deviceMocaIntfCfg->BeaconPowerLimit))
+    {
+        ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed Utopia_SetInt", __FUNCTION__);
+    }
+
     rc = sprintf_s(key_val, sizeof(key_val), "%lu", deviceMocaIntfCfg->BeaconPowerLimit);
     if(rc < EOK)
     {

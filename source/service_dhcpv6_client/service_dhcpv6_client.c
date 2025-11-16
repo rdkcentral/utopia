@@ -221,11 +221,11 @@ void dhcpv6_client_service_start ()
     }
     else if (access(DHCPV6_PID_FILE, F_OK) != 0)
     {
-        if (access(DHCP6C_PROGRESS_FILE, F_OK) != 0)
+        FILE *fp = NULL;
+
+        fp  = fopen (DHCP6C_PROGRESS_FILE, "w");
+        if (NULL == fp)
         {
-            FILE *fp;
-            fp  = fopen (DHCP6C_PROGRESS_FILE, "w");
-            fclose(fp);
             fprintf(stderr, "SERVICE_DHCP6C : Starting DHCPv6 Client from service_dhcpv6_client binary\n");
 #if defined(_COSA_INTEL_XB3_ARM_) || defined(INTEL_PUMA7)
             if (strncmp(l_cDibblerEnable, "true", 4))
@@ -256,6 +256,7 @@ void dhcpv6_client_service_start ()
         }
         else
         {
+           fclose(fp);
            fprintf(stderr, "SERVICE_DHCP6C : DHCPv6 Client process start in progress, not starting one more\n");
         }
     }
@@ -440,7 +441,8 @@ void register_dhcpv6_client_handler()
 
     FILE *fp;
     fp  = fopen (DHCPV6_REGISTER_FILE, "w");
-    fclose(fp);
+    if(fp != NULL)
+      fclose(fp);
 }
 
 void unregister_dhcpv6_client_handler()
