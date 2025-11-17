@@ -8967,7 +8967,7 @@ memset(buf, 0, sizeof(buf));
 	       }
                printf("numDev = %d \n" COMMA numDev);
 
-	       if(numDev > 0 && numDev < MAX_DEV_LIST)
+	       if(numDev > 0 && numDev <= MAX_DEV_LIST)
 	       {
                   *devCount = numDev;
 	       }

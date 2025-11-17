@@ -1883,7 +1883,7 @@ int Utopia_GetStaticRouteTable (int *count, routeStatic_t **out_sroute)
         fclose(fp);/*RDKB-7128, CID-33470, free unused resources before exit*/
         return ERR_INSUFFICIENT_MEM;
     }
-    memset(sroute, 0, (size_t)(*count));
+    memset(sroute, 0, (size_t)(*count) * sizeof(routeStatic_t));
     // Seek to beginning of file
     fseek(fp, 0, SEEK_SET);
     
