@@ -2090,9 +2090,9 @@ void Utopia_Free(UtopiaContext* pUtopiaCtx, int fCommit)
             if (pNode->pszValue == 0)
             {
                 if(0 != SysCfg_Unset(pNode->pszNamespace, pNode->pszKey))
-		{
-		    UTCTX_LOG_DBG1("%s: SysCfg_Unset failed\n",__FUNCTION__);
-		}
+                {
+                    UTCTX_LOG_DBG1("%s: SysCfg_Unset failed\n",__FUNCTION__);
+                }
             }
             else
             {

@@ -141,7 +141,7 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
     char buf[64] = {'\0'};
     char key_val[64] = {'\0'};
     errno_t rc = -1;
-    
+
     if (!pCtx || !str_handle) {
         ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Invalid Input Parameter", __FUNCTION__);
         return ERR_INVALID_ARGS;
@@ -151,12 +151,12 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
     iVal = (deviceMocaIntfCfg->Enable == FALSE)? 0:1;
     if(iVal == 1){
         v_secure_system("mocacfg moca up");
-	if(0 == Utopia_Set(pCtx, UtopiaValue_Moca_Enable, "up"))
+        if(0 == Utopia_Set(pCtx, UtopiaValue_Moca_Enable, "up"))
         {
             ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed to set up", __FUNCTION__);
         }
     }else{
-	v_secure_system("mocacfg moca down");
+        v_secure_system("mocacfg moca down");
         if(0 == Utopia_Set(pCtx, UtopiaValue_Moca_Enable, "down"))
         {
             ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed to set down", __FUNCTION__);
@@ -201,14 +201,14 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
     }
 
     rc = sprintf_s(buf, sizeof(buf), "%02X%02X%02X%02X%02X%02X%02X%02X", 
-                   deviceMocaIntfCfg->FreqCurrentMaskSetting[0],
-                   deviceMocaIntfCfg->FreqCurrentMaskSetting[1],
-                   deviceMocaIntfCfg->FreqCurrentMaskSetting[2],
-                   deviceMocaIntfCfg->FreqCurrentMaskSetting[3],
-                   deviceMocaIntfCfg->FreqCurrentMaskSetting[4],
-                   deviceMocaIntfCfg->FreqCurrentMaskSetting[5],
-                   deviceMocaIntfCfg->FreqCurrentMaskSetting[6],
-                   deviceMocaIntfCfg->FreqCurrentMaskSetting[7]);
+            deviceMocaIntfCfg->FreqCurrentMaskSetting[0],
+            deviceMocaIntfCfg->FreqCurrentMaskSetting[1],
+            deviceMocaIntfCfg->FreqCurrentMaskSetting[2],
+            deviceMocaIntfCfg->FreqCurrentMaskSetting[3],
+            deviceMocaIntfCfg->FreqCurrentMaskSetting[4],
+            deviceMocaIntfCfg->FreqCurrentMaskSetting[5],
+            deviceMocaIntfCfg->FreqCurrentMaskSetting[6],
+            deviceMocaIntfCfg->FreqCurrentMaskSetting[7]);
     if(rc < EOK)
     {
         ERR_CHK(rc);
@@ -227,7 +227,7 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
         ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed to set keyPassPhrase", __FUNCTION__);
     }
     v_secure_system("mocacfg -s moca ppassword %s", deviceMocaIntfCfg->KeyPassphrase);
- 
+
     if(0 != Utopia_SetInt(pCtx, UtopiaValue_Moca_TxPowerLimit, deviceMocaIntfCfg->TxPowerLimit))
     {
         ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: failed Utopia_SetInt", __FUNCTION__);
@@ -237,7 +237,7 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
     {
         ERR_CHK(rc);
     }
-    
+
     v_secure_system("mocacfg -s moca maxtxpower %s", key_val);
 
     if (SUCCESS != Utopia_SetInt(pCtx, UtopiaValue_Moca_PwrCntlPhyTarget, deviceMocaIntfCfg->PowerCntlPhyTarget))
@@ -261,7 +261,7 @@ int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle)
     {
         ERR_CHK(rc);
     }
-    
+
     v_secure_system("mocacfg -s moca bbackoff %s", key_val);
 
     return UT_SUCCESS;

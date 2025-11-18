@@ -221,22 +221,22 @@ void dhcpv6_client_service_start ()
     }
     else if (access(DHCPV6_PID_FILE, F_OK) != 0)
     {
-	int fd = open(DHCP6C_PROGRESS_FILE, O_RDWR | O_CREAT | O_EXCL, 0644);
+        int fd = open(DHCP6C_PROGRESS_FILE, O_RDWR | O_CREAT | O_EXCL, 0644);
 
         if (fd == -1)
         {
-           if(errno == EEXIST)
-	   {
-	      fprintf(stderr, "SERVICE_DHCP6C : DHCPv6 Client process start in progress, not starting one more\n");
-	   }
-	   else
-	   {
-	      fprintf(stderr, "SERVICE_DHCP6C : open failed\n");
-	   }
+            if(errno == EEXIST)
+            {
+                fprintf(stderr, "SERVICE_DHCP6C : DHCPv6 Client process start in progress, not starting one more\n");
+            }
+            else
+            {
+                fprintf(stderr, "SERVICE_DHCP6C : open failed\n");
+            }
 
-	}
-	else
-	{
+        }
+        else
+        {
             fprintf(stderr, "SERVICE_DHCP6C : Starting DHCPv6 Client from service_dhcpv6_client binary\n");
 #if defined(_COSA_INTEL_XB3_ARM_) || defined(INTEL_PUMA7)
             if (strncmp(l_cDibblerEnable, "true", 4))
@@ -264,7 +264,7 @@ void dhcpv6_client_service_start ()
             v_secure_system("%s start",DHCPV6_BINARY);
 #endif
             close(fd);
-	    remove_file(DHCP6C_PROGRESS_FILE);
+            remove_file(DHCP6C_PROGRESS_FILE);
 
         }
     }

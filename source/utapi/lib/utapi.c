@@ -6734,11 +6734,11 @@ int Utopia_Get_BYOI_Current_Provider(UtopiaContext *ctx,  hsdStatus_t *hsdStatus
     int status = s_StrToEnum(g_hsdStatus, buf);
     if( -1 == status )
     {
-       *hsdStatus = NONE;
+        *hsdStatus = NONE;
     }
     else
     {
-       *hsdStatus = status;
+        *hsdStatus = status;
     }
 
     return UT_SUCCESS;

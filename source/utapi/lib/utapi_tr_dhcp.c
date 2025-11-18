@@ -788,23 +788,23 @@ int Utopia_DelDhcp4SPool_SAddress(UtopiaContext *ctx, unsigned long ulPoolInstan
     }
     if(count != 0)
     {
-       ulIndex++;
-       for(;ulIndex <= count; ulIndex++)
-       {
-          Utopia_GetDhcpV4SPool_SAddressByIndex(ctx,ulIndex,&sAddr);
-          Utopia_GetIndexedInt(ctx,UtopiaValue_DHCP_StaticHost_InsNum,ulIndex + 1, (int *)&sAddr.InstanceNumber);
-          Utopia_GetIndexed(ctx,UtopiaValue_DHCP_StaticHost_Alias,ulIndex + 1,  (char *)&sAddr.Alias, sizeof(sAddr.Alias));
+        ulIndex++;
+        for(;ulIndex <= count; ulIndex++)
+        {
+            Utopia_GetDhcpV4SPool_SAddressByIndex(ctx,ulIndex,&sAddr);
+            Utopia_GetIndexedInt(ctx,UtopiaValue_DHCP_StaticHost_InsNum,ulIndex + 1, (int *)&sAddr.InstanceNumber);
+            Utopia_GetIndexed(ctx,UtopiaValue_DHCP_StaticHost_Alias,ulIndex + 1,  (char *)&sAddr.Alias, sizeof(sAddr.Alias));
 
-          g_IndexMapStaticAddr[sAddr.InstanceNumber] = ulIndex - 1;
+            g_IndexMapStaticAddr[sAddr.InstanceNumber] = ulIndex - 1;
 
-          Utopia_SetDhcpV4SPool_SAddress(ctx,ulPoolInstanceNumber,&sAddr);
-          Utopia_SetIndexedInt(ctx, UtopiaValue_DHCP_StaticHost_InsNum, ulIndex ,sAddr.InstanceNumber);
-          UTOPIA_SETINDEXED(ctx, UtopiaValue_DHCP_StaticHost_Alias, ulIndex , sAddr.Alias);
+            Utopia_SetDhcpV4SPool_SAddress(ctx,ulPoolInstanceNumber,&sAddr);
+            Utopia_SetIndexedInt(ctx, UtopiaValue_DHCP_StaticHost_InsNum, ulIndex ,sAddr.InstanceNumber);
+            UTOPIA_SETINDEXED(ctx, UtopiaValue_DHCP_StaticHost_Alias, ulIndex , sAddr.Alias);
         }
         if (0 == Utopia_UnsetIndexed(ctx, UtopiaValue_DHCP_StaticHost,ulIndex))
         {
-           ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_UnsetIndexed failed !!!", __FUNCTION__);
-	}
+            ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_UnsetIndexed failed !!!", __FUNCTION__);
+        }
     }
     return SUCCESS;
 }
@@ -833,7 +833,7 @@ int Utopia_SetDhcpV4SPool_SAddress(UtopiaContext *ctx, unsigned long ulPoolInsta
     ulIndex = g_IndexMapStaticAddr[pSAddr_t->InstanceNumber];
     if (0 == Utopia_UnsetIndexed(ctx, UtopiaValue_DHCP_StaticHost, ulIndex + 1))
     {
-       ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_UnsetIndexed failed !!!", __FUNCTION__);
+        ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_UnsetIndexed failed !!!", __FUNCTION__);
     }
     addrVal.s_addr = pSAddr_t->Yiaddr.Value;
     rc = strcpy_s(strVal,sizeof(strVal),inet_ntoa(addrVal));

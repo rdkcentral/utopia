@@ -170,7 +170,7 @@ int main (int argc, char **argv)
         char *buf = NULL;
 
         buf = malloc(SYSCFG_SZ);
-	if (NULL == buf) {
+        if (NULL == buf) {
             printf("Error:Memory allocation failed\n");
             return -1;
         }
@@ -185,7 +185,7 @@ int main (int argc, char **argv)
         syscfg_getsz(&used_sz, &max_sz);
         printf("Used: %ld of %ld\n", used_sz, max_sz);
 
-	free(buf);
+        free(buf);
         return 0;
     }
 

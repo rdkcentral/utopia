@@ -598,14 +598,14 @@ static int get_next_unique_data_element_iterator(const char *name, unsigned int 
    unsigned int i;
    if (iterator < (global_data_elements.max_elements - 1)) // prevents integer overflow
    {
-      for (i=iterator+1; i<global_data_elements.max_elements; i++) {
-         cur_element = NULL;
+       for (i=iterator+1; i<global_data_elements.max_elements; i++) {
+           cur_element = NULL;
 
-         cur_element = &((global_data_elements.elements)[i]);
+           cur_element = &((global_data_elements.elements)[i]);
 
-         if (0 != cur_element->used && NULL != cur_element->name &&  0 == strncasecmp(local_name, cur_element->name, strlen(local_name))) {
-			   return(i);
-	   }
+           if (0 != cur_element->used && NULL != cur_element->name &&  0 == strncasecmp(local_name, cur_element->name, strlen(local_name))) {
+               return(i);
+           }
        }
    }
 

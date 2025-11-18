@@ -8135,42 +8135,37 @@ static int determine_enforcement_schedule2(FILE *cron_fp, const char *namespace)
 
    int today_bits = 0;
    today_bits = (1 << local_now.tm_wday);
-   if(!(today_bits & policy_days)) {
-   } else {
-      /*DEADCODE
-       * if (1 == h24) {
-         within_policy_start_stop = 1;
-      } else 
-      */
-      {
-         int startPassedHours, startPassedMins;
-         int stopPassedHours, stopPassedMins;
-         int startPass, stopPass;
-         int sh, sm, eh, em;
+   if(!(today_bits & policy_days))
+   {
+   }
+   else
+   {
+       int startPassedHours, startPassedMins;
+       int stopPassedHours, stopPassedMins;
+       int startPass, stopPass;
+       int sh, sm, eh, em;
 
+       sscanf(policy_time_start, "%d:%d", &sh, &sm);
+       sscanf(policy_time_stop, "%d:%d", &eh, &em);
 
-         sscanf(policy_time_start, "%d:%d", &sh, &sm);
-         sscanf(policy_time_stop, "%d:%d", &eh, &em);
+       startPass = time_delta(&local_now, policy_time_start, &startPassedHours, &startPassedMins);
+       stopPass = time_delta(&local_now, policy_time_stop, &stopPassedHours, &stopPassedMins);
 
-         startPass = time_delta(&local_now, policy_time_start, &startPassedHours, &startPassedMins);
-         stopPass = time_delta(&local_now, policy_time_stop, &stopPassedHours, &stopPassedMins);
-         
-         //start time > stop time
-         if(sh > eh || (sh == eh && sm >= em)) {
-             if(!((stopPass == -1 || (stopPass == 0 && stopPassedHours == 0 && stopPassedMins == 0))
-                 && startPass == 0))
+       //start time > stop time
+       if(sh > eh || (sh == eh && sm >= em)) {
+           if(!((stopPass == -1 || (stopPass == 0 && stopPassedHours == 0 && stopPassedMins == 0))
+                       && startPass == 0))
                within_policy_start_stop = 1;
-         }
-         else { //start time < stop time
-             //printf("today is %d, start time is %d, stop time is %d\n", today_bits, sh, eh);
-             if((startPass == -1 || (startPass == 0 && startPassedHours == 0 && startPassedMins == 0))
-                 && stopPass == 0) {
+       }
+       else { //start time < stop time
+           //printf("today is %d, start time is %d, stop time is %d\n", today_bits, sh, eh);
+           if((startPass == -1 || (startPass == 0 && startPassedHours == 0 && startPassedMins == 0))
+                   && stopPass == 0) {
                within_policy_start_stop = 1;
-             }
-         }
+           }
        }
    }
-    FIREWALL_DEBUG("Exiting determine_enforcement_schedule2\n");  
+   FIREWALL_DEBUG("Exiting determine_enforcement_schedule2\n");
    return within_policy_start_stop;
 }
 
