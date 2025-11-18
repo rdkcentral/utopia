@@ -2381,7 +2381,9 @@ static int prepare_globals_from_configuration(void)
    syscfg_get(NULL, "firewall_levelv6", firewall_levelv6, sizeof(firewall_levelv6));
 
    syscfg_get(NULL, "ecm_wan_ifname", ecm_wan_ifname, sizeof(ecm_wan_ifname));
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    syscfg_get(NULL, "emta_wan_ifname", emta_wan_ifname, sizeof(emta_wan_ifname));
+#endif
    syscfg_get(NULL, "eth_wan_enabled", eth_wan_enabled, sizeof(eth_wan_enabled));
    if (0 == strcmp("true", eth_wan_enabled))
       bEthWANEnable = TRUE;
@@ -6697,6 +6699,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
            remote_access_set_proto(filter_fp, nat_fp, port, iprangeAddr[i], family, ecm_wan_ifname);
    }
 
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    /* eMTA SSH access */
    rc = syscfg_get(NULL, "mgmt_mta_sshaccess", query, sizeof(query));
    rc |= syscfg_get(NULL, "mgmt_wan_sshport", port, sizeof(port));
@@ -6718,6 +6721,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
        for(i = 0; i < count && family == AF_INET && srcany == 0; i++)
            remote_access_set_proto(filter_fp, nat_fp, port, iprangeAddr[i], family, emta_wan_ifname);
    }
+#endif
 
 #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
     // RDKB-21814 
@@ -9363,30 +9367,59 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
             }
             else if (strncasecmp(method, "KEYWD", 5)==0)
             {
-                // consider the case that user input whole url.
-                if(strstr(query, "://") != 0) {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", strstr(query, "://") + 3, drop_log);
-#if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-#if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-                     if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
-#endif
-                     {
-                        //In Hub4 keyword blocking feature is not working with FORWARD chain rules as CPE (dnsmasq) acts as DNS Proxy.
-                        //Add rules in INPUT chain to resolve this issue.
-                        fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                     }
-#endif
+                const char *keyword = NULL;
+                int range_max = 1024; //max payload bytes to filter
+                int range_multiplier = 2;
+
+                // Extract keyword if user input is a full URL
+                if (strstr(query, "://") != NULL) {
+                    keyword = strstr(query, "://") + 3;
                 } else {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", query, drop_log);
+                   keyword = query;
+                }
+
+                if (keyword == NULL || strlen(keyword) == 0) {
+                    fprintf(stderr, "Warning: Empty keyword, skipping rule generation.\n");
+                    return(0);
+                }
+
+                // Create rules for various ranges of payload to filter
+                int from,to;
+                for (from = 0, to = 64; from < range_max; from = to, to = (to * range_multiplier > range_max) ? range_max : to * range_multiplier)
+                {
+                    char chainName[64] = {'\0'};
+
+                    // Create new chain
+                    // linux iptables chainname length is max 29 chars
+                    snprintf(chainName, sizeof(chainName), "LOG_SiteBlk_KW_%d_%d", from, to);
+                    fprintf(fp, ":%s - [0:0]\n", chainName);
+
+                    // Add rule to jump to private chain if "Host:" is found in this offset range
+                    fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"Host:\" --algo kmp --from %d --to %d --icase -j %s\n",
+                        from, to, chainName);
+
+                    // Add rule to match keyword in private chain within same offset range
+                    fprintf(fp, "-A %s -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
+                        chainName, keyword, from, to, drop_log);
+
+                    // Default rule to return if not matched
+                    fprintf(fp, "-A %s -j RETURN\n", chainName);
+                }
+
+                // Add rule for https filter
+                fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 443 -m string --string \"%s\" --algo kmp --icase -j %s\n",
+                    keyword, drop_log);
+
 #if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-                     if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
+                 if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
-                     {
-                        fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                     }
-#endif
+                {
+                    //In Hub4 keyword blocking feature is not working with FORWARD chain rules as CPE (dnsmasq) acts as DNS Proxy.
+                    //Add rules in INPUT chain to resolve this issue.
+                    fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
                 }
+#endif
             }
         }
     }
@@ -12442,7 +12475,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", current_wan_ifname);
-#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
@@ -12478,8 +12511,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    {
       fprintf(filter_fp, "-A INPUT -i %s -p icmp --icmp-type 8 -m limit --limit 3/second -j %s\n", ecm_wan_ifname, "xlog_accept_wan2self"); // ICMP PING
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_ports\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
       fprintf(filter_fp, "-A INPUT -i %s -p icmp --icmp-type 8 -m limit --limit 3/second -j %s\n", emta_wan_ifname, "xlog_accept_wan2self"); // ICMP PING
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_ports\n", emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n");
@@ -12559,7 +12594,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
          fprintf(filter_fp, "-A INPUT -i %s -j ACCEPT\n", ecm_wan_ifname);
       }
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
       if (emta_wan_ifname[0]) // spare eMTA wan interface from Utopia firewall
       {
          fprintf(filter_fp, "-A INPUT -i %s -p udp --dport 80 -j DROP\n", emta_wan_ifname);
@@ -12801,7 +12836,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    {
        fprintf(filter_fp, "-A general_input -i %s -p udp --dport 68 -j ACCEPT\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
        fprintf(filter_fp, "-A general_input -i %s -p udp --dport 68 -j ACCEPT\n", emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    }
