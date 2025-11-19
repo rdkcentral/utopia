@@ -813,6 +813,7 @@ int main(int argc, char** argv){
         }
     }
 
+    errno = 0;
     if(mkdir(FIREWALL_LOG_DIR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1)
     {
        if (errno == EEXIST) {

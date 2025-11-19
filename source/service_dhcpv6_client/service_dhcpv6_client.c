@@ -221,7 +221,9 @@ void dhcpv6_client_service_start ()
     }
     else if (access(DHCPV6_PID_FILE, F_OK) != 0)
     {
-        int fd = open(DHCP6C_PROGRESS_FILE, O_RDWR | O_CREAT | O_EXCL, 0644);
+        int fd = -1;
+        errno = 0;
+        fd = open(DHCP6C_PROGRESS_FILE, O_RDWR | O_CREAT | O_EXCL, 0644);
 
         if (fd == -1)
         {

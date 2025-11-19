@@ -522,7 +522,6 @@ enum{
     NAT_DISABLE_STATICIP,
 };
 #define PCMD_LIST "/tmp/.pcmd"
-#define MAX_DEV_LIST 2048
 typedef struct _decMacs_
 {
 char mac[19];
@@ -8942,9 +8941,10 @@ static int do_parcon_mgmt_device(FILE *fp, int iptype, FILE *cron_fp)
 devMacSt * getPcmdList(int *devCount)
 {
 int count = 0;
-int numDev = 0;
+long numDev = 0;
 FILE * fp;
 char buf[19];
+char *endptr = NULL;
 devMacSt *devMacs = NULL;
 devMacSt *dev = NULL;
 memset(buf, 0, sizeof(buf));
@@ -8955,25 +8955,22 @@ memset(buf, 0, sizeof(buf));
            FIREWALL_DEBUG("Error while locking file\n");
        while( fgets ( buf, sizeof(buf), fp ) != NULL ) 
        {
-           if(count == 0){
-               if (1 != sscanf(buf, "%4d", &numDev))
-	       {
-                  FIREWALL_DEBUG("invalid data\n");
-	       }
-               printf("numDev = %d \n" COMMA numDev);
+           if(count == 0)
+           {
+               errno = 0;
+               numDev = strtol(buf, &endptr, 10);
+               if (endptr == buf || *endptr != '\0' || errno == ERANGE)
+               {
+                   FIREWALL_DEBUG("invalid data\n");
+                   break;
+               }
+               if (numDev < INT_MIN || numDev > INT_MAX)
+               {
+                   FIREWALL_DEBUG("invalid integer\n");
+                   break;
+               }
 
-	       if(numDev > 0 && numDev <= MAX_DEV_LIST)
-	       {
-                  *devCount = numDev;
-	       }
-	       else if (numDev > MAX_DEV_LIST)
-	       {
-                  *devCount = MAX_DEV_LIST;
-	       }
-	       else
-	       {
-                  *devCount = 0;
-	       }
+               *devCount = (int)numDev;
                devMacs = (devMacSt *)calloc(*devCount,sizeof(devMacSt));
                dev = devMacs;
            }
