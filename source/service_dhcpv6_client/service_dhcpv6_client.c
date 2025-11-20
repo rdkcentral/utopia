@@ -221,11 +221,24 @@ void dhcpv6_client_service_start ()
     }
     else if (access(DHCPV6_PID_FILE, F_OK) != 0)
     {
-        if (access(DHCP6C_PROGRESS_FILE, F_OK) != 0)
+        int fd = -1;
+        errno = 0;
+        fd = open(DHCP6C_PROGRESS_FILE, O_RDWR | O_CREAT | O_EXCL, 0644);
+
+        if (fd == -1)
         {
-            FILE *fp;
-            fp  = fopen (DHCP6C_PROGRESS_FILE, "w");
-            fclose(fp);
+            if(errno == EEXIST)
+            {
+                fprintf(stderr, "SERVICE_DHCP6C : DHCPv6 Client process start in progress, not starting one more\n");
+            }
+            else
+            {
+                fprintf(stderr, "SERVICE_DHCP6C : open failed\n");
+            }
+
+        }
+        else
+        {
             fprintf(stderr, "SERVICE_DHCP6C : Starting DHCPv6 Client from service_dhcpv6_client binary\n");
 #if defined(_COSA_INTEL_XB3_ARM_) || defined(INTEL_PUMA7)
             if (strncmp(l_cDibblerEnable, "true", 4))
@@ -252,11 +265,9 @@ void dhcpv6_client_service_start ()
             v_secure_system("sh /lib/rdk/dibbler-init.sh");
             v_secure_system("%s start",DHCPV6_BINARY);
 #endif
+            close(fd);
             remove_file(DHCP6C_PROGRESS_FILE);
-        }
-        else
-        {
-           fprintf(stderr, "SERVICE_DHCP6C : DHCPv6 Client process start in progress, not starting one more\n");
+
         }
     }
 }
@@ -440,7 +451,8 @@ void register_dhcpv6_client_handler()
 
     FILE *fp;
     fp  = fopen (DHCPV6_REGISTER_FILE, "w");
-    fclose(fp);
+    if(fp != NULL)
+      fclose(fp);
 }
 
 void unregister_dhcpv6_client_handler()
