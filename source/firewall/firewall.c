@@ -2380,7 +2380,9 @@ static int prepare_globals_from_configuration(void)
    syscfg_get(NULL, "firewall_levelv6", firewall_levelv6, sizeof(firewall_levelv6));
 
    syscfg_get(NULL, "ecm_wan_ifname", ecm_wan_ifname, sizeof(ecm_wan_ifname));
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    syscfg_get(NULL, "emta_wan_ifname", emta_wan_ifname, sizeof(emta_wan_ifname));
+#endif
    syscfg_get(NULL, "eth_wan_enabled", eth_wan_enabled, sizeof(eth_wan_enabled));
    if (0 == strcmp("true", eth_wan_enabled))
       bEthWANEnable = TRUE;
@@ -5997,7 +5999,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    fprintf(fp, "-A INPUT -j wanattack\n");
 
    //Smurf attack, actually the below rules are to prevent us from being the middle-man host
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_)
    fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request %s -j LOG --log-prefix \"DoS Attack - Smurf Attack\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6017,7 +6019,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request -j xlog_drop_wanattack\n");
    // ICMP Smurf Attack (timestamp)
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_) /* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A ICMPSmurfAttack -p icmp -m icmp --icmp-type timestamp-request %s -j LOG --log-prefix \"DoS Attack - Smurf Attack\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6039,7 +6041,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 
    //ICMP Flooding. Mark traffic bit rate > 5/s as attack and limit 6 log entries per hour
    fprintf(fp, "-A ICMPFlooding -p icmp -m limit --limit 5/s --limit-burst 10 -j RETURN\n");
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_) /* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A ICMPFlooding -p icmp %s -j LOG --log-prefix \"DoS Attack - ICMP Flooding\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6061,7 +6063,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 
    //TCP SYN Flooding
    fprintf(fp, "-A TCPSYNFlooding -p tcp --syn -m limit --limit 10/s --limit-burst 20 -j RETURN\n");
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)/* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_)/* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A TCPSYNFlooding -p tcp --syn %s -j LOG --log-prefix \"DoS Attack - TCP SYN Flooding\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6085,7 +6087,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    if(isWanReady) {
        /* Allow multicast packet through */
       fprintf(fp, "-A LANDAttack -p udp -s %s -d 224.0.0.0/8 -j RETURN\n", wan_ip);
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_) /* ULOG target removed in kernels 3.17+ */
       fprintf(fp, "-A LANDAttack -s %s %s -j LOG --log-prefix \"DoS Attack - LAND Attack\" --log-level 7\n", wan_ip, logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
        if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6696,6 +6698,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
            remote_access_set_proto(filter_fp, nat_fp, port, iprangeAddr[i], family, ecm_wan_ifname);
    }
 
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    /* eMTA SSH access */
    rc = syscfg_get(NULL, "mgmt_mta_sshaccess", query, sizeof(query));
    rc |= syscfg_get(NULL, "mgmt_wan_sshport", port, sizeof(port));
@@ -6717,6 +6720,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
        for(i = 0; i < count && family == AF_INET && srcany == 0; i++)
            remote_access_set_proto(filter_fp, nat_fp, port, iprangeAddr[i], family, emta_wan_ifname);
    }
+#endif
 
 #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
     // RDKB-21814 
@@ -9349,7 +9353,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 					//Intel Proposed RDKB Generic Bug Fix from XB6 SDK
 					fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 80 -m webstr --host \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
 					fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 -m webstr --host \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)
                     fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 80 -d \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
                     fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 -d \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
 #elif !defined(_XER5_PRODUCT_REQ_)
@@ -12481,7 +12485,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", current_wan_ifname);
-#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
@@ -12517,8 +12521,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    {
       fprintf(filter_fp, "-A INPUT -i %s -p icmp --icmp-type 8 -m limit --limit 3/second -j %s\n", ecm_wan_ifname, "xlog_accept_wan2self"); // ICMP PING
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_ports\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
       fprintf(filter_fp, "-A INPUT -i %s -p icmp --icmp-type 8 -m limit --limit 3/second -j %s\n", emta_wan_ifname, "xlog_accept_wan2self"); // ICMP PING
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_ports\n", emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n");
@@ -12598,7 +12604,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
          fprintf(filter_fp, "-A INPUT -i %s -j ACCEPT\n", ecm_wan_ifname);
       }
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
       if (emta_wan_ifname[0]) // spare eMTA wan interface from Utopia firewall
       {
          fprintf(filter_fp, "-A INPUT -i %s -p udp --dport 80 -j DROP\n", emta_wan_ifname);
@@ -12840,7 +12846,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    {
        fprintf(filter_fp, "-A general_input -i %s -p udp --dport 68 -j ACCEPT\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
        fprintf(filter_fp, "-A general_input -i %s -p udp --dport 68 -j ACCEPT\n", emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    }
