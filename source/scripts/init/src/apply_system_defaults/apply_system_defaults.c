@@ -128,6 +128,17 @@ static int convert = 0;
    }\
 }\
 
+static inline void create_file_644(const char *path)
+{
+    int fd = open(path,
+            O_WRONLY | O_CREAT | O_TRUNC,
+            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if (fd == -1)
+    {
+        perror("open failed");
+    }
+    close(fd);
+}
 
 static char *trim (char *in)
 {
@@ -833,7 +844,7 @@ void CheckAndHandleInvalidPartnerIDRecoveryProcess(char *PartnerID) {
                 APPLY_PRINT("%s - syscfg_set failed\n", __FUNCTION__);
             }
 
-            creat("/nvram/.Invalid_PartnerID", 0644);
+            create_file_644("/nvram/.Invalid_PartnerID");
             v_secure_system("/rdklogger/backupLogs.sh");
 
         }
@@ -855,107 +866,100 @@ void CheckAndHandleInvalidPartnerIDRecoveryProcess(char *PartnerID) {
 
 static int get_PartnerID (char *PartnerID)
 {
-	char buf[PARTNER_ID_LEN];
-	memset(buf, 0, sizeof(buf));
-	//int isValidPartner = 0;
+    char buf[PARTNER_ID_LEN];
+    FILE *FilePtr = NULL;
 
-	/* 
-	  *  Check whether /nvram/.partner_ID file is available or not. 
-	  *  If available then read it and apply defaults based on new partnerID
-	  *  If not available then read it from HAL and create the /nvram/.partner_ID file
-	  *     then apply defaults based on current partnerID	  
-	  */
-	if ( access( PARTNERID_FILE , F_OK ) != 0 )	 
-	{
+    memset(buf, 0, sizeof(buf));
+    //int isValidPartner = 0;
 
-		APPLY_PRINT("%s - %s is not there\n", __FUNCTION__, PARTNERID_FILE );
-		if( ( 0 == getFactoryPartnerId( PartnerID ) ) && ( PartnerID [ 0 ] != '\0' ) )
-		{
-			APPLY_PRINT("%s - PartnerID from HAL: %s\n",__FUNCTION__,PartnerID );
-			validatePartnerId ( PartnerID );
-		}
-		else
-		{
-			if ( 0 == GetDevicePropertiesEntry( buf, sizeof( buf ),"PARTNER_ID" ) )
-			{
-				if(buf[0] !=  '\0') // CID 73353: Array compared against 0 (NO_EFFECT)
-                                {
-				    strncpy(PartnerID,buf,strlen(buf));
-				    PartnerID[strlen(buf)] = '\0'; // CID 340497: String not null terminated (STRING_NULL)
-				    APPLY_PRINT("%s - PartnerID from device.properties: %s\n",__FUNCTION__,PartnerID );
-                                }
-			}
-			else		
-			{
-                                APPLY_PRINT("%s:ERROR.....partnerId from factory also NULL setting it to unknown\n",__FUNCTION__);
-				
-#if defined (_XB6_PRODUCT_REQ_)
-				sprintf( PartnerID, "%s", "unknown" );
-#elif defined (_RDK_REF_PLATFORM_)
-                                sprintf( PartnerID, "%s", "RDKM");
-#elif defined (_SR300_PRODUCT_REQ_) /* Default fall back option for ADA devices SKYH4-4946 */
-				sprintf( PartnerID, "%s", "sky-uk");
-#elif defined (_HUB4_PRODUCT_REQ_) /* Default fall back option for HUB4 devices SKYH4-4946 */
-			        sprintf( PartnerID, "%s", "sky-italia");
-#else
-				sprintf( PartnerID, "%s", "comcast" );
-#endif
-				APPLY_PRINT("%s - Failed Get factoryPartnerId so set it PartnerID as: %s\n", __FUNCTION__, PartnerID );
-                                t2_event_d("SYS_ERROR_Factorypartner_fetch_failed", 1);
+    /*
+     *  Check whether /nvram/.partner_ID file is available or not.
+     *  If available then read it and apply defaults based on new partnerID
+     *  If not available then read it from HAL and create the /nvram/.partner_ID file
+     *     then apply defaults based on current partnerID
+     */
 
-                                if (strncmp(PartnerID, "comcast", strlen("comcast")) == 0)
-                                        t2_event_d("SYS_ERROR_Factory_partner_set_comcast", 1);
-			}
-		}
-	}
-	else
-	{
-		FILE	   *FilePtr 			= NULL;
-		char		fileContent[ 256 ]	= { 0 };
-
-	        /* TODO CID 135527: Time of check time of use 
-                *  As per code flow either access() or fopen() will be invoked
-                *  so we could not hit the TOCTOU issue. It could be a false positive.*/
-		FilePtr = fopen( PARTNERID_FILE, "r" );
-		
-		if ( FilePtr ) 
-		{
-			char *pos;
-		
-			fgets( fileContent, 256, FilePtr );
-			fclose( FilePtr );
-			FilePtr = NULL;
-			
-			// Remove line \n charecter from string  
-			if ( ( pos = strchr( fileContent, '\n' ) ) != NULL )
-			 *pos = '\0';
-
-			sprintf( PartnerID, "%s", fileContent );
-
-			APPLY_PRINT("%s - PartnerID from File: %s\n",__FUNCTION__,PartnerID );
-			validatePartnerId ( PartnerID );
-		}
-		unlink("/nvram/.partner_ID");
-	}
-	set_syscfg_partner_values(PartnerID,"PartnerID");
-
-	//To print Facgtory PartnerID on every boot-up
-	memset(buf, 0, sizeof(buf));
-	if( 0 == getFactoryPartnerId( buf ) )
-	{
-		APPLY_PRINT("[GET-PARTNERID] Factory_PartnerID:%s\n", buf );
-                t2_event_s("getfactorypartner_split", buf);
-	}
-   	else
+    FilePtr = fopen( PARTNERID_FILE, "r" );
+    if ( NULL == FilePtr )
     {
-       APPLY_PRINT("[GET-PARTNERID] Factory_PartnerID:NULL\n" );
-       t2_event_s("getfactorypartner_split", NULL);
-   	}
+        APPLY_PRINT("%s - %s is not there\n", __FUNCTION__, PARTNERID_FILE );
+        if( ( 0 == getFactoryPartnerId( PartnerID ) ) && ( PartnerID [ 0 ] != '\0' ) )
+        {
+            APPLY_PRINT("%s - PartnerID from HAL: %s\n",__FUNCTION__,PartnerID );
+            validatePartnerId ( PartnerID );
+        }
+        else
+        {
+            if ( 0 == GetDevicePropertiesEntry( buf, sizeof( buf ),"PARTNER_ID" ) )
+            {
+                if(buf[0] !=  '\0') // CID 73353: Array compared against 0 (NO_EFFECT)
+                {
+                    strncpy(PartnerID,buf,strlen(buf));
+                    PartnerID[strlen(buf)] = '\0'; // CID 340497: String not null terminated (STRING_NULL)
+                    APPLY_PRINT("%s - PartnerID from device.properties: %s\n",__FUNCTION__,PartnerID );
+                }
+            }
+            else
+            {
+                APPLY_PRINT("%s:ERROR.....partnerId from factory also NULL setting it to unknown\n",__FUNCTION__);
 
-	APPLY_PRINT("[GET-PARTNERID] Current_PartnerID:%s\n", PartnerID );
-        t2_event_s("getcurrentpartner_split", PartnerID);
-	
-	return 0;	
+#if defined (_XB6_PRODUCT_REQ_)
+                sprintf( PartnerID, "%s", "unknown" );
+#elif defined (_RDK_REF_PLATFORM_)
+                sprintf( PartnerID, "%s", "RDKM");
+#elif defined (_SR300_PRODUCT_REQ_) /* Default fall back option for ADA devices SKYH4-4946 */
+                sprintf( PartnerID, "%s", "sky-uk");
+#elif defined (_HUB4_PRODUCT_REQ_) /* Default fall back option for HUB4 devices SKYH4-4946 */
+                sprintf( PartnerID, "%s", "sky-italia");
+#else
+                sprintf( PartnerID, "%s", "comcast" );
+#endif
+                APPLY_PRINT("%s - Failed Get factoryPartnerId so set it PartnerID as: %s\n", __FUNCTION__, PartnerID );
+                t2_event_d("SYS_ERROR_Factorypartner_fetch_failed", 1);
+
+                if (strncmp(PartnerID, "comcast", strlen("comcast")) == 0)
+                    t2_event_d("SYS_ERROR_Factory_partner_set_comcast", 1);
+            }
+        }
+    }
+    else
+    {
+        char *pos;
+        char fileContent[ 256 ] = { 0 };
+
+        fgets( fileContent, 256, FilePtr );
+        fclose( FilePtr );
+        FilePtr = NULL;
+
+        // Remove line \n charecter from string
+        if ( ( pos = strchr( fileContent, '\n' ) ) != NULL )
+            *pos = '\0';
+
+        sprintf( PartnerID, "%s", fileContent );
+
+        APPLY_PRINT("%s - PartnerID from File: %s\n",__FUNCTION__,PartnerID );
+        validatePartnerId ( PartnerID );
+        unlink("/nvram/.partner_ID");
+    }
+    set_syscfg_partner_values(PartnerID,"PartnerID");
+
+    //To print Facgtory PartnerID on every boot-up
+    memset(buf, 0, sizeof(buf));
+    if( 0 == getFactoryPartnerId( buf ) )
+    {
+        APPLY_PRINT("[GET-PARTNERID] Factory_PartnerID:%s\n", buf );
+        t2_event_s("getfactorypartner_split", buf);
+    }
+    else
+    {
+        APPLY_PRINT("[GET-PARTNERID] Factory_PartnerID:NULL\n" );
+        t2_event_s("getfactorypartner_split", NULL);
+    }
+
+    APPLY_PRINT("[GET-PARTNERID] Current_PartnerID:%s\n", PartnerID );
+    t2_event_s("getcurrentpartner_split", PartnerID);
+
+    return 0;
 }
 
 static void ValidateAndUpdatePartnerVersionParam (cJSON *root_etc_json, cJSON *root_nvram_json, bool *do_compare, char *PartnerID)
@@ -965,17 +969,17 @@ static void ValidateAndUpdatePartnerVersionParam (cJSON *root_etc_json, cJSON *r
     char *version_etc = NULL;
     char *version_nvram = NULL;
     cJSON *version_nvram_key = NULL;
-  
+
     if (!do_compare || !root_etc_json || !root_nvram_json)
         return;
 
     /* Check if entire parameters need to be compared based on version number
     */
     properties_etc = cJSON_GetObjectItem(root_etc_json,"properties");
-  
+
     if (!properties_etc)
         *do_compare = true;
-  
+
     if (properties_etc)
     {
         properties_nvram = cJSON_GetObjectItem(root_nvram_json,"properties");
@@ -988,7 +992,7 @@ static void ValidateAndUpdatePartnerVersionParam (cJSON *root_etc_json, cJSON *r
             int nvram_minor = 0;
 
             if (version_etc)
-            {        
+            {
                 sscanf(version_etc,"%d.%d",&etc_major,&etc_minor);
                 printf ("\n READ version ######## etc: major %d minor %d \n",etc_major, etc_minor);
             }
@@ -1019,33 +1023,32 @@ static void ValidateAndUpdatePartnerVersionParam (cJSON *root_etc_json, cJSON *r
                 {
                     printf ("\n VERSION MISMATCH ######## nvram %s etc %s \n", version_nvram, version_etc);
                 }
-		else
-		{
-		   /* A rare corner case, were version is getting updated,but key and value not added to the
-		    * bootstrap file, this will make the newly added key not available until there is a new
-		    * update version in partner json file, so handling here this case also as compare needed
-		    * case*/
-		   cJSON * subitem_etc = cJSON_GetObjectItem(root_etc_json,PartnerID);
-		   cJSON * subitem_nvram_bs = cJSON_GetObjectItem(root_nvram_json,PartnerID);
-		   int subitem_etc_count = cJSON_GetArraySize(subitem_etc);
-		   int subitem_nvram_bs_count = cJSON_GetArraySize(subitem_nvram_bs);
-		   APPLY_PRINT ("\nversion:%d.%d KEY COUNT in nvram %d and etc %d\n", nvram_major, nvram_minor,
-                                                                 subitem_nvram_bs_count,subitem_etc_count);
-		   if (subitem_etc_count != subitem_nvram_bs_count)
-	           {
-		      APPLY_PRINT ("\nversion:%d.%d KEY COUNT MISMATCH in nvram %d and etc %d,do compare\n", nvram_major, nvram_minor,
-				                                 subitem_nvram_bs_count,subitem_etc_count);
-		      *do_compare = true;
-                   }
-
-		}
-            }                   
+                else
+                {
+                    /* A rare corner case, were version is getting updated,but key and value not added to the
+                     * bootstrap file, this will make the newly added key not available until there is a new
+                     * update version in partner json file, so handling here this case also as compare needed
+                     * case*/
+                    cJSON * subitem_etc = cJSON_GetObjectItem(root_etc_json,PartnerID);
+                    cJSON * subitem_nvram_bs = cJSON_GetObjectItem(root_nvram_json,PartnerID);
+                    int subitem_etc_count = cJSON_GetArraySize(subitem_etc);
+                    int subitem_nvram_bs_count = cJSON_GetArraySize(subitem_nvram_bs);
+                    APPLY_PRINT ("\nversion:%d.%d KEY COUNT in nvram %d and etc %d\n", nvram_major, nvram_minor,
+                            subitem_nvram_bs_count,subitem_etc_count);
+                    if (subitem_etc_count != subitem_nvram_bs_count)
+                    {
+                        APPLY_PRINT ("\nversion:%d.%d KEY COUNT MISMATCH in nvram %d and etc %d,do compare\n", nvram_major, nvram_minor,
+                                subitem_nvram_bs_count,subitem_etc_count);
+                        *do_compare = true;
+                    }
+                }
+            }
         }
         else
         {
             *do_compare = true;
         }
-    }    
+    }
 
     if (version_etc)
     {
@@ -1071,7 +1074,10 @@ static void ValidateAndUpdatePartnerVersionParam (cJSON *root_etc_json, cJSON *r
          FILE *fp = fopen(CLEAR_TRACK_FILE, "r");
          if (fp)
          {
-             fscanf(fp, "%u", &flags);
+             if(1 != fscanf(fp, "%u", &flags))
+             {
+                 printf("%s: failed to read file %s", __FUNCTION__, CLEAR_TRACK_FILE);
+             }
              fclose(fp);
          }
          if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
@@ -1640,7 +1646,7 @@ STATIC void addInSysCfgdDB (char *key, char *value)
       APPLY_PRINT("%s - PSM Migration needed for %s param so touching %s file\n", __FUNCTION__, key, PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER );
 
       //Need to touch /tmp/.apply_partner_defaults_new_psm_member for PSM migration handling
-      creat(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER,S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      create_file_644(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER);
    }
 }
 
@@ -1856,7 +1862,7 @@ STATIC void updateSysCfgdDB (char *key, char *value)
       APPLY_PRINT("%s - PSM Migration needed for %s param so touching %s file\n", __FUNCTION__, key, PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER );
 
       //Need to touch /tmp/.apply_partner_defaults_new_psm_member for PSM migration handling
-      creat(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER,S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+      create_file_644(PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER);
    }
 }
 
@@ -1978,7 +1984,10 @@ static int init_bootstrap_json (char *partner_nvram_obj, char *partner_etc_obj, 
          FILE *fp = fopen(CLEAR_TRACK_FILE, "r");
          if (fp)
          {
-             fscanf(fp, "%u", &flags);
+             if(1 != fscanf(fp, "%u", &flags))
+             {
+                 printf("%s: failed to read file %s", __FUNCTION__, CLEAR_TRACK_FILE);
+             }
              fclose(fp);
          }
          if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
@@ -2047,7 +2056,10 @@ STATIC int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner
          FILE *fp = fopen(CLEAR_TRACK_FILE, "r");
          if (fp)
          {
-             fscanf(fp, "%u", &flags);
+             if (1 != fscanf(fp, "%u", &flags))
+             {
+                 printf("%s: failed to read file %s", __FUNCTION__, CLEAR_TRACK_FILE);
+             }
              fclose(fp);
          }
          if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
@@ -2283,7 +2295,10 @@ STATIC int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner
          FILE *fp = fopen(CLEAR_TRACK_FILE, "r");
          if (fp)
          {
-             fscanf(fp, "%u", &flags);
+             if (1 != fscanf(fp, "%u", &flags))
+             {
+                 printf("%s: failed to read file %s", __FUNCTION__, CLEAR_TRACK_FILE);
+             }
              fclose(fp);
          }
          if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
@@ -3426,69 +3441,72 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
    FILE *fp = fopen(CLEAR_TRACK_FILE, "r");
    if (fp)
    {
-      fscanf(fp, "%u", &flags);
-      fclose(fp);
+       if(1 != fscanf(fp, "%u", &flags))
+       {
+           printf("%s: failed to read file %s", __FUNCTION__, CLEAR_TRACK_FILE);
+       }
+       fclose(fp);
    }
 
    ptr_etc_json = json_file_parse( PARTNERS_INFO_FILE_ETC );
    if ( ptr_etc_json )
    {
-      ptr_nvram_bs_json = json_file_parse( BOOTSTRAP_INFO_FILE );
-      if ( ptr_nvram_bs_json == NULL )
-      {
-         if (access(BOOTSTRAP_INFO_FILE_BACKUP, F_OK) == 0)
-         {
-            //If backup file exists, compare and copy it to /opt/secure/bootstrap.json
-            if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
-            {
+       ptr_nvram_bs_json = json_file_parse( BOOTSTRAP_INFO_FILE );
+       if ( ptr_nvram_bs_json == NULL )
+       {
+           if (access(BOOTSTRAP_INFO_FILE_BACKUP, F_OK) == 0)
+           {
+               //If backup file exists, compare and copy it to /opt/secure/bootstrap.json
+               if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
+               {
+                   char *ptr_nvram_bkup_json = NULL;
+                   ptr_nvram_bkup_json = json_file_parse(BOOTSTRAP_INFO_FILE_BACKUP);
+                   if (ptr_nvram_bkup_json)
+                   {
+                       APPLY_PRINT("%s-%d Comparing %s and %s\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE_BACKUP, PARTNERS_INFO_FILE_ETC);
+                       compare_partner_json_param( ptr_nvram_bkup_json, ptr_etc_json, PartnerID );
+                       free(ptr_nvram_bkup_json);
+                   }
+               }
+           }
+           else
+           {
+               ptr_nvram_json = json_file_parse( PARTNERS_INFO_FILE ); // nvram/partners_defaults.json can be removed after a few sprints.
+               init_bootstrap_json( ptr_nvram_json, ptr_etc_json, PartnerID );
+               if ( ptr_nvram_json == NULL )
+               {
+                   APPLY_PRINT("cp %s %s", PARTNERS_INFO_FILE_ETC, PARTNERS_INFO_FILE);
+                   v_secure_system("cp "PARTNERS_INFO_FILE_ETC " " PARTNERS_INFO_FILE);
+
+                   //Need to touch /tmp/.apply_partner_defaults_psm for PSM migration handling
+                   create_file_644(PARTNER_DEFAULT_MIGRATE_PSM); // FIX: RDKB-20566 to handle migration
+               }
+               else
+                   free( ptr_nvram_json );
+           }
+       }
+       else
+       {
+           //If backup file exist, then compare with /etc/partners_defaults.json and update /opt/secure/bootstrap.json
+           if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
+           {
                char *ptr_nvram_bkup_json = NULL;
                ptr_nvram_bkup_json = json_file_parse(BOOTSTRAP_INFO_FILE_BACKUP);
                if (ptr_nvram_bkup_json)
                {
-                  APPLY_PRINT("%s-%d Comparing %s and %s\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE_BACKUP, PARTNERS_INFO_FILE_ETC);
-                  compare_partner_json_param( ptr_nvram_bkup_json, ptr_etc_json, PartnerID );
-                  free(ptr_nvram_bkup_json);
+                   APPLY_PRINT("%s-%d - Comparing %s and %s\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE_BACKUP, PARTNERS_INFO_FILE_ETC);
+                   compare_partner_json_param( ptr_nvram_bkup_json, ptr_etc_json, PartnerID );
+                   free(ptr_nvram_bkup_json);
                }
-            }
-         }
-         else
-         {
-            ptr_nvram_json = json_file_parse( PARTNERS_INFO_FILE ); // nvram/partners_defaults.json can be removed after a few sprints.
-            init_bootstrap_json( ptr_nvram_json, ptr_etc_json, PartnerID );
-            if ( ptr_nvram_json == NULL )
-            {
-               APPLY_PRINT("cp %s %s", PARTNERS_INFO_FILE_ETC, PARTNERS_INFO_FILE);
-               v_secure_system("cp "PARTNERS_INFO_FILE_ETC " " PARTNERS_INFO_FILE);
-
-               //Need to touch /tmp/.apply_partner_defaults_psm for PSM migration handling
-               creat(PARTNER_DEFAULT_MIGRATE_PSM,S_IRUSR |S_IWUSR |S_IRGRP |S_IROTH); // FIX: RDKB-20566 to handle migration
-            }
-            else
-               free( ptr_nvram_json );
-         }
-      }
-      else
-      {
-         //If backup file exist, then compare with /etc/partners_defaults.json and update /opt/secure/bootstrap.json
-         if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
-         {
-            char *ptr_nvram_bkup_json = NULL;
-            ptr_nvram_bkup_json = json_file_parse(BOOTSTRAP_INFO_FILE_BACKUP);
-            if (ptr_nvram_bkup_json)
-            {
-               APPLY_PRINT("%s-%d - Comparing %s and %s\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE_BACKUP, PARTNERS_INFO_FILE_ETC);
-               compare_partner_json_param( ptr_nvram_bkup_json, ptr_etc_json, PartnerID );
-               free(ptr_nvram_bkup_json);
-            }
-         }
-         else
-         {
-            APPLY_PRINT("%s-%d - Comparing %s and %s\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE, PARTNERS_INFO_FILE_ETC);
-            compare_partner_json_param( ptr_nvram_bs_json, ptr_etc_json, PartnerID );
-         }
-         free( ptr_nvram_bs_json );
-      }
-      free( ptr_etc_json );
+           }
+           else
+           {
+               APPLY_PRINT("%s-%d - Comparing %s and %s\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE, PARTNERS_INFO_FILE_ETC);
+               compare_partner_json_param( ptr_nvram_bs_json, ptr_etc_json, PartnerID );
+           }
+           free( ptr_nvram_bs_json );
+       }
+       free( ptr_etc_json );
    }
 
    //Apply partner default values during FR/partner FR case

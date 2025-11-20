@@ -935,7 +935,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     char *pStr = NULL;
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME,pStr);
     if(return_status == CCSP_SUCCESS && pStr != NULL){
-        strncpy(mesh_wan_ifname,pStr ,sizeof(mesh_wan_ifname));
+        snprintf(mesh_wan_ifname, sizeof(mesh_wan_ifname), "%s", pStr);
         Ansc_FreeMemory_Callback(pStr);
         pStr = NULL;
     } 
@@ -1436,22 +1436,20 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
             responsefd = NULL;
    	}
         syscfg_get( NULL, "redirection_flag", buf, sizeof(buf));
-    	if( buf != NULL )
-    	{
-		if ((strncmp(buf,"true",4) == 0) && iresCode == 204)
-		{
+
+        if ((strncmp(buf,"true",4) == 0) && iresCode == 204)
+        {
 #if defined (_COSA_BCM_MIPS_)
 #ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
-                 // For CBR platform, the captive portal redirection feature was removed
-                 // inWifiCp = 1;
+            // For CBR platform, the captive portal redirection feature was removed
+            // inWifiCp = 1;
 #else
-			inWifiCp = 1;
+            inWifiCp = 1;
 #endif
 #else
             inWifiCp = 1;
 #endif
-		}
-	}
+        }
 #if defined (_XB6_PROD_REQ_)
         syscfg_get(NULL, "enableRFCaptivePortal", rfCpEnable, sizeof(rfCpEnable));
         if(rfCpEnable != NULL)

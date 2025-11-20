@@ -100,9 +100,9 @@ int file_parse(char* file_name, param_node **head)
         }
 
         if(name&& val){
-            strncpy(node->param_name, name, strlen(name));
+            strncpy(node->param_name, name, strlen(name)); // no STRING_OVERFLOW name points to line that is of 1024 length
             node->param_name[strlen(name)] = '\0';
-            strncpy(node->param_val, val, strlen(val));
+            strncpy(node->param_val, val, strlen(val)); // no STRING_OVERFLOW val points to line that is of 1024 length
             node->param_val[strlen(val)] = '\0';
         }else{
             free(node);
