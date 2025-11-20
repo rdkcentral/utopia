@@ -1304,18 +1304,18 @@ int prepare_dhcp_conf (char *input)
     l_fNetRes = fopen(NETWORK_RES_FILE, "r");
     if (NULL == l_fNetRes)
     {
-		fprintf(g_fArmConsoleLog, "%s file is not present \n", NETWORK_RES_FILE);
+        fprintf(g_fArmConsoleLog, "%s file is not present \n", NETWORK_RES_FILE);
     }
     else
-	{
-                /* CID 60600: Unchecked return value from library */
-                if ((ret = fscanf(l_fNetRes,"%s", l_cNetwork_Res)) != 1)
-	        {
-		   fprintf(g_fArmConsoleLog, "read error of %s \n",NETWORK_RES_FILE);
-		}
+    {
+        /* CID 60600: Unchecked return value from library */
+        if ((ret = fscanf(l_fNetRes,"%7s", l_cNetwork_Res)) != 1)
+        {
+            fprintf(g_fArmConsoleLog, "read error of %s \n",NETWORK_RES_FILE);
+        }
 
-		fclose(l_fNetRes);
-	}	
+        fclose(l_fNetRes);
+    }
    
    
 	l_iRet_Val = PSM_VALUE_GET_STRING(PSM_NAME_NOTIFY_WIFI_CHANGES, l_cpPsm_Get);
