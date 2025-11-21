@@ -2481,7 +2481,7 @@ static int prepare_globals_from_configuration(void)
    if (IsHotspotActive())
    {
         // Get the current active interface from RDK Bus
-        if (WanManager_RdkBus_GetParamValues(
+        if (RdkBus_GetParamValues(
                 FIREWALL_COMPONENT_NAME, FIREWALL_DBUS_PATH, "Device.X_RDK_WanManager.CurrentActiveInterface", hotspot_wan_ifname) == ANSC_STATUS_SUCCESS)
         {
 	    FIREWALL_DEBUG("HotSpot wan interface fetched \n");
