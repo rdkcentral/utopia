@@ -357,7 +357,6 @@ NOT_DEF:
 #include "ccsp_psm_helper.h"
 #include <ccsp_base_api.h>
 #include "ccsp_memory.h"
-#include <rbus/rbus.h>
 
 
 #if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
@@ -703,7 +702,6 @@ bool isDefHttpsPortUsed = FALSE ;
 int current_wan_ipv6_num = 0;
 char default_wan_ifname[50]; // name of the regular wan interface
 char hotspot_wan_ifname[50];
-rbusHandle_t g_rbusHandle;
 int rfstatus;
 /*
  * For timed internet access rules we use cron 
@@ -2482,9 +2480,9 @@ static int prepare_globals_from_configuration(void)
    {
         // Get the current active interface from RDK Bus
         if (WanManager_RdkBus_GetParamValues(
-                WAN_COMPONENT_NAME, WAN_DBUS_PATH, "Device.X_RDK_WanManager.CurrentActiveInterface", hotspot_wan_ifname) == ANSC_STATUS_SUCCESS)
+                FIREWALL_COMPONENT_NAME, FIREWALL_DBUS_PATH, "Device.X_RDK_WanManager.CurrentActiveInterface", hotspot_wan_ifname) == ANSC_STATUS_SUCCESS)
         {
-	    FIREWALL_DEBUG("HotSpot wan interface fetched  \n");
+	    FIREWALL_DEBUG("HotSpot wan interface fetched \n");
         }
    }
    FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
@@ -5285,6 +5283,7 @@ static int do_nat_ephemeral(FILE *fp)
    return(0);
 }
 
+#if defined  (WAN_FAILOVER_SUPPORTED)
 void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
 {
     FIREWALL_DEBUG(" Entering applyHotspotPostRoutingRules \n");
@@ -5315,7 +5314,7 @@ void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
     }
     FIREWALL_DEBUG(" Exiting applyHotspotPostRoutingRules \n");
 }
-
+#endif
 #if defined(_BWG_PRODUCT_REQ_)
 /*
  *  Procedure     : do_raw_table_staticip
@@ -5428,7 +5427,9 @@ static int do_wan_nat_lan_clients(FILE *fp)
 #endif //FEATURE_MAPT
       if (0 == checkIfULAEnabled())
       {
+#if defined  (WAN_FAILOVER_SUPPORTED)
 	  applyHotspotPostRoutingRules(fp, true);
+#endif
       } else if(!IS_EMPTY_STRING(natip4))
       {
          fprintf(fp, "-A postrouting_towan -s 10.0.0.0/8 -j SNAT --to-source %s\n", natip4);
@@ -5477,7 +5478,9 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #else
 	 if (0 == checkIfULAEnabled())
 	 {
+#if defined  (WAN_FAILOVER_SUPPORTED)
 	     applyHotspotPostRoutingRules(fp, true);
+#endif
 	 } else {
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
 	 }
@@ -15474,15 +15477,20 @@ int do_wpad_isatap_blockv6 (FILE *filter_fp)
 }
 
 // Function to query parameters from RDK Bus
-ANSC_STATUS WanManager_RdkBus_GetParamValues(
+ANSC_STATUS RdkBus_GetParamValues(
     char *pComponent,
     char *pBus,
     char *pParamName,
-    char *pReturnVal)
+    char *pReturnVal,
+    size_t returnValSize)
 {
     parameterValStruct_t   **retVal = NULL;
     char                   *ParamName[ 1 ] = { 0 };
     int                    ret = 0, nval = 0;
+
+    if (!pReturnVal || returnValSize == 0) {
+	return ANSC_STATUS_FAILURE;
+    }
 
     // Assign the address for the parameter name
     ParamName[0] = pParamName;
@@ -15502,10 +15510,15 @@ ANSC_STATUS WanManager_RdkBus_GetParamValues(
     if (CCSP_SUCCESS == ret)
     {
         // Copy the value to the return buffer
-        if (NULL != retVal[0]->parameterValue)
+	if (retVal && nval > 0 && retVal[0] && retVal[0]->parameterValue)
         {
-            memcpy(pReturnVal, retVal[0]->parameterValue, strlen(retVal[0]->parameterValue) + 1);
+	    const char *src = retVal[0]->parameterValue;
+
+	    /* Safe copy with truncation */
+	    strncpy(pReturnVal, src, returnValSize - 1);
+	    pReturnVal[returnValSize - 1] = '\0';
         }
+
 
         // Free the allocated memory for the return value struct
         if (retVal)
@@ -15528,7 +15541,7 @@ ANSC_STATUS WanManager_RdkBus_GetParamValues(
  * Function:  IsHotspotActive
  * Description:
  *     Checks whether the HOTSPOT interface is currently active by
- *     querying the parameter TR181_ACTIVE_INTERFACE, which
+ *     querying the parameter FIREWALL_INTERFACE_STATUS_PARAM_NAME which
  *     contains the status of WAN interfaces in the format:
  *        INTERFACE_NAME,STATUS|INTERFACE_NAME,STATUS|...
  *     Example: "HOTSPOT,1|WANOE,0|DSL,0"
@@ -15545,8 +15558,9 @@ bool IsHotspotActive()
     char acTmpReturnValue[BUFLEN_256] = { 0 };
 
     // Query the WAN Manager for the Interface Active Status
-    if (ANSC_STATUS_FAILURE == WanManager_RdkBus_GetParamValues(
-            WAN_COMPONENT_NAME, WAN_DBUS_PATH, WAN_INTERFACE_STATUS_PARAM_NAME, acTmpReturnValue))
+    if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(
+            FIREWALL_COMPONENT_NAME, FIREWALL_DBUS_PATH, TR181_ACTIVE_WAN_INTERFACE, 
+	    acTmpReturnValue, sizeof(acTmpReturnValue)))
     {
         FIREWALL_DEBUG("%s %d Failed to get param value \n" COMMA __FUNCTION__ COMMA __LINE__);
         return false;
@@ -15561,10 +15575,10 @@ bool IsHotspotActive()
     while (token != NULL)
     {
         // Check if HOTSPOT is in the token and its value is 1
-        if (strncmp(token, "HOTSPOT,", 8) == 0)
+        if (strncasecmp(token, "HOTSPOT,", 8) == 0)
         {
             // Last character should be '1' to be active
-            if (token[strlen(token) - 1] == '1')
+	    if (strlen(token) > 8 && token[strlen(token) - 1] == '1')  
             {
                 FIREWALL_DEBUG("HOTSPOT interface is ACTIVE\n");
                 return true;
