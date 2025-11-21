@@ -110,7 +110,9 @@ char wan6_ifname[50];
 char ecm_wan_ifname[20];
 char lan_ifname[50];
 char cmdiag_ifname[20];
+#if !defined (NO_MTA_FEATURE_SUPPORT)
 char emta_wan_ifname[20];
+#endif
 token_t sysevent_token;
 int syslog_level;
 char firewall_levelv6[20];
@@ -170,6 +172,8 @@ char devicePartnerId[255] = {'\0'};
 //Hardcoded support for cm and erouter should be generalized.
 #if defined(_HUB4_PRODUCT_REQ_) || defined(_TELCO_PRODUCT_REQ_)
 char * ifnames[] = { wan6_ifname, lan_ifname};
+#elif defined (NO_MTA_FEATURE_SUPPORT)
+char * ifnames[] = { wan6_ifname, ecm_wan_ifname, lan_ifname};
 #else
 char * ifnames[] = { wan6_ifname, ecm_wan_ifname, emta_wan_ifname, lan_ifname};
 #endif /* * _HUB4_PRODUCT_REQ_ */
@@ -851,9 +855,10 @@ void do_ipv6_filter_table(FILE *fp){
    {
       fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", ecm_wan_ifname); // Echo request
       fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", ecm_wan_ifname); // Echo reply
-
+#if !defined (NO_MTA_FEATURE_SUPPORT)
       fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", emta_wan_ifname); // Echo request
       fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", emta_wan_ifname); // Echo reply
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
 
@@ -862,7 +867,7 @@ void do_ipv6_filter_table(FILE *fp){
        * exclude primary lan*/
       prepare_ipv6_multinet(fp);
     #endif
-    #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) //wan0 is not applicable for XER5
+    #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) && !defined(_COSA_QCA_ARM_) //wan0 is not applicable for XER5
       /* not allow ping wan0 from brlan0 */
       int i;
       for(i = 0; i < ecm_wan_ipv6_num; i++){
@@ -1324,7 +1329,9 @@ v6GPFirewallRuleNext:
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
    {
       fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", lan_ifname, ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
       fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", lan_ifname, emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
       if(inf_num!= 0)
@@ -1395,7 +1402,9 @@ v6GPFirewallRuleNext:
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
          {
             fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", Interface[cnt], ecm_wan_ifname);
-		      fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", Interface[cnt], emta_wan_ifname);  
+#if !defined (NO_MTA_FEATURE_SUPPORT)
+		      fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", Interface[cnt], emta_wan_ifname);
+#endif
          }
 #endif
 		}
@@ -1453,7 +1462,9 @@ v6GPFirewallRuleNext:
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
       {
          fprintf(fp, "-A FORWARD -i %s -m state --state ESTABLISHED,RELATED -j ACCEPT\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
          fprintf(fp, "-A FORWARD -i %s -m state --state ESTABLISHED,RELATED -j ACCEPT\n", emta_wan_ifname);
+#endif
       }
 #endif /*_HUB4_PRODUCT_REQ_*/
 
@@ -1491,7 +1502,9 @@ v6GPFirewallRuleNext:
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
       {
          fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", ecm_wan_ifname, lan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
          fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", emta_wan_ifname, lan_ifname);
+#endif
       }
 #endif /*_HUB4_PRODUCT_REQ_*/
       if(inf_num!= 0)
@@ -1506,7 +1519,9 @@ v6GPFirewallRuleNext:
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
       {
 		      fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", ecm_wan_ifname, Interface[cnt]);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
 		      fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", emta_wan_ifname, Interface[cnt]);
+#endif
       }
 #endif
 		}
@@ -1996,7 +2011,7 @@ void do_ipv6_sn_filter(FILE* fp) {
 #ifdef _COSA_INTEL_XB3_ARM_
         fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",current_wan_ifname);
         fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",ecm_wan_ifname);
-        fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",emta_wan_ifname);
+	fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",emta_wan_ifname);
 #endif
      FIREWALL_DEBUG("Exiting do_ipv6_sn_filter \n"); 
 }
