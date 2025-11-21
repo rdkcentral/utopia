@@ -2104,7 +2104,6 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
 }
 #endif
 
-#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
 int checkIfULAEnabled()
 {
     // temp check , need to replace with CurrInterface Name or if device is XLE
@@ -2125,6 +2124,7 @@ int checkIfULAEnabled()
       return -1;
 }
 
+#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
 void applyIpv6ULARules(FILE* fp)
 {
    #if defined  (RDKB_EXTENDER_ENABLED)
@@ -2237,27 +2237,24 @@ void do_ipv6_nat_table(FILE* fp)
 			}
 		}
    }
-#ifdef _PLATFORM_RASPBERRYPI_
+#if defined  (WAN_FAILOVER_SUPPORTED)
    if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
    {
-    #if defined  (WAN_FAILOVER_SUPPORTED)
        if (0 == checkIfULAEnabled())
        {
 	   applyHotspotPostRoutingRules(fp, false);
        }
-   #endif
    }
-   else
-   {
-       fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
-   }
+#endif
+#ifdef _PLATFORM_RASPBERRYPI_
+   fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
 #endif
 
 #ifdef _PLATFORM_BANANAPI_R4_
    fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
 #endif
 
-    FIREWALL_DEBUG("Exiting do_ipv6_nat_table \n");
+   FIREWALL_DEBUG("Exiting do_ipv6_nat_table \n");
 }
 
 void getIpv6Interfaces(char Interface[MAX_NO_IPV6_INF][MAX_LEN_IPV6_INF],int *len)
