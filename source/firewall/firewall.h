@@ -353,8 +353,6 @@ void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4);
 #define BUFLEN_256           256
 #define FIREWALL_DBUS_PATH        "/com/cisco/spvtg/ccsp/wanmanager"
 #define FIREWALL_COMPONENT_NAME   "eRT.com.cisco.spvtg.ccsp.wanmanager"
-#define ANSC_STATUS_SUCCESS 0
-#define ANSC_STATUS_FAILURE 1
 extern char hotspot_wan_ifname[50];
 extern int current_wan_ipv6_num;
 extern char default_wan_ifname[50]; // name of the regular wan interface
