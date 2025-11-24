@@ -2950,10 +2950,6 @@ static int handle_message_from_trigger_thread(int fd)
    return(rc);
 }
 
-static int is_valid_fd(int fd)
-{
-   return fd >= 0 && fcntl(fd, F_GETFD) != -1;
-}
 /*
  * Procedure     : worker_thread_main
  * Purpose       : Thread start routine for worker
@@ -3025,9 +3021,9 @@ void *worker_thread_main(void *arg)
          if ((global_clients.clients)[i].used) {
             int cur_fd;
             cur_fd = (global_clients.clients)[i].fd;
-            if (0 == is_valid_fd(cur_fd)) {
+            if (-1 == cur_fd) {
                SE_INC_LOG(ERROR,
-		   printf("Thread id %d line %d main select got used client with a bad fd. Ignoring cur_fd = %d\n",thread_get_id(worker_data_key), __LINE__, cur_fd);
+                  printf("main select got used client with a bad fd. Ignoring\n");
                )
               incr_stat_info(STAT_WORKER_MAIN_SELECT_BAD_FD);
             } else {

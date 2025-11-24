@@ -115,7 +115,6 @@ extern int sysevent_fd;
 extern char sysevent_ip[19];
 extern unsigned short sysevent_port;
 #define PSM_VALUE_GET_STRING(name, str) PSM_Get_Record_Value2(bus_handle, CCSP_SUBSYS, name, NULL, &(str)) 
-#define PSM_HOTSPOT_WAN_IFNAME "dmsb.wanmanager.if.3.Name"
 
 int get_ip6address (char * ifname, char ipArry[][40], int * p_num, unsigned int scope_in);
 
@@ -146,8 +145,7 @@ int do_wpad_isatap_blockv4 (FILE *fp);
 int do_blockfragippktsv4(FILE *fp);
 int do_portscanprotectv4(FILE *fp);
 int do_ipflooddetectv4(FILE *fp);
-void do_webui_attack_filter(FILE *filter_fp);
-int wan_lan_webui_attack(FILE *fp, const char *interface);
+
 
 // Rule preparation functions
 int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
@@ -348,8 +346,6 @@ extern char dev_type[20];
 extern char mesh_wan_ifname[32];
 #endif
 
-void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4);
-extern char hotspot_wan_ifname[50];
 extern int current_wan_ipv6_num;
 extern char default_wan_ifname[50]; // name of the regular wan interface
 extern char current_wan_ipv6[IF_IPV6ADDR_MAX][40];

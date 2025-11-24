@@ -1429,8 +1429,6 @@ $DscpSleepInterval_2=0
 #Ccsp CMagent Docsis linkdown timeout default value is 900sec
 $DocsisLinkDownTimeOut=900
 
-#Ccsp Ethagent EWAN linkdown timeout default value is 900sec
-$EWanLinkDownTimeout=900
 #LLDEnable default value is false
 $LldEnable=false
 
