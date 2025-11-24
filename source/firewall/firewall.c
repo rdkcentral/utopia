@@ -13228,7 +13228,7 @@ int do_block_ports(FILE *filter_fp)
    fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n",get_current_wan_ifname());
 #endif
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 1900 -j DROP\n");
-   fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
+   fprintf(filter_fp, "-I INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 21515 -j DROP\n");
 
    /*	RDKB-22836 :
