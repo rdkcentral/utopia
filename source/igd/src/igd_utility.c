@@ -464,7 +464,12 @@ BOOL chkPortMappingClient(char* client)
         return FALSE;
     }
 
-    Utopia_GetLanSettings(&Ctx, &lan);
+    //CHECKED_RETURN
+    if (SUCCESS != Utopia_GetLanSettings(&Ctx, &lan))
+    {
+        printf("%s Error failed to get LAN params\n", __FUNCTION__);
+    }
+
     inet_pton(AF_INET, lan.ipaddr, &ipaddr);
     inet_pton(AF_INET, lan.netmask, &netmask);
     inet_pton(AF_INET, client, &clientaddr);

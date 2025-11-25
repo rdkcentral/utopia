@@ -733,9 +733,9 @@ static int GetDevicePropertiesEntry (char *pOutput, int size, char *sDevicePropC
     return ret;
 }
 
-static int getFactoryPartnerId (char *pValue)
+int getFactoryPartnerId (char *pValue)
 {
-#if defined (_XB6_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_SR300_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_)
+#if defined (_XB6_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_SR300_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 	if(0 == platform_hal_getFactoryPartnerId(pValue))
 	{
 		APPLY_PRINT("%s:%d - %s\n",__FUNCTION__, __LINE__,pValue);
@@ -1015,6 +1015,111 @@ static void ValidateAndUpdatePartnerVersionParam (cJSON *root_etc_json, cJSON *r
         }
     }
 }
+
+#if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
+int PartnerId_FetchWithRetry(char *PartnerID ) {
+    int retries = 0;
+    char buf[PARTNER_ID_LEN] = {0};
+
+    for(retries = 0; retries < PARTNER_ID_MAX_RETRY; retries++) {
+        memset(PartnerID, 0, PARTNER_ID_LEN);
+
+        if((0 == getFactoryPartnerId(PartnerID)) && (PartnerID[0] != '\0') &&
+            validatePartnerId(PartnerID) && (0 != strcasecmp (PartnerID, "Unknown"))) {
+            return 0;
+        }
+        else {
+            memset(buf, 0, sizeof(buf));
+
+            if ( 0 == GetDevicePropertiesEntry(buf, sizeof(buf), "PARTNER_ID")) {
+                if(buf[0] !=  '\0') {
+                    strncpy(PartnerID, buf, strlen(buf));
+                    PartnerID[strlen(buf)] = '\0';
+
+                    if(validatePartnerId(PartnerID) && (0 != strcasecmp(PartnerID, "Unknown") )) {
+                        return 0;
+                    }
+                }
+            }
+        }
+
+        if((retries + 1) < PARTNER_ID_MAX_RETRY) {
+            APPLY_PRINT("%s - Still obtaining invalid PartnerID value from various sources so Retrying, Iteration: <%d>\n", __FUNCTION__, retries);
+            sleep(2);
+        }
+    }
+
+    return 1;
+}
+
+int WritePartnerIDToFile(char* PartnerID) {
+    FILE *fp = NULL;
+
+    fp = fopen(PARTNERID_FILE, "w");
+    if(NULL == fp) {
+        APPLY_PRINT("%s - Failed to open file %s\n", __FUNCTION__, PARTNERID_FILE);
+        return 1;
+    }
+
+    if( (NULL != PartnerID) && (strlen(PartnerID) > 0) ) {
+        fwrite(PartnerID, strlen(PartnerID), 1, fp);
+        APPLY_PRINT("%s - PartnerID %s written to file %s\n", __FUNCTION__, PartnerID, PARTNERID_FILE);
+    }
+    else {
+        APPLY_PRINT("%s - PartnerID is NULL\n", __FUNCTION__);
+        if(fp) {
+            fclose(fp);
+        }
+
+        return 1;
+    }
+
+    if(fp) {
+        fclose(fp);
+    }
+
+    return 0;
+}
+
+void CheckAndHandleInvalidPartnerIDRecoveryProcess(char *PartnerID) {
+    if( '\0' == PartnerID[0] || (0 == validatePartnerId(PartnerID)) || (0 == strcasecmp (PartnerID, "Unknown")) ) {
+        memset(PartnerID, 0, PARTNER_ID_LEN);
+
+        APPLY_PRINT("%s - Current PartnerID value is Unknown/Invalid, So retrying to obtain valid PartnerID values. \n", __FUNCTION__);
+        t2_event_d("SYS_ERROR_INVALID_PARTNER_ID_DETECTED", 1);
+        if( 0 == PartnerId_FetchWithRetry(PartnerID) ) {
+            APPLY_PRINT("%s - INVALID_PARTNER_ID_RECOVERY_SUCCESS - Obtained Valid PartnerID is %s\n", __FUNCTION__, PartnerID );
+            t2_event_d("SYS_INVALID_PARTNER_ID_RECOVERY_SUCCESS", 1);
+
+            if (syscfg_set_commit(NULL, "PartnerID", PartnerID) != 0) {
+                APPLY_PRINT("%s - PartnerID syscfg_set failed\n", __FUNCTION__);
+            }
+
+            WritePartnerIDToFile(PartnerID);
+
+            if (syscfg_set_commit(NULL, "factory_reset", "y") != 0) {
+                APPLY_PRINT("%s - syscfg_set failed\n", __FUNCTION__);
+            }
+
+            creat("/nvram/.Invalid_PartnerID", 0644);
+            v_secure_system("/rdklogger/backupLogs.sh");
+
+        }
+        else {
+            if (syscfg_set_commit(NULL, "PartnerID", "Unknown") != 0) {
+                APPLY_PRINT("%s - syscfg_set failed\n", __FUNCTION__);
+            }
+
+            APPLY_PRINT("%s - INVALID_PARTNER_ID_RECOVERY_FAILURE - PartnerID is %s\n", __FUNCTION__, PartnerID );
+            t2_event_d("SYS_ERROR_INVALID_PARTNER_ID_RECOVERY_FAILURE", 1);
+        }
+    }
+    else {
+        APPLY_PRINT("%s - Current PartnerID : %s value is Valid \n", __FUNCTION__, PartnerID );
+    }
+}
+
+#endif // (_RDKB_GLOBAL_PRODUCT_REQ_)
 
 static char *getBuildTime (void)
 {
@@ -1318,6 +1423,7 @@ static void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"DSCP_InitialOutputMark" );
       }
    }
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.StartupIPMode") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "StartupIPMode" ) )
@@ -1346,6 +1452,7 @@ static void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"IPv6PrimaryDhcpServerOptions" );
       }
    }
+#endif
    if ( 0 == strcmp ( key, "Device.X_RDK_WebConfig.URL") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "WEBCONFIG_INIT_URL" ) )
@@ -1410,6 +1517,7 @@ static void addInSysCfgdDB (char *key, char *value)
          IsPSMMigrationNeeded = 1;
       }
    }
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.IPv6SecondaryDhcpServerOptions") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "IPv6SecondaryDhcpServerOptions" ) )
@@ -1417,6 +1525,7 @@ static void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"IPv6SecondaryDhcpServerOptions" );
       }
    }
+#endif
    if ( 0 == strcmp ( key, "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.HomeSec.SSIDprefix") )
    {
       set_syscfg_partner_values( value,"XHS_SSIDprefix" );
@@ -2810,6 +2919,7 @@ int apply_partnerId_default_values (char *data, char *PartnerID)
 					  APPLY_PRINT("%s - Default Value of InitialOutputMark is NULL\n", __FUNCTION__ );
 					}
 
+#if !defined (NO_MTA_FEATURE_SUPPORT)
 					paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.StartupIPMode"), "ActiveValue");
                                         if ( paramObjVal != NULL )
                                         {
@@ -2884,6 +2994,7 @@ if ( paramObjVal != NULL )
        {
             APPLY_PRINT("%s - Default Value of Secondary dhcp server option is NULL\n", __FUNCTION__ );
        }
+#endif
 
 					paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.WANsideSSH.Enable"), "ActiveValue");
 					if ( paramObjVal != NULL )

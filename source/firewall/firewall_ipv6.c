@@ -110,7 +110,9 @@ char wan6_ifname[50];
 char ecm_wan_ifname[20];
 char lan_ifname[50];
 char cmdiag_ifname[20];
+#if !defined (NO_MTA_FEATURE_SUPPORT)
 char emta_wan_ifname[20];
+#endif
 token_t sysevent_token;
 int syslog_level;
 char firewall_levelv6[20];
@@ -170,6 +172,8 @@ char devicePartnerId[255] = {'\0'};
 //Hardcoded support for cm and erouter should be generalized.
 #if defined(_HUB4_PRODUCT_REQ_) || defined(_TELCO_PRODUCT_REQ_)
 char * ifnames[] = { wan6_ifname, lan_ifname};
+#elif defined (NO_MTA_FEATURE_SUPPORT)
+char * ifnames[] = { wan6_ifname, ecm_wan_ifname, lan_ifname};
 #else
 char * ifnames[] = { wan6_ifname, ecm_wan_ifname, emta_wan_ifname, lan_ifname};
 #endif /* * _HUB4_PRODUCT_REQ_ */
@@ -851,9 +855,10 @@ void do_ipv6_filter_table(FILE *fp){
    {
       fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", ecm_wan_ifname); // Echo request
       fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", ecm_wan_ifname); // Echo reply
-
+#if !defined (NO_MTA_FEATURE_SUPPORT)
       fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", emta_wan_ifname); // Echo request
       fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", emta_wan_ifname); // Echo reply
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
 
@@ -862,7 +867,7 @@ void do_ipv6_filter_table(FILE *fp){
        * exclude primary lan*/
       prepare_ipv6_multinet(fp);
     #endif
-    #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) //wan0 is not applicable for XER5
+    #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) && !defined(_COSA_QCA_ARM_) //wan0 is not applicable for XER5
       /* not allow ping wan0 from brlan0 */
       int i;
       for(i = 0; i < ecm_wan_ipv6_num; i++){
@@ -1324,7 +1329,9 @@ v6GPFirewallRuleNext:
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
    {
       fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", lan_ifname, ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
       fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", lan_ifname, emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
       if(inf_num!= 0)
@@ -1395,7 +1402,9 @@ v6GPFirewallRuleNext:
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
          {
             fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", Interface[cnt], ecm_wan_ifname);
-		      fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", Interface[cnt], emta_wan_ifname);  
+#if !defined (NO_MTA_FEATURE_SUPPORT)
+		      fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", Interface[cnt], emta_wan_ifname);
+#endif
          }
 #endif
 		}
@@ -1453,7 +1462,9 @@ v6GPFirewallRuleNext:
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
       {
          fprintf(fp, "-A FORWARD -i %s -m state --state ESTABLISHED,RELATED -j ACCEPT\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
          fprintf(fp, "-A FORWARD -i %s -m state --state ESTABLISHED,RELATED -j ACCEPT\n", emta_wan_ifname);
+#endif
       }
 #endif /*_HUB4_PRODUCT_REQ_*/
 
@@ -1491,7 +1502,9 @@ v6GPFirewallRuleNext:
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
       {
          fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", ecm_wan_ifname, lan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
          fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", emta_wan_ifname, lan_ifname);
+#endif
       }
 #endif /*_HUB4_PRODUCT_REQ_*/
       if(inf_num!= 0)
@@ -1506,7 +1519,9 @@ v6GPFirewallRuleNext:
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
       {
 		      fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", ecm_wan_ifname, Interface[cnt]);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
 		      fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", emta_wan_ifname, Interface[cnt]);
+#endif
       }
 #endif
 		}
@@ -1959,6 +1974,10 @@ void do_ipv6_sn_filter(FILE* fp) {
             fprintf(fp, "-A PREROUTING -i %s -d %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i], mcastAddrStr);
         /* NS Throttling rules for WAN and LAN */
         fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i]);
+	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+	{
+	    fprintf(fp, "-A INPUT -s %s -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 133 -m limit --limit 100/sec -j ACCEPT\n" , current_wan_ip6_addr , current_wan_ifname);
+	}
         fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP\n", ifnames[i]);
     }
 
@@ -1992,7 +2011,7 @@ void do_ipv6_sn_filter(FILE* fp) {
 #ifdef _COSA_INTEL_XB3_ARM_
         fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",current_wan_ifname);
         fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",ecm_wan_ifname);
-        fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",emta_wan_ifname);
+	fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",emta_wan_ifname);
 #endif
      FIREWALL_DEBUG("Exiting do_ipv6_sn_filter \n"); 
 }
@@ -2108,22 +2127,24 @@ int checkIfULAEnabled()
 
 void applyIpv6ULARules(FILE* fp)
 {
-   #ifdef RDKB_EXTENDER_ENABLED  
+   #if defined  (RDKB_EXTENDER_ENABLED)
       if(strlen(current_wan_ipv6[0]) > 0)
       {
-          FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipv6); 
-
-         fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n",current_wan_ifname);
+	  FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipv6); 
+	  fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n",current_wan_ifname);
       }
    #else
+      FIREWALL_DEBUG("Applying applyIpv6ULARules \n");
       applyRoutingRules(fp,GLOBAL_IPV6);
       applyRoutingRules(fp,ULA_IPV6);
 
    #endif
 }
+
 #endif 
 void do_ipv6_nat_table(FILE* fp)
 {
+    FIREWALL_DEBUG("Entering do_ipv6_nat_table \n");
     char IPv6[INET6_ADDRSTRLEN] = "0";
     fprintf(fp, "*nat\n");
 	fprintf(fp, ":%s - [0:0]\n", "prerouting_devices");
@@ -2217,7 +2238,19 @@ void do_ipv6_nat_table(FILE* fp)
 		}
    }
 #ifdef _PLATFORM_RASPBERRYPI_
-   fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
+   if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+   {
+    #if defined  (WAN_FAILOVER_SUPPORTED)
+       if (0 == checkIfULAEnabled())
+       {
+	   applyHotspotPostRoutingRules(fp, false);
+       }
+   #endif
+   }
+   else
+   {
+       fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
+   }
 #endif
 
 #ifdef _PLATFORM_BANANAPI_R4_

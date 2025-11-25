@@ -773,6 +773,40 @@ updateManageWifiBridgeDetails ()
         fi
     fi
 }
+
+is_valid_ipv4() {
+    local ip="$1"
+
+    local valid_octet='(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+
+    # Basic IPv4 format and octet vaidation
+    if [[ ! $ip =~ ^${valid_octet}\.${valid_octet}\.${valid_octet}\.${valid_octet}$ ]]; then
+        return 1
+    fi
+
+    return 0
+}
+
+replace_localhost_with_lan_ip() {
+    local lan_ip=$(syscfg get lan_ipaddr 2>/dev/null)
+
+    if ! is_valid_ipv4 "$lan_ip"; then
+        echo "REPLACE_LOCALHOST_DNS : Warning: Invalid LAN IP: '$lan_ip'" >&2
+        return
+    fi
+
+    # Check if 127.0.0.1 exists and replace
+    if grep -q "127\.0\.0\.1" /etc/resolv.conf; then
+        local temp=$(cat /etc/resolv.conf)
+        temp="${temp//127.0.0.1/$lan_ip}"
+        if echo "$temp" > /etc/resolv.conf 2>/dev/null; then
+            echo "REPLACE_LOCALHOST_DNS : Successfully updated resolv.conf with private LAN IP: $lan_ip"
+        else
+            echo "REPLACE_LOCALHOST_DNS : Error: Failed to write to resolv.conf" >&2
+        fi
+    fi
+}
+
 #-----------------------------------------------------------------
 # set the dhcp config file which is also the dns forwarders file
 #  Parameters:
@@ -1075,13 +1109,14 @@ fi
    #fi
 
    #Option for parsing plume vendor code
-   if [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "VNTXER5" ] ; then
+   if [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]; then
      echo "dhcp-option=vendor:Plume,43,tag=123" >> $LOCAL_DHCP_CONF 
      echo "dhcp-option=vendor:PP203X,43,tag=123" >> $LOCAL_DHCP_CONF
      echo "dhcp-option=vendor:SE401,43,tag=123" >> $LOCAL_DHCP_CONF
      echo "dhcp-option=vendor:HIXE12AWR,43,tag=123" >> $LOCAL_DHCP_CONF
      echo "dhcp-option=vendor:WNXE12AWR,43,tag=123" >> $LOCAL_DHCP_CONF
      echo "dhcp-option=vendor:WNXL11BWL,43,tag=123" >> $LOCAL_DHCP_CONF
+     echo "dhcp-option=vendor:RDKBPOD,43,tag=123" >> $LOCAL_DHCP_CONF
    fi
 
    if [ "dns_only" != "$3" ] ; then
@@ -1097,7 +1132,7 @@ fi
       fi
    fi
   
-   if [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "turris" ]; then
+   if [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "turris" ]; then
 	   LAN_STATUS=`sysevent get lan-status`
 	   BRIDGE_MODE=`syscfg get bridge_mode`
 	   if [ "$LAN_STATUS" = "stopped" ] && [ $BRIDGE_MODE == 0 ]; then                
@@ -1201,7 +1236,7 @@ fi
 			   echo "${PREFIX}""dhcp-option=l2sd0.4090,6,$WAN_DHCP_NS" >> $LOCAL_DHCP_CONF
 		   fi
 
-        elif [ "$MODEL_NUM" = "CGM4331COM" ] || [ "$MODEL_NUM" = "CGM4981COM" ] || [ "$MODEL_NUM" = "CGM601TCOM" ] || [ "$MODEL_NUM" = "SG417DBCT" ] || [ "$MODEL_NUM" = "TG4482A" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$MODEL_NUM" = "CGA4332COM" ]  || [ "$BOX_TYPE" = "SCER11BEL" ]  || [ "$BOX_TYPE" = "VNTXER5" ]; then
+        elif [ "$MODEL_NUM" = "CGM4331COM" ] || [ "$MODEL_NUM" = "CGM4981COM" ] || [ "$MODEL_NUM" = "CGM601TCOM" ] || [ "$MODEL_NUM" = "CWA438TCOM" ] || [ "$MODEL_NUM" = "SG417DBCT" ] || [ "$MODEL_NUM" = "TG4482A" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$MODEL_NUM" = "CGA4332COM" ]  || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "SCXF11BFL" ] || [ "$BOX_TYPE" = "VNTXER5" ]; then
             echo "interface=brlan112" >> $LOCAL_DHCP_CONF
             if [ "$BOX_TYPE" = "WNXL11BWL" ]; then
               echo "dhcp-range=169.254.70.5,169.254.70.253,255.255.255.0,infinite" >> $LOCAL_DHCP_CONF
@@ -1299,7 +1334,7 @@ fi
 			   echo "${PREFIX}""dhcp-option=br403,6,$WAN_DHCP_NS" >> $LOCAL_DHCP_CONF
 		   fi
 
-       elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [[ "$BOX_TYPE" = "SCER11BEL" ]]; then
+       elif [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [[ "$BOX_TYPE" = "SCER11BEL" ]] || [ "$BOX_TYPE" = "SCXF11BFL" ]; then
            echo "interface=brlan6" >> $LOCAL_DHCP_CONF
            echo "dhcp-range=169.254.0.5,169.254.0.253,255.255.255.0,infinite" >> $LOCAL_DHCP_CONF
 
@@ -1390,6 +1425,10 @@ fi
    rm -f $LOCAL_DHCP_CONF
 
    echo "DHCP SERVER : Completed preparing DHCP configuration"
+
+    if [ "$WanFailOverSupportEnable" = true ] && [ "$rdkb_extender" != "true" ] ; then
+        replace_localhost_with_lan_ip
+    fi
 }
 
 do_static_resolution() {

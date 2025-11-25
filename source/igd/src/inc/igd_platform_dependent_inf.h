@@ -81,12 +81,18 @@
 #define UPC                         "RDKB_ARM"
 #endif
 
-#if defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCXF11BFL_PRODUCT_REQ_)
+    #undef CONFIG_VENDOR_MODEL
+    #define CONFIG_VENDOR_MODEL "SCXF11BFL"
+#elif defined(_SCER11BEL_PRODUCT_REQ_)
     #undef CONFIG_VENDOR_MODEL
     #define CONFIG_VENDOR_MODEL "SCER11BEL"
 #elif defined(_XER5_PRODUCT_REQ_)
     #undef CONFIG_VENDOR_MODEL
     #define CONFIG_VENDOR_MODEL "VTER11QEL"
+#elif defined(_XB9_PRODUCT_REQ_)
+    #undef CONFIG_VENDOR_MODEL
+    #define CONFIG_VENDOR_MODEL "CWA438TCOM"
 #elif defined(_XB10_PRODUCT_REQ_)
     #undef CONFIG_VENDOR_MODEL
  #if defined (IGD_SERCOMMXB10_INFO)
