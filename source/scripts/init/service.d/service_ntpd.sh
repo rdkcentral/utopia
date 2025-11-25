@@ -46,8 +46,11 @@ source /etc/device.properties
 SERVICE_NAME="ntpd"
 SELF_NAME="`basename "$0"`"
 NTP_CONF=/etc/ntp.conf
+CH_NTP_CONF=/etc/chrony.conf
 NTP_CONF_TMP=/tmp/ntp.conf
+CH_NTP_CONF_TMP=/tmp/chrony.conf
 NTP_CONF_QUICK_SYNC=/tmp/ntp_quick_sync.conf
+CH_NTP_CONF_QUICK_SYNC=/tmp/chrony_quick_sync.conf
 LOCKFILE=/var/tmp/service_ntpd.pid
 BIN=ntpd
 WAN_IPv6_UP=0
@@ -275,7 +278,7 @@ set_ntp_quicksync_status ()
 		  uptime=$(cut -d. -f1 /proc/uptime)
           uptime_ms=$((uptime*1000))
           if [ "$ntpd_exit_code" -eq 0 ]; then
-             echo_t "NTP quick sync succeeded,set ntp status" >> $NTPD_LOG_NAME
+             echo_t "NTP quick sync succeeded,set ntp status at boot time $uptime_ms" >> $NTPD_LOG_NAME
 			 t2ValNotify  "SYST_INFO_NTP_SYNC_split" $uptime_ms
              systemctl restart ntp-data-collector.service
              syscfg set ntp_status 3
@@ -359,7 +362,10 @@ set_ntp_driftsync_status ()
 
 service_start ()
 {
-
+   
+   uptime_log=$(cut -d. -f1 /proc/uptime)
+   UPTIME_MS=$((uptime_log*1000))
+   echo_t "SERVICE_NTPD wan status event trigger  at $UPTIME_MS ms" >> $NTPD_LOG_NAME
    local NTP_SERVER_URL_RESTORE="false"
    # Wait for connectivitycheck to complete
    if [ -f $CONNCHECK_FILE ]; then
@@ -367,8 +373,11 @@ service_start ()
    else
        # Exclude XLE device from connectivity check. TODO
        if [ "$BOX_TYPE" != "WNXL11BWL" ];then
-           echo_t "SERVICE_NTPD CONNCHK: start connectivity check waiting for $CONNCHECK_FILE file" >> $NTPD_LOG_NAME
+           echo_t "SERVICE_NTPD CONNCHK: uptime $UPTIME_MS ms start connectivity check waiting for $CONNCHECK_FILE file" >> $NTPD_LOG_NAME
            waitForConnChkFile
+           uptime_log=$(cut -d. -f1 /proc/uptime)
+           UPTIME_MS=$((uptime_log*1000))
+           echo_t "SERVICE_NTPD CONNCHK: Complete at uptime $UPTIME_MS ms" >> $NTPD_LOG_NAME
 	   fi
    fi
 
@@ -624,16 +633,18 @@ service_start ()
        killall $BIN ### This to ensure there is no instance of NTPD running because of multiple wan-start events
        sleep 5
 
+       cp /etc/chrony_quick_sync.conf /tmp/chrony.conf
+
        if [ -n "$QUICK_SYNC_WAN_IP" ]; then
            # Try and Force Quick Sync to Run on a single interface
-		   uptime=$(cut -d. -f1 /proc/uptime)
+           uptime=$(cut -d. -f1 /proc/uptime)
            uptime_ms=$((uptime*1000))
-           echo_t "SERVICE_NTPD : Starting NTP Quick Sync" >> $NTPD_LOG_NAME
+           echo_t "SERVICE_NTPD : Starting NTP Quick Sync at uptime $uptime_ms ms" >> $NTPD_LOG_NAME
 		   t2ValNotify "SYST_INFO_NTP_START_split" $uptime_ms
            if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$ntpHealthCheck" = "true" ]; then
                if [ $WAN_IPv6_UP -eq 1 ]; then
                    $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME & 
-                   QUICK_SYNC_PID=$!
+		   QUICK_SYNC_PID=$!
                else
                    $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -4 -l $NTPD_LOG_NAME &
                    QUICK_SYNC_PID=$!
@@ -652,7 +663,9 @@ service_start ()
        echo_t "SERVICE_NTPD : Killing All Instances of NTP" >> $NTPD_LOG_NAME
        killall $BIN
 
-       echo_t "SERVICE_NTPD : Starting NTP Daemon" >> $NTPD_LOG_NAME
+       uptime=$(cut -d. -f1 /proc/uptime)
+       uptime_ms=$((uptime*1000))
+       echo_t "SERVICE_NTPD : Starting NTP Daemon at uptime $uptime_ms ms" >> $NTPD_LOG_NAME
        systemctl start $BIN
        ret_val=$? ### To ensure proper ret_val is obtained
        if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ]; then
@@ -661,7 +674,9 @@ service_start ()
    fi
 
    if [ "$ret_val" -ne 0 ]; then
-       echo_t "SERVICE_NTPD : NTP failed to start, retrying" >> $NTPD_LOG_NAME
+       uptime=$(cut -d. -f1 /proc/uptime)
+       uptime_ms=$((uptime*1000))
+       echo_t "SERVICE_NTPD : NTP failed to start, retrying uptime $uptime_ms ms" >> $NTPD_LOG_NAME
        if [ "$BOX_TYPE" = "XB3" ]; then
            echo_t "SERVICE_NTPD : Starting NTP Daemon" >> $NTPD_LOG_NAME
            $BIN -c $NTP_CONF_TMP -l $NTPD_LOG_NAME -g
@@ -707,7 +722,9 @@ service_start ()
        fi
 
    fi
-   echo_t "SERVICE_NTPD : ntpd started , setting the status as started" >> $NTPD_LOG_NAME
+   uptime=$(cut -d. -f1 /proc/uptime)
+   uptime_ms=$((uptime*1000))
+   echo_t "SERVICE_NTPD : ntpd started , setting the status as started uptime $uptime_ms ms" >> $NTPD_LOG_NAME
    sysevent set ${SERVICE_NAME}-status "started"
 }
 
