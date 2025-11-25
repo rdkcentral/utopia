@@ -139,8 +139,15 @@ STATIC int getValueFromDevicePropsFile(char *str, char **value)
             {
                 buf[strcspn( buf, "\r\n" )] = 0; // Strip off any carriage returns
                 tempStr = strstr( buf, "=" );
-                tempStr++;
-                *value = tempStr;
+                if (NULL != tempStr)
+                {
+                    tempStr++;
+                    *value = strdup(tempStr);
+                }
+                else
+                {
+                    *value = NULL;
+                }
                 ret = 0;
                 break;
             }
@@ -197,7 +204,7 @@ int get_PSM_VALUES_FOR_POOL(char *cmd,char *arr)
     {
         if (l_cpPsm_Get != NULL)
         {
-            strncpy(arr, l_cpPsm_Get, 16);
+            snprintf(arr, 16, "%s", l_cpPsm_Get);
             Ansc_FreeMemory_Callback(l_cpPsm_Get);
             l_cpPsm_Get = NULL;
         }
@@ -252,22 +259,22 @@ int dnsmasq_server_start()
     if (!strncasecmp(g_cXdns_Enabled, "true", 4)) //If XDNS is ENABLED
     {
         char l_cXdnsRefacCodeEnable[8] = {0};
-	    char l_cXdnsEnable[8] = {0};
+        char l_cXdnsEnable[8] = {0};
 
         syscfg_get(NULL, "XDNS_RefacCodeEnable", l_cXdnsRefacCodeEnable, sizeof(l_cXdnsRefacCodeEnable));
         syscfg_get(NULL, "X_RDKCENTRAL-COM_XDNS", l_cXdnsEnable, sizeof(l_cXdnsEnable));
         if (!strncmp(l_cXdnsRefacCodeEnable, "1", 1) && !strncmp(l_cXdnsEnable, "1", 1)){
-                safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --xdns-refac-code",
-                                SERVER, DHCP_CONF,dnsOption);
-                if(safec_rc < EOK){
-                   ERR_CHK(safec_rc);
-                }
+            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --xdns-refac-code",
+                    SERVER, DHCP_CONF,dnsOption);
+            if(safec_rc < EOK){
+                ERR_CHK(safec_rc);
+            }
         }else{
-                safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s",
-                                SERVER, DHCP_CONF,dnsOption);
-                if(safec_rc < EOK){
-                   ERR_CHK(safec_rc);
-                }
+            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s",
+                    SERVER, DHCP_CONF,dnsOption);
+            if(safec_rc < EOK){
+                ERR_CHK(safec_rc);
+            }
         }
     }
     else //If XDNS is not enabled 
@@ -275,68 +282,82 @@ int dnsmasq_server_start()
     {
         safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P 4096 -C %s %s", SERVER, DHCP_CONF,dnsOption);
         if(safec_rc < EOK){
-           ERR_CHK(safec_rc);
+            ERR_CHK(safec_rc);
         }
     }
 #else
 #ifdef XDNS_ENABLE
     char *XDNS_Enable=NULL;
-    char *Box_Type=NULL;
     getValueFromDevicePropsFile("XDNS_ENABLE", &XDNS_Enable);
-    getValueFromDevicePropsFile("MODEL_NUM", &Box_Type);
-    fprintf(g_fArmConsoleLog, "\n%s Inside non XB3 block  g_cXdns_Enabled=%s XDNS_Enable=%s Box_Type=%s.......\n",__FUNCTION__,g_cXdns_Enabled,XDNS_Enable,Box_Type);
-    if (!strncasecmp(g_cXdns_Enabled, "true", 4) || !strncasecmp(XDNS_Enable, "true", 4)) //If XDNS is ENABLED
+    if (NULL != XDNS_Enable)
     {
-         char DNSSEC_FLAG[8]={0};
-         syscfg_get(NULL, "XDNS_DNSSecEnable", DNSSEC_FLAG, sizeof(DNSSEC_FLAG));
-         if ((!strncmp(Box_Type, "CGA4332COM", 10) || !strncmp(Box_Type, "CGA4131COM", 10)) && !strncasecmp(l_cXdnsEnable, "1", 1) && !strncasecmp(DNSSEC_FLAG, "1", 1))
-         {
-             if(!strncmp(l_cXdnsRefacCodeEnable, "1", 1))
-             {
-                 safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --xdns-refac-code",SERVER, DHCP_CONF,dnsOption);
-                 if(safec_rc < EOK)
-                 {
-                     ERR_CHK(safec_rc);
-                 }
-             }
-             else
-             {
-                 safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, DHCP_CONF,dnsOption);
-                 if(safec_rc < EOK)
-                 {
-                     ERR_CHK(safec_rc);
-                 }
-             }
-         }
-         else
-         {
-             if(!strncmp(l_cXdnsRefacCodeEnable, "1", 1) && !strncasecmp(l_cXdnsEnable, "1", 1))
-             {
-               safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, DHCP_CONF,dnsOption);
-               if(safec_rc < EOK)
-               {
-                  ERR_CHK(safec_rc);
-               }
-             }
-             else
-             {
-               safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log ",SERVER, DHCP_CONF,dnsOption);
-               if(safec_rc < EOK)
-               {
-                  ERR_CHK(safec_rc);
-               }
-             }
-         }
-    }
-    else // XDNS not enabled
-#endif
-    {
-        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P 4096 -C %s",SERVER, DHCP_CONF);
-        if(safec_rc < EOK)
+        fprintf(g_fArmConsoleLog, "\n%s Inside non XB3 block  g_cXdns_Enabled=%s XDNS_Enable=%s.......\n",__FUNCTION__,g_cXdns_Enabled,XDNS_Enable);
+        if (!strncasecmp(g_cXdns_Enabled, "true", 4) || !strncasecmp(XDNS_Enable, "true", 4)) //If XDNS is ENABLED
         {
-          ERR_CHK(safec_rc);
+            char DNSSEC_FLAG[8]={0};
+            char *Box_Type=NULL;
+            getValueFromDevicePropsFile("MODEL_NUM", &Box_Type);
+            if (NULL != Box_Type)
+            {
+                fprintf(g_fArmConsoleLog, "\n%s Inside non XB3 block Box_Type=%s.......\n",__FUNCTION__, Box_Type);
+                syscfg_get(NULL, "XDNS_DNSSecEnable", DNSSEC_FLAG, sizeof(DNSSEC_FLAG));
+                if ((!strncmp(Box_Type, "CGA4332COM", 10) || !strncmp(Box_Type, "CGA4131COM", 10)) && !strncasecmp(l_cXdnsEnable, "1", 1) && !strncasecmp(DNSSEC_FLAG, "1", 1))
+                {
+                    if(!strncmp(l_cXdnsRefacCodeEnable, "1", 1))
+                    {
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --xdns-refac-code",SERVER, DHCP_CONF,dnsOption);
+                        if(safec_rc < EOK)
+                        {
+                            ERR_CHK(safec_rc);
+                        }
+                    }
+                    else
+                    {
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, DHCP_CONF,dnsOption);
+                        if(safec_rc < EOK)
+                        {
+                            ERR_CHK(safec_rc);
+                        }
+                    }
+                }
+                else
+                {
+                    if(!strncmp(l_cXdnsRefacCodeEnable, "1", 1) && !strncasecmp(l_cXdnsEnable, "1", 1))
+                    {
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, DHCP_CONF,dnsOption);
+                        if(safec_rc < EOK)
+                        {
+                            ERR_CHK(safec_rc);
+                        }
+                    }
+                    else
+                    {
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log ",SERVER, DHCP_CONF,dnsOption);
+                        if(safec_rc < EOK)
+                        {
+                            ERR_CHK(safec_rc);
+                        }
+                    }
+                }
+
+                free(Box_Type);
+                Box_Type = NULL;
+            } //  if (NULL != Box_Type)
         }
-    }
+        else // XDNS not enabled
+#endif
+        {
+            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P 4096 -C %s",SERVER, DHCP_CONF);
+            if(safec_rc < EOK)
+            {
+                ERR_CHK(safec_rc);
+            }
+        }
+#ifdef XDNS_ENABLE
+        free(XDNS_Enable);
+        XDNS_Enable = NULL;
+    } // if (NULL != XDNS_Enable)
+#endif
 #endif
     return executeCmd(l_cSystemCmd);
 }
@@ -794,7 +815,7 @@ int dhcp_server_start (char *input)
 	}
 	l_cBuf[strlen(l_cBuf)] = '\0';
 
-	if ('\0' != l_cBuf[0] && 0 != l_cBuf[0])
+	if ('\0' != l_cBuf[0])
         {
             fprintf(g_fArmConsoleLog, "kill dnsmasq with SIGKILL if its still running \n");
             v_secure_system("kill -KILL `pidof dnsmasq`");
@@ -1239,7 +1260,7 @@ void resync_to_nonvol(char *RemPools)
     memset(tmp_buff,0,sizeof(tmp_buff[0][0])*15*2);
     CURRENT_POOLS_cnt=tmp_cnt;        //Remove LOAD_POOLS and REM_POOLS from CURRENT_POOLS ENDS
 
-    char psm_tmp_buff[2];
+    char psm_tmp_buff[16] = {0}; // fixed OVERRUN
     char *l_cParam[1] = {0};
 	for(iter=0;iter<NV_INST_cnt;iter++)
 	{
@@ -1301,8 +1322,8 @@ int service_dhcp_init()
 	char l_cPropagate_Ns[8] = {0}, l_cPropagate_Dom[8] = {0};
 	char l_cSlow_Start[8] = {0}, l_cByoi_Enabled[8] = {0};
     char l_cWan_IpAddr[16] = {0}, l_cPrim_Temp_Ip_Prefix[16] = {0}, l_cCurrent_Hsd_Mode[16] = {0};
-   	char l_cTemp_Dhcp_Lease[8] = {0}, l_cDhcp_Slow_Start_Quanta[8] = {0};
-    char l_cDhcpSlowStartQuanta[8] = {0};
+    //	char l_cTemp_Dhcp_Lease[8] = {0}, l_cDhcp_Slow_Start_Quanta[8] = {0}; UNUSED VARIABLE
+    //char l_cDhcpSlowStartQuanta[8] = {0};  UNUSED VARIABLE
 
 	syscfg_get(NULL, "dhcp_server_propagate_wan_nameserver", l_cPropagate_Ns, sizeof(l_cPropagate_Ns));
 	if (strncmp(l_cPropagate_Ns, "1", 1))
@@ -1314,7 +1335,7 @@ int service_dhcp_init()
 	syscfg_get(NULL, "dhcp_server_propagate_wan_domain", l_cPropagate_Dom, sizeof(l_cPropagate_Dom));
 
 	// Is dhcp slow start feature enabled
-	int l_iSlow_Start_Needed;
+	// int l_iSlow_Start_Needed; UNUSED Variable
 	syscfg_get(NULL, "dhcp_server_slow_start", l_cSlow_Start, sizeof(l_cSlow_Start));
 
 	syscfg_get(NULL, "byoi_enabled", l_cByoi_Enabled, sizeof(l_cByoi_Enabled));
@@ -1331,7 +1352,7 @@ int service_dhcp_init()
 						 l_cCurrent_Hsd_Mode, sizeof(l_cCurrent_Hsd_Mode));
 
 	        syscfg_get(NULL, "primary_temp_ip_prefix", l_cPrim_Temp_Ip_Prefix, sizeof(l_cPrim_Temp_Ip_Prefix));
-
+            /* DEADCODE
 	        if (!strncmp(l_cWan_IpAddr, "0.0.0.0", 7))
     	    {
         	    l_iSlow_Start_Needed = 1;
@@ -1342,15 +1363,17 @@ int service_dhcp_init()
     	    {
         	    l_iSlow_Start_Needed = 1;
 	        }
+	    */
     	}
 	}
 
 	// Disable this to alway pick lease value from syscfg.db
-	l_iSlow_Start_Needed = 0;
+	// l_iSlow_Start_Needed = 0; DEADCODE
 
 	// DHCP_LEASE_TIME is the number of seconds or minutes or hours to give as a lease
 	syscfg_get(NULL, "dhcp_lease_time", g_cDhcp_Lease_Time, sizeof(g_cDhcp_Lease_Time));
 
+	/* DEADCODE
 	if (1 == l_iSlow_Start_Needed)
 	{
 	    int l_iDhcpSlowQuanta;
@@ -1407,6 +1430,7 @@ int service_dhcp_init()
 		snprintf(g_cDhcp_Lease_Time, sizeof(g_cDhcp_Lease_Time), "%d", l_iDhcpSlowQuanta);
 	}
 	else
+	*/
 	{
 		//Setting the dhcp_slow_start_quanta to empty / NULL
     	sysevent_set(g_iSyseventfd, g_tSysevent_token, "dhcp_slow_start_quanta", "", 0);

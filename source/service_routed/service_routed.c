@@ -197,7 +197,8 @@ int GetDeviceNetworkMode()
 }
 #endif
 
-#if defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+
 /** IsThisCurrentPartnerID() */
 static unsigned char IsThisCurrentPartnerID( const char* pcPartnerID )
 {
@@ -215,7 +216,7 @@ static unsigned char IsThisCurrentPartnerID( const char* pcPartnerID )
 
     return FALSE;
 }
-#endif /** _SCER11BEL_PRODUCT_REQ_ */
+#endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
 
 STATIC int fw_restart(struct serv_routed *sr)
 {
@@ -562,8 +563,8 @@ STATIC int route_set(struct serv_routed *sr)
     }
 #endif
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
+#if defined(_SCER11BEL_PRODUCT_REQ_) 
     if ( TRUE == IsThisCurrentPartnerID("sky-") )
 #endif /* _SCER11BEL_PRODUCT_REQ_ */
     {
@@ -934,7 +935,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     char *pStr = NULL;
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME,pStr);
     if(return_status == CCSP_SUCCESS && pStr != NULL){
-        strncpy(mesh_wan_ifname,pStr ,sizeof(mesh_wan_ifname));
+        snprintf(mesh_wan_ifname, sizeof(mesh_wan_ifname), "%s", pStr);
         Ansc_FreeMemory_Callback(pStr);
         pStr = NULL;
     } 
@@ -1019,8 +1020,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     else
     {
     #endif
-        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
-        #if defined(_SCER11BEL_PRODUCT_REQ_)
+        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
+        #if defined(_SCER11BEL_PRODUCT_REQ_) 
             if ( FALSE == IsThisCurrentPartnerID("sky-") )
             {
                 sysevent_get(sefd, setok, "lan_prefix", prefix, sizeof(prefix));
@@ -1330,7 +1331,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
                 fprintf(fp, "   ipv6 nd ra-interval 30\n"); //Set ra-interval to default 30 secs as per Erouter Specs.
             }
 #else
-#if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_)) || defined (_WNXL11BWL_PRODUCT_REQ_) 
+#if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_) ) || defined (_WNXL11BWL_PRODUCT_REQ_) 
         fprintf(fp, "   ipv6 nd ra-interval 3\n");
 #else
 #if defined(_SCER11BEL_PRODUCT_REQ_)
@@ -1404,7 +1405,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         syscfg_get(NULL, "router_other_flag", o_flag, sizeof(o_flag));
         if (strcmp(o_flag, "1") == 0)
             fprintf(fp, "   ipv6 nd other-config-flag\n");
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
 #if defined(_SCER11BEL_PRODUCT_REQ_)
             else if ((strcmp(o_flag, "0") == 0) && ( TRUE == IsThisCurrentPartnerID("sky-") ))
 #else
@@ -1435,22 +1436,20 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
             responsefd = NULL;
    	}
         syscfg_get( NULL, "redirection_flag", buf, sizeof(buf));
-    	if( buf != NULL )
-    	{
-		if ((strncmp(buf,"true",4) == 0) && iresCode == 204)
-		{
+
+        if ((strncmp(buf,"true",4) == 0) && iresCode == 204)
+        {
 #if defined (_COSA_BCM_MIPS_)
 #ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
-                 // For CBR platform, the captive portal redirection feature was removed
-                 // inWifiCp = 1;
+            // For CBR platform, the captive portal redirection feature was removed
+            // inWifiCp = 1;
 #else
-			inWifiCp = 1;
+            inWifiCp = 1;
 #endif
 #else
             inWifiCp = 1;
 #endif
-		}
-	}
+        }
 #if defined (_XB6_PROD_REQ_)
         syscfg_get(NULL, "enableRFCaptivePortal", rfCpEnable, sizeof(rfCpEnable));
         if(rfCpEnable != NULL)
@@ -1665,7 +1664,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 			{
 			// Modifying rdnss value to fix the zebra config.
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) 
                         if( TRUE == IsThisCurrentPartnerID("sky-") ) 
                         {
                             if (0 == strncmp(lan_addr, tok, strlen(lan_addr)))
@@ -2079,8 +2078,8 @@ STATIC int radv_start(struct serv_routed *sr)
         return -1;
     }
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
+#if defined(_SCER11BEL_PRODUCT_REQ_) 
     if( TRUE == IsThisCurrentPartnerID("sky-") ) 
 #endif /** _SCER11BEL_PRODUCT_REQ_ */
     {
@@ -2136,7 +2135,7 @@ STATIC int rip_start(struct serv_routed *sr)
     if (!serv_can_start(sr->sefd, sr->setok, "rip"))
         return -1;
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) 
     if( TRUE == IsThisCurrentPartnerID("sky-") ) 
     {
         if (!sr->lan_ready) {
