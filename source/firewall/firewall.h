@@ -60,6 +60,7 @@
 #include "firewall_custom.h"
 #include "secure_wrapper.h"
 #include "safec_lib_common.h"
+#include "ansc_status.h"
 
 /**
 * @brief Apply logging rules to the filter table.
@@ -169,9 +170,9 @@ extern void* bus_handle ;
 extern int sysevent_fd;
 extern char sysevent_ip[19];
 extern unsigned short sysevent_port;
-
+bool IsHotspotActive(void);
+#define TR181_ACTIVE_WAN_INTERFACE      "Device.X_RDK_WanManager.InterfaceActiveStatus"
 #define PSM_VALUE_GET_STRING(name, str) PSM_Get_Record_Value2(bus_handle, CCSP_SUBSYS, name, NULL, &(str)) 
-#define PSM_HOTSPOT_WAN_IFNAME "dmsb.wanmanager.if.3.Name"
 
 /**
 * @brief Get IPv6 addresses for a given interface.
@@ -784,7 +785,6 @@ void do_forwardPorts(FILE *fp);
 *
 */
 int IsValidIPv6Addr(char* ip_addr_string);
-
 /**
 * @brief Check if ULA (Unique Local Address) is enabled.
 *
@@ -818,7 +818,7 @@ int checkIfULAEnabled(void);
 * @retval ANSC_STATUS_FAILURE if pReturnVal is NULL, returnValSize is 0, or the RDK bus query fails.
 *
 */
-
+ANSC_STATUS RdkBus_GetParamValues(char *pComponent,char *pBus,char *pParamName,char *pReturnVal,size_t returnValSize);
 /**
 * @brief Get list of IPv6 interfaces.
 *
@@ -832,9 +832,6 @@ int checkIfULAEnabled(void);
 * @return None.
 *
 */
-#ifdef WAN_FAILOVER_SUPPORTED
-int checkIfULAEnabled(void);
-#endif
 void getIpv6Interfaces(char Interface[MAX_NO_IPV6_INF][MAX_LEN_IPV6_INF], int *len);
 
 /**
@@ -1159,9 +1156,11 @@ extern int mesh_wan_ipv6_num;
 extern char mesh_wan_ipv6addr[IF_IPV6ADDR_MAX][40];
 extern char dev_type[20];
 extern char mesh_wan_ifname[32];
-#endif
-
 void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4);
+#endif
+#define BUFLEN_256           256
+#define FIREWALL_DBUS_PATH        "/com/cisco/spvtg/ccsp/wanmanager"
+#define FIREWALL_COMPONENT_NAME   "eRT.com.cisco.spvtg.ccsp.wanmanager"
 extern char hotspot_wan_ifname[50];
 extern int current_wan_ipv6_num;
 extern char default_wan_ifname[50]; // name of the regular wan interface
