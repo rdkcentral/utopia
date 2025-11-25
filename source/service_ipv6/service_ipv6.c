@@ -915,7 +915,10 @@ STATIC int divide_ipv6_prefix(struct serv_ipv6 *si6)
     iface_prefix_num = (1 << delta_bits) / (sub_prefix_num); /*determine the iface prefix num for each sub-prefix*/
   
     p_prefix = sub_prefixes;
-    inet_pton(AF_INET6, p_prefix->value, prefix);
+    if (1 != inet_pton(AF_INET6, p_prefix->value, prefix))
+    {
+       fprintf(stderr, "inet_pton failed\n");
+    }
     memcpy((void *)&tmp_prefix, (void *)prefix, 8); //the first 64 bits of the first sub-prefix
 #ifdef _CBR_PRODUCT_REQ_
 	tmp_prefix = helper_ntoh64(&tmp_prefix); // The memcpy is copying in reverse order due to LEndianess
@@ -2000,7 +2003,7 @@ OPTIONS:
             }
         } 
         fprintf(fp, "}\n");
-        } //closing bracket of if (strcmp(bridge_mode, "2") || strcmp(dhcpv6s_pool_cfg.interface, "brlan0")) {
+        } //closing bracket of if (strcmp(bridge_mode, "2") || strcmp(dhcpv6s_pool_cfg.interface, "brlan0"))
 
         if (dhcpv6s_pool_cfg.opts != NULL) {
             free(dhcpv6s_pool_cfg.opts);

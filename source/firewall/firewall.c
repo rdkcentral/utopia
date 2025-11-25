@@ -526,7 +526,6 @@ enum{
     NAT_DISABLE_STATICIP,
 };
 #define PCMD_LIST "/tmp/.pcmd"
-
 typedef struct _decMacs_
 {
 char mac[19];
@@ -2162,7 +2161,7 @@ static int bIsContainerEnabled( void)
     deviceFilePtr = fopen( DEVICE_PROPERTIES, "r" );
 
     if (deviceFilePtr) {
-        while (fscanf(deviceFilePtr , "%s", fileContent) != EOF ) {
+        while (fscanf(deviceFilePtr , "%254s", fileContent) != EOF ) {
             if ((pContainerSupport = strstr(fileContent, "CONTAINER_SUPPORT")) != NULL) {
                 offsetValue = strlen("CONTAINER_SUPPORT=");
                 pContainerSupport = pContainerSupport + offsetValue;
@@ -8155,39 +8154,37 @@ static int determine_enforcement_schedule2(FILE *cron_fp, const char *namespace)
 
    int today_bits = 0;
    today_bits = (1 << local_now.tm_wday);
-   if(!(today_bits & policy_days)) {
-   } else {
-      if (1 == h24) {
-         within_policy_start_stop = 1;
-      } else {
-         int startPassedHours, startPassedMins;
-         int stopPassedHours, stopPassedMins;
-         int startPass, stopPass;
-         int sh, sm, eh, em;
+   if(!(today_bits & policy_days))
+   {
+   }
+   else
+   {
+       int startPassedHours, startPassedMins;
+       int stopPassedHours, stopPassedMins;
+       int startPass, stopPass;
+       int sh, sm, eh, em;
 
+       sscanf(policy_time_start, "%d:%d", &sh, &sm);
+       sscanf(policy_time_stop, "%d:%d", &eh, &em);
 
-         sscanf(policy_time_start, "%d:%d", &sh, &sm);
-         sscanf(policy_time_stop, "%d:%d", &eh, &em);
+       startPass = time_delta(&local_now, policy_time_start, &startPassedHours, &startPassedMins);
+       stopPass = time_delta(&local_now, policy_time_stop, &stopPassedHours, &stopPassedMins);
 
-         startPass = time_delta(&local_now, policy_time_start, &startPassedHours, &startPassedMins);
-         stopPass = time_delta(&local_now, policy_time_stop, &stopPassedHours, &stopPassedMins);
-         
-         //start time > stop time
-         if(sh > eh || (sh == eh && sm >= em)) {
-             if(!((stopPass == -1 || (stopPass == 0 && stopPassedHours == 0 && stopPassedMins == 0))
-                 && startPass == 0))
+       //start time > stop time
+       if(sh > eh || (sh == eh && sm >= em)) {
+           if(!((stopPass == -1 || (stopPass == 0 && stopPassedHours == 0 && stopPassedMins == 0))
+                       && startPass == 0))
                within_policy_start_stop = 1;
-         }
-         else { //start time < stop time
-             //printf("today is %d, start time is %d, stop time is %d\n", today_bits, sh, eh);
-             if((startPass == -1 || (startPass == 0 && startPassedHours == 0 && startPassedMins == 0))
-                 && stopPass == 0) {
+       }
+       else { //start time < stop time
+           //printf("today is %d, start time is %d, stop time is %d\n", today_bits, sh, eh);
+           if((startPass == -1 || (startPass == 0 && startPassedHours == 0 && startPassedMins == 0))
+                   && stopPass == 0) {
                within_policy_start_stop = 1;
-             }
-         }
+           }
        }
    }
-    FIREWALL_DEBUG("Exiting determine_enforcement_schedule2\n");  
+   FIREWALL_DEBUG("Exiting determine_enforcement_schedule2\n");
    return within_policy_start_stop;
 }
 
@@ -8964,9 +8961,10 @@ static int do_parcon_mgmt_device(FILE *fp, int iptype, FILE *cron_fp)
 devMacSt * getPcmdList(int *devCount)
 {
 int count = 0;
-int numDev = 0;
+long numDev = 0;
 FILE * fp;
 char buf[19];
+char *endptr = NULL;
 devMacSt *devMacs = NULL;
 devMacSt *dev = NULL;
 memset(buf, 0, sizeof(buf));
@@ -8977,11 +8975,23 @@ memset(buf, 0, sizeof(buf));
            FIREWALL_DEBUG("Error while locking file\n");
        while( fgets ( buf, sizeof(buf), fp ) != NULL ) 
        {
-           if(count == 0){
-               numDev = atoi(buf);            		
-               printf("numDev = %d \n" COMMA numDev);
-               *devCount = numDev;
-               devMacs = (devMacSt *)calloc(numDev,sizeof(devMacSt));
+           if(count == 0)
+           {
+               errno = 0;
+               numDev = strtol(buf, &endptr, 10);
+               if (endptr == buf || *endptr != '\0' || errno == ERANGE)
+               {
+                   FIREWALL_DEBUG("invalid data\n");
+                   break;
+               }
+               if (numDev < INT_MIN || numDev > INT_MAX)
+               {
+                   FIREWALL_DEBUG("invalid integer\n");
+                   break;
+               }
+
+               *devCount = (int)numDev;
+               devMacs = (devMacSt *)calloc(*devCount,sizeof(devMacSt));
                dev = devMacs;
            }
            else
@@ -13234,7 +13244,7 @@ int do_block_ports(FILE *filter_fp)
    fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n",get_current_wan_ifname());
 #endif
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 1900 -j DROP\n");
-   fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
+   fprintf(filter_fp, "-I INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 21515 -j DROP\n");
 
    /*	RDKB-22836 :

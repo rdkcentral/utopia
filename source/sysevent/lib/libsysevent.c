@@ -1781,7 +1781,7 @@ int SE_msg_send (int fd, char *sendmsg)
    }
 }
 
-int SE_msg_send_data (int fd, char *sendmsg,int msgsize)
+int SE_msg_send_data (int fd, char *sendmsg, unsigned int msgsize)
 {
    se_msg_hdr *msg_hdr = (se_msg_hdr *)sendmsg;
    int fileread = access("/tmp/sysevent_debug", F_OK);
@@ -1890,7 +1890,7 @@ int SE_msg_send_receive (int fd, char *sendmsg, char *replymsg, unsigned int *re
    return(msgtype); 
 }
 
-int SE_msg_send_receive_data (int fd, char *sendmsg, int sendmsg_size, char *replymsg, unsigned int *replymsg_size)
+int SE_msg_send_receive_data (int fd, char *sendmsg, unsigned int sendmsg_size, char *replymsg, unsigned int *replymsg_size)
 {
    int rc = SE_msg_send_data(fd, sendmsg,sendmsg_size);
    if (0 != rc) {
@@ -3337,14 +3337,15 @@ unsigned int sysevent_get_binmsg_maxsize()
     if (NULL != fp) 
     {
         unsigned int value = 0;
-        if (fscanf(fp, "%u",&value) <= 0)
+        if (fscanf(fp, "%5u",&value) <= 0)
         {
             printf("read error of %s \n",SE_MAX_MSG_DATA_SIZE_READ_FILE); //CID -160978
             fclose(fp);
             return SE_MAX_MSG_DATA_SIZE + 1024;
         }
         fclose(fp);
-        if (value > 0)
+	// TAINTED_SCALAR value
+        if ((value > 0) && (value < SE_MAX_MSG_DATA_SIZE))
         {    
             return value + 1024 /* additional 1k is headermsg*/;
         }

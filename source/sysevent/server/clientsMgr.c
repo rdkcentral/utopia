@@ -246,13 +246,13 @@ int CLI_MGR_remove_client_by_fd (const int fd, const token_t id, const int force
       return(ERR_NOT_INITED);
    }
    SE_INC_LOG(MUTEX,
-      int id = thread_get_id(worker_data_key);
-      printf("Thread %d Attempting to get mutex: clients\n", id);
+      int thread_id = thread_get_id(worker_data_key);
+      printf("Thread %d Attempting to get mutex: clients\n", thread_id);
    )
    pthread_mutex_lock(&global_clients.mutex);
    SE_INC_LOG(MUTEX,
-      int id = thread_get_id(worker_data_key);
-      printf("Thread %d Got mutex: clients\n", id);
+      int thread_id = thread_get_id(worker_data_key);
+      printf("Thread %d Got mutex: clients\n", thread_id);
    )
 
    unsigned int i;
@@ -275,8 +275,8 @@ int CLI_MGR_remove_client_by_fd (const int fd, const token_t id, const int force
             close(fd);
 
             SE_INC_LOG(MUTEX,
-               int id = thread_get_id(worker_data_key);
-               printf("Thread %d Releasing mutex: clients\n", id);
+               int thread_id = thread_get_id(worker_data_key);
+               printf("Thread %d Releasing mutex: clients\n", thread_id);
             )
             pthread_mutex_unlock(&global_clients.mutex);
             return(0);
@@ -286,8 +286,8 @@ int CLI_MGR_remove_client_by_fd (const int fd, const token_t id, const int force
 
    // client not found
    SE_INC_LOG(MUTEX,
-      int id = thread_get_id(worker_data_key);
-      printf("Thread %d Releasing mutex: clients\n", id);
+      int thread_id = thread_get_id(worker_data_key);
+      printf("Thread %d Releasing mutex: clients\n", thread_id);
    )
    pthread_mutex_unlock(&global_clients.mutex);
    return(ERR_UNKNOWN_CLIENT);
@@ -309,13 +309,13 @@ int CLI_MGR_id2fd (token_t id)
       return(ERR_NOT_INITED);
    }
    SE_INC_LOG(MUTEX,
-      int id = thread_get_id(worker_data_key);
-      printf("Thread %d Attempting to get mutex: clients\n", id);
+      int thread_id = thread_get_id(worker_data_key);
+      printf("Thread %d Attempting to get mutex: clients\n", thread_id);
    )
    pthread_mutex_lock(&global_clients.mutex);
    SE_INC_LOG(MUTEX,
-      int id = thread_get_id(worker_data_key);
-      printf("Thread %d Got mutex: clients\n", id);
+      int thread_id = thread_get_id(worker_data_key);
+      printf("Thread %d Got mutex: clients\n", thread_id);
    )
 
    unsigned int i;
@@ -323,8 +323,8 @@ int CLI_MGR_id2fd (token_t id)
       if (0 != (global_clients.clients[i]).used) {
          if (id == (global_clients.clients[i]).id) {
             SE_INC_LOG(MUTEX,
-               int id = thread_get_id(worker_data_key);
-               printf("Thread %d Releasing mutex: clients\n", id);
+               int thread_id = thread_get_id(worker_data_key);
+               printf("Thread %d Releasing mutex: clients\n", thread_id);
             )
             pthread_mutex_unlock(&global_clients.mutex); 
             return((global_clients.clients[i]).fd);
@@ -332,8 +332,8 @@ int CLI_MGR_id2fd (token_t id)
       }
    }
    SE_INC_LOG(MUTEX,
-      int id = thread_get_id(worker_data_key);
-      printf("Thread %d Releasing mutex: clients\n", id);
+      int thread_id = thread_get_id(worker_data_key);
+      printf("Thread %d Releasing mutex: clients\n", thread_id);
    )
    pthread_mutex_unlock(&global_clients.mutex); 
    return(0);
