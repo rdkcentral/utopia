@@ -1927,7 +1927,7 @@ int prepare_dhcp_conf (char *input)
             #endif /*WIFI_MANAGE_SUPPORTED*/
         }
 
-#if defined(_WNXL11BWL_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_)
+#if defined(_WNXL11BWL_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_)
         fprintf(l_fLocal_Dhcp_ConfFile, "interface=brlan112\n");
         fprintf(l_fLocal_Dhcp_ConfFile, "dhcp-range=169.254.70.5,169.254.70.253,255.255.255.0,infinite\n");
 

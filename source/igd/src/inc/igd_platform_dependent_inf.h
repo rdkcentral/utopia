@@ -81,10 +81,7 @@
 #define UPC                         "RDKB_ARM"
 #endif
 
-#if defined(_SCXF11BFL_PRODUCT_REQ_)
-    #undef CONFIG_VENDOR_MODEL
-    #define CONFIG_VENDOR_MODEL "SCXF11BFL"
-#elif defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_)
     #undef CONFIG_VENDOR_MODEL
     #define CONFIG_VENDOR_MODEL "SCER11BEL"
 #elif defined(_XER5_PRODUCT_REQ_)

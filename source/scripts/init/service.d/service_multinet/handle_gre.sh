@@ -265,12 +265,12 @@ create_tunnel () {
         fi
     fi
     ifconfig $2 up
-    if [ ! -f /tmp/.gre_flowmanager_enable ] && [ "$BOX_TYPE" != "VNTXER5" ] && [ "$BOX_TYPE" != "SCER11BEL" ] && [ "$BOX_TYPE" != "SCXF11BFL" ]
+    if [ ! -f /tmp/.gre_flowmanager_enable ] && [ "$BOX_TYPE" != "VNTXER5" ] && [ "$BOX_TYPE" != "SCER11BEL" ]
     then
           echo addif $2 wan > /proc/driver/flowmgr/cmd
 	  touch /tmp/.gre_flowmanager_enable
     fi
-    if [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]; then
+    if [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" ]; then
 	    INST=`psmcli getallinst dmsb.l2net.`
 	    for i in $INST; do
 		    GRE=`psmcli get dmsb.l2net.$i.Members.Gre | grep $2`
@@ -303,7 +303,7 @@ destroy_tunnel () {
       touch "/tmp/destroy_tunnel_lock"
    fi
     echo "Destroying tunnel... remote"
-    if [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]; then
+    if [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" ]; then
 	    INST=`psmcli getallinst dmsb.l2net.`
 	    for i in $INST; do
 		    STAT=`sysevent get gre_"$i"_inst`
