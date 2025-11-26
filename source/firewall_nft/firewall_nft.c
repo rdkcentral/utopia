@@ -13899,11 +13899,13 @@ static int service_start ()
        v_secure_system("/bin/sh -c /tmp/mac_filter.sh");
    #endif
 
+// TODO: Add LXC for NFtables 
+/*  
    if (isContainerEnabled && access("/tmp/container_env.sh", F_OK) != -1 && access("/tmp/.lxcIptablesLock", F_OK) == -1) {
       FIREWALL_DEBUG("LXC Support enabled. Adding rules for lighttpd container\n");
       v_secure_system("sh /lib/rdk/iptables_container.sh");
    }
-
+*/
    ClearEstbConnection();
    /* start the other process as needed */
 #ifdef CONFIG_BUILD_TRIGGER
