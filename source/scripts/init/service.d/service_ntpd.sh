@@ -272,10 +272,12 @@ set_ntp_quicksync_status ()
        if [ ! -d "/proc/$QUICK_SYNC_PID" ]; then
           wait $QUICK_SYNC_PID
           ntpd_exit_code=$?
-		  uptime=$(cut -d. -f1 /proc/uptime)
-          uptime_ms=$((uptime*1000))
+		  
           if [ "$ntpd_exit_code" -eq 0 ]; then
-             echo_t "NTP quick sync succeeded,set ntp status" >> $NTPD_LOG_NAME
+		     uptime=$(cut -d. -f1 /proc/uptime)
+             uptime_ms=$((uptime*1000))  
+			 sh /lib/rdk/logMilestone.sh "QUICK_SYNC-DONE"
+             echo_t "NTP quick sync succeeded,set ntp status at $uptime_ms" >> $NTPD_LOG_NAME
 			 t2ValNotify  "SYST_INFO_NTP_SYNC_split" $uptime_ms
              systemctl restart ntp-data-collector.service
              syscfg set ntp_status 3
@@ -287,8 +289,11 @@ set_ntp_quicksync_status ()
              fi
              sysevent set ntp_time_sync 1
              QUICK_SYNC_DONE=1
-	     touch /tmp/clock-event
-             echo_t "DEBUG : clock-event file created in /tmp. Time Sync is successful. Xconf is good to start" >> $NTPD_LOG_NAME
+			  uptime=$(cut -d. -f1 /proc/uptime)
+             uptime_ms=$((uptime*1000))  
+	         touch /tmp/clock-event
+		     sh /lib/rdk/logMilestone.sh "TIMESYNC_SUCCESS"
+             echo_t "DEBUG : clock-event file created in /tmp. Time Sync is successful. Xconf is good to start at $uptime_ms" >> $NTPD_LOG_NAME
              break
 	  elif [ "$ntpd_exit_code" -eq 127 ]; then
              echo_t "NTP quick sync not succeeded,PID has terminated or is unknown by the shell" >> $NTPD_LOG_NAME
@@ -628,7 +633,8 @@ service_start ()
            # Try and Force Quick Sync to Run on a single interface
 		   uptime=$(cut -d. -f1 /proc/uptime)
            uptime_ms=$((uptime*1000))
-           echo_t "SERVICE_NTPD : Starting NTP Quick Sync" >> $NTPD_LOG_NAME
+		   sh /lib/rdk/logMilestone.sh "QUICK_SYNC-START"
+           echo_t "SERVICE_NTPD : Starting NTP Quick Sync at $uptime_ms" >> $NTPD_LOG_NAME
 		   t2ValNotify "SYST_INFO_NTP_START_split" $uptime_ms
            if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$ntpHealthCheck" = "true" ]; then
                if [ $WAN_IPv6_UP -eq 1 ]; then
@@ -652,7 +658,10 @@ service_start ()
        echo_t "SERVICE_NTPD : Killing All Instances of NTP" >> $NTPD_LOG_NAME
        killall $BIN
 
-       echo_t "SERVICE_NTPD : Starting NTP Daemon" >> $NTPD_LOG_NAME
+       uptime=$(cut -d. -f1 /proc/uptime)
+       uptime_ms=$((uptime*1000))
+	   sh /lib/rdk/logMilestone.sh "NTP_DAEMON-START"
+       echo_t "SERVICE_NTPD : Starting NTP Daemon at $uptime_ms" >> $NTPD_LOG_NAME
        systemctl start $BIN
        ret_val=$? ### To ensure proper ret_val is obtained
        if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ]; then
