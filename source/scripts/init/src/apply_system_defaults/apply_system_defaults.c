@@ -1405,6 +1405,13 @@ STATIC void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"StartupIPMode" );
       }
    }
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.ConfigMacVlanWithUdhcpc"))
+   {
+      if (0 == IsValuePresentinSyscfgDB("ConfigMacVlanWithUdhcpc"))
+      {
+         set_syscfg_partner_values(value, "ConfigMacVlanWithUdhcpc");
+      }
+   }
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.IPv4PrimaryDhcpServerOptions") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "IPv4PrimaryDhcpServerOptions" ) )
@@ -1682,6 +1689,10 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.StartupIPMode") )
    {
          set_syscfg_partner_values( value,"StartupIPMode" );
+   }
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.ConfigMacVlanWithUdhcpc"))
+   {
+      set_syscfg_partner_values(value, "ConfigMacVlanWithUdhcpc");
    }
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.IPv4PrimaryDhcpServerOptions") )
    {
@@ -2335,6 +2346,7 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 	char *startupipmode = NULL,
         *pridhcpoption = NULL,
         *secdhcpoption = NULL,
+        *pConfigMacVlanWithUdhcpc = NULL,
         *voiceDefaultConfigFile = NULL;
 #endif
     int	    isNeedToApplyPartnersDefault = 1;
@@ -3000,6 +3012,20 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 				            APPLY_PRINT("%s - Default Value of StartupIPMode is NULL\n", __FUNCTION__ );
 				        }
 
+               paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem(partnerObj, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.ConfigMacVlanWithUdhcpc"), "ActiveValue");
+               if (paramObjVal != NULL)
+               {
+                  pConfigMacVlanWithUdhcpc = paramObjVal->valuestring;
+                  if (pConfigMacVlanWithUdhcpc[0] != '\0')
+                  {
+                     set_syscfg_partner_values(pConfigMacVlanWithUdhcpc, "ConfigMacVlanWithUdhcpc");
+                     pConfigMacVlanWithUdhcpc = NULL;
+                  }
+               }
+               else
+               {
+                  APPLY_PRINT("%s - Default Value of ConfigMacVlanWithUdhcpc is NULL\n", __FUNCTION__);
+               }
                paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Default_VoIP_Configuration_FileName"), "ActiveValue");
                if ( paramObjVal != NULL )
                {
