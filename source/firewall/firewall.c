@@ -8958,6 +8958,7 @@ static int do_parcon_mgmt_device(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
+#define MAX_DEV_8K 8192
 devMacSt * getPcmdList(int *devCount)
 {
 int count = 0;
@@ -8984,6 +8985,12 @@ memset(buf, 0, sizeof(buf));
                    FIREWALL_DEBUG("invalid data\n");
                    break;
                }
+
+               if(numDev < 0 || numDev > MAX_DEV_8K)
+	       {
+                   FIREWALL_DEBUG("value out of range\n");
+                   break;
+	       }
 
                *devCount = (int)numDev;
                devMacs = (devMacSt *)calloc(*devCount,sizeof(devMacSt));
