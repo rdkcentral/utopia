@@ -8984,7 +8984,7 @@ memset(buf, 0, sizeof(buf));
                    FIREWALL_DEBUG("invalid data\n");
                    break;
                }
-               if (numDev < INT32_MIN || numDev > INT32_MAX)
+               if (numDev > INT_MAX || numDev < INT_MIN)
                {
                    FIREWALL_DEBUG("invalid integer\n");
                    break;
