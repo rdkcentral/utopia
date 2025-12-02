@@ -8987,10 +8987,10 @@ memset(buf, 0, sizeof(buf));
                }
 
                if(numDev < 0 || numDev > MAX_DEV_8K)
-	       {
+               {
                    FIREWALL_DEBUG("value out of range\n");
                    break;
-	       }
+               }
 
                *devCount = (int)numDev;
                devMacs = (devMacSt *)calloc(*devCount,sizeof(devMacSt));
