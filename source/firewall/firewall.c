@@ -8984,11 +8984,6 @@ memset(buf, 0, sizeof(buf));
                    FIREWALL_DEBUG("invalid data\n");
                    break;
                }
-               if (numDev > INT_MAX || numDev < INT_MIN)
-               {
-                   FIREWALL_DEBUG("invalid integer\n");
-                   break;
-               }
 
                *devCount = (int)numDev;
                devMacs = (devMacSt *)calloc(*devCount,sizeof(devMacSt));
