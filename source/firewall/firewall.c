@@ -846,8 +846,10 @@ static int log_siteblk_chain_cnt = 0;
 // check if chain is already added
 static int log_siteblk_kw_chain_exists(const char *chain) {
     for (int i = 0; i < log_siteblk_chain_cnt; i++) {
-        if (strncmp(log_siteblk_kw_chains[i], chain, strlen(chain)) == 0)
+        if (strcmp(log_siteblk_kw_chains[i], chain) == 0) {
+            FIREWALL_DEBUG("chain name already added, skip new add\n");
             return 1;
+        }
     }
     return 0;
 }
@@ -9423,6 +9425,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int range_max = 1024; //max payload bytes to filter
                 int range_multiplier = 2;
 
+		FIREWALL_DEBUG("adding rules for KEYWD\n");
                 // Extract keyword if user input is a full URL
                 if (strstr(query, "://") != NULL) {
                     keyword = strstr(query, "://") + 3;
@@ -9444,9 +9447,9 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                     // Create new chain if doesn't already exist
                     // linux iptables chainname length is max 29 chars
                     snprintf(chainName, sizeof(chainName), "LOG_SiteBlk_KW_%d_%d", from, to);
-		    if (!log_siteblk_kw_chain_exists(chainName)) {
+                    if (!log_siteblk_kw_chain_exists(chainName)) {
                         fprintf(fp, ":%s - [0:0]\n", chainName);
-			log_siteblk_kw_chain_mark(chainName);
+                        log_siteblk_kw_chain_mark(chainName);
                     }
 
                     // Add rule to jump to private chain if "Host:" is found in this offset range
