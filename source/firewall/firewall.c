@@ -501,7 +501,7 @@ void logPrintMain(char* filename, int line, char *fmt,...);
 #endif
 
 #define LOG_SITEBLK_KW_MAX_CHAINS 		10
-#define LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN	32
+#define LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN	64
 
 char *sysevent_name = "firewall";
 
@@ -9439,7 +9439,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int from,to;
                 for (from = 0, to = 64; from < range_max; from = to, to = (to * range_multiplier > range_max) ? range_max : to * range_multiplier)
                 {
-                    char chainName[64] = {'\0'};
+                    char chainName[LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN] = {'\0'};
 
                     // Create new chain if doesn't already exist
                     // linux iptables chainname length is max 29 chars
