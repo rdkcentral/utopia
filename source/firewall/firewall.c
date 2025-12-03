@@ -838,31 +838,6 @@ int greDscp = 44; // Default initialized to 44
  */
 static int isInRFCaptivePortal();
 
-// keep track of keyword chain names to avoid duplicate create calls
-static char log_siteblk_kw_chains[LOG_SITEBLK_KW_MAX_CHAINS][LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN];
-static int log_siteblk_chain_cnt = 0;
-
-
-// check if chain is already added
-static int log_siteblk_kw_chain_exists(const char *chain) {
-    for (int i = 0; i < log_siteblk_chain_cnt; i++) {
-        if (strcmp(log_siteblk_kw_chains[i], chain) == 0) {
-            FIREWALL_DEBUG("chain name already added, skip new add\n");
-            return 1;
-        }
-    }
-    return 0;
-}
-
-// mark a chain as added
-static void log_siteblk_kw_chain_mark(const char *chain) {
-    if (log_siteblk_chain_cnt < LOG_SITEBLK_KW_MAX_CHAINS) {
-        strncpy(log_siteblk_kw_chains[log_siteblk_chain_cnt], chain, LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN-1);
-        log_siteblk_kw_chains[log_siteblk_chain_cnt][LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN-1] = '\0';
-        log_siteblk_chain_cnt++;
-    }
-}
-
 #define LOG_BUFF_SIZE 512
 void firewall_log( char* fmt, ...)
 {
@@ -9191,7 +9166,11 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
     if(iptype == 4)
         fprintf(nat_fp, "-A prerouting_fromlan -j managedsite_based_parcon\n");
 #endif
+    // keep track of keyword chain names to avoid duplicate create calls
+    char log_siteblk_kw_chains[LOG_SITEBLK_KW_MAX_CHAINS][LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN];
+    int log_siteblk_chain_cnt = 0;
 
+    memset(log_siteblk_kw_chains, 0, sizeof(log_siteblk_kw_chains));
     query[0] = '\0';
     rc = syscfg_get(NULL, "managedsites_enabled", query, sizeof(query)); 
     if (rc == 0 && query[0] != '\0' && query[0] != '0') // managed site list enabled
@@ -9447,9 +9426,25 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                     // Create new chain if doesn't already exist
                     // linux iptables chainname length is max 29 chars
                     snprintf(chainName, sizeof(chainName), "LOG_SiteBlk_KW_%d_%d", from, to);
-                    if (!log_siteblk_kw_chain_exists(chainName)) {
+
+                    // check if chain already created
+                    int found = 0;
+                    for (int i = 0; i < log_siteblk_chain_cnt; i++) {
+                        if (strcmp(log_siteblk_kw_chains[i], chainName) == 0) {
+                            FIREWALL_DEBUG("chain name already added, skip new add\n");
+                            found = 1;
+                            break;
+                        }
+                    }
+
+		    if (!found) {
+                        // add to existing chains
+                        strncpy(log_siteblk_kw_chains[log_siteblk_chain_cnt], chainName, LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN-1);
+                        log_siteblk_kw_chains[log_siteblk_chain_cnt][LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN-1] = '\0';
+                        log_siteblk_chain_cnt++;
+
+                        // create new chain
                         fprintf(fp, ":%s - [0:0]\n", chainName);
-                        log_siteblk_kw_chain_mark(chainName);
                     }
 
                     // Add rule to jump to private chain if "Host:" is found in this offset range
