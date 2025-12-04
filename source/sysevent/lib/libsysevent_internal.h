@@ -181,6 +181,6 @@ int SE_msg_send_receive (int fd, char *sendmsg, char *replymsg, unsigned int *re
  */
 char *SE_msg_prepare(char *buf, const unsigned int bufsize, const int mtype, const token_t sender);
 char *SE_msg_get_data(char *msg, int *size);
-int SE_msg_send_data (int fd, char *sendmsg,int msgsize);
+int SE_msg_send_data (int fd, char *sendmsg, unsigned int msgsize);
 int SE_msg_add_data(char *msg, unsigned int size, const char *data, const int data_length);
 #endif   /* __LIB_SYSEVENT_INTERNAL */

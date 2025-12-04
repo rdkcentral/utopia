@@ -61,6 +61,11 @@ typedef struct _EnumString_Map
                         return (ERR_UTCTX_OP); \
                     } \
 
+#define UTOPIA_SETINDEXED_NORETURN(ctx,name,index,value) \
+                    if (0 == Utopia_SetIndexed((ctx),(name),(index),(value))) { \
+                        ulogf(ULOG_CONFIG, UL_UTAPI, "Error: Utopia_SetIndexed failed\n"); \
+                    } \
+
 #define UTOPIA_SETNAMED(ctx,name,prefix,value) \
                     if (0  == Utopia_SetNamed((ctx),(name),(prefix),(value))) { \
                         ulogf(ULOG_CONFIG, UL_UTAPI, "Error: setting %s_[%d] to %s", prefix, name, value); \
@@ -94,6 +99,11 @@ typedef struct _EnumString_Map
                         return (ERR_UTCTX_OP); \
                     } \
 
+#define UTOPIA_UNSETINDEXED_NORETURN(ctx,name,index) \
+                    if (0 == Utopia_UnsetIndexed((ctx),(name),(index))) { \
+                        ulogf(ULOG_CONFIG, UL_UTAPI, "Error: failed Utopia_UnsetIndexed\n"); \
+                    } \
+
 /*
  * Integer sets
  */
@@ -102,6 +112,13 @@ typedef struct _EnumString_Map
                         int err_rc = Utopia_SetInt((ctx),(name),(intvalue)); \
                         if (err_rc != SUCCESS) \
                             return err_rc; \
+                    }
+
+#define UTOPIA_SETINT_NORETURN(ctx,name,intvalue) \
+                    { \
+                        int err_rc = Utopia_SetInt((ctx),(name),(intvalue)); \
+                        if (err_rc != SUCCESS) \
+                            ulogf(ULOG_CONFIG, UL_UTAPI, "Error: failed Utopia_SetInt\n"); \
                     }
 
 #define UTOPIA_SETINDEXEDINT(ctx,name,index,intvalue) \

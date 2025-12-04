@@ -925,6 +925,14 @@ void do_ipv6_filter_table(FILE *fp){
       if (strcmp(current_wan_ifname, wan6_ifname)) // Also accept from wan6_ifname in case of tunnel
          fprintf(fp, "-A INPUT -s fe80::/64 -d fe80::/64 -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", wan6_ifname); // sollicited RA
 
+
+      FIREWALL_DEBUG("Current WAN interface name :%s , Hotspot WAN interface name: %s \n" COMMA current_wan_ifname COMMA hotspot_wan_ifname);
+      if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0) //Also accept from wan6_ifname in case of hotspot
+      {
+         fprintf(fp, "-A INPUT -s fe80::/64 -d %s -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", current_wan_ip6_addr, current_wan_ifname); // periodic RA
+	 FIREWALL_DEBUG("Accepting RA on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
+      }
+
       fprintf(fp, "-A INPUT -s fe80::/64 -i %s -p icmpv6 -m icmp6 --icmpv6-type 133 -m limit --limit 100/sec -j ACCEPT\n", lan_ifname); //RS
       if(inf_num!= 0)
 	  {
@@ -1974,10 +1982,6 @@ void do_ipv6_sn_filter(FILE* fp) {
             fprintf(fp, "-A PREROUTING -i %s -d %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i], mcastAddrStr);
         /* NS Throttling rules for WAN and LAN */
         fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i]);
-	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
-	{
-	    fprintf(fp, "-A INPUT -s %s -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 133 -m limit --limit 100/sec -j ACCEPT\n" , current_wan_ip6_addr , current_wan_ifname);
-	}
         fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP\n", ifnames[i]);
     }
 
@@ -2104,7 +2108,6 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
 }
 #endif
 
-#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
 int checkIfULAEnabled()
 {
     // temp check , need to replace with CurrInterface Name or if device is XLE
@@ -2125,6 +2128,7 @@ int checkIfULAEnabled()
       return -1;
 }
 
+#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
 void applyIpv6ULARules(FILE* fp)
 {
    #if defined  (RDKB_EXTENDER_ENABLED)
@@ -2237,27 +2241,24 @@ void do_ipv6_nat_table(FILE* fp)
 			}
 		}
    }
-#ifdef _PLATFORM_RASPBERRYPI_
+#if defined  (WAN_FAILOVER_SUPPORTED)
    if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
    {
-    #if defined  (WAN_FAILOVER_SUPPORTED)
        if (0 == checkIfULAEnabled())
        {
 	   applyHotspotPostRoutingRules(fp, false);
        }
-   #endif
    }
-   else
-   {
-       fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
-   }
+#endif
+#ifdef _PLATFORM_RASPBERRYPI_
+   fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
 #endif
 
 #ifdef _PLATFORM_BANANAPI_R4_
    fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
 #endif
 
-    FIREWALL_DEBUG("Exiting do_ipv6_nat_table \n");
+   FIREWALL_DEBUG("Exiting do_ipv6_nat_table \n");
 }
 
 void getIpv6Interfaces(char Interface[MAX_NO_IPV6_INF][MAX_LEN_IPV6_INF],int *len)
