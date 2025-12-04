@@ -47,14 +47,6 @@ source /etc/waninfo.sh
 WAN_INTERFACE=$(getWanInterfaceName)
 DEFAULT_WAN_INTERFACE="erouter0"
 LANIPV6Support=`sysevent get LANIPv6GUASupport`
-DEVICETYPE=$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Identity.DeviceType | grep value | cut -d ":" -f 3 | tr -d ' ' | tr -s ' ' | tr '[:lower:]' '[:upper:]')
-if [ $DEVICETYPE = "TEST" ] && [ $USE_DYNAMICKEYING = "TRUE" ]; then
-    USE_DEVKEYS="-f authorized_keys_dev"
-    echo_t "[utopia]: dropbear using dev authorization keys"
-else
-    USE_DEVKEYS=""
-    echo_t "[utopia]: dropbear using prod authorization keys"
-fi
 
 if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" = "SR213" ] ||  [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ]; then
    CMINTERFACE=$WAN_INTERFACE
@@ -144,7 +136,14 @@ do_start() {
       #chgrp admin $DIR_NAME
       #chmod 755 $DIR_NAME
    #fi
-
+    DEVICETYPE=$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Identity.DeviceType | grep value | cut -d ":" -f 3 | tr -d ' ' | tr -s ' ' | tr '[:lower:]' '[:upper:]')
+    if [ $DEVICETYPE = "TEST" ] && [ $USE_DYNAMICKEYING = "TRUE" ]; then
+        USE_DEVKEYS="-f authorized_keys_dev"
+        echo_t "[utopia]: dropbear using dev authorization keys"
+    else
+        USE_DEVKEYS=""
+        echo_t "[utopia]: dropbear using prod authorization keys"
+    fi
     if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]) ;then
     	get_listen_params
 	CMINTERFACE=$WAN_INTERFACE
