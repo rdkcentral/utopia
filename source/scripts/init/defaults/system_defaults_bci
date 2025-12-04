@@ -1321,3 +1321,6 @@ $TrackRemotePortUsage=NULL
 
 #Wifi Personalization Support Default value
 $WiFiPersonalizationSupport=true
+
+#STAGE Default value
+$StageEnabled=false
