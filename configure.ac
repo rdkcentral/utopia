@@ -50,6 +50,7 @@ AC_PREFIX_DEFAULT(`pwd`)
 AC_ENABLE_SHARED
 AC_DISABLE_STATIC
 
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -230,8 +231,9 @@ AC_CONFIG_FILES(
 	Makefile
 	source/Makefile
 	source/dhcpproxy/Makefile
-	source/firewall/Makefile
 	source/firewall_log/Makefile
+	source/firewall_nft/Makefile
+	source/firewall/Makefile
 	source/igd/Makefile
 	source/igd/src/Makefile
 	source/macclone/Makefile
