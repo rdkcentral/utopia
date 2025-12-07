@@ -284,10 +284,10 @@ void srv_register(void) {
       const char* SERVICE_DEFAULT_HANDLER_OVS = "/usr/bin/bridgeUtils";
       
       const char* SERVICE_CUSTOM_EVENTS_OVS[] = { 
-      "multinet-syncNets|/usr/bin/bridgeUtils|NULL|"TUPLE_FLAG_EVENT,
-      "multinet-syncMembers|/usr/bin/bridgeUtils|NULL|"TUPLE_FLAG_EVENT,
-      "multinet-down|/usr/bin/bridgeUtils|NULL|"TUPLE_FLAG_EVENT,
-      "multinet-up|/usr/bin/bridgeUtils|NULL|"TUPLE_FLAG_EVENT,
+      "multinet-syncNets|/etc/utopia/service.d/service_multinet_exec|NULL|"TUPLE_FLAG_EVENT,
+      "multinet-syncMembers|/etc/utopia/service.d/service_multinet_exec|NULL|"TUPLE_FLAG_EVENT,
+      "multinet-down|/etc/utopia/service.d/service_multinet_exec|NULL|"TUPLE_FLAG_EVENT,
+      "multinet-up|/etc/utopia/service.d/service_multinet_exec|NULL|"TUPLE_FLAG_EVENT,
 #ifdef RDKB_EXTENDER_ENABLED
       "lnf-setup|/usr/bin/bridgeUtils|NULL|"TUPLE_FLAG_EVENT,
 #else
