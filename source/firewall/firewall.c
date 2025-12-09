@@ -500,9 +500,6 @@ void logPrintMain(char* filename, int line, char *fmt,...);
 #include <libnet.h>
 #endif
 
-#define LOG_SITEBLK_KW_MAX_CHAINS 		10
-#define LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN	64
-
 char *sysevent_name = "firewall";
 
 int firewall_lib_init(void *bus_handle, int sysevent_fd, token_t sysevent_token);
@@ -9166,11 +9163,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
     if(iptype == 4)
         fprintf(nat_fp, "-A prerouting_fromlan -j managedsite_based_parcon\n");
 #endif
-    // keep track of keyword chain names to avoid duplicate create calls
-    char log_siteblk_kw_chains[LOG_SITEBLK_KW_MAX_CHAINS][LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN];
-    int log_siteblk_chain_cnt = 0;
 
-    memset(log_siteblk_kw_chains, 0, sizeof(log_siteblk_kw_chains));
     query[0] = '\0';
     rc = syscfg_get(NULL, "managedsites_enabled", query, sizeof(query)); 
     if (rc == 0 && query[0] != '\0' && query[0] != '0') // managed site list enabled
@@ -9199,6 +9192,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
         ruleIndex += do_parcon_mgmt_lan2wan_pc_site_appendrule(fp);
 #endif
 
+        bool keywd_chains_exists = false;
         for (idx = 1; idx <= count; idx++)
         {
             char namespace[MAX_QUERY];
@@ -9404,7 +9398,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int range_max = 1024; //max payload bytes to filter
                 int range_multiplier = 2;
 
-		FIREWALL_DEBUG("adding rules for KEYWD\n");
+                FIREWALL_DEBUG("adding rules for KEYWD\n");
                 // Extract keyword if user input is a full URL
                 if (strstr(query, "://") != NULL) {
                     keyword = strstr(query, "://") + 3;
@@ -9421,43 +9415,32 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int from,to;
                 for (from = 0, to = 64; from < range_max; from = to, to = (to * range_multiplier > range_max) ? range_max : to * range_multiplier)
                 {
-                    char chainName[LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN] = {'\0'};
+                    char chain_name[32] = {'\0'};
 
-                    // Create new chain if doesn't already exist
+                    // Create new chain only for first keyword
                     // linux iptables chainname length is max 29 chars
-                    snprintf(chainName, sizeof(chainName), "LOG_SiteBlk_KW_%d_%d", from, to);
+                    snprintf(chain_name, sizeof(chain_name), "LOG_SiteBlk_KW_%d_%d", from, to);
 
-                    // check if chain already created
-                    int found = 0;
-                    for (int i = 0; i < log_siteblk_chain_cnt; i++) {
-                        if (strcmp(log_siteblk_kw_chains[i], chainName) == 0) {
-                            FIREWALL_DEBUG("chain name already added, skip new add\n");
-                            found = 1;
-                            break;
-                        }
-                    }
-
-		    if (!found) {
-                        // add to existing chains
-                        strncpy(log_siteblk_kw_chains[log_siteblk_chain_cnt], chainName, LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN-1);
-                        log_siteblk_kw_chains[log_siteblk_chain_cnt][LOG_SITEBLK_KW_MAX_CHAIN_NAME_LEN-1] = '\0';
-                        log_siteblk_chain_cnt++;
-
+		    // Private chain per range is created only once
+		    if (keywd_chains_exists == false) {
                         // create new chain
-                        fprintf(fp, ":%s - [0:0]\n", chainName);
+                        fprintf(fp, ":%s - [0:0]\n", chain_name);
                     }
 
                     // Add rule to jump to private chain if "Host:" is found in this offset range
                     fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"Host:\" --algo kmp --from %d --to %d --icase -j %s\n",
-                        from, to, chainName);
+                        from, to, chain_name);
 
                     // Add rule to match keyword in private chain within same offset range
                     fprintf(fp, "-A %s -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
-                        chainName, keyword, from, to, drop_log);
+                        chain_name, keyword, from, to, drop_log);
 
                     // Default rule to return if not matched
-                    fprintf(fp, "-A %s -j RETURN\n", chainName);
+                    fprintf(fp, "-A %s -j RETURN\n", chain_name);
                 }
+
+                // set keywd chains created
+                keywd_chains_exists = true;
 
                 // Add rule for https filter
                 fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 443 -m string --string \"%s\" --algo kmp --icase -j %s\n",
