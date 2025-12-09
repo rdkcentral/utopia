@@ -9415,7 +9415,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int from,to;
                 for (from = 0, to = 64; from < range_max; from = to, to = (to * range_multiplier > range_max) ? range_max : to * range_multiplier)
                 {
-                    char chain_name[32] = {'\0'};
+                    char chain_name[64] = {'\0'};
 
                     // Create new chain only for first keyword
                     // linux iptables chainname length is max 29 chars
