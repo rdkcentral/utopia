@@ -8958,6 +8958,7 @@ static int do_parcon_mgmt_device(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
+#define MAX_DEV_8K 8192
 devMacSt * getPcmdList(int *devCount)
 {
 int count = 0;
@@ -8984,9 +8985,10 @@ memset(buf, 0, sizeof(buf));
                    FIREWALL_DEBUG("invalid data\n");
                    break;
                }
-               if (numDev < INT_MIN || numDev > INT_MAX)
+
+               if(numDev < 0 || numDev > MAX_DEV_8K)
                {
-                   FIREWALL_DEBUG("invalid integer\n");
+                   FIREWALL_DEBUG("value out of range\n");
                    break;
                }
 
@@ -13251,7 +13253,8 @@ int do_block_ports(FILE *filter_fp)
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 49152:49153 -j DROP\n");
    /* For EasyMesh Controller Communication */
 #if defined(_PLATFORM_BANANAPI_R4_)
-   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n",get_current_wan_ifname());
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n", get_current_wan_ifname());
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 8888 -j ACCEPT\n", get_current_wan_ifname());
 #endif
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 1900 -j DROP\n");
    fprintf(filter_fp, "-I INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
