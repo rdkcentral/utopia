@@ -21,7 +21,11 @@ AM_CFLAGS += -pthread
 AM_CPPFLAGS = -I$(top_srcdir)/source/include -I$(top_srcdir)/source/util/utils $(DBUS_CFLAGS)
 AM_LDFLAGS = -lccsp_common -lsecure_wrapper -lnetfilter_queue -lnfnetlink $(DBUS_LIBS) -pthread -lrt
 
+if FIREWALL_NFT
 bin_PROGRAMS = firewall nfq_handler
+else
+bin_PROGRAMS = firewall_ipt nfq_handler
+endif
 
 firewall_SOURCES = firewall_ipv6.c firewall.c firewall_priv.c firewall_interface.c  firewall_ext.c
 if CPC_FIREWALL_ENABLE
