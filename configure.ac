@@ -54,10 +54,8 @@ AC_DISABLE_STATIC
 AC_ARG_ENABLE([firewall-nft],
 [  --enable-firewall-nft=val Turn on nft Feature, val=true or false],
 [case "${enableval}" in
-  yes) firewall_nft=true
-  m4_if(m4_sysval,[0],[AC_CONFIG_FILES([source/firewall_nft/Makefile])]);;
-  no)  firewall_nft=false
-  m4_if(m4_sysval,[0],[AC_CONFIG_FILES([source/firewall/Makefile])]);;
+  yes) firewall_nft=true ;;
+  no)  firewall_nft=false ;;
   *) AC_MSG_ERROR([bad value ${enableval} for --enable-firewall-nft]) ;;
 esac],[firewall_nft=false])
 AM_CONDITIONAL(FIREWALL_NFT, test x"$firewall_nft" = x"true")
@@ -242,6 +240,8 @@ AC_CONFIG_FILES(
 	Makefile
 	source/Makefile
 	source/dhcpproxy/Makefile
+	source/firewall/Makefile
+	source/firewall_nft/Makefile
 	source/firewall_log/Makefile
 	source/igd/Makefile
 	source/igd/src/Makefile

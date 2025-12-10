@@ -19,7 +19,7 @@
 SUBDIRS = ulog syscfg sysevent services utctx utapi util
 
 if FIREWALL_NFT
-SUBDIRS += firewall_nft
+SUBDIRS += firewall_nft firewall
 else
 SUBDIRS += firewall
 endif
