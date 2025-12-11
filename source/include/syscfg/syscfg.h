@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -62,17 +62,21 @@
 extern "C"{
 #endif
 
-/*
- * Procedure     : syscfg_create
- * Purpose       : Create syscfg shared memory and load entries from persistent storage
- * Parameters    :   
- *   file - filesystem 'file' where syscfg is stored
- * Return Values :
- *    0              - success
- *    ERR_INVALID_PARAM - invalid arguments
- *    ERR_IO_FAILURE - syscfg file unavailable
- * Notes         :
- */
+/**
+* @brief Create syscfg shared memory and load entries from persistent storage.
+*
+* This function initialization SYSCFG from persistent storage.
+*
+* @param[in] file - Pointer to the filesystem file path string where syscfg is stored.
+* @param[in] max_file_sz - Maximum file size in bytes for the syscfg persistent storage.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_INVALID_PARAM if invalid arguments are provided.
+* @retval ERR_IO_FAILURE if syscfg file is unavailable.
+* @retval ERR_SHM_CREATE if error creating shared memory.
+*
+*/
 int syscfg_create(const char *file, long int max_file_sz);
 
 /*
@@ -87,80 +91,196 @@ static inline int syscfg_init (void)
     return 0;
 }
 
-/*
- * Procedure     : syscfg_destroy
- * Purpose       : Destroy syscfg shared memory context
- * Parameters    :   
- *   None
- * Return Values :
- *    0              - success
- *    ERR_INVALID_PARAM - invalid arguments
- *    ERR_IO_FAILURE - syscfg file unavailable
- * Notes         :
- *   syscfg destroy should happen only during system shutdown.
- *   *NEVER* call this API in any other scenario!!
- */
+/**
+* @brief Destroy syscfg shared memory context.
+*
+* syscfg destroy should happen only during system shutdown, should never call
+* this API in any other scenario.
+*
+* @return None.
+*
+*/
 void syscfg_destroy();
 
-/*
- * Procedure     : syscfg_get
- * Purpose       : Retrieve an entry from syscfg
- * Parameters    :   
- *   ns  -  namespace string (optional)
- *   name  - name string, entry to add
- *   out_val  - buffer to store output value string
- *   outbufsz  - output buffer size
- * Return Values :
- *    0 on success, -1 on error
- */
+/**
+* @brief Retrieve an entry from syscfg.
+*
+* @param[in] ns - Pointer to the namespace string (optional, can be NULL).
+* @param[in] name - Pointer to the name string of the entry to retrieve.
+* @param[out] out_value - Pointer to the buffer to store the output value string.
+* @param[in] outbufsz - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval -1 on error.
+*
+*/
 int syscfg_get(const char *ns, const char *name, char *out_value, int outbufsz);
 
-/*
- * Procedure     : syscfg_getall
- * Purpose       : Retrieve all entries from syscfg
- * Parameters    :   
- *   buf  -  output buffer to store syscfg entries
- *   bufsz  - size of output buffer
- *   outsz  - number of bytes return into given buffer
- * Return Values :
- *    0       - on success
- *    ERR_xxx - various errors codes dependening on the failure
- * Notes         :
- *    useful for clients to dump the whole syscfg data
- */
+/**
+* @brief Retrieve all entries from syscfg.
+*
+* This function retrieves all entries from syscfg.
+*
+* @param[out] buf - Pointer to the output buffer to store syscfg entries.
+* @param[in] bufsz - Size of the output buffer in bytes.
+* @param[out] outsz - Pointer to store the number of bytes returned into the given buffer.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+* @note Useful for clients to dump the whole syscfg data.
+*/
 int syscfg_getall(char *buf, int bufsz, int *outsz);
 
-/*
- * Like syscfg_getall(), but returns pairs of entries separated by
- * newlines instead nul characters.
- */
+/**
+* @brief Retrieve all entries from syscfg with newline-separated pairs.
+*
+* @param[out] buf - Pointer to the output buffer to store syscfg entries.
+* @param[in] bufsz - Size of the output buffer in bytes.
+* @param[out] outsz - Pointer to store the number of bytes returned into the given buffer.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+*/
 int syscfg_getall2(char *buf, size_t bufsz, size_t *outsz);
 
-/*
- * Procedure     : syscfg_set
- * Purpose       : Adds an entry to syscfg
- * Parameters    :   
- *   ns  -  namespace string (optional)
- *   name  - name string, entry to add
- *   value  - value string to associate with name
- * Return Values :
- *    0 - success
- *    ERR_xxx - various errors codes dependening on the failure
- * Notes         :
- *    Only changes syscfg hash table, persistent store contents
- *    not changed until 'commit' operation
- */
-
+/**
+* @brief Add an entry to syscfg with namespace.
+*
+* This function adds an entry to syscfg with namespace.
+*
+* @param[in] ns - Pointer to the namespace string.
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Pointer to the value string to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+* @note Only changes syscfg hash table, persistent store contents not changed until 'commit' operation.
+*/
 int syscfg_set_ns             (const char *ns, const char *name, const char *value);
+
+/**
+* @brief Add an entry to syscfg with namespace and commit to persistent storage.
+*
+* @param[in] ns - Pointer to the namespace string.
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Pointer to the value string to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+* * @note Only changes syscfg hash table, persistent store contents not changed until 'commit' operation.
+*/
 int syscfg_set_ns_commit      (const char *ns, const char *name, const char *value);
+
+/**
+* @brief Add an entry with unsigned long value to syscfg with namespace.
+*
+* @param[in] ns - Pointer to the namespace string.
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Unsigned long value to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+* @note Only changes syscfg hash table, persistent store contents not changed until 'commit' operation.
+*/
 int syscfg_set_ns_u           (const char *ns, const char *name, unsigned long value);
+
+/**
+* @brief Add an entry with unsigned long value to syscfg with namespace and commit.
+*
+* @param[in] ns - Pointer to the namespace string.
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Unsigned long value to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+* @note Only changes syscfg hash table, persistent store contents not changed until 'commit' operation.
+*/
 int syscfg_set_ns_u_commit    (const char *ns, const char *name, unsigned long value);
 
+/**
+* @brief Add an entry to syscfg without namespace.
+*
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Pointer to the value string to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+* @note Only changes syscfg hash table, persistent store contents not changed until 'commit' operation.
+*/
 int syscfg_set_nns            (const char *name, const char *value);
+
+/**
+* @brief Add an entry to syscfg without namespace and commit to persistent storage.
+*
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Pointer to the value string to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+* @note Only changes syscfg hash table, persistent store contents not changed until 'commit' operation.
+*/
 int syscfg_set_nns_commit     (const char *name, const char *value);
+
+/**
+* @brief Add an entry with unsigned long value to syscfg without namespace.
+*
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Unsigned long value to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+* @note Only changes syscfg hash table, persistent store contents not changed until 'commit' operation.
+*/
 int syscfg_set_nns_u          (const char *name, unsigned long value);
+
+/**
+* @brief Add an entry with unsigned long value to syscfg without namespace and commit.
+*
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Unsigned long value to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+* @note Only changes syscfg hash table, persistent store contents not changed until 'commit' operation.
+*/
 int syscfg_set_nns_u_commit   (const char *name, unsigned long value);
 
+/**
+* @brief Add an entry to syscfg with optional namespace.
+*
+* This is a convenience wrapper function that automatically selects between namespace and
+* non-namespace variants based on whether the ns parameter is NULL.
+*
+* @param[in] ns - Pointer to the namespace string.
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Pointer to the value string to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+*/
 static inline int syscfg_set (const char *ns, const char *name, const char *value)
 {
     if (ns)
@@ -169,6 +289,21 @@ static inline int syscfg_set (const char *ns, const char *name, const char *valu
         return syscfg_set_nns (name, value);
 }
 
+/**
+* @brief Add an entry to syscfg with optional namespace and commit to persistent storage.
+*
+* This is a convenience wrapper function that automatically selects between namespace and
+* non-namespace variants based on whether the ns parameter is NULL.
+*
+* @param[in] ns - Pointer to the namespace string.
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Pointer to the value string to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+*/
 static inline int syscfg_set_commit (const char *ns, const char *name, const char *value)
 {
     if (ns)
@@ -177,6 +312,21 @@ static inline int syscfg_set_commit (const char *ns, const char *name, const cha
         return syscfg_set_nns_commit (name, value);
 }
 
+/**
+* @brief Add an entry with unsigned long value to syscfg with optional namespace.
+*
+* This is a convenience wrapper function that automatically selects between namespace and
+* non-namespace variants based on whether the ns parameter is NULL.
+*
+* @param[in] ns - Pointer to the namespace string.
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Unsigned long value to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+*/
 static inline int syscfg_set_u (const char *ns, const char *name, unsigned long value)
 {
     if (ns)
@@ -185,6 +335,21 @@ static inline int syscfg_set_u (const char *ns, const char *name, unsigned long 
         return syscfg_set_nns_u (name, value);
 }
 
+/**
+* @brief Add an entry with unsigned long value to syscfg with optional namespace and commit.
+*
+* This is a convenience wrapper function that automatically selects between namespace and
+* non-namespace variants based on whether the ns parameter is NULL.
+*
+* @param[in] ns - Pointer to the namespace string.
+* @param[in] name - Pointer to the name string of the entry to add.
+* @param[in] value - Unsigned long value to associate with the name.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+*/
 static inline int syscfg_set_u_commit (const char *ns, const char *name, unsigned long value)
 {
     if (ns)
@@ -193,48 +358,46 @@ static inline int syscfg_set_u_commit (const char *ns, const char *name, unsigne
         return syscfg_set_nns_u_commit (name, value);
 }
 
-/*
- * Procedure     : syscfg_unset
- * Purpose       : Remove an entry from syscfg
- * Parameters    :   
- *   ns  -  namespace string (optional)
- *   name  - name string, entry to remove
- * Return Values :
- *    0 - success
- *    ERR_xxx - various errors codes dependening on the failure
- * Notes         :
- *    Only changes syscfg hash table, persistent store contents
- *    not changed until 'commit' operation
- */
+/**
+* @brief Remove an entry from syscfg.
+*
+* @param[in] ns - Pointer to the namespace string.
+* @param[in] name - Pointer to the name string of the entry to remove.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+* @note Only changes syscfg hash table, persistent store contents not changed until 'commit' operation.
+*/
 int syscfg_unset(const char *ns, const char *name);
 
-/*
- * Procedure     : syscfg_commit
- * Purpose       : commits current stats of syscfg hash table data
- *                 to persistent store
- * Parameters    :   
- *   None
- * Return Values :
- *    0 - success
- *    ERR_IO_xxx - various IO errors dependening on the failure
- * Notes         :
- *    WARNING: will overwrite persistent store
- *    Persistent store location specified during syscfg_create() is cached 
- *    in syscfg shared memory and used as the target for commit
- */
+/**
+* @brief Commit current state of syscfg hash table data to persistent store.
+*
+* This function commits current stats of syscfg hash table to persistent storage.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_IO_xxx various IO error codes depending on the failure.
+*
+* @note This operation will overwrite the existing persistent storage.
+* The persistent store location set during syscfg_create() is cached in syscfg
+* shared memory and used as the commit target.
+*/
 int syscfg_commit();
 
-/*
- * Procedure     : syscfg_getsz
- * Purpose       : Get current & maximum peristent storage size 
- *                 of syscfg content
- * Parameters    : 
- *                 used_sz - return buffer of used size
- *                 max_sz - return buffer of max size
- * Return Values :
- *    0 - success
- *    ERR_xxx - various errors codes dependening on the failure
- */
+/**
+* @brief Get current and maximum persistent storage size of syscfg content.
+*
+* @param[out] used_sz - Pointer to store the used size in bytes.
+* @param[out] max_sz - Pointer to store the maximum size in bytes.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+* @retval ERR_xxx various error codes depending on the failure.
+*
+*/
 int syscfg_getsz (long int *used_sz, long int *max_sz);
 
 #ifdef __cplusplus

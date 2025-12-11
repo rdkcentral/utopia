@@ -24,29 +24,156 @@ typedef struct rpc_CommandBuf rpc_CommandBuf;
 
 #if defined(__STDC__) || defined(__cplusplus)
 #define EXECUTECOMMAND 1
+/**
+* @brief Execute a shell command on the RPC server and return its output.
+*
+* @param[in] argp  - Pointer to rpc_CommandBuf structure containing the command string to execute.
+* @param[in] clnt  - Pointer to CLIENT handle for the RPC connection.
+*
+* @return Pointer to rpc_CommandBuf structure containing command output.
+* @retval Pointer to static rpc_CommandBuf containing command output on success.
+* @retval NULL if RPC call fails (RPC_SUCCESS not returned) or command execution fails on server.
+*
+*/
 extern  rpc_CommandBuf * executecommand_1(rpc_CommandBuf *, CLIENT *);
+
+/**
+* @brief Server-side handler to execute a shell command and return its output.
+*
+* This function is called by the RPC server dispatcher when the EXECUTECOMMAND procedure is invoked.
+*
+* @param[in] argp  - Pointer to rpc_CommandBuf structure containing the command string.
+* @param[in] rqstp - Pointer to svc_req structure containing RPC request information.
+*
+* @return Pointer to static rpc_CommandBuf containing command output.
+* @retval Pointer to static output buffer containing command results on success.
+* @retval NULL if popen() fails (errno indicates error).
+*
+*/
 extern  rpc_CommandBuf * executecommand_1_svc(rpc_CommandBuf *, struct svc_req *);
 #define exec 2
+/**
+* @brief Execute a shell command on the RPC server in background mode without waiting for output.
+*
+* This function sends a command string to the RPC server for background execution.
+*
+* @param[in] argp  - Pointer to rpc_CommandBuf structure containing the command string to execute.
+* @param[in] clnt  - Pointer to CLIENT handle for the RPC connection.
+*
+* @return Pointer to integer result value.
+* @retval Pointer to static integer (value 1) on successful RPC call.
+* @retval NULL if RPC call fails (RPC_SUCCESS not returned).
+*
+*/
 extern  int * exec_1(rpc_CommandBuf *, CLIENT *);
+
+/**
+* @brief Server-side handler to execute a shell command in background mode.
+*
+* This function is called by the RPC server dispatcher when the exec procedure is invoked.
+*
+* @param[in] cmd - Pointer to rpc_CommandBuf structure containing the command string.
+* @param[in] req - Pointer to svc_req structure containing RPC request information.
+*
+* @return Pointer to static integer result.
+* @retval Pointer to static integer (value 1) indicating successful command submission.
+*
+*/
 extern  int * exec_1_svc(rpc_CommandBuf *, struct svc_req *);
+
+/**
+* @brief Free the result memory allocated by RPC server procedures.
+*
+* This function is called by the RPC server framework to deallocate memory used by procedure results.
+*
+* @param[in] transp - Pointer to SVCXPRT transport handle for the RPC connection.
+* @param[in] xdr_result - XDR procedure to free the result structure.
+* @param[in] result - Pointer to the result structure to be freed.
+*
+* @return Status of the free operation.
+*
+*/
 extern int rpc_tool1_1_freeresult (SVCXPRT *, xdrproc_t, caddr_t);
 
 #else /* K&R C */
 #define EXECUTECOMMAND 1
+/**
+* @brief Execute a shell command on the RPC server and return its output (K&R C style).
+*
+* @return Pointer to rpc_CommandBuf structure containing command output.
+* @retval Pointer to static rpc_CommandBuf containing command output on success.
+* @retval NULL if RPC call fails (RPC_SUCCESS not returned) or command execution fails on server.
+*
+*/
 extern  rpc_CommandBuf * executecommand_1();
+/**
+* @brief Server-side handler to execute a shell command and return its output (K&R C style).
+*
+* @return Pointer to static rpc_CommandBuf containing command output.
+* @retval Pointer to static output buffer containing command results on success.
+* @retval NULL if popen() fails (errno indicates error).
+*
+*/
 extern  rpc_CommandBuf * executecommand_1_svc();
 #define exec 2
+/**
+* @brief Execute a shell command on the RPC server in background mode (K&R C style).
+*
+* @return Pointer to integer result value.
+* @retval Pointer to static integer (value 1) on successful RPC call.
+* @retval NULL if RPC call fails (RPC_SUCCESS not returned).
+*
+*/
 extern  int * exec_1();
+
+/**
+* @brief Server-side handler to execute a shell command in background mode (K&R C style).
+*
+* @return Pointer to static integer result.
+* @retval Pointer to static integer (value 1) indicating successful command submission.
+*
+*/
 extern  int * exec_1_svc();
+
+/**
+* @brief Free the result memory allocated by RPC server procedures (K&R C style).
+*
+* @return Status of the free operation.
+*
+*/
 extern int rpc_tool1_1_freeresult ();
 #endif /* K&R C */
 
 /* the xdr functions */
 
 #if defined(__STDC__) || defined(__cplusplus)
+/**
+* @brief XDR serialization/deserialization routine for rpc_CommandBuf structure.
+*
+* This function handles the XDR encoding and decoding of rpc_CommandBuf structures for RPC transmission.
+*
+* @param[in,out] xdrs - Pointer to XDR stream handle.
+*                       \n Direction (encode/decode) is determined by the XDR stream mode.
+* @param[in,out] objp - Pointer to rpc_CommandBuf structure to serialize or deserialize.
+*                       \n On encode, contains data to be marshalled.
+*                       \n On decode, receives unmarshalled data.
+*
+* @return Boolean indicating success or failure of XDR operation.
+* @retval TRUE if serialization/deserialization succeeded.
+* @retval FALSE if operation fails.
+*
+*/
 extern  bool_t xdr_rpc_CommandBuf (XDR *, rpc_CommandBuf*);
 
 #else /* K&R C */
+/**
+* @brief XDR serialization/deserialization routine for rpc_CommandBuf structure (K&R C style).
+*
+* @return Boolean indicating success or failure of XDR operation.
+* @retval TRUE if serialization/deserialization succeeded.
+* @retval FALSE if operation failed.
+*
+*/
 extern bool_t xdr_rpc_CommandBuf ();
 
 #endif /* K&R C */

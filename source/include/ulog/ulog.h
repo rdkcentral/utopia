@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -54,7 +54,7 @@ typedef struct _sys_log_info{
     pid_t        pid;                 // process ID
     int          gPrior;              // global log priority
     int          prior;               // log priority
-    unsigned int enable;              // logging enabled 
+    unsigned int enable;              // logging enabled
     FILE*        stream;              // stream of log file
 }_sys_Log_Info;
 
@@ -68,13 +68,92 @@ typedef struct _sys_log_info{
 #define ulog_LOG_Info(format, ...)    ulog_sys(LOG_INFO, __FILE__, __LINE__, format, ##__VA_ARGS__)
 #define ulog_LOG_Dbg(format, ...)     ulog_sys(LOG_DEBUG, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
+/**
+* @brief Get the global log priority level.
+*
+* @return The global priority level.
+* @retval priority level on success.
+* @retval -1 if no priority level is set.
+*/
 int ulog_GetGlobalPrior(void);
+
+/**
+* @brief Set the global log priority level.
+*
+* Sets the log mask up to the specified priority level using setlogmask.
+*
+* @param[in] prior - Priority level to set.
+*
+* @return None.
+*/
 void ulog_SetGlobalPrior(int prior);
+
+/**
+* @brief Get the current log priority level.
+*
+* @return The current log priority level.
+*/
 int ulog_GetPrior(void);
+
+/**
+* @brief Set the current log priority level.
+*
+* @param[in] prior - Priority level to set. If priority is out of valid range,
+*                    the function returns without setting.
+*
+* @return None.
+*
+*/
 void ulog_SetPrior(int prior);
+
+/**
+* @brief Get the current process ID and name.
+*
+* Retrieves the process ID and process name by reading /proc/pid/stat file.
+*
+* @param[in] size - Size of the name buffer.
+* @param[out] name - Buffer to store the process name.
+* @param[out] pid - Pointer to store the process ID.
+*
+* @return Status of the operation.
+* @retval 0 on success.
+* @retval -1 if size is 0, name or pid is NULL, or unable to read process information.
+*
+*/
 int ulog_GetProcId(size_t size, char *name, pid_t *pid);
+
+/**
+* @brief Get the logging enable status.
+*
+* @return The current logging enable status.
+* @retval 1 if logging is enabled.
+* @retval 0 if logging is disabled.
+*/
 unsigned int ulog_GetEnable(void);
+
+/**
+* @brief Set the logging enable status.
+*
+* @param[in] enable - Enable flag (1 to enable, 0 to disable).
+*
+* @return None.
+*/
 void ulog_SetEnable(unsigned int enable);
+
+/**
+* @brief Log a message to system logger with file and line information.
+*
+* Logs messages to syslog with timestamp, file name, and line number information.
+*
+* @param[in] prior - Priority level.
+* @param[in] fileName - Source file name where log is generated.
+* @param[in] line - Line number in source file where log is generated.
+* @param[in] format - Printf-style format string.
+* @param[in] ... - Variable arguments for format string.
+*
+* @return None.
+*
+*/
 void ulog_sys(int prior, const char* fileName, int line, const char* format, ...);
 
 typedef enum {
@@ -97,7 +176,7 @@ typedef enum {
     /* SYSTEM */
                 UL_SYSEVENT,
                 UL_SYSCFG,
-                UL_UTCTX,                
+                UL_UTCTX,
     /* LAN */
                 UL_DHCPSERVER,
     /* WAN */
@@ -121,137 +200,139 @@ typedef enum {
 } USUBCOMP;
 
 
-/*
- * Procedure     : ulog_init
- * Purpose       : Per process initialization of logging infrastruture
- * Parameters    : None
- * Return Values : None
- * Notes         :
- *    Opens connect to system logget and sets up a prefix string
- *    Current prefix string is "UTOPIA: "
- */
+/**
+* @brief Per process initialization of logging infrastructure.
+*
+* Opens connection to system logger and sets up a prefix string.
+*
+* @return None.
+*
+* @note Opens connect to system logget and sets up a prefix string.
+* Current prefix string is "UTOPIA:"
+*/
 void ulog_init();
 
-/*
- * Procedure     : ulog
- * Purpose       : Log a general message to system logger
- * Parameters    : 
- *     UCOMP - component id
- *     USUBCOMP - subcomponent id
- *     mesg     - message string
- * Return Values : None
- * Notes         :
- *     uses syslog LOCAL7.NOTICE facility
- */
+/**
+* @brief Log a general message to system logger.
+*
+* @param[in] comp - Component id.
+* @param[in] sub - Subcomponent id.
+* @param[in] mesg - Message string to log.
+*
+* @return None.
+*
+* @note uses syslog LOCAL7.NOTICE facility.
+*/
 void ulog (UCOMP comp, USUBCOMP sub, const char *mesg);
 
-/*
- * Procedure     : ulogf
- * Purpose       : Log a message to system logger with variable arg 
- * Parameters    : 
- *     UCOMP - component id
- *     USUBCOMP - subcomponent id
- *     fmt     - format of message string
- *     ...     - variable args format for message string
- * Return Values : None
- * Notes         :
- *     uses syslog LOCAL7.NOTICE facility
- */
+/**
+* @brief Log a message to system logger with variable arguments.
+*
+* @param[in] comp - Component id.
+* @param[in] sub - Subcomponent id.
+* @param[in] fmt - Printf-style format string for message.
+* @param[in] ... - Variable arguments for format string.
+*
+* @return None.
+*
+* @note uses syslog LOCAL7.NOTICE facility.
+*/
 void ulogf (UCOMP comp, USUBCOMP sub, const char *fmt, ...);
 
-/*
- * Procedure     : ulog_debug
- * Purpose       : Log a debug message to system logger
- * Parameters    : 
- *     UCOMP - component id
- *     USUBCOMP - subcomponent id
- *     mesg     - message string
- * Return Values : None
- * Notes         :
- *     uses syslog LOCAL7.DEBUG facility
- */
+/**
+* @brief Log a debug message to system logger.
+*
+* @param[in] comp - Component id.
+* @param[in] sub - Subcomponent id.
+* @param[in] mesg - Debug message string to log.
+*
+* @return None.
+*
+* @note uses syslog LOCAL7.DEBUG facility.
+*/
 void ulog_debug (UCOMP comp, USUBCOMP sub, const char *mesg);
 
-/*
- * Procedure     : ulog_debugf
- * Purpose       : Log debug message to system logger with variable arg 
- * Parameters    : 
- *     UCOMP - component id
- *     USUBCOMP - subcomponent id
- *     fmt     - format of message string
- *     ...     - variable args format for message string
- * Return Values : None
- * Notes         :
- *     uses syslog LOCAL7.DEBUG facility
- */
+/**
+* @brief Log a debug message to system logger with variable arguments.
+*
+* @param[in] comp - Component id.
+* @param[in] sub - Subcomponent id.
+* @param[in] fmt - Printf-style format string for debug message.
+* @param[in] ... - Variable arguments for format string.
+*
+* @return None.
+*
+* @note uses syslog LOCAL7.DEBUG facility.
+*/
 void ulog_debugf (UCOMP comp, USUBCOMP sub, const char *fmt, ...);
 
-/*
- * Procedure     : ulog_error
- * Purpose       : Log an error message to system logger
- * Parameters    : 
- *     UCOMP - component id
- *     USUBCOMP - subcomponent id
- *     mesg     - message string
- * Return Values : None
- * Notes         :
- *     uses syslog LOCAL7.ERROR facility
- */
+/**
+* @brief Log an error message to system logger.
+*
+* @param[in] comp - Component id.
+* @param[in] sub - Subcomponent id.
+* @param[in] mesg - Error message string to log.
+*
+* @return None.
+*
+* @note uses syslog LOCAL7.ERROR facility.
+*/
 void ulog_error (UCOMP comp, USUBCOMP sub, const char *mesg);
 
-/*
- * Procedure     : ulog_errorf
- * Purpose       : Log error message to system logger with variable arg 
- * Parameters    : 
- *     UCOMP - component id
- *     USUBCOMP - subcomponent id
- *     mesg     - message string
- * Return Values : None
- * Notes         :
- *     uses syslog LOCAL7.ERR facility
- */
+/**
+* @brief Log an error message to system logger with variable arguments.
+*
+* @param[in] comp - Component id.
+* @param[in] sub - Subcomponent id.
+* @param[in] fmt - Printf-style format string for error message.
+* @param[in] ... - Variable arguments for format string.
+*
+* @return None.
+*
+* @note uses syslog LOCAL7.ERROR facility.
+*/
 void ulog_errorf (UCOMP comp, USUBCOMP sub, const char *fmt, ...);
 
-/*
- * Procedure     : ulog_get_mesgs
- * Purpose       : Retrieve mesgs for given component.subcomponent
- * Parameters    : 
- *     UCOMP - component id
- *     USUBCOMP - subcomponent id
- *     mesgbuf  - message strings output buffer
- *     size     - size of above buffer
- * Return Values : None
- * Notes         :
- *     mesgbuf will be truncated before mesgs are stored, 
- *     and upto allowed size
- */
+/**
+* @brief Retrieve messages for given component.subcomponent.
+*
+* @param[in] comp - Component id.
+* @param[in] sub - Subcomponent id.
+* @param[out] mesgbuf - Buffer to hold retrieved message strings.
+* @param[in] size - Size of the message buffer.
+*
+* @return None.
+*
+* @note  mesgbuf will be truncated before mesgs are stored, and upto allowed size.
+*/
 void ulog_get_mesgs (UCOMP comp, USUBCOMP sub, char *mesgbuf, unsigned int size);
 
 #if 0
-/*
- * Procedure     : ulog_runcmd
- * Purpose       : Log and run command string
- * Parameters    : 
- *     UCOMP - component id
- *     USUBCOMP - subcomponent id
- *     cmd     - command string
- * Return Values : None
- * Notes         :
- *     uses syslog LOCAL7.NOTICE facility
- */
+/**
+* @brief Log and run command string.
+*
+* @param[in] comp - Component id.
+* @param[in] sub - Subcomponent id.
+* @param[in] cmd - Command string to execute.
+*
+* @return None.
+*
+* @note uses syslog LOCAL7.NOTICE facility
+*/
 void ulog_runcmd (UCOMP comp, USUBCOMP sub, const char *cmd);
 
-/*
- * Procedure     : ulog_runcmdf
- * Purpose       : Log and run command string with variable arg 
- * Parameters    : 
- *     UCOMP - component id
- *     USUBCOMP - subcomponent id
- *     mesg     - message string
- * Return Values : None
- * Notes         :
- *     uses syslog LOCAL7.NOTICE facility
- */
+/**
+* @brief Log and run command string with variable arguments.
+*
+* @param[in] comp - Component id.
+* @param[in] sub - Subcomponent id.
+* @param[in] fmt - Printf-style format string for command.
+* @param[in] ... - Variable arguments for format string.
+*
+* @return Status of the command execution.
+*
+* @note uses syslog LOCAL7.NOTICE facility
+*/
 int ulog_runcmdf (UCOMP comp, USUBCOMP sub, const char *fmt, ...);
 #endif
 
