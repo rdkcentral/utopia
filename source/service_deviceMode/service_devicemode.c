@@ -63,6 +63,22 @@
 #include <ccsp_base_api.h>
 #include "ccsp_memory.h"
 
+#include <time.h>
+#define LOG_FILE "/tmp/Debug_utopia.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #ifdef FEATURE_SUPPORT_ONBOARD_LOGGING
 #include <rdk_debug.h>
 #define LOGGING_MODULE "Utopia"
@@ -304,18 +320,21 @@ int runCommandInShellBlocking(char *command)
 
 int service_stop(int mode)
 {
+	APPLY_PRINT("%s, Entering \n", __FUNCTION__);
     char buf[256];
     memset(buf,0,sizeof(buf));
     switch(mode)
     {
         case DEVICE_MODE_ROUTER:
         {
+		APPLY_PRINT("%s, killing the services in router mode \n", __FUNCTION__);
             sysevent_set(sysevent_fd, sysevent_token, "lan-stop", "", 0);
             sysevent_set(sysevent_fd, sysevent_token, "ipv4-down", "5", 0);
 #if defined (_COSA_BCM_ARM_)
             sysevent_set(sysevent_fd, sysevent_token, "wan-stop", "", 0);
 #endif
              //lte-1312
+	     APPLY_PRINT("%s, killing zebra process \n", __FUNCTION__);
             runCommandInShellBlocking("killall zebra");
             snprintf(buf,sizeof(buf),"execute_dir %s stop", ROUTER_MODE_SERVICES_PATH_1);
             runCommandInShellBlocking(buf);
@@ -375,6 +394,7 @@ int GetL2InterfaceNameFromPsm(int instanceNumber, char *pName, int len)
 
 int service_start(int mode)
 {
+    APPLY_PRINT("%s, Entering \n", __FUNCTION__);
     char buf[256];
     memset(buf,0,sizeof(buf));
     int rc = -1;
@@ -382,6 +402,7 @@ int service_start(int mode)
     {
         case DEVICE_MODE_ROUTER:
         {
+	    APPLY_PRINT("%s, Device mode to router \n", __FUNCTION__);
             int bridgemode = 0;
             if( 0 == syscfg_get( NULL, "bridge_mode", buf, sizeof(buf) ) )
             {
@@ -399,6 +420,7 @@ int service_start(int mode)
             }
 // Do wan start only in XB technicolor for xb->xb backup wan testing.
 #if defined (_COSA_BCM_ARM_)
+	    APPLY_PRINT("%s, wan starting \n", __FUNCTION__);
             sysevent_set(sysevent_fd, sysevent_token, "wan-start", "", 0);
 #endif
             // start ipv4 for XHS 
@@ -417,6 +439,7 @@ int service_start(int mode)
              sysevent_set(sysevent_fd, sysevent_token, "lnf-setup", buf, 0);
 #endif
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
+	    APPLY_PRINT("%s, zebra is getting stared when device switching to router mode \n", __FUNCTION__);
             sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
         }
         break;
@@ -424,6 +447,7 @@ int service_start(int mode)
         {
             char tmpbuf[64] = {0};
             //lte-1312
+	    APPLY_PRINT("%s, killing zebra process when switching to extender mode \n", __FUNCTION__);
             runCommandInShellBlocking("killall zebra");
             sysevent_set(sysevent_fd, sysevent_token, "lan-start", "", 0);
             sysevent_set(sysevent_fd, sysevent_token, "lan_status-dhcp", "started", 0);
