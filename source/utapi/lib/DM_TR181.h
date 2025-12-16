@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -36,7 +36,7 @@
 
 /*
  * DM_TR181_h - TR-181 data model structures
- */ 
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -93,7 +93,7 @@ typedef struct param_node_{
 
 
 typedef struct _Obj_Device_MoCA_{
-	int InterfaceNumberOfEntries;	
+	int InterfaceNumberOfEntries;
 }Obj_Device_MoCA;
 
 typedef struct _Obj_Device_MoCA_Interface_i_static{
@@ -136,8 +136,8 @@ typedef struct _Obj_Device_MoCA_Interface_i_dyn{
 typedef struct _Obj_Device_MoCA_Interface_i_cfg{
 	unsigned long InstanceNumber;
 	char Alias[UTOPIA_TR181_PARAM_SIZE];
-	
-	bool_t Enable;	
+
+	bool_t Enable;
 	bool_t PreferredNC;
 	bool_t PrivacyEnabledSetting;
 	unsigned char FreqCurrentMaskSetting[HEX_SZ];
@@ -203,7 +203,7 @@ typedef struct _Obj_Device_MoCA_Interface_i_AssociatedDevice_i_{
 	bool_t QAM256Capable;
 	unsigned long PacketAggregationCapability;
 	unsigned long RxSNR;
-	bool_t Active;	
+	bool_t Active;
 }Obj_Device_MoCA_Interface_i_AssociatedDevice_i;
 
 
@@ -224,22 +224,265 @@ typedef struct _Obj_Device_DNS_Relay_{
         int Type;
 }Obj_Device_DNS_Relay;
 
+/**
+ * @brief Get TR-181 Device.MoCA.Interface.{i}. static parameters.
+ *
+ * Retrieves static (read-only) parameters for a MoCA interface by parsing mocacfg output.
+ * Populates the Obj_Device_MoCA_Interface_i_static structure with interface properties.
+ *
+ * @param[out] deviceMocaIntfStatic - Pointer to structure to receive static MoCA interface parameters
+ *
+ * @return The status of the operation.
+ * @retval SUCCESS - Parameters retrieved successfully
+ * @retval ERR_INVALID_ARGS - Input parameter is NULL
+ * @retval ERR_GENERAL - General error during file parsing
+ *
+ */
 int Utopia_Get_TR181_Device_MoCA_Interface_i_Static(Obj_Device_MoCA_Interface_i_static *deviceMocaIntfStatic);
+
+/**
+ * @brief Get TR-181 Device.MoCA.Interface.{i}. dynamic parameters.
+ *
+ * Retrieves dynamic (runtime) parameters for a MoCA interface by parsing mocacfg output.
+ * Populates the Obj_Device_MoCA_Interface_i_dyn structure with current interface state.
+ *
+ * @param[out] deviceMocaIntfDyn - Pointer to structure to receive dynamic MoCA interface parameters
+ *
+ * @return The status of the operation.
+ * @retval SUCCESS - Parameters retrieved successfully
+ * @retval ERR_INVALID_ARGS - Input parameter is NULL
+ * @retval ERR_GENERAL - General error during file parsing
+ *
+ */
 int Utopia_Get_TR181_Device_MoCA_Interface_i_Dyn(Obj_Device_MoCA_Interface_i_dyn *deviceMocaIntfDyn);
 
+/**
+ * @brief Get MoCA interface static parameters (wrapper function).
+ *
+ * Wrapper function that executes mocacfg commands to generate configuration files,
+ * then calls Utopia_Get_TR181_Device_MoCA_Interface_i_Static() to retrieve static parameters.
+ *
+ * @param[in,out] str_handle - Pointer to Obj_Device_MoCA_Interface_i_static structure
+ *                             \n Cast from void* for generic interface
+ *
+ * @return The status of the operation.
+ * @retval UT_SUCCESS - Static parameters retrieved successfully
+ * @retval ERR_INVALID_ARGS - Input parameter is NULL
+ * @retval ERR_ITEM_NOT_FOUND - Failed to retrieve MoCA interface data
+ *
+ */
 int Utopia_GetMocaIntf_Static(void *str_handle);
+
+/**
+ * @brief Get MoCA interface dynamic parameters (wrapper function).
+ *
+ * Wrapper function that executes mocacfg commands to generate configuration files,
+ * then calls Utopia_Get_TR181_Device_MoCA_Interface_i_Dyn() to retrieve dynamic parameters.
+ *
+ * @param[in,out] str_handle - Pointer to Obj_Device_MoCA_Interface_i_dyn structure
+ *                             \n Cast from void* for generic interface
+ *
+ * @return The status of the operation.
+ * @retval UT_SUCCESS - Dynamic parameters retrieved successfully
+ * @retval ERR_INVALID_ARGS - Input parameter is NULL
+ * @retval ERR_ITEM_NOT_FOUND - Failed to retrieve MoCA interface data
+ *
+ */
 int Utopia_GetMocaIntf_Dyn(void *str_handle);
+
+/**
+ * @brief Get MoCA interface configuration parameters.
+ *
+ * Retrieves configurable MoCA interface parameters from Utopia context (syscfg).
+ * Populates the Obj_Device_MoCA_Interface_i_cfg structure with current settings.
+ *
+ * @param[in] pCtx - Pointer to Utopia context
+ * @param[in,out] str_handle - Pointer to Obj_Device_MoCA_Interface_i_cfg structure
+ *                             \n Cast from void* for generic interface
+ *
+ * @return The status of the operation.
+ * @retval UT_SUCCESS - Configuration parameters retrieved successfully
+ * @retval ERR_INVALID_ARGS - pCtx or str_handle is NULL
+ *
+ */
 int Utopia_GetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle);
+
+/**
+ * @brief Set MoCA interface configuration parameters.
+ *
+ * Applies MoCA interface configuration by updating Utopia context (syscfg) and
+ * executing mocacfg commands to configure the MoCA interface.
+ *
+ * @param[in] pCtx - Pointer to Utopia context
+ * @param[in] str_handle - Pointer to Obj_Device_MoCA_Interface_i_cfg structure with new settings
+ *                         \n Cast from void* for generic interface
+ *
+ * @return The status of the operation.
+ * @retval UT_SUCCESS - Configuration applied successfully
+ * @retval ERR_INVALID_ARGS - pCtx or str_handle is NULL
+ *
+ */
 int Utopia_SetMocaIntf_Cfg(UtopiaContext *pCtx, void *str_handle);
+
+/**
+ * @brief Count MoCA associated device entries.
+ *
+ * Counts the number of devices currently associated with the MoCA network by parsing
+ * the associated devices file.
+ *
+ * @param[out] devCount - Pointer to integer to receive device count
+ *
+ * @return The status of the operation.
+ * @retval SUCCESS - Device count retrieved successfully
+ * @retval ERR_GENERAL - General error.
+ *
+ */
 int Utopia_Count_AssociateDeviceEntry(int *devCount);
+
+/**
+ * @brief Get MoCA associated device information.
+ *
+ * Retrieves information about a specific associated device on the MoCA network.
+ * Populates the Obj_Device_MoCA_Interface_i_AssociatedDevice_i structure.
+ *
+ * @param[out] mocaIntfAssociatedevice - Pointer to structure to receive associated device information
+ * @param[in] count - Index of the associated device to retrieve (0-based)
+ *
+ * @return The status of the operation.
+ * @retval SUCCESS - Device information retrieved successfully
+ * @retval ERR_INVALID_ARGS - mocaIntfAssociatedevice parameter is NULL
+ * @retval ERR_GENERAL - General error during file parsing
+ *
+ */
 int Utopia_Get_TR181_Device_MoCA_Interface_i_AssociateDevice(Obj_Device_MoCA_Interface_i_AssociatedDevice_i *mocaIntfAssociatedevice, int count);
 
+/**
+ * @brief Get DNS relay forwarding configuration.
+ *
+ * Retrieves DNS relay forwarding entry configuration from Utopia context for the specified index.
+ * Populates the Obj_Device_DNS_Relay structure with Enable, DNSServer, and Interface parameters.
+ *
+ * @param[in] pCtx - Pointer to Utopia context
+ * @param[in] index - Index of the DNS forwarding entry to retrieve
+ * @param[in,out] str_handle - Pointer to Obj_Device_DNS_Relay structure
+ *                             \n Cast from void* for generic interface
+ *
+ * @return The status of the operation.
+ * @retval UT_SUCCESS - Configuration retrieved successfully
+ * @retval ERR_INVALID_ARGS - str_handle parameter is NULL
+ *
+ */
 int Utopia_Get_DeviceDnsRelayForwarding(UtopiaContext *pCtx, int index, void *str_handle);
+
+/**
+ * @brief Set DNS relay forwarding configuration.
+ *
+ * Stores DNS relay forwarding entry configuration to Utopia context for the specified index.
+ * Updates Enable, DNSServer, and Interface parameters from Obj_Device_DNS_Relay structure.
+ *
+ * @param[in] pCtx - Pointer to Utopia context
+ * @param[in] index - Index of the DNS forwarding entry to configure
+ * @param[in] str_handle - Pointer to Obj_Device_DNS_Relay structure with new settings
+ *                         \n Cast from void* for generic interface
+ *
+ * @return The status of the operation.
+ * @retval UT_SUCCESS - Configuration stored successfully
+ * @retval ERR_INVALID_ARGS - pCtx or str_handle parameter is NULL
+ *
+ */
 int Utopia_Set_DeviceDnsRelayForwarding(UtopiaContext *pCtx, int index, void *str_handle);
 
+/**
+ * @brief Parse configuration file into parameter list.
+ *
+ * Parses a configuration file line by line, extracting parameter name-value pairs separated by
+ * colons. Builds a linked list of param_node structures containing the parsed parameters.
+ *
+ * @param[in] file_name - Path to configuration file to parse
+ * @param[out] head - Pointer to head pointer of parameter list
+ *                    \n Will be populated with linked list of param_node structures
+ *
+ * @return The status of the operation.
+ * @retval SUCCESS - File parsed successfully
+ * @retval ERR_INVALID_PARAM - file_name or head parameter is NULL
+ * @retval ERR_FILE_OPEN_FAIL - Failed to open file
+ * @retval ERR_FILE_CLOSE_FAIL - Failed to close file
+ * @retval ERR_INSUFFICIENT_MEM - Memory allocation failed
+ *
+ */
 int file_parse(char* file_name, param_node **head);
+
+/**
+ * @brief Free parameter list.
+ *
+ * Frees all nodes in a parameter linked list and sets head pointer to NULL.
+ *
+ * @param[in,out] head - Head pointer of parameter list to free
+ *                       \n All nodes in list will be freed
+ *
+ * @return None.
+ *
+ */
 void free_paramList(param_node *head);
+
+/**
+ * @brief Convert MAC address string to byte array.
+ *
+ * Parses a MAC address string in various formats (with colons, dashes, or underscores)
+ * and converts it to a 6-byte array representation.
+ *
+ * @param[in] macAddress - MAC address string to parse
+ *                         \n Supports formats: "AABBCCDDEEFF", "AA:BB:CC:DD:EE:FF",
+ *                         "AA-BB-CC-DD-EE-FF", "AA_BB_CC_DD_EE_FF"
+ * @param[in] len - If non-zero, validates MAC length is exactly MAC_SZ (6) bytes
+ *                  \n If zero, allows MAC length up to MAC_SZ bytes
+ * @param[out] mac - Pointer to 6-byte array to receive MAC address
+ *                   \n Buffer must be at least MAC_SZ (6) bytes
+ *
+ * @return The status of the operation.
+ * @retval SUCCESS - MAC address converted successfully
+ * @retval ERR_INVALID_PARAM - macAddress is NULL, length < MIN_MAC_LEN (12), invalid hex format, or incorrect byte count
+ *
+ */
 int getMac(char * macAddress, int len, unsigned char * mac);
+
+/**
+ * @brief Convert hexadecimal string to byte array.
+ *
+ * Parses a hexadecimal string (with optional "0x" prefix) and converts it to a byte array.
+ * Pads with leading zeros if input string is shorter than expected length.
+ *
+ * @param[in] hex_val - Hexadecimal string to parse
+ *                      \n Supports format: "0x1234ABCD" or "1234ABCD"
+ *                      \n Separators (colon, dash, underscore) supported between bytes
+ * @param[out] hexVal - Pointer to byte array to receive hex value
+ *                      \n Buffer must be at least hexLen bytes
+ * @param[in] hexLen - Expected length of output in bytes
+ *                     \n For hexLen=8, input padded to MAX_HEX_LEN (16) hex digits
+ *
+ * @return The status of the operation.
+ * @retval SUCCESS - Hex string converted successfully
+ * @retval ERR_INVALID_PARAM - hex_val is NULL or converted length doesn't match hexLen
+ *
+ */
 int getHex(char *hex_val, unsigned char *hexVal, int hexLen);
+
+/**
+ * @brief Convert hexadecimal string to byte array (generic version).
+ *
+ * Parses a hexadecimal string and converts it to a byte array without special formatting.
+ * Similar to getHex() but without automatic padding for hexLen=8.
+ *
+ * @param[in] hex_val - Hexadecimal string to parse
+ *                      \n Format: hex digits with optional separators (colon, dash, underscore)
+ * @param[out] hexVal - Pointer to byte array to receive hex value
+ *                      \n Buffer must be at least hexLen bytes
+ * @param[in] hexLen - Expected length of output in bytes
+ *
+ * @return The status of the operation.
+ * @retval SUCCESS - Hex string converted successfully
+ * @retval ERR_INVALID_PARAM - hex_val is NULL or converted length doesn't match hexLen
+ *
+ */
 int getHexGeneric(char *hex_val, unsigned char *hexVal, int hexLen);
 
