@@ -63,24 +63,42 @@ typedef struct _UtopiaContext
     UtopiaRWLock rwLock;
 } UtopiaContext;
 
-/*
- * Procedure     : Utopia_Init
- * Purpose       : Initialize Utopia context
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Initialize Utopia context for configuration management.
+*
+* This function initializes a UtopiaContext structure by setting up the transaction list,
+* clearing event flags, initializing the sysevent handle, and initializing both the UtopiaRWLock
+* and syscfg subsystems.
+*
+* @param[in,out] pUtopiaCtx - Pointer to the UtopiaContext structure to initialize.
+*                    \n The structure should be allocated by the caller.
+*                    \n On success, all fields are initialized to their default states.
+*
+* @return The status of the operation.
+* @retval 1 if the context was successfully initialized.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_Init(UtopiaContext* pUtopiaCtx);
 
-/*
- * Procedure     : Utopia_Free
- * Purpose       : Commit all values stored in the transaction if fCommit is true, free up context memory
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   fCommit - Commit transaction is true
- * Return Values :
- */
+/**
+* @brief Commit transaction values and free Utopia context resources.
+*
+* This function finalizes all configuration operations by optionally committing all pending
+* transaction values to persistent storage, triggering registered system events, and freeing all allocated resources. If fCommit is false,
+* free up context memory. The function releases the UtopiaRWLock, closes sysevent handles,
+* and frees the transaction list.
+*
+* @param[in,out] pUtopiaCtx - Pointer to the UtopiaContext structure to free.
+*                    \n All pending transactions will be committed or discarded based on fCommit.
+*                    \n All allocated resources will be released.
+* @param[in] fCommit - Boolean flag indicating whether to commit pending changes.
+*                    \n Pass non-zero (true) to commit all transactions and trigger events.
+*                    \n Pass 0 (false) to free up context memory without committing.
+*
+* @return None.
+*
+*/
 extern void Utopia_Free(UtopiaContext* pUtopiaCtx, int fCommit);
 
 #endif /* __UTCTX_H__ */

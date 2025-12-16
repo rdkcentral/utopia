@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -229,7 +229,7 @@ wifiRadioDinfo
 }wifiRadioDinfo_t;
 
 /*
- * WiFi Radio Entry 
+ * WiFi Radio Entry
  */
 
 typedef struct
@@ -242,7 +242,7 @@ wifiRadioEntry
 }wifiRadioEntry_t;
 
 /*
- * WiFi Radio Stats 
+ * WiFi Radio Stats
  */
 
 typedef  struct
@@ -411,11 +411,11 @@ typedef struct
 wifiAPAssocDevice
 {
     unsigned char                   MacAddress[6];
-    unsigned char                   AuthenticationState;    
+    unsigned char                   AuthenticationState;
     unsigned long                   LastDataDownlinkRate;
     unsigned long                   LastDataUplinkRate;
     int                             SignalStrength;
-    unsigned long                   Retransmissions;    
+    unsigned long                   Retransmissions;
     unsigned char                   Active;
 }wifiAPAssocDevice_t;
 
@@ -423,7 +423,7 @@ wifiAPAssocDevice
  *  * Mac Filter Cfg
  *   */
 
-typedef struct 
+typedef struct
 wifiMacFilterCfg
 {
     unsigned char macFilterEnabled;
@@ -434,71 +434,674 @@ wifiMacFilterCfg
 
 
 /* Function Definitions */
+/**
+* @brief Get the total number of WiFi radio instances.
+*
+* @return The number of WiFi radio instances.
+* @retval WIFI_RADIO_NUM_INSTANCES The fixed number of radio instances supported.
+*
+*/
 int Utopia_GetWifiRadioInstances();
+
+/**
+* @brief Get a WiFi radio entry by index.
+*
+* @param[in]  ctx    - Pointer to the Utopia context.
+* @param[in]  ulIndex - Index of the WiFi radio entry (0-based).
+*                       \n Valid range: 0 to (WIFI_RADIO_NUM_INSTANCES - 1).
+* @param[out] pEntry - Pointer to a wifiRadioEntry_t structure where the radio entry data will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or pEntry is NULL.
+*
+*/
 int Utopia_GetWifiRadioEntry(UtopiaContext *ctx, unsigned long ulIndex, void *pEntry);
 
+/**
+* @brief Get the WiFi radio configuration by index.
+*
+* @param[in]  ctx     - Pointer to the Utopia context.
+* @param[in]  ulIndex - Index of the WiFi radio (0-based).
+*                       \n Valid range: 0 to (WIFI_RADIO_NUM_INSTANCES - 1).
+* @param[out] cfg     - Pointer to a wifiRadioCfg_t structure where the radio configuration will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or cfg is NULL, or if ulIndex is out of range.
+*
+*/
 int Utopia_GetIndexedWifiRadioCfg(UtopiaContext *ctx, unsigned long ulIndex, void *cfg);
+
+/**
+* @brief Get the WiFi radio configuration by instance number.
+*
+* @param[in]     ctx              - Pointer to the Utopia context.
+* @param[in]     dummyInstanceNum - If non-zero, sets InstanceNumber to 0 in the output structure.
+* @param[in,out] cfg              - Pointer to a wifiRadioCfg_t structure.
+*                                   \n [in] The InstanceNumber field must be set.
+*                                   \n [out] The structure will be populated with the radio configuration.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or cfg is NULL, or if the mapped index is out of range.
+* @retval ERR_GENERAL if generic error.
+* @retval ERR_NO_NODES if no configuration nodes are found.
+*
+*/
 int Utopia_GetWifiRadioCfg(UtopiaContext *ctx,int dummyInstanceNum, void *cfg);
+
+/**
+* @brief Get the WiFi radio static information by index.
+*
+* @param[in]  ulIndex - Index of the WiFi radio (0-based).
+*                       \n Valid range: 0 to (WIFI_RADIO_NUM_INSTANCES - 1).
+* @param[out] sInfo   - Pointer to a wifiRadioSinfo_t structure where the static information will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if sInfo is NULL or if ulIndex is out of range.
+*
+*/
 int Utopia_GetWifiRadioSinfo(unsigned long ulIndex, void *sInfo);
+
+/**
+* @brief Get the WiFi radio dynamic information by index.
+*
+* @param[in]  ctx     - Pointer to the Utopia context.
+* @param[in]  ulIndex - Index of the WiFi radio (0-based).
+*                       \n Valid range: 0 to (WIFI_RADIO_NUM_INSTANCES - 1).
+* @param[out] dInfo   - Pointer to a wifiRadioDinfo_t structure where the dynamic information will be returned.
+*                       \n The information includes status, last change timestamp, and channels in use.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or dInfo is NULL, or if ulIndex is out of range.
+*
+*/
 int Utopia_GetIndexedWifiRadioDinfo(UtopiaContext *ctx, unsigned long ulIndex, void *dInfo);
+
+/**
+* @brief Get the WiFi radio dynamic information by instance number.
+*
+* @param[in]  ulInstanceNum - Instance number of the WiFi radio.
+* @param[out] dInfo         - Pointer to a wifiRadioDinfo_t structure where the dynamic information will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if dInfo is NULL or if the mapped index is out of range.
+* @retval ERR_NO_NODES if no information nodes are found.
+*
+*/
 int Utopia_GetWifiRadioDinfo(unsigned long ulInstanceNum, void *dInfo);
 
+/**
+* @brief Set the WiFi radio configuration.
+*
+* @param[in] ctx - Pointer to the Utopia context.
+* @param[in] cfg - Pointer to a wifiRadioCfg_t structure containing the radio configuration to be set.
+*                  \n The InstanceNumber field must be valid.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or cfg is NULL, or if the mapped index is out of range.
+*
+*/
 int Utopia_SetWifiRadioCfg(UtopiaContext *ctx, void *cfg);
+
+/**
+* @brief Set the instance number and alias for a WiFi radio.
+*
+* @param[in] ctx           - Pointer to the Utopia context.
+* @param[in] ulIndex       - Index of the WiFi radio (0-based).
+*                            \n Valid range: 0 to (WIFI_RADIO_NUM_INSTANCES - 1).
+* @param[in] ulInstanceNum - Instance number to be set.
+* @param[in] pAlias        - Pointer to the alias string to be set.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or pAlias is NULL, or if ulIndex is out of range.
+*
+*/
 int Utopia_WifiRadioSetValues(UtopiaContext *ctx, unsigned long ulIndex, unsigned long ulInstanceNum, char *pAlias);
 
+/**
+* @brief Get the WiFi radio statistics by instance number.
+*
+* @param[in]  ulInstanceNum - Instance number of the WiFi radio.
+* @param[out] stats         - Pointer to a wifiRadioStats_t structure where the statistics will be returned.
+*                             \n Statistics include bytes sent/received, packets sent/received,
+*                             \n errors sent/received, and discarded packets sent/received.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if stats is NULL or if the mapped index is out of range.
+* @retval ERR_GENERAL if generic error.
+* @retval ERR_NO_NODES if no statistics nodes are found.
+*
+*/
 int Utopia_GetWifiRadioStats(unsigned long ulInstanceNum, void *stats);
 
+/**
+* @brief Get the total number of WiFi SSID instances.
+*
+* @param[in] ctx - Pointer to the Utopia context.
+*
+* @return The number of WiFi SSID instances.
+* @retval The number of WiFi SSID instances on success.
+* @retval ERR_INVALID_ARGS if ctx is NULL.
+*
+*/
 int Utopia_GetWifiSSIDInstances(UtopiaContext *ctx);
+
+/**
+* @brief Get a WiFi SSID entry by index.
+*
+* @param[in]  ctx    - Pointer to the Utopia context.
+* @param[in]  ulIndex - Index of the WiFi SSID entry (0-based).
+* @param[out] pEntry - Pointer to a wifiSSIDEntry_t structure where the SSID entry data will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or pEntry is NULL.
+*
+*/
 int Utopia_GetWifiSSIDEntry(UtopiaContext *ctx, unsigned long ulIndex, void *pEntry);
 
+/**
+* @brief Get the WiFi SSID configuration by index.
+*
+* @param[in]  ctx     - Pointer to the Utopia context.
+* @param[in]  ulIndex - Index of the WiFi SSID (0-based).
+* @param[out] cfg     - Pointer to a wifiSSIDCfg_t structure where the SSID configuration will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or cfg is NULL.
+*
+*/
 int Utopia_GetIndexedWifiSSIDCfg(UtopiaContext *ctx, unsigned long ulIndex, void *cfg);
+
+/**
+* @brief Get the WiFi SSID configuration by instance number.
+*
+* @param[in]     ctx              - Pointer to the Utopia context.
+* @param[in]     dummyInstanceNum - If non-zero, sets InstanceNumber to 0 in the output structure.
+* @param[in,out] cfg              - Pointer to a wifiSSIDCfg_t structure.
+*                                   \n [in] The InstanceNumber field must be set.
+*                                   \n [out] The structure will be populated with the SSID configuration.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or cfg is NULL.
+* @retval ERR_GENERAL if generic error.
+* @retval ERR_NO_NODES if no configuration nodes are found.
+*
+*/
 int Utopia_GetWifiSSIDCfg(UtopiaContext *ctx, int dummyInstanceNum, void *cfg);
+
+/**
+* @brief Get the WiFi SSID static information by index.
+*
+* @param[in]  ulIndex - Index of the WiFi SSID (0-based).
+* @param[out] sInfo   - Pointer to a wifiSSIDSInfo_t structure where the static information will be returned.
+*                       \n The information includes name, BSSID, and MAC address.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if sInfo is NULL.
+* @retval ERR_GENERAL if generic error.
+* @retval ERR_NO_NODES if no information nodes are found.
+*
+*/
 int Utopia_GetWifiSSIDSInfo(unsigned long ulIndex, void *sInfo);
+
+/**
+* @brief Get the WiFi SSID dynamic information by instance number.
+*
+* @param[in]  ulInstanceNum - Instance number of the WiFi SSID.
+* @param[out] dInfo         - Pointer to a wifiSSIDDInfo_t structure where the dynamic information will be returned.
+*                             \n The information includes status and last change timestamp.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if dInfo is NULL.
+* @retval ERR_GENERAL if generic error.
+* @retval ERR_NO_NODES if no information nodes are found.
+*
+*/
 int Utopia_GetWifiSSIDDInfo(unsigned long ulInstanceNum, void *dInfo);
+
+/**
+* @brief Get the WiFi SSID dynamic information by index.
+*
+* @param[in]  ctx     - Pointer to the Utopia context.
+* @param[in]  ulIndex - Index of the WiFi SSID (0-based).
+* @param[out] dInfo   - Pointer to a wifiSSIDDInfo_t structure where the dynamic information will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or dInfo is NULL.
+*
+*/
 int Utopia_GetIndexedWifiSSIDDInfo(UtopiaContext *ctx, unsigned long ulIndex, void *dInfo);
+
+/**
+* @brief Get the WiFi SSID dynamic information by instance number.
+*
+* @param[in]  ulInstanceNum - Instance number of the WiFi SSID.
+* @param[out] dInfo         - Pointer to a wifiSSIDDInfo_t structure where the dynamic information will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if dInfo is NULL.
+*
+*/
 int Utopia_GetWifiSSIDDinfo(unsigned long ulInstanceNum, void *dInfo);
 
+/**
+* @brief Set the WiFi SSID configuration.
+*
+* @param[in] ctx - Pointer to the Utopia context.
+* @param[in] cfg - Pointer to a wifiSSIDCfg_t structure containing the SSID configuration to be set.
+*                  \n The InstanceNumber field must be valid.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or cfg is NULL.
+*
+*/
 int Utopia_SetWifiSSIDCfg(UtopiaContext *ctx, void *cfg);
+
+/**
+* @brief Set the instance number and alias for a WiFi SSID.
+*
+* @param[in] ctx           - Pointer to the Utopia context.
+* @param[in] ulIndex       - Index of the WiFi SSID (0-based).
+* @param[in] ulInstanceNum - Instance number to be set.
+* @param[in] pAlias        - Pointer to the alias string to be set.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or pAlias is NULL.
+*
+*/
 int Utopia_WifiSSIDSetValues(UtopiaContext *ctx, unsigned long ulIndex, unsigned long ulInstanceNum, char *pAlias);
 
+/**
+* @brief Get the WiFi SSID statistics by instance number.
+*
+* @param[in]  ulInstanceNum - Instance number of the WiFi SSID.
+* @param[out] stats         - Pointer to a wifiSSIDStats_t structure where the statistics will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if stats is NULL.
+*
+*/
 int Utopia_GetWifiSSIDStats(unsigned long ulInstanceNum, void *stats);
 
+/**
+* @brief Get the total number of WiFi access point instances.
+*
+* @param[in] ctx - Pointer to the Utopia context.
+*
+* @return The number of WiFi access point instances.
+* @retval The number of WiFi access point instances on success.
+* @retval ERR_INVALID_ARGS if ctx is NULL.
+*
+*/
 int Utopia_GetWifiAPInstances(UtopiaContext *ctx);
+
+/**
+* @brief Get a WiFi access point entry by SSID name.
+*
+* @param[in]  ctx    - Pointer to the Utopia context.
+* @param[in]  pSSID  - Pointer to the SSID name string.
+* @param[out] pEntry - Pointer to a wifiAPEntry_t structure where the access point entry data will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or pEntry is NULL.
+*
+*/
 int Utopia_GetWifiAPEntry(UtopiaContext *ctx, char*pSSID, void *pEntry);
 
+/**
+* @brief Get the WiFi access point configuration by index.
+*
+* @param[in]  ctx     - Pointer to the Utopia context.
+* @param[in]  ulIndex - Index of the WiFi access point (0-based).
+* @param[out] pCfg    - Pointer to a wifiAPCfg_t structure where the access point configuration will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or pCfg is NULL.
+*
+*/
 int Utopia_GetIndexedWifiAPCfg(UtopiaContext *ctx, unsigned long ulIndex, void *pCfg);
+
+/**
+* @brief Get the WiFi access point configuration by instance number.
+*
+* @param[in]     ctx              - Pointer to the Utopia context.
+* @param[in]     dummyInstanceNum - If non-zero, sets InstanceNumber to 0 in the output structure.
+* @param[in,out] cfg              - Pointer to a wifiAPCfg_t structure.
+*                                   \n [in] The InstanceNumber field must be set.
+*                                   \n [out] The structure will be populated with the access point configuration.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or cfg is NULL.
+* @retval ERR_GENERAL if generic error.
+* @retval ERR_NO_NODES if no configuration nodes are found.
+*
+*/
 int Utopia_GetWifiAPCfg(UtopiaContext *ctx, int dummyInstanceNum, void *cfg);
+
+/**
+* @brief Get the WiFi access point information by SSID name.
+*
+* @param[in]  ctx   - Pointer to the Utopia context.
+* @param[in]  pSSID - Pointer to the SSID name string.
+* @param[out] info  - Pointer to a wifiAPInfo_t structure where the access point information will be returned.
+*                     \n The information includes status, WMM capability, and UAPSD capability.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or info is NULL.
+* @retval ERR_GENERAL if generic error.
+* @retval ERR_NO_NODES if no information nodes are found.
+*
+*/
 int Utopia_GetWifiAPInfo(UtopiaContext *ctx, char *pSSID, void *info);
 
+/**
+* @brief Set the WiFi access point configuration.
+*
+* @param[in] ctx - Pointer to the Utopia context.
+* @param[in] cfg - Pointer to a wifiAPCfg_t structure containing the access point configuration to be set.
+*                  \n The InstanceNumber field must be valid.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or cfg is NULL.
+*
+*/
 int Utopia_SetWifiAPCfg(UtopiaContext *ctx, void *cfg);
+
+/**
+* @brief Set the instance number and alias for a WiFi access point.
+*
+* @param[in] ctx           - Pointer to the Utopia context.
+* @param[in] ulIndex       - Index of the WiFi access point (0-based).
+* @param[in] ulInstanceNum - Instance number to be set.
+* @param[in] pAlias        - Pointer to the alias string to be set.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or pAlias is NULL.
+*
+*/
 int Utopia_WifiAPSetValues(UtopiaContext *ctx, unsigned long ulIndex, unsigned long ulInstanceNum, char *pAlias);
 
+/**
+* @brief Get the WiFi access point security entry by SSID name.
+*
+* @param[in]  ctx    - Pointer to the Utopia context.
+* @param[in]  pSSID  - Pointer to the SSID name string.
+* @param[out] pEntry - Pointer to a wifiAPSecEntry_t structure where the security entry data will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or pEntry is NULL.
+*
+*/
 int Utopia_GetWifiAPSecEntry(UtopiaContext *ctx, char*pSSID, void *pEntry);
+
+/**
+* @brief Get the WiFi access point security configuration by SSID name.
+*
+* @param[in]  ctx   - Pointer to the Utopia context.
+* @param[in]  pSSID - Pointer to the SSID name string.
+* @param[out] cfg   - Pointer to a wifiAPSecCfg_t structure where the security configuration will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or cfg is NULL.
+* @retval ERR_GENERAL if generic error.
+* @retval ERR_NO_NODES if no configuration nodes are found.
+*
+*/
 int Utopia_GetWifiAPSecCfg(UtopiaContext *ctx, char*pSSID, void *cfg);
+
+/**
+* @brief Get the WiFi access point security information by SSID name.
+*
+* @param[in]  ctx   - Pointer to the Utopia context.
+* @param[in]  pSSID - Pointer to the SSID name string.
+* @param[out] info  - Pointer to a wifiAPSecInfo_t structure where the security information will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or info is NULL.
+
+*
+*/
 int Utopia_GetWifiAPSecInfo(UtopiaContext *ctx, char *pSSID, void *info);
 
+/**
+* @brief Set the WiFi access point security configuration by SSID name.
+*
+* @param[in] ctx   - Pointer to the Utopia context.
+* @param[in] pSSID - Pointer to the SSID name string.
+* @param[in] cfg   - Pointer to a wifiAPSecCfg_t structure containing the security configuration to be set.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or cfg is NULL.
+
+*
+*/
 int Utopia_SetWifiAPSecCfg(UtopiaContext *ctx,char *pSSID, void *cfg);
 
+/**
+* @brief Get the WiFi access point WPS entry by SSID name.
+*
+* @param[in]  ctx    - Pointer to the Utopia context.
+* @param[in]  pSSID  - Pointer to the SSID name string.
+* @param[out] pEntry - Pointer to a wifiAPWPSEntry_t structure where the WPS entry data will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or pEntry is NULL.
+*
+*/
 int Utopia_GetWifiAPWPSEntry(UtopiaContext *ctx, char*pSSID, void *pEntry);
+
+/**
+* @brief Get the WiFi access point WPS configuration by SSID name.
+*
+* @param[in]  ctx   - Pointer to the Utopia context.
+* @param[in]  pSSID - Pointer to the SSID name string.
+* @param[out] cfg   - Pointer to a wifiAPWPSCfg_t structure where the WPS configuration will be returned.
+*                     \n The configuration includes enable status and config methods enabled (bitmask of wifiWPSMethod_t).
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or cfg is NULL.
+*
+*/
 int Utopia_GetWifiAPWPSCfg(UtopiaContext *ctx, char*pSSID, void *cfg);
 
+/**
+* @brief Set the WiFi access point WPS configuration by SSID name.
+*
+* @param[in] ctx   - Pointer to the Utopia context.
+* @param[in] pSSID - Pointer to the SSID name string.
+* @param[in] cfg   - Pointer to a wifiAPWPSCfg_t structure containing the WPS configuration to be set.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or cfg is NULL.
+*
+*/
 int Utopia_SetWifiAPWPSCfg(UtopiaContext *ctx,char *pSSID, void *cfg);
 
+/**
+* @brief Get the count of associated devices for a WiFi access point by SSID name.
+*
+* @param[in] ctx   - Pointer to the Utopia context.
+* @param[in] pSSID - Pointer to the SSID name string.
+*
+* @return The number of associated devices.
+* @retval The count of associated devices on success.
+* @retval ERR_INVALID_ARGS if ctx or pSSID is NULL.
+* @retval ERR_NO_NODES if no device nodes are found.
+* @retval ERR_GENERAL if generic error.
+*
+*/
 unsigned long Utopia_GetAssociatedDevicesCount(UtopiaContext *ctx, char *pSSID);
+
+/**
+* @brief Get an associated device information by index for a WiFi access point.
+*
+* @param[in]  ctx      - Pointer to the Utopia context.
+* @param[in]  pSSID    - Pointer to the SSID name string.
+* @param[in]  ulIndex  - Index of the associated device (0-based).
+* @param[out] assocDev - Pointer to a wifiAPAssocDevice_t structure where the device information will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or assocDev is NULL.
+* @retval ERR_GENERAL if generic error.
+* @retval ERR_NO_NODES if no device nodes are found.
+*
+*/
 int Utopia_GetAssocDevice(UtopiaContext *ctx, char *pSSID, unsigned long ulIndex, void *assocDev);
 
+/**
+* @brief Get the WiFi access point index by SSID name.
+*
+* @param[in] ctx   - Pointer to the Utopia context.
+* @param[in] pSSID - Pointer to the SSID name string.
+*
+* @return The access point index.
+* @retval The access point index on success.
+* @retval ERR_INVALID_ARGS if ctx or pSSID is NULL.
+* @retval ERR_SSID_NOT_FOUND if the SSID is not found.
+*
+*/
 unsigned long Utopia_GetWifiAPIndex(UtopiaContext *ctx, char *pSSID);
 
 /*MF */
+/**
+* @brief Get the WiFi access point MAC filter configuration by SSID name.
+*
+* @param[in]  ctx   - Pointer to the Utopia context.
+* @param[in]  pSSID - Pointer to the SSID name string.
+* @param[out] cfg   - Pointer to a wifiMacFilterCfg_t structure where the MAC filter configuration will be returned.
+*                     \n The configuration includes enable status, filter mode, number of MAC addresses,
+*                     \n and the MAC address list (up to 50 addresses).
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or cfg is NULL.
+* @retval ERR_GENERAL if generic error.
+* @retval ERR_NO_NODES if no configuration nodes are found.
+*
+*/
 int Utopia_GetWifiAPMFCfg(UtopiaContext *ctx, char *pSSID, void *cfg);
+
+/**
+* @brief Set the WiFi access point MAC filter configuration by SSID name.
+*
+* @param[in] ctx   - Pointer to the Utopia context.
+* @param[in] pSSID - Pointer to the SSID name string.
+* @param[in] cfg   - Pointer to a wifiMacFilterCfg_t structure containing the MAC filter configuration to be set.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, pSSID, or cfg is NULL.
+*
+*/
 int Utopia_SetWifiAPMFCfg(UtopiaContext *ctx, char *pSSID, void *cfg);
 
 /* Utility functions */
+/**
+* @brief Find the instance number corresponding to an index.
+*
+* @param[in] ulIndex      - Index to search for.
+* @param[in] numArray     - Pointer to the number array to search in.
+* @param[in] numArrayLen  - Length of the number array.
+*
+* @return The instance number found at the given index.
+* @retval The instance number on success.
+* @retval 0 if instance number not found.
+*
+*/
 unsigned long instanceNum_find(unsigned long ulIndex, int *numArray, int numArrayLen);
+
+/**
+* @brief Parse /proc/net/dev file for a specific interface field.
+*
+* @param[in] if_name        - Pointer to the interface name string.
+* @param[in] field_to_parse - Field number to parse from the /proc/net/dev entry.
+*
+* @return The parsed field value.
+* @retval The parsed field value on success.
+* @retval 0 if interface not found or error occurs.
+*
+*/
 unsigned long parse_proc_net_dev(char *if_name, int field_to_parse);
+
+/**
+* @brief Get MAC address list from a comma-separated string (utility function).
+*
+* @param[in]  macList - Pointer to the comma-separated MAC address list string.
+* @param[out] macAddr - Pointer to the buffer where MAC addresses will be stored.
+* @param[in]  tok     - Delimiter character string.
+* @param[out] numlist - Pointer to unsigned long where the count of MAC addresses will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if macList, macAddr, tok, or numlist is NULL.
+*
+*/
 int getMacList(char *macList, unsigned char *macAddr, char *tok, unsigned long *numlist);
+
+/**
+* @brief Set MAC address list to a comma-separated string.
+*
+* @param[in]  macAddr - Pointer to the buffer containing MAC addresses.
+* @param[out] macList - Pointer to the buffer where the comma-separated MAC address list will be stored.
+* @param[in]  numMac  - Number of MAC addresses to process.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if macAddr or macList is NULL.
+*
+*/
 int setMacList(unsigned char *macAddr, char *macList, unsigned long numMac);
+
+/**
+* @brief Allocate memory for multi-SSID structure.
+*
+* @param[in] i - Index for the multi-SSID structure allocation.
+*
+* @return None.
+*
+*/
 void allocateMultiSSID_Struct(int i);
+
+/**
+* @brief Free memory for multi-SSID structure.
+*
+* @param[in] i - Index for the multi-SSID structure deallocation.
+*
+* @return None.
+*
+*/
 void freeMultiSSID_Struct(int i);
 
 #endif // __UTAPI_TR_WLAN_H__

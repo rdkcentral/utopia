@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -70,11 +70,11 @@ extern int debug_num_accepts;
 extern sem_t worker_sem;
 
 // number of worker threads created
-// note that serialized data tuples are by their nature blocking a thread 
+// note that serialized data tuples are by their nature blocking a thread
 // which is serially executing externally defined programs. This is
 // somewhat dangerous since those programs could be in turn using syseventd.
 // The number of threads used should be reasonably high.
-// Best performance is when the thread count is at the high water level of 
+// Best performance is when the thread count is at the high water level of
 // parallel activation calls (determined during boot)
 // On the other hand, each thread takes memory and too high a count makes syseventd
 // an attractive candidate for the kernel to choose to kill when Out Of Memory.
@@ -90,7 +90,7 @@ extern sem_t worker_sem;
 #define NUM_CLIENT_ONLY_THREAD 2
 
 // the maximum number of seconds that an activated process can run
-// while blocking use of a thread. More than this and the process will 
+// while blocking use of a thread. More than this and the process will
 // be killed
 // This value is changed to 300 sec as some processes are taking time for completing.
 // e.g Multinet process is taking more time to finish in some of the field units.
@@ -113,7 +113,7 @@ typedef struct {
    int  state;           // 0=waiting for semaphore, 1=executing, 2=waiting for fork manager
 } worker_thread_stat_info_t;
 extern worker_thread_stat_info_t    thread_stat_info[NUM_WORKER_THREAD];
-   
+
 // thread specific data key
 extern pthread_key_t worker_data_key;
 
@@ -146,6 +146,20 @@ extern pthread_mutex_t  serialization_mutex;
 extern clients_t  global_clients; //deined in clientMgr.c
 
 // worker thread init routine
+/**
+* @brief Worker thread initialization and main loop routine.
+*
+* This function is the entry point for worker threads. Each worker thread waits on a
+* semaphore, processes incoming messages from clients or the main thread, and executes
+* the requested operations. The thread continues running until the daemon shuts down.
+*
+* @param[in] arg - Pointer to worker_thread_private_info_t structure containing
+*                  thread-private data, which is set as thread-specific data.
+*
+* @return Thread exit value.
+* @retval void* NULL on normal exit.
+*
+*/
 extern void *worker_thread_main(void *arg);
 
 /*
@@ -193,7 +207,7 @@ extern pthread_mutex_t global_serial_msgs_mutex;
 
 /*
  * waiting_pid_t
- *    When a serial tuple is being handled we keep track of the 
+ *    When a serial tuple is being handled we keep track of the
  *    currently handled activated process. If the process takes
  *    too long to complete then it will be killed
  * pid  : pid of the process being waited for
@@ -238,7 +252,7 @@ extern pthread_mutex_t  stat_info_mutex;
 
 /*
 ======================================================
-    triggerMgr stuff 
+    triggerMgr stuff
 ======================================================
 */
 // maximum number of arguments we are willing to hold for a client
@@ -249,7 +263,7 @@ extern pthread_mutex_t  stat_info_mutex;
    parsing symbols
 =====================================================
 */
-// symbols used to dictate whether a callback parameter is 
+// symbols used to dictate whether a callback parameter is
 // looked up in syscfg or sysevent namespace
 #define SYSCFG_NAMESPACE_SYMBOL   '$'
 #define SYSEVENT_NAMESPACE_SYMBOL '@'
@@ -260,75 +274,144 @@ extern pthread_mutex_t  stat_info_mutex;
 ======================================================
 */
 
-/*
- * get id assigned to a thread
- */
+/**
+* @brief Get the ID assigned to a thread.
+*
+* This function retrieves the thread ID from thread-specific data using the provided key.
+*
+* @param[in] key - The pthread key for accessing thread-specific data.
+*
+* @return The thread ID.
+* @retval >0 The assigned thread ID on success.
+* @retval -1 If thread-specific data is not set or invalid.
+*
+*/
 int thread_get_id(pthread_key_t key);
 
-/*
- * get read side of pipe assigned to a thread
- */
+/**
+* @brief Get the read side of the pipe assigned to a thread.
+*
+* This function retrieves the file descriptor for the read end of a thread's private pipe
+* used for inter-thread communication.
+*
+* @param[in] key - The pthread key for accessing thread-specific data.
+*
+* @return The file descriptor for the read end of the pipe.
+* @retval >=0 Valid file descriptor on success.
+* @retval -1 If thread-specific data is not set or invalid.
+*
+*/
 int thread_get_private_pipe_read(pthread_key_t key);
 
-/*
- * statistics
- */
+/**
+* @brief Set the current state of a thread.
+*
+* This function sets the state field in the thread's statistics information structure,
+* used for monitoring and debugging thread activity.
+*
+* @param[in] key - The pthread key for accessing thread-specific data.
+* @param[in] state - The state value to set.
+*                    0 = waiting for semaphore
+*                    1 = executing
+*                    2 = waiting for fork manager.
+*
+* @return None.
+*/
 void thread_set_state(pthread_key_t key, int state);
+
+/**
+* @brief Increment the number of times a thread has been activated.
+*
+* This function increments the activation counter for a thread, tracking how many times
+* the thread has woken up from the semaphore to process work.
+*
+* @param[in] key - The pthread key for accessing thread-specific data.
+*
+* @return None.
+*/
 void thread_activated(pthread_key_t key);
 
-/*
- * Procedure     : trim
- * Purpose       : trims a string
- * Parameters    :
- *    in         : A string to trim
- * Return Value  : The trimmed string
- * Note          : This procedure will change the input sting in situ
- */
+/**
+* @brief Trims whitespace from a string.
+*
+* This function removes leading and trailing whitespace characters from a string.
+* The input string is modified in place.
+*
+* @param[in,out] in - A string to trim.
+*
+* @return The trimmed string.
+* @retval char* Pointer to the trimmed string on success.
+* @retval NULL If input is NULL.
+*
+* @note This procedure will change the input string in situ.
+*/
 char *trim(char *in);
 
-/*
- * Procedure     : sysevent_strdup
- * Purpose       : strdup
- * Parameters    :
- *    s          : The sting to duplicate 
- *    file       : The file of the procedure that called sysevent_realloc
- *    line       : the line number of the call to sysevent_realloc
- * Return Value  : A pointer to the allocated store or NULL
- */
+/**
+* @brief Duplicate a string with debug tracking.
+*
+* This function duplicates a string similar to strdup() but includes additional
+* debug tracking information (file and line number) for memory allocation debugging.
+*
+* @param[in] s - The string to duplicate.
+* @param[in] file - The file of the procedure that called sysevent_strdup.
+* @param[in] line - The line number of the call to sysevent_strdup.
+*
+* @return A pointer to the allocated store.
+* @retval Pointer to the duplicated string on success.
+* @retval NULL If allocation failed.
+*
+*/
 void *sysevent_strdup(const char* s, char* file, int line);
 
-/*
- * Procedure     : sysevent_malloc
- * Purpose       : malloc
- * Parameters    :
- *    size       : The number of bytes to malloc
- *    file       : The file of the procedure that called sysevent_realloc
- *    line       : the line number of the call to sysevent_realloc
- * Return Value  : A pointer to the allocated store or NULL
- */
+/**
+* @brief Allocate memory with debug tracking.
+*
+* This function allocates memory similar to malloc() but includes additional
+* debug tracking information (file and line number) for memory allocation debugging.
+*
+* @param[in] size - The number of bytes to malloc.
+* @param[in] file - The file of the procedure that called sysevent_malloc.
+* @param[in] line - The line number of the call to sysevent_malloc.
+*
+* @return A pointer to the allocated store.
+* @retval Pointer to the allocated memory on success.
+* @retval NULL If allocation failed.
+*
+*/
 void *sysevent_malloc(size_t size, char* file, int line);
 
-/*
- * Procedure     : sysevent_realloc
- * Purpose       : realloc
- * Parameters    :
- *    ptr        : A pointer to the store to realloc
- *    size       : The number of bytes to realloc
- *    file       : The file of the procedure that called sysevent_realloc
- *    line       : the line number of the call to sysevent_realloc
- * Return Value  : A pointer to the allocated store or NULL
- */
+/**
+* @brief Reallocate memory with debug tracking.
+*
+* This function reallocates memory similar to realloc() but includes additional
+* debug tracking information (file and line number) for memory allocation debugging.
+*
+* @param[in] ptr - A pointer to the store to realloc.
+* @param[in] size - The number of bytes to realloc.
+* @param[in] file - The file of the procedure that called sysevent_realloc.
+* @param[in] line - The line number of the call to sysevent_realloc.
+*
+* @return A pointer to the allocated store.
+* @retval Pointer to the reallocated memory on success.
+* @retval NULL If allocation failed.
+*
+*/
 void *sysevent_realloc(void* ptr, size_t size, char* file, int line);
 
-/*
- * Procedure     : sysevent_free
- * Purpose       : free
- * Parameters    :
- *    addr       : The address of the pointer to the store to free
- *    file       : The file of the procedure that called sysevent_realloc
- *    line       : the line number of the call to sysevent_realloc
- * Return Value  : A pointer to the allocated store or NULL
- */
+/**
+* @brief Free memory with debug tracking.
+*
+* This function frees memory similar to free() but includes additional
+* debug tracking information (file and line number) for memory allocation debugging.
+* The pointer is set to NULL after freeing.
+*
+* @param[in,out] addr - The address of the pointer to the store to free.
+* @param[in] file - The file of the procedure that called sysevent_free.
+* @param[in] line - The line number of the call to sysevent_free.
+*
+* @return None.
+*/
 void sysevent_free(void **addr, char* file, int line);
 
 /*
@@ -390,11 +473,73 @@ extern int debugLevel;
     #define SE_INC_LOG(module, code)
 #endif
 
+/**
+* @brief Print the current timestamp for debug logging.
+*
+* This function prints the current time in a formatted manner if the SHOW_TIMESTAMP
+* debug flag is enabled.
+*
+* @return returns 1.
+*
+*/
 int printTime(void);
+
+/**
+* @brief Increment a specific statistic counter.
+*
+* This function increments one of the global statistics counters used for tracking
+* various system events and errors in a thread-safe manner.
+*
+* @param[in] id - The statistic ID to increment.
+*                 Valid values defined in stat_id_t enum.
+*
+* @return None.
+*/
 void incr_stat_info(stat_id_t id);
+
+/**
+* @brief Print all statistics counters.
+*
+* This function prints all global statistics counters to stdout, providing
+* visibility into system events and error counts.
+*
+* @return None.
+*/
 void printStat();
+
+/**
+* @brief Get the current time as a formatted string.
+*
+* This function retrieves the current system time and formats it as a string
+* in the format "YYMMDD-HH:MM:SS.microseconds".
+*
+* @return Pointer to the allocated timestamp string.
+* @retval char* Dynamically allocated string containing the formatted timestamp.
+*
+*/
 char* getTime();
+
+/**
+* @brief Get the system uptime as a formatted string.
+*
+* This function retrieves the system uptime and formats it as a string containing seconds and nanoseconds.
+*
+* @return Pointer to the allocated uptime string.
+* @retval char* Dynamically allocated string containing the formatted uptime.
+*
+*/
 char* getUpTime();
+
+/**
+* @brief Write formatted output to the sysevent tracer log file.
+*
+* This function writes formatted output to /rdklogs/logs/sysevent_tracer.txt if
+* the tracer is enabled ( /nvram/sysevent_tracer_enabled).
+*
+* @param[in] format - Printf-style format string.
+* @param[in] ... - Variable arguments corresponding to the format string.
+*
+*/
 void write_to_file(const char *format, ...);
 
 #endif   // _SYSEVENTD_H_
