@@ -208,7 +208,7 @@ do_start() {
              commandString="$commandString -p [$CM_IPV4]:22"
         fi
     elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
-	    CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+	    CM_IP=`ip -6 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
         if [ ! -z $CM_IP ]; then
 	        commandString="$commandString -p [$CM_IP]:22"
 	    fi
