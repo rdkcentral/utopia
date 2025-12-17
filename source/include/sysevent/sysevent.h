@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -49,7 +49,7 @@ extern "C" {
 #define SE_SERVER_WELL_KNOWN_PORT  52367
 
 /*
- * Well known UDS 
+ * Well known UDS
  */
 #define UDS_PATH "/tmp/syseventd_connection"
 
@@ -235,17 +235,19 @@ typedef struct {
  */
 #define SE_MSG_STRING_OVERHEAD (sizeof(unsigned int))
 
-/*
- * Procedure     : SE_msg_get_string
- * Purpose       : Get a string from a SE_msg buffer. The buffer
- *                 must be pointing at the se_msg_string containing the string
- * Parameters    :
- *    msg            : A pointer to the start of the se_msg_string
- *    size           : On return the number of bytes that the se_msg_string occupied
- * Return Code   :
- *   NULL            : problem, string not gotten
- *   !NULL           : string
- */
+/**
+* @brief Get a string from a sysevent message buffer.
+*
+* This function retrieves a string from a SE_msg buffer. The buffer must be pointing
+* at the se_msg_string containing the string.
+*
+* @param[in] msg - Pointer to the start of the se_msg_string.
+* @param[out] size - Pointer to store the number of bytes that the se_msg_string occupied.
+*
+* @return Pointer to the string.
+* @retval Non-NULL pointer to the string on success.
+* @retval NULL if there is a problem and string cannot be retrieved.
+*/
 char *SE_msg_get_string(char *msg, int *size);
 
 /*
@@ -869,469 +871,504 @@ typedef struct
 ===============================================================
 */
 
-/*
- * Procedure     : SE_strerror
- * Purpose       : Return a string version of an error code
- * Parameters    :
- *    error         : The error
- * Return Code   :
- *   The string.
- *   Do NOT save this string. It has no lifespan
- */
+/**
+* @brief Returns a string description of a sysevent error code.
+*
+* This function converts a numeric error code returned by other sysevent APIs into a
+* human-readable string.
+*
+* @param[in] error - The error code.
+*
+* @return Pointer to a static string describing the error.
+*
+* @note Do NOT save this string. It has no lifespan.
+*/
 char *SE_strerror (int error);
 
-/*
- * Procedure     : SE_print_mtype
- * Purpose       : Return a string for a msgtype
- * Parameters    :
- *    mtype         : The msg type
- * Return Code   :
- *   The string.
- *   Do NOT save this string. It has no lifespan
- */
+/**
+* @brief Return a string representation for a message type.
+*
+* @param[in] mtype - The message type.
+*
+* @return Pointer to the message type string.
+*
+* @note Do NOT save this string. It has no lifespan.
+*/
 char *SE_print_mtype (int mtype);
 
-/*
- * Procedure     : init_libsysevent
- * Purpose       : initialize this library
- * Parameters    :
- *    name          : name of the user of this library
- * Return Code   :
- * Notes         : This doesn't need to be called by most users
- *                 of libsysevent since it is implicitly called during 
- *                 sysevent_open. It is used by syseventd.
- */
+/**
+* @brief Initialize the libsysevent library.
+*
+* @param[in] name - Name of the user of this library.
+*
+* @return None.
+*
+* @note  This doesn't need to be called by most users of libsysevent
+* since it is implicitly called during sysevent_open. It is used by syseventd
+*/
 void init_libsysevent(const char* const name);
 
-/*
- * Procedure     : sysevent_open
- * Purpose       : Connect to the sysevent daemon
- * Parameters    :
- *    ip            : ip address to connect to.
- *                    This may be dots and dashes or hostname
- *    port          : port to connect to
- *    version       : version of client
- *    id            : name of client
- *    token         : on return, an opaque value to be used in future calls for this session
- * Return Code   :
- *    NULL          : error
- *    >0            : file descriptor for connection
- */
+/**
+* @brief Connect to the sysevent daemon.
+*
+* @param[in] ip - IP address to connect to.
+* @param[in] port - Port to connect to.
+* @param[in] version - Version of client.
+* @param[in] id - Name of client.
+* @param[out] token - Pointer to receive an opaque value.
+*
+* @return File descriptor for the connection.
+* @retval >0 file descriptor if connection is successful.
+* @retval -1 on error.
+*/
 int sysevent_open(char *ip, unsigned short port, int version, char *id, token_t *token);
+
+/**
+* @brief Connect to the sysevent daemon for binary data operations.
+*
+* @param[in] ip - IP address of the sysevent daemon.
+* @param[in] port - Port number of the sysevent daemon.
+* @param[in] version - Version of client.
+* @param[in] id - Human-readable client identifier.
+* @param[out] token - Pointer to receive an opaque value.
+*
+* @return File descriptor for the connection.
+* @retval >0 file descriptor if connection is successful.
+* @retval -1 on error.
+*/
 int sysevent_open_data (char *ip, unsigned short port, int version, char *id, token_t *token);
 
-
-/*
- * Procedure     : sysevent_local_open
- * Purpose       : Connect to the sysevent daemon using Unix Domain Socket
- * Parameters    :
- *   target         : the name of the uds to connect to
- *    version       : version of client
- *    id            : name of client
- *    token         : opaque id for future contact
- * Return Code   :
- *    The file descriptor to use in future calls
- *    -1 if error
- */
+/**
+* @brief Connect to the sysevent daemon using Unix Domain Socket.
+*
+* @param[in] target - The name of the UDS to connect to.
+* @param[in] version - Version of client.
+* @param[in] id - Name of client.
+* @param[out] token - Pointer to receive opaque id.
+*
+* @return The file descriptor.
+* @retval >=0 file descriptor on success.
+* @retval -1 on error.
+*/
 int sysevent_local_open (char *target, int version, char *id, token_t *token);
+
+/**
+* @brief Connect to the sysevent daemon using Unix Domain Socket for binary data operations.
+*
+* @param[in] target - The name of the UDS to connect to.
+* @param[in] version - Version of client.
+* @param[in] id - Name of client.
+* @param[out] token - Pointer to receive opaque id.
+*
+* @return The file descriptor.
+* @retval >=0 file descriptor on success.
+* @retval -1 on error.
+*/
 int sysevent_local_open_data (char *target, int version, char *id, token_t *token);
 
-/*
- * Procedure     : sysevent_close
- * Purpose       : Disconnect from the sysevent daemon
- * Parameters    :
- *    fd            : the file descriptor to close
- *    token         : The server provided opaque id of the client
- * Return Code   :
- *     0            : disconnected
- *    !0            : some error
- */
+/**
+* @brief Disconnect from the sysevent daemon.
+*
+* This function close a connection to the sysevent daemon.
+*
+* @param[in] fd - The file descriptor to close.
+* @param[in] token - The server provided opaque id of the client.
+*
+* @return Status of the operation.
+* @retval 0 if disconnected successfully.
+* @retval Non-zero on error.
+*/
 int sysevent_close(const int fd, const token_t token);
 
-/*
- * Procedure     : sysevent_ping
- * Purpose       : Ping a connection to the sysevent daemon
- * Parameters    :
- *   fd             : the file descriptor to ping
- *   token          : Server provided opaque value
- * Return Code   :
- *     0            : ping msg sent
- *    !0            : some error
- *  Note : We only told sysevent daemon to ping reply. We are not handling the
- *         reply itself. That is up to the caller
- *         Note that there is no current need to ping. If the server
- *         breaks the connection then there will be a series of SE_MSG_NONE
- *         coming on the connection. Receipt of several SE_MSG_NONE can be used
- *         by clients to realize the connection is broken
- *     
- *         if you are looking for a blocking ping test which waits for a ping reply
- *         then use sysevent_ping_test
- */
+/**
+* @brief Ping a connection to the sysevent daemon.
+*
+* @param[in] fd - The file descriptor to ping.
+* @param[in] token - Server provided opaque value.
+*
+* @return Status of the operation.
+* @retval 0 if ping message sent successfully.
+* @retval Non-zero on error.
+*
+* @note We only told sysevent daemon to ping reply. We are not handling the
+* reply itself. That is up to the caller. Note that there is no current need
+* to ping. If the server breaks the connection then there will be a series of
+* SE_MSG_NONE coming on the connection. Receipt of several SE_MSG_NONE can be
+* used by clients to realize the connection is broken. If you are looking for a
+* blocking ping test which waits for a ping reply then use sysevent_ping_test.
+*/
 int sysevent_ping (int fd, token_t token);
 
-/*
- * Procedure     : sysevent_ping_test
- * Purpose       : Ping a connection to the sysevent daemon
- *                 AND wait for reply
- * Parameters    :
- *   fd             : the file descriptor to ping
- *   token          : Server provided opaque value
- *   tv             : A timeval describing how long to wait
- * Return Code   :
- *     0            : ping reply msg received
- *    !0            : some error
- */
+/**
+* @brief Ping a connection to the sysevent daemon and wait for reply.
+*
+* @param[in] fd - The file descriptor to ping.
+* @param[in] token - Server provided opaque value.
+* @param[in] tv - Pointer to a timeval structure describing how long to wait.
+*
+* @return Status of the operation.
+* @retval 0 if ping reply message received.
+* @retval Non-zero on error.
+*
+*/
 int sysevent_ping_test (int fd, token_t token, struct timeval* tv);
 
-
-/*
- * Procedure     : sysevent_get
- * Purpose       : Send a get to the sysevent daemon and receive reply
- * Parameters    :
- *    fd            the connection descriptor
- *    token         : The server provided opaque id of the client
- *    inbuf         : A null terminated string which is the thing to get
- *    outbuf        : A buffer to hold returned value
- *    outbytes      : The maximum number of bytes in outbuf
- * Return Code   :
- *    0             : Reply received
- *    !0            : Some error
- * Notes        :
- *    If outbuf is not big enough to hold the reply value, then the value will
- *    be truncated to fit. An error of ERR_INSUFFICIENT_ROOM will be returned.
- *    The value will always be NULL terminated, so the outbuf must contain
- *    enough bytes for the return value as well as the NULL byte.
- */
+/**
+* @brief Send a get request to the sysevent daemon and receive reply.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] inbuf - A null terminated string which is the thing to get.
+* @param[out] outbuf - A buffer to hold returned value.
+* @param[in] outbytes - The maximum number of bytes in outbuf.
+*
+* @return Status of the operation.
+* @retval 0 if reply received.
+* @retval Non-zero on error.
+*
+* @note  If outbuf is not big enough to hold the reply value, then the value will
+* be truncated to fit. An error of ERR_INSUFFICIENT_ROOM will be returned.
+* The value will always be NULL terminated, so the outbuf must contain enough bytes
+* for the return value as well as the NULL byte.
+*/
 int sysevent_get(const int fd, const token_t token, const char *inbuf, char *outbuf, int outbytes);
 
-/*
- * Procedure     : sysevent_get_data
- * Purpose       : Send a get to the sysevent daemon and receive reply
- * Parameters    :
- *    fd            : The connection id
- *    token         : Server provided opaque value
- *    inbuf         : A null terminated string which is the thing to get
- *    inbytes       : The length of the string not counting terminating null
- *    outbuf        : A buffer to hold returned value
- *    outbytes      : The maximum number of bytes in outbuf
- *    bufsizecopied : The actual number of bytes copied into outbuf
- * Return Code   :
- *    0             : Reply received
- *    !0            : Some error
- * Notes        :
- *    If outbuf is not big enough to hold the reply value, then the value will
- *    be truncated to fit. An error of ERR_INSUFFICIENT_ROOM will be returned.
- *    The value will always be NULL terminated, so the outbuf must contain
- *    enough bytes for the return value as well as the NULL byte.
- */
+/**
+* @brief Send a get request for binary data to the sysevent daemon and receive reply.
+*
+* @param[in] fd - The connection id.
+* @param[in] token - Server provided opaque value.
+* @param[in] inbuf - A null terminated string which is the thing to get.
+* @param[out] outbuf - A buffer to hold returned value.
+* @param[in] outbytes - The maximum number of bytes in outbuf.
+* @param[out] actualsizecopied - Pointer to store the actual number of bytes copied into outbuf.
+*
+* @return Status of the operation.
+* @retval 0 if reply received.
+* @retval Non-zero on error.
+*
+* @note If outbuf is not big enough to hold the reply value, then the value will
+* be truncated to fit. An error of ERR_INSUFFICIENT_ROOM will be returned.The value
+* will always be NULL terminated, so the outbuf must contain enough bytes for the
+* return value as well as the NULL byte.
+*/
 int sysevent_get_data(const int fd, const token_t token, const char *inbuf, char *outbuf, int outbytes,int *actualsizecopied);
 
-/*
- * Procedure     : sysevent_set
- * Purpose       : Send a set to the sysevent daemon
- *                 A set may change the value of a tuple
- * Parameters    :
- *    fd            the connection descriptor
- *    token         : The server provided opaque id of the client
- *    name          : A null terminated string which is the tuple to set
- *    value         : A null terminated string which is the value to set tuple to, or NULL
- * Return Code   :
- *    0             : Success
- *    !0            : Some error
- */
-
+/**
+* @brief Send a set request to the sysevent daemon.
+*
+* A set may change the value of a tuple.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] name - A null terminated string which is the tuple to set.
+* @param[in] value - A null terminated string which is the value to set tuple to, or NULL.
+* @param[in] conf_req - Configuration request flag.
+*
+* @return Status of the operation.
+* @retval 0 on success.
+* @retval Non-zero on error.
+*/
 int sysevent_set(const int fd, const token_t token, const char *name, const char *value, int conf_req);
 
-/*
- * Procedure     : sysevent_set_data
- * Purpose       : Send a set to the sysevent daemon
- *                 A set may change the value of a tuple
- * Parameters    :
- *    fd            : The connection id
- *    token         : Server provided opaque value
- *    name          : A null terminated string which is the tuple to set
- *    value         : buffer holds binary data which is the value to set tuple to, or NULL
- *    value_length  : actual size of binary data buffer
- * Return Code   :
- *    0             : Reply received
- *    !0            : Some error
- */
+/**
+* @brief Send a set request with binary data to the sysevent daemon.
+*
+* This function send a set to the sysevent daemon. A set may change the value of a tuple.
+*
+* @param[in] fd - The connection id.
+* @param[in] token - Server provided opaque value.
+* @param[in] name - A null terminated string which is the tuple to set.
+* @param[in] value - Buffer holding binary data which is the value to set tuple to, or NULL.
+* @param[in] value_length - Actual size of binary data buffer.
+*
+* @return Status of the operation.
+* @retval 0 if reply received.
+* @retval Non-zero on error.
+*/
 int sysevent_set_data(const int fd, const token_t token, const char *name, const char *value, int value_length);
 
-/*
- * Procedure     : sysevent_unset
- * Purpose       : Send a set to the sysevent daemon
- *                 A set with NULL value of a tuple to clear existing value from volatile memory.
- * Parameters    :
- *    fd            : The connection id
- *    token         : Server provided opaque value
- *    name          : A null terminated string which is the tuple to set
- *    value         : NULL by default
- * Return Code   :
- *    0             : Reply received
- *    !0            : Some error
- */
+/**
+* @brief Send a set request with NULL value to clear existing tuple value from volatile memory.
+*
+* Send a set to the sysevent daemon. A set with NULL value of a tuple to clear existing value from volatile memory.
+*
+* @param[in] fd - The connection id.
+* @param[in] token - Server provided opaque value.
+* @param[in] name - A null terminated string which is the tuple to set.
+*
+* @return Status of the operation.
+* @retval 0 if reply received.
+* @retval Non-zero on error.
+*/
 int sysevent_unset (const int fd, const token_t token, const char *name);
 
-
-/*
- * Procedure     : sysevent_set_with_tid
- * Purpose       : Send a set to the sysevent daemon
- *                 A set may change the value of a tuple
- * Parameters    :
- *    fd            : The connection id
- *    token         : Server provided opaque value
- *    name          : A null terminated string which is the tuple to set
- *    value         : A null terminated string which is the value to set tuple to, or NULL
- *    source        : source of message
- *    tid           : transaction id
- * Return Code   :
- *    0             : Success
- *    !0            : Some error
- */
+/**
+* @brief Send a set request with transaction ID to the sysevent daemon.
+*
+* Send a set to the sysevent daemon. A set may change the value of a tuple.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - Server provided opaque value.
+* @param[in] name - A null terminated string which is the tuple to set.
+* @param[in] value - A null terminated string which is the value to set tuple to, or NULL.
+* @param[in] source - Source of message.
+* @param[in] tid - Transaction id.
+*
+* @return Status of the operation.
+* @retval 0 on success.
+* @retval Non-zero on error.
+*/
 int sysevent_set_with_tid (const int fd, const token_t token, const char *name, const char *value, const int source, const int tid);
 
-
-/*
- * Procedure     : sysevent_set_unique
- * Purpose       : Send a set unique to the sysevent daemon and receive reply
- *                 A set will create a new tuple with name derived from client request,
- *                 and it will set this new tuple to the value.
- * Parameters    :
- *    fd            the connection descriptor
- *    token         : The server provided opaque id of the client
- *    name          : A null terminated string which is the namespace of the tuple to create and set
- *    value         : A null terminated string which is the value to set tuple to, or NULL
- *    outbuf        : A buffer to hold returned value
- *    outbytes      : The maximum number of bytes in outbuf
- * Return Code   :
- *    0             : Reply received
- *    !0            : Some error
- * Note that the position of the newly added item within its namespace is not guaranteed to be
- * in a particular order when iterating through the space using sysevent_get_unique.
- * If you need to guarantee that the newly added item is iterated in order of its addition to the
- * namespace (and are willing to cost the system some memory for each element in the namespace) then
- * you must use the ! character as the first character in your namespace
- */
+/**
+* @brief Send a set unique request to the sysevent daemon and receive reply.
+*
+* A set will create a new tuple with name derived from client request, and it will set this new tuple to the value.
+* Send a set unique to the sysevent daemon.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] name - A null terminated string which is the namespace of the tuple to create and set.
+* @param[in] value - A null terminated string which is the value to set tuple to, or NULL.
+* @param[out] outbuf - A buffer to hold returned unique tuple name.
+* @param[in] outbytes - The maximum number of bytes in outbuf.
+*
+* @return Status of the operation.
+* @retval 0 if reply received.
+* @retval Non-zero on error.
+*
+* @note the position of the newly added item within its namespace is not guaranteed to be
+* in a particular order when iterating through the space using sysevent_get_unique.
+* If you need to guarantee that the newly added item is iterated in order of its addition to the
+* namespace (and are willing to cost the system some memory for each element in the namespace) then
+* you must use the ! character as the first character in your namespace
+*/
 int sysevent_set_unique(const int fd, const token_t token, const char *name, const char *value, char *outbuf, int outbytes);
 
-/*
- * Procedure     : sysevent_get_unique
- * Purpose       : Send a get for a unique element to the sysevent daemon and receive reply
- *                 This returns the next value.
- * Parameters    :
- *    fd            the connection descriptor
- *    token         : The server provided opaque id of the client
- *    inbuf         : A null terminated string which is the namespace of the thing to get
- *    iterator      : A iterator which is initialize to NULL
- *                    on return it will contain the next iterator
- *    subjectbuf        : A buffer to hold returned unique name
- *    subjectbytes      : The maximum number of bytes in subjectbuf
- *    valuebuf        : A buffer to hold returned value
- *    valuebytes      : The maximum number of bytes in valuebuf
- * Return Code   :
- *    0             : Reply received
- *    !0            : Some error
- * Notes        :
- *    If either is not big enough to hold the reply value, then the value will
- *    be truncated to fit. An error of ERR_INSUFFICIENT_ROOM will be returned.
- *    The value will always be NULL terminated, so the outbuf must contain
- *    enough bytes for the return value as well as the NULL byte.
- */
+/**
+* @brief Send a get request for a unique element to the sysevent daemon and receive reply.
+*
+* This function send to the sysevent daemon and receive reply
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] inbuf - A null terminated string which is the namespace of the thing to get.
+* @param[in,out] iterator - A iterator which is initialized to NULL.
+* @param[out] subjectbuf - A buffer to hold returned unique name.
+* @param[in] subjectbytes - The maximum number of bytes in subjectbuf.
+* @param[out] valuebuf - A buffer to hold returned value.
+* @param[in] valuebytes - The maximum number of bytes in valuebuf.
+*
+* @return Status of the operation.
+* @retval 0 if reply received.
+* @retval Non-zero on error.
+*
+* @note If either is not big enough to hold the reply value, then the value will
+* be truncated to fit. An error of ERR_INSUFFICIENT_ROOM will be returned.
+* The value will always be NULL terminated, so the outbuf must contain
+* enough bytes for the return value as well as the NULL byte.
+*/
 int sysevent_get_unique(const int fd, const token_t token, const char *inbuf, unsigned int *iterator, char *subjectbuf, int subjectbytes, char *valuebuf, int valuebytes);
 
-/*
- * Procedure     : sysevent_del_unique
- * Purpose       : Send a delete of unique element from its namespace
- * Parameters    :
- *    fd            the connection descriptor
- *    token         : The server provided opaque id of the client
- *    inbuf         : A null terminated string which is the namespace of the thing to delete
- *    iterator      : A iterator which is describing the element to delete within the namespace
- *                    The first iterator is SYSEVENT_NULL_ITERATOR
- * Return Code   :
- *    0             :
- */
+/**
+* @brief Send a delete request for a unique element from its namespace.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] inbuf - A null terminated string which is the namespace of the thing to delete.
+* @param[in,out] iterator - A iterator which is describing the element to delete within the namespace.
+*                          \n The first iterator is SYSEVENT_NULL_ITERATOR
+*
+* @return Status of the operation.
+* @retval 0 on success.
+* @retval Non-zero on error.
+*/
 int sysevent_del_unique(const int fd, const token_t token, const char *inbuf, unsigned int *iterator);
 
-/*
- * Procedure     : sysevent_get_next_iterator
- * Purpose       : Get the next iterator for a namespace
- * Parameters    :
- *    fd            the connection descriptor
- *    token         : The server provided opaque id of the client
- *    inbuf         : A null terminated string which is the namespace
- *    iterator      : A iterator which is describing the current iterator. Initially set to 0
- *                    On return it contains the next iterator to the namespace
- * Return Code   :
- *    0             :
- */
+/**
+* @brief Get the next iterator for a namespace.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] inbuf - A null terminated string which is the namespace.
+* @param[in,out] iterator - A iterator which is describing the current iterator. Initially set to 0.
+*                           On return it contains the next iterator to the namespace.
+*
+* @return Status of the operation.
+* @retval 0 on success.
+* @retval Non-zero on error.
+*/
 int sysevent_get_next_iterator(const int fd, const token_t token, const char *inbuf, unsigned int *iterator);
 
-/*
- * Procedure     : sysevent_set_options
- * Purpose       : Send a set options flag to the sysevent daemon and receive reply
- *                 A set may change the event flags of that tuple
- * Parameters    :
- *    fd            the connection descriptor
- *    token         : The server provided opaque id of the client
- *    name          : A null terminated string which is the tuple to set
- *    flags         : The flags to set tuple to
- * Return Code   :
- *    0             : Success
- *    !0            : Some error
- */
+/**
+* @brief Send a set options flag request to the sysevent daemon and receive reply.
+*
+* A set may change the event flags of that tuple.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] name - A null terminated string which is the tuple to set.
+* @param[in] flags - The flags to set tuple to.
+*
+* @return Status of the operation.
+* @retval 0 on success.
+* @retval Non-zero on error.
+*/
 int sysevent_set_options(const int fd, const token_t token, const char *name, unsigned int flags);
 
-/*
- * Procedure     : sysevent_setcallback
- * Purpose       : Declare a program to run when a given tuple changes value
- * Parameters    :
- *    fd            the connection descriptor
- *    token         : The server provided opaque id of the client
- *    flags         : action_flag_t flags to control the activation
- *    subject       : A null terminated string which is the name of the tuple
- *    function      : An execeutable to call when the tuple changes value
- *    numparams     : The number of arguments in the following char**
- *    params        : A list of 0 or more parameters to use when calling the function
- *    async_id      : On return, and id that can be used to cancel the callback
- * Return Code   :
- *    0             : Success
- *    !0            : Some error
- * Notes         :
- *    When the tuple changes value the executabl3 will be called with all parameters given
- *    the value of parameters will be either:
- *       the exact string given as a parameter, or
- *       if the parameter begins with $ the return will be the current value
- *         of the trigger by that name. If the trigger does not exist
- *         then "NULL" will be used.
- *    For example, if the subject is trigger1, the function /bin/programA, and
- *    the parameter list is 3 params = trigger1, $trigger3, $trigger1.
- *    Assuming trigger3 has not yet been set,
- *    Then when trigger1 changes to "new_value", a process will be forked to
- *    call  /bin/programA  "trigger1" "NULL" "new_value"
- */
+/**
+* @brief Declare a program to run when a given tuple changes value.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] flags - action_flag_t flags to control the activation.
+* @param[in] subject - A null terminated string which is the name of the tuple.
+* @param[in] function - An executable to call when the tuple changes value.
+* @param[in] numparams - The number of arguments in the following char**.
+* @param[in] params - A list of 0 or more parameters to use when calling the function.
+* @param[out] async_id - On return, an id that can be used to cancel the callback.
+*
+* @return Status of the operation.
+* @retval 0 on success.
+* @retval Non-zero on error.
+*
+* @note When the tuple changes value, the executable will be called with all parameters given.
+* The value of parameters will be either: the exact string given as a parameter, or if the
+* parameter begins with $ the return will be the current value of the trigger by that name.
+* If the trigger does not exist then "NULL" will be used.
+* For example, if the subject is trigger1, the function /bin/programA, and the parameter
+* list is 3 params = trigger1, $trigger3, $trigger1. Assuming trigger3 has not yet been set,
+* Then when trigger1 changes to "new_value", a process will be forked to
+* call  /bin/programA  "trigger1" "NULL" "new_value".
+*/
 int sysevent_setcallback(const int fd, const token_t token, action_flag_t flags, char *subject, char *function, int numparams, char **params, async_id_t *async_id);
 
-/*
- * Procedure     : sysevent_rmcallback
- * Purpose       : Remove an callback/notification from a trigger
- * Parameters    :
- *    fd            the connection descriptor
- *    token         : The server provided opaque id of the client
- *    async_id      : The async id to remove
- * Return Code   :
- *    0             : Async action is removed
- */
+/**
+* @brief Remove a callback/notification from a trigger.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] async_id - The async id to remove.
+*
+* @return Status of the operation.
+* @retval 0 if async action is removed.
+* @retval Non-zero on error.
+*/
 int sysevent_rmcallback(const int fd, const token_t token, async_id_t async_id);
 
-/*
- * Procedure    : sysevent_setnotification
- * Purpose      : Request a notification message to be sent when a given tuple changes value
- * Parameters   :
- *   fd            : the connection descriptor
- *   token         : The server provided opaque id of the client
- *   subject       :  A null terminated string which is the name of the tuple
- *   async_id      : On return, and id that can be used to cancel the notification
- *  Return Code   :
- *    0             : Success
- *    !0            : Some error
- * Note         : A notification can only be sent to a client which is still connected
- * Note         : Notifications are asynchronous and should be sent to a client connection
- *                which is dedicated to asynchronous sysevent messages. In other words a
- *                connection which is not shared with a thread doing sets/gets etc.
- */
+/**
+* @brief Request a notification message to be sent when a given tuple changes value.
+*
+* A notification can only be sent to a client which is still connected.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] subject - A null terminated string which is the name of the tuple.
+* @param[out] async_id - On return, an id that can be used to cancel the notification.
+*
+* @return Status of the operation.
+* @retval 0 on success.
+* @retval Non-zero on error.
+*
+* @note Notifications are asynchronous and should be sent to a client connection
+* which is dedicated to asynchronous sysevent messages. In other words a
+* connection which is not shared with a thread doing sets/gets etc.
+*/
 int sysevent_setnotification(const int fd, const token_t token, char *subject, async_id_t *async_id);
 
-/*
- * Procedure     : sysevent_rmnotification
- * Purpose       : Remove an callback/notification from a trigger
- * Parameters    :
- *    fd            the connection descriptor
- *    token         : The server provided opaque id of the client
- *    async_id      : The async id to remove
- * Return Code   :
- *    0             : Async action is removed
- */
+/**
+* @brief Remove a callback/notification from a trigger.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] async_id - The async id to remove.
+*
+* @return Status of the operation.
+* @retval 0 if async action is removed.
+* @retval Non-zero on error.
+*/
 int sysevent_rmnotification(const int fd, const token_t token, async_id_t async_id);
 
-/*
- * Procedure     : sysevent_getnotification
- * Purpose       : Wait for a notification and return the results when received
- * Parameters    :
- *    fd            : The connection id
- *    token         : The server provided opaque id of the client
- *    namebuf       : A buffer to hold the name received
- *    namebytes     : The length of the string not counting terminating null
- *    valbuf        : A buffer to hold returned value
- *    valbytes      : On input the maximum number of bytes in outbuf
- *                    On output the actual number of bytes in outbuf not counting
- *                    the terminating null
- *    async_id      : The async id of the action
- * Return Code   :
- *    0             : Reply received
- *    !0            : Some error
- * Notes        :
- *    If a buffer is not big enough to hold the reply value, then the value will
- *    be truncated to fit. An error of ERR_INSUFFICIENT_ROOM will be returned.
- *    The value will always be NULL terminated, so the buffer must contain
- *    enough bytes for the return value as well as the NULL byte.
- * Notes
- *   This will block
- */
+/**
+* @brief Wait for a notification and return the results when received.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[out] namebuf - A buffer to hold the name received.
+* @param[in,out] namebytes - On input, the maximum length of the string not counting terminating null.
+*                            On output, the actual length of the string not counting terminating null.
+* @param[out] valbuf - A buffer to hold returned value.
+* @param[in,out] valbytes - On input, the maximum number of bytes in valbuf.
+*                           On output, the actual number of bytes in valbuf not counting the terminating null.
+* @param[out] async_id - The async id of the action.
+*
+* @return Status of the operation.
+* @retval 0 if reply received.
+* @retval Non-zero on error.
+*
+* @note If a buffer is not big enough to hold the reply value, then the value will
+* be truncated to fit. An error of ERR_INSUFFICIENT_ROOM will be returned. The value
+* will always be NULL terminated, so the buffer must contain enough bytes for the
+* return value as well as the NULL byte. This will block
+*/
 int sysevent_getnotification (const int fd, const token_t token, char *namebuf, int *namebytes, char *valbuf, int *valbytes, async_id_t *async_id);
 
-/*
- * Procedure     : sysevent_getnotification_data
- * Purpose       : Wait for a notification and return the results when received
- * Parameters    :
- *    fd            : The connection id
- *    token         : A server generated opaque value
- *    namebuf       : A buffer to hold the name received
- *    namebytes     : The length of the string not counting terminating null
- *    valbuf        : A buffer to hold returned value
- *    valbytes      : On input the maximum number of bytes in outbuf
- *                    On output the actual number of bytes in outbuf
- *    async_id      : The async id of the action
- * Return Code   :
- *    0             : Reply received
- *    !0            : Some error
- * Notes        :
- *    If a buffer is not big enough to hold the reply value, then the value will
- *    be truncated to fit. An error of ERR_INSUFFICIENT_ROOM will be returned.
- *    The value will always be NULL terminated, so the buffer must contain
- *    enough bytes for the return value as well as the NULL byte.
- * Notes
- *   This will block
- */
+/**
+* @brief Wait for a notification with binary data and return the results when received.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - A server generated opaque value.
+* @param[out] namebuf - A buffer to hold the name received.
+* @param[in,out] namebytes - On input, the maximum length of the string not counting terminating null.
+*                            On output, the actual length of the string not counting terminating null.
+* @param[out] valbuf - A buffer to hold returned binary value.
+* @param[in,out] valbytes - On input, the maximum number of bytes in valbuf.
+*                           On output, the actual number of bytes in valbuf.
+* @param[out] async_id - The async id of the action.
+*
+* @return Status of the operation.
+* @retval 0 if reply received.
+* @retval Non-zero on error.
+*
+* @note If a buffer is not big enough to hold the reply value, then the value will
+* be truncated to fit. An error of ERR_INSUFFICIENT_ROOM will be returned. The value
+* will always be NULL terminated, so the buffer must contain enough bytes for the
+* return value as well as the NULL byte. This will block
+*/
 int sysevent_getnotification_data (const int fd, const token_t token, char *namebuf, int *namebytes, char *valbuf, int *valbytes, async_id_t *async_id);
 
-/*
- * Procedure     : sysevent_show
- * Purpose       : Tell daemon to show all data elements
- * Parameters    :
- *    fd            : The connection id
- *    token         : The server provided opaque id of the client
- *    file         : A null terminated string which is the file to write to
- * Return Code   :
- *    0             : Success
- *    !0            : Some error
- */
+/**
+* @brief Tell daemon to show all data elements.
+*
+* @param[in] fd - The connection descriptor.
+* @param[in] token - The server provided opaque id of the client.
+* @param[in] file - A null terminated string which is the file to write to.
+*
+* @return Status of the operation.
+* @retval 0 on success.
+* @retval Non-zero on error.
+*/
 int sysevent_show (const int fd, const token_t token, const char *file);
 
-/*
- * Procedure     : sysevent_debug
- * Purpose       : Set sysevent daemon debug level
- * Parameters    :
- *   ip             : the name or ip address of the sysevent daemon to send msg to
- *   port           : the port of the sysevent daemon to send to
- *   level          : Debug level to set to
- * Return Code   :
- *     0            : debug msg sent
- *    !0            : some error
- */
+/**
+* @brief Set sysevent daemon debug level.
+*
+* @param[in] ip - The name or IP address of the sysevent daemon to send message to.
+* @param[in] port - The port of the sysevent daemon to send to.
+* @param[in] level - Debug level to set to.
+*
+* @return Status of the operation.
+* @retval 0 if debug message sent.
+* @retval Non-zero on error.
+*/
 int sysevent_debug (char *ip, unsigned short port, int level);
 
+/**
+* @brief Get the maximum size for binary message data.
+*
+* @return Maximum size in bytes for binary message data.
+*/
 unsigned int sysevent_get_binmsg_maxsize();
 
 #ifdef __cplusplus

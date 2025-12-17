@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -38,18 +38,18 @@
 
 #define VERSION 1
 #define PASSPHRASE_SZ 64
-#define WEP_KEY_SZ 32 
+#define WEP_KEY_SZ 32
 #define WEP_KEY_NUM 4
 #define SSID_SIZE (4*32+1)
-#define STD_CHAN_NUM 20 
-#define MAC_ADDR_SIZE 18 
+#define STD_CHAN_NUM 20
+#define MAC_ADDR_SIZE 18
 #define SHAREDKEY_SZ 64
 
 #define WIFI_INTERFACE_COUNT 2
 
 typedef enum wifiInterface {
-    FREQ_2_4_GHZ, 
-    FREQ_5_GHZ, 
+    FREQ_2_4_GHZ,
+    FREQ_5_GHZ,
 } wifiInterface_t;
 
 typedef struct wifiPlatformSetup {
@@ -63,12 +63,12 @@ typedef struct wifiPlatformSetup {
 
 typedef enum wifiMode {
     MODE_INVALID = -1,
-    B_ONLY = 1, 
-    G_ONLY, 
-    A_ONLY, 
-    N_ONLY, 
-    B_G_MIXED, 
-    B_G_N_MIXED, 
+    B_ONLY = 1,
+    G_ONLY,
+    A_ONLY,
+    N_ONLY,
+    B_G_MIXED,
+    B_G_N_MIXED,
     A_N_MIXED,
 } wifiMode_t;
 
@@ -78,32 +78,32 @@ typedef struct wifi80211Mode {
 } wifi80211Mode_t;
 
 typedef enum {
-    BAND_INVALID = -1, 
-    BAND_AUTO = 0, 
-    STD_20MHZ, 
+    BAND_INVALID = -1,
+    BAND_AUTO = 0,
+    STD_20MHZ,
     WIDE_40MHZ
 } wifiBand_t;
 
 typedef enum {
-    SIDEBAND_LOWER, 
-    SIDEBAND_UPPER, 
+    SIDEBAND_LOWER,
+    SIDEBAND_UPPER,
 } wifiSideBand_t;
 
 
 typedef enum wifiWideChannel {
-    WC_AUTO, 
-    WC_1,  // for 2.4GHz 
-    WC_2, 
-    WC_3, 
-    WC_4, 
-    WC_5, 
-    WC_6, 
-    WC_7, 
-    WC_36, // for 5GHz 
-    WC_44, 
-    WC_52, 
-    WC_60, 
-    WC_149, 
+    WC_AUTO,
+    WC_1,  // for 2.4GHz
+    WC_2,
+    WC_3,
+    WC_4,
+    WC_5,
+    WC_6,
+    WC_7,
+    WC_36, // for 5GHz
+    WC_44,
+    WC_52,
+    WC_60,
+    WC_149,
     WC_157,
 } wifiWideChannel_t;
 
@@ -115,29 +115,29 @@ typedef struct wifiWideChannelSetup {
 #define WIDE_CHAN_NUM 25
 
 typedef enum wifiStdChannel {
-    SC_AUTO, 
-    SC_1, // for 2.4GHz 
-    SC_2, 
-    SC_3, 
-    SC_4, 
-    SC_5, 
-    SC_6, 
-    SC_7, 
-    SC_8, 
-    SC_9, 
-    SC_10, 
-    SC_11, 
-    SC_36, // for 5GHz 
+    SC_AUTO,
+    SC_1, // for 2.4GHz
+    SC_2,
+    SC_3,
+    SC_4,
+    SC_5,
+    SC_6,
+    SC_7,
+    SC_8,
+    SC_9,
+    SC_10,
+    SC_11,
+    SC_36, // for 5GHz
     SC_40,
-    SC_44, 
-    SC_48, 
-    SC_52, 
-    SC_56, 
-    SC_60, 
-    SC_64, 
-    SC_149, 
-    SC_153, 
-    SC_157, 
+    SC_44,
+    SC_48,
+    SC_52,
+    SC_56,
+    SC_60,
+    SC_64,
+    SC_149,
+    SC_153,
+    SC_157,
     SC_161,
     SC_165,
 } wifiStdChannel_t;
@@ -149,10 +149,10 @@ typedef struct wifiStdChannelSetup {
 
 
 typedef struct wifiRadioInfo {
-    wifiInterface_t interface; 
+    wifiInterface_t interface;
     boolean_t enabled;
     boolean_t ssid_broadcast;
-    char ssid[SSID_SIZE];    
+    char ssid[SSID_SIZE];
     char mac_address[MAC_ADDR_SIZE+1];   // Only get-able, NA in set operation
     wifiMode_t mode;
     wifiBand_t band;
@@ -175,11 +175,11 @@ typedef struct wifiRadioInfo {
 typedef enum wifiSecMode {
     WIFI_SECURITY_INVALID = -1,
     WIFI_SECURITY_DISABLED = 0,
-    WIFI_SECURITY_WEP, 
-    WIFI_SECURITY_WPA_PERSONAL, 
-    WIFI_SECURITY_WPA_ENTERPRISE, 
-    WIFI_SECURITY_WPA2_PERSONAL, 
-    WIFI_SECURITY_WPA2_ENTERPRISE, 
+    WIFI_SECURITY_WEP,
+    WIFI_SECURITY_WPA_PERSONAL,
+    WIFI_SECURITY_WPA_ENTERPRISE,
+    WIFI_SECURITY_WPA2_PERSONAL,
+    WIFI_SECURITY_WPA2_ENTERPRISE,
     WIFI_SECURITY_RADIUS,
 } wifiSecMode_t;
 
@@ -196,10 +196,10 @@ typedef enum WPAEncrypt {
 } WPAEncrypt_t;
 
 typedef struct wifiSecurityInfo {
-    wifiInterface_t  interface; 
+    wifiInterface_t  interface;
     wifiSecMode_t   mode;
-    WPAEncrypt_t    encrypt;    
-    char            passphrase[PASSPHRASE_SZ];    
+    WPAEncrypt_t    encrypt;
+    char            passphrase[PASSPHRASE_SZ];
     int             key_renewal_interval;  // default 3600secs
     char            wep_key[WEP_KEY_NUM][WEP_KEY_SZ];
     int             wep_txkey;    // valid 1 - 4
@@ -226,8 +226,8 @@ typedef enum wifiAuthType {
 } wifiAuthType_t;
 
 typedef enum wifiBasicRate {
-   WIFI_BASICRATE_DEFAULT, 
-   WIFI_BASICRATE_1_2MBPS, 
+   WIFI_BASICRATE_DEFAULT,
+   WIFI_BASICRATE_1_2MBPS,
    WIFI_BASICRATE_ALL,
 } wifiBasicRate_t;
 
@@ -235,13 +235,13 @@ typedef enum wifiBasicRate {
 
 typedef enum wifiTXRate {
    WIFI_TX_RATE_AUTO = 0,
-   WIFI_TX_RATE_6, 
-   WIFI_TX_RATE_9, 
+   WIFI_TX_RATE_6,
+   WIFI_TX_RATE_9,
    WIFI_TX_RATE_12,
    WIFI_TX_RATE_18,
-   WIFI_TX_RATE_24, 
-   WIFI_TX_RATE_36, 
-   WIFI_TX_RATE_48, 
+   WIFI_TX_RATE_24,
+   WIFI_TX_RATE_36,
+   WIFI_TX_RATE_48,
    WIFI_TX_RATE_54,
 } wifiTXRate_t;
 
@@ -252,27 +252,27 @@ typedef struct wifiTXRateMapping_t {
 
 typedef enum wifiNTXRate {
    WIFI_N_TX_RATE_AUTO = -1,
-   WIFI_N_TX_RATE_MSC0_6dot5 = 0, 
-   WIFI_N_TX_RATE_MSC1_13, 
-   WIFI_N_TX_RATE_MSC2_19dot5, 
-   WIFI_N_TX_RATE_MSC3_26, 
-   WIFI_N_TX_RATE_MSC4_39, 
-   WIFI_N_TX_RATE_MSC5_52, 
-   WIFI_N_TX_RATE_MSC6_58dot5, 
-   WIFI_N_TX_RATE_MSC7_65, 
-   WIFI_N_TX_RATE_MSC8_13, 
-   WIFI_N_TX_RATE_MSC9_26, 
-   WIFI_N_TX_RATE_MSC10_39, 
-   WIFI_N_TX_RATE_MSC11_52, 
-   WIFI_N_TX_RATE_MSC12_78, 
-   WIFI_N_TX_RATE_MSC13_104, 
-   WIFI_N_TX_RATE_MSC14_117, 
-   WIFI_N_TX_RATE_MSC15_130, 
+   WIFI_N_TX_RATE_MSC0_6dot5 = 0,
+   WIFI_N_TX_RATE_MSC1_13,
+   WIFI_N_TX_RATE_MSC2_19dot5,
+   WIFI_N_TX_RATE_MSC3_26,
+   WIFI_N_TX_RATE_MSC4_39,
+   WIFI_N_TX_RATE_MSC5_52,
+   WIFI_N_TX_RATE_MSC6_58dot5,
+   WIFI_N_TX_RATE_MSC7_65,
+   WIFI_N_TX_RATE_MSC8_13,
+   WIFI_N_TX_RATE_MSC9_26,
+   WIFI_N_TX_RATE_MSC10_39,
+   WIFI_N_TX_RATE_MSC11_52,
+   WIFI_N_TX_RATE_MSC12_78,
+   WIFI_N_TX_RATE_MSC13_104,
+   WIFI_N_TX_RATE_MSC14_117,
+   WIFI_N_TX_RATE_MSC15_130,
 } wifiNTXRate_t;
 
 typedef enum wifiTXPower {
-   TX_POWER_HIGH, 
-   TX_POWER_MEDIUM, 
+   TX_POWER_HIGH,
+   TX_POWER_MEDIUM,
    TX_POWER_LOW,
 } wifiTXPower_t;
 
@@ -281,7 +281,7 @@ typedef enum wifiTXPower {
 #ifndef UTAPI_NO_SEC_MACFILTER
 
 typedef struct wifiMacFiltersInfo {
-   int   macFilterMode; 
+   int   macFilterMode;
    int   client_count;
    char  client_mac_list[MAX_MACFILTERS][MACADDR_SZ];
 } wifiMacFilterInfo_t;
@@ -290,45 +290,45 @@ typedef struct wifiMacFiltersInfo {
 
 
 typedef struct wifiAdvancedInfo {
-   wifiInterface_t interface; 
-   boolean_t ap_isolation; 
-   boolean_t frame_burst; 
-   wifiAuthType_t auth_type; 
-   wifiBasicRate_t basic_rate; 
-   wifiTXRate_t tx_rate; 
-   int  n_tx_rate;       // MCS index; range 0 to 15  and -1 being auto 
+   wifiInterface_t interface;
+   boolean_t ap_isolation;
+   boolean_t frame_burst;
+   wifiAuthType_t auth_type;
+   wifiBasicRate_t basic_rate;
+   wifiTXRate_t tx_rate;
+   int  n_tx_rate;       // MCS index; range 0 to 15  and -1 being auto
    wifiTXPower_t tx_power;
-   boolean_t auto_cts_protect_mode; 
-   int  beacon_interval; // default 100ms; range 1 - 65535 
-   int  dtim_interval;   // default 1,     range 1 - 255 
-   int  frag_threshold;  // default 2346,  range 256 - 2346 
+   boolean_t auto_cts_protect_mode;
+   int  beacon_interval; // default 100ms; range 1 - 65535
+   int  dtim_interval;   // default 1,     range 1 - 255
+   int  frag_threshold;  // default 2346,  range 256 - 2346
    int  rts_threshold;   // default 2347,  range 0 - 2347
 } wifiAdvancedInfo_t;
 
 typedef struct wifiCounters {
-   long tx_frames; 
-   long tx_bytes; 
-   long tx_retrans; 
+   long tx_frames;
+   long tx_bytes;
+   long tx_retrans;
    long tx_errors;
-   long rx_frames; 
+   long rx_frames;
    long rx_bytes;
    long rx_errors;
 } wifiCounters_t;
 
 typedef struct wifiStatusInfo {
-   char mac_addr[MAC_ADDR_SIZE+1]; 
-   char radio_mode[16]; // wifiMode 
-   char ssid[SSID_SIZE]; 
-   int channel; 
-   char security[32];  
-   int ssid_broadcast; // 1=enabled, 0=disabled	
+   char mac_addr[MAC_ADDR_SIZE+1];
+   char radio_mode[16]; // wifiMode
+   char ssid[SSID_SIZE];
+   int channel;
+   char security[32];
+   int ssid_broadcast; // 1=enabled, 0=disabled
    wifiCounters_t counters;
 } wifiStatusInfo_t;
 
-typedef struct wifiQoS { 
-   boolean_t wmm_support; 
+typedef struct wifiQoS {
+   boolean_t wmm_support;
    boolean_t no_acknowledgement;
-} wifiQoS_t;		
+} wifiQoS_t;
 
 typedef enum wifiConfigMode {
    WIFI_CONFIG_MANUAL,
@@ -358,33 +358,282 @@ typedef struct wifiBridgeInfo {
 
 /*
  * APIs
- */ 
+ */
+/**
+* @brief Set the WiFi radio state (enable/disable).
+*
+* @param[in] ctx    - Pointer to the Utopia context.
+* @param[in] intf   - WiFi interface identifier.
+* @param[in] enable - Boolean value to enable or disable the radio.
+*                     \n TRUE sets the radio state to "up", FALSE sets it to "down".
+*                     \n Triggers WLAN_Restart event.
+*
+* @return The status of the operation.
+* @retval UT_SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx is NULL or intf is >= WIFI_INTERFACE_COUNT.
+*
+*/
 int Utopia_SetWifiRadioState (UtopiaContext *ctx, wifiInterface_t intf, boolean_t enable);
+
+/**
+* @brief Get the WiFi radio state (enabled/disabled).
+*
+* @param[in]  ctx    - Pointer to the Utopia context.
+* @param[in]  intf   - WiFi interface identifier.
+* @param[out] enable - Pointer to a boolean_t where the radio state will be returned.
+*                      \n TRUE if radio state is "up", FALSE otherwise.
+*
+* @return The status of the operation.
+* @retval UT_SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, enable is NULL, or intf is >= WIFI_INTERFACE_COUNT.
+* @retval ERR_ITEM_NOT_FOUND if the radio state cannot be retrieved from syscfg.
+*
+*/
 int Utopia_GetWifiRadioState (UtopiaContext *ctx, wifiInterface_t intf, boolean_t *enable);
 
+/**
+* @brief Get the WiFi radio parameters.
+*
+* @param[in]  ctx  - Pointer to the Utopia context.
+* @param[in]  intf - WiFi interface identifier.
+* @param[out] info - Pointer to a wifiRadioInfo_t structure where the radio settings will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, info is NULL, or intf is >= WIFI_INTERFACE_COUNT.
+* @retval ERR_ITEM_NOT_FOUND if required configuration values cannot be retrieved from syscfg.
+* @retval ERR_WIFI_INVALID_MODE if the network mode or radio band value is invalid.
+*
+*/
 int Utopia_GetWifiRadioSettings (UtopiaContext *ctx, wifiInterface_t intf, wifiRadioInfo_t *info);
+
+/**
+* @brief Set the WiFi radio parameters.
+*
+* @param[in] ctx  - Pointer to the Utopia context.
+* @param[in] info - Pointer to a wifiRadioInfo_t structure containing the radio settings to be set.
+*                   \n Triggers WLAN_Restart event.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, info is NULL, or interface is >= WIFI_INTERFACE_COUNT.
+* @retval ERR_INVALID_VALUE if the mode or band values cannot be converted to strings.
+*
+*/
 int Utopia_SetWifiRadioSettings (UtopiaContext *ctx, wifiRadioInfo_t *info);
 #ifndef UTAPI_NO_SEC_MACFILTER
-int Utopia_GetWifiSecuritySettings (UtopiaContext *ctx, wifiInterface_t intf, wifiSecurityInfo_t *info); 
+/**
+* @brief Get the WiFi security parameters.
+*
+* @param[in]  ctx  - Pointer to the Utopia context.
+* @param[in]  intf - WiFi interface identifier.
+* @param[out] info - Pointer to a wifiSecurityInfo_t structure where the security settings will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, info is NULL, or intf is >= WIFI_INTERFACE_COUNT.
+* @retval ERR_ITEM_NOT_FOUND if the security mode cannot be retrieved from syscfg.
+* @retval ERR_INVALID_VALUE if the security mode or encryption type is invalid.
+*
+*/
+int Utopia_GetWifiSecuritySettings (UtopiaContext *ctx, wifiInterface_t intf, wifiSecurityInfo_t *info);
+
+/**
+* @brief Set the WiFi security parameters.
+*
+* @param[in] ctx  - Pointer to the Utopia context.
+* @param[in] info - Pointer to a wifiSecurityInfo_t structure containing the security settings to be set.
+*                   \n Triggers WLAN_Restart event.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, info is NULL, or interface is >= WIFI_INTERFACE_COUNT.
+* @retval ERR_INVALID_VALUE if the security mode cannot be converted to a string.
+*
+*/
 int Utopia_SetWifiSecuritySettings (UtopiaContext *ctx, wifiSecurityInfo_t *info);
+
+/**
+* @brief Get the WiFi MAC filter settings.
+*
+* @param[in]  ctx  - Pointer to the Utopia context.
+* @param[out] info - Pointer to a wifiMacFilterInfo_t structure where the MAC filter settings will be returned.
+*                    \n Maximum MAC filters: 32.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or info is NULL.
+* @retval ERR_INVALID_VALUE if the MAC filter mode value is invalid.
+*
+*/
 int Utopia_GetWifiMacFilters (UtopiaContext *ctx, wifiMacFilterInfo_t *info);
+
+/**
+* @brief Set the WiFi MAC filter settings.
+*
+* @param[in] ctx  - Pointer to the Utopia context.
+* @param[in] info - Pointer to a wifiMacFilterInfo_t structure containing the MAC filter settings to be set.
+*                   \n Triggers WLAN_Restart event.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or info is NULL.
+* @retval ERR_INVALID_VALUE if the MAC filter mode cannot be converted to a string.
+*
+*/
 int Utopia_SetWifiMacFilters (UtopiaContext *ctx, wifiMacFilterInfo_t *info);
 #endif
+
+/**
+* @brief Get the WiFi advanced settings.
+*
+* @param[in]  ctx  - Pointer to the Utopia context.
+* @param[in]  intf - WiFi interface identifier.
+* @param[out] info - Pointer to a wifiAdvancedInfo_t structure where the advanced settings will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, info is NULL, or intf is >= WIFI_INTERFACE_COUNT.
+*
+*/
 int Utopia_GetWifiAdvancedSettings (UtopiaContext *ctx, wifiInterface_t intf, wifiAdvancedInfo_t *info);
+
+/**
+* @brief Set the WiFi advanced settings.
+*
+* @param[in] ctx  - Pointer to the Utopia context.
+* @param[in] info - Pointer to a wifiAdvancedInfo_t structure containing the advanced settings to be set.
+*                   \n Triggers WLAN_Restart event.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx, info is NULL, or interface is >= WIFI_INTERFACE_COUNT.
+*
+*/
 int Utopia_SetWifiAdvancedSettings (UtopiaContext *ctx, wifiAdvancedInfo_t *info);
 
+/**
+* @brief Set the WiFi Quality of Service (QoS) settings.
+*
+* @param[in] ctx     - Pointer to the Utopia context.
+* @param[in] wifiqos - Pointer to a wifiQoS_t structure containing the QoS settings to be set.
+*                      \n Triggers WLAN_Restart event.
+*
+* @return The status of the operation.
+* @retval UT_SUCCESS if the operation is successful.
+*
+*/
 int Utopia_SetWifiQoSSettings (UtopiaContext *ctx, wifiQoS_t *wifiqos);
+
+/**
+* @brief Get the WiFi Quality of Service (QoS) settings.
+*
+* @param[in]  ctx     - Pointer to the Utopia context.
+* @param[out] wifiqos - Pointer to a wifiQoS_t structure where the QoS settings will be returned.
+*
+* @return The status of the operation.
+* @retval UT_SUCCESS if the operation is successful.
+*
+*/
 int Utopia_GetWifiQoSSettings (UtopiaContext *ctx, wifiQoS_t *wifiqos);
 
+/**
+* @brief Get the WiFi configuration mode.
+*
+* @param[in]  ctx         - Pointer to the Utopia context.
+* @param[out] config_mode - Pointer to a wifiConfigMode_t where the configuration mode will be returned.
+*
+* @return The status of the operation.
+* @retval UT_SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or config_mode is NULL.
+* @retval ERR_WIFI_INVALID_CONFIG_MODE if the configuration mode value is invalid.
+*
+*/
 int Utopia_GetWifiConfigMode (UtopiaContext *ctx, wifiConfigMode_t *config_mode);
+
+/**
+* @brief Set the WiFi configuration mode.
+*
+* @param[in] ctx         - Pointer to the Utopia context.
+* @param[in] config_mode - WiFi configuration mode to be set.
+*                          \n Triggers WLAN_Restart event.
+*
+* @return The status of the operation.
+* @retval UT_SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx is NULL.
+* @retval ERR_WIFI_INVALID_CONFIG_MODE if the configuration mode value is invalid.
+*
+*/
 int Utopia_SetWifiConfigMode (UtopiaContext *ctx, wifiConfigMode_t config_mode);
 
+/**
+* @brief Start WPS (Wi-Fi Protected Setup) using Push Button Configuration (PBC) method.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+*
+*/
 int Utopia_WPSPushButtonStart (void);
+
+/**
+* @brief Start WPS (Wi-Fi Protected Setup) using PIN method.
+*
+* @param[in] pin - WPS PIN code to use for authentication.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+*
+*/
 int Utopia_WPSPinStart (int pin);
+
+/**
+* @brief Stop WPS (Wi-Fi Protected Setup) operation.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+*
+*/
 int Utopia_WPSStop (void);
+
+/**
+* @brief Get the current WPS (Wi-Fi Protected Setup) status.
+*
+* @param[out] wps_status - Pointer to a wpsStatus_t where the WPS status will be returned.
+*
+* @return The status of the operation.
+* @retval SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if wps_status is NULL.
+* @retval ERR_FILE_NOT_FOUND if the WPS status command cannot be executed.
+* @retval ERR_INVALID_VALUE if the WPS status string cannot be read or is empty.
+*
+*/
 int Utopia_GetWPSStatus (wpsStatus_t *wps_status);
 
+/**
+* @brief Get the WiFi bridge settings.
+*
+* @param[in]  ctx  - Pointer to the Utopia context.
+* @param[out] info - Pointer to a wifiBridgeInfo_t structure where the bridge settings will be returned.
+*
+* @return The status of the operation.
+* @retval UT_SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or info is NULL.
+*
+*/
 int Utopia_GetWifiBridgeSettings (UtopiaContext *ctx, wifiBridgeInfo_t *info);
+
+/**
+* @brief Set the WiFi bridge settings.
+*
+* @param[in] ctx  - Pointer to the Utopia context.
+* @param[in] info - Pointer to a wifiBridgeInfo_t structure containing the bridge settings to be set.
+*                   \n Triggers WLAN_Restart event.
+*
+* @return The status of the operation.
+* @retval UT_SUCCESS if the operation is successful.
+* @retval ERR_INVALID_ARGS if ctx or info is NULL.
+*
+*/
 int Utopia_SetWifiBridgeSettings (UtopiaContext *ctx, wifiBridgeInfo_t *info);
 
 #endif // __UTAPI_WLAN_H__
