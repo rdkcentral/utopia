@@ -58,9 +58,47 @@ MessageBusMock * g_messagebusMock = nullptr;
 int syscfg_supported;
 int psm_supported;
 
-extern "C" 
+extern "C"
 {
+/**
+* @brief Add parameters to the syscfg database.
+*
+* This function checks if specific parameters need to be added to the syscfg/PSM databases
+* and adds them if they are not already present.
+*
+* @param[in] key - The parameter key to add to the database.
+* @param[in] value - The value to associate with the key.
+*
+* @return None.
+*/
 void addInSysCfgdDB (char *key, char *value);
+
+/**
+* @brief Update parameters in the syscfg database.
+*
+* This function updates existing parameters in the syscfg/PSM databases.
+*
+* @param[in] key - The parameter key to update in the database.
+* @param[in] value - The new value to set for the key.
+*
+* @return None.
+*/
 void updateSysCfgdDB (char *key, char *value);
+
+/**
+* @brief Compare partner JSON parameters between bootstrap and default configurations.
+*
+* This function compares partner parameters in the /etc default file with the /nvram bootstrap file to synchronize
+* the configuration, updating the persistent records (psm/syscfg) as necessary.
+*
+* @param[in] partner_nvram_bs_obj - JSON object string from bootstrap configuration in nvram.
+* @param[in] partner_etc_obj - JSON object string from default configuration in /etc.
+* @param[in] PartnerID - The partner identifier string.
+*
+* @return The status of the comparison operation.
+* @retval 0 Comparison successful and parameters may need updating.
+* @retval -1 No comparison needed or error occurred.
+*
+*/
 int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner_etc_obj, char *PartnerID);
 }

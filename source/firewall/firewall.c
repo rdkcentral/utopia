@@ -8958,6 +8958,7 @@ static int do_parcon_mgmt_device(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
+#define MAX_DEV_8K 8192
 devMacSt * getPcmdList(int *devCount)
 {
 int count = 0;
@@ -8984,9 +8985,10 @@ memset(buf, 0, sizeof(buf));
                    FIREWALL_DEBUG("invalid data\n");
                    break;
                }
-               if (numDev < INT_MIN || numDev > INT_MAX)
+
+               if(numDev < 0 || numDev > MAX_DEV_8K)
                {
-                   FIREWALL_DEBUG("invalid integer\n");
+                   FIREWALL_DEBUG("value out of range\n");
                    break;
                }
 
@@ -9192,6 +9194,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
         ruleIndex += do_parcon_mgmt_lan2wan_pc_site_appendrule(fp);
 #endif
 
+        bool keywd_chains_exists = false;
         for (idx = 1; idx <= count; idx++)
         {
             char namespace[MAX_QUERY];
@@ -9397,6 +9400,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int range_max = 1024; //max payload bytes to filter
                 int range_multiplier = 2;
 
+                FIREWALL_DEBUG("adding rules for KEYWD\n");
                 // Extract keyword if user input is a full URL
                 if (strstr(query, "://") != NULL) {
                     keyword = strstr(query, "://") + 3;
@@ -9413,24 +9417,32 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int from,to;
                 for (from = 0, to = 64; from < range_max; from = to, to = (to * range_multiplier > range_max) ? range_max : to * range_multiplier)
                 {
-                    char chainName[64] = {'\0'};
+                    char chain_name[64] = {'\0'};
 
-                    // Create new chain
+                    // Create new chain only for first keyword
                     // linux iptables chainname length is max 29 chars
-                    snprintf(chainName, sizeof(chainName), "LOG_SiteBlk_KW_%d_%d", from, to);
-                    fprintf(fp, ":%s - [0:0]\n", chainName);
+                    snprintf(chain_name, sizeof(chain_name), "LOG_SiteBlk_KW_%d_%d", from, to);
+
+		    // Private chain per range is created only once
+		    if (keywd_chains_exists == false) {
+                        // create new chain
+                        fprintf(fp, ":%s - [0:0]\n", chain_name);
+                    }
 
                     // Add rule to jump to private chain if "Host:" is found in this offset range
                     fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"Host:\" --algo kmp --from %d --to %d --icase -j %s\n",
-                        from, to, chainName);
+                        from, to, chain_name);
 
                     // Add rule to match keyword in private chain within same offset range
                     fprintf(fp, "-A %s -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
-                        chainName, keyword, from, to, drop_log);
+                        chain_name, keyword, from, to, drop_log);
 
                     // Default rule to return if not matched
-                    fprintf(fp, "-A %s -j RETURN\n", chainName);
+                    fprintf(fp, "-A %s -j RETURN\n", chain_name);
                 }
+
+                // set keywd chains created
+                keywd_chains_exists = true;
 
                 // Add rule for https filter
                 fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 443 -m string --string \"%s\" --algo kmp --icase -j %s\n",
@@ -13241,7 +13253,8 @@ int do_block_ports(FILE *filter_fp)
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 49152:49153 -j DROP\n");
    /* For EasyMesh Controller Communication */
 #if defined(_PLATFORM_BANANAPI_R4_)
-   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n",get_current_wan_ifname());
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n", get_current_wan_ifname());
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 8888 -j ACCEPT\n", get_current_wan_ifname());
 #endif
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 1900 -j DROP\n");
    fprintf(filter_fp, "-I INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");

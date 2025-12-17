@@ -133,11 +133,14 @@ static inline void create_file_644(const char *path)
     int fd = open(path,
             O_WRONLY | O_CREAT | O_TRUNC,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-    if (fd == -1)
+    if (fd >= 0)
+    {
+        close(fd);
+    }
+    else
     {
         perror("open failed");
     }
-    close(fd);
 }
 
 static char *trim (char *in)
