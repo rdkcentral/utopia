@@ -545,9 +545,13 @@ ecm_wan_ifname=`syscfg get ecm_wan_ifname`
 wan_ifname=`sysevent get wan_ifname`
 
 if [ "$nft_enable" != "1" ];then
-	ln -sf /usr/bin/firewall_ipt /usr/bin/firewall
+	if [ -x /usr/bin/firewall_ipt ];then
+		ln -sf /usr/bin/firewall_ipt /usr/bin/firewall
+	fi
 else
-	ln -sf /usr/bin/firewall_nft /usr/bin/firewall
+	if [ -x /usr/bin/firewall_nft ];then
+		ln -sf /usr/bin/firewall_nft /usr/bin/firewall
+	fi
 fi
 
 
