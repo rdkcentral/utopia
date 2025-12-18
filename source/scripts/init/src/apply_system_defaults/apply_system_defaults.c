@@ -1414,6 +1414,10 @@ STATIC void addInSysCfgdDB (char *key, char *value)
       {
          set_syscfg_partner_values(value, "ConfigMacVlanWithUdhcpc");
       }
+      if (0 == IsValuePresentinSyscfgDB("mtaIface"))
+      {
+         set_syscfg_partner_values("mta0", "mtaIface");
+      }
    }
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.IPv4PrimaryDhcpServerOptions") )
    {
@@ -1696,6 +1700,7 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.ConfigMacVlanWithUdhcpc"))
    {
       set_syscfg_partner_values(value, "ConfigMacVlanWithUdhcpc");
+      set_syscfg_partner_values("mta0", "mtaIface");
    }
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.IPv4PrimaryDhcpServerOptions") )
    {
@@ -3022,6 +3027,7 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                   if (pConfigMacVlanWithUdhcpc[0] != '\0')
                   {
                      set_syscfg_partner_values(pConfigMacVlanWithUdhcpc, "ConfigMacVlanWithUdhcpc");
+                     set_syscfg_partner_values("mta0", "mtaIface");
                      pConfigMacVlanWithUdhcpc = NULL;
                   }
                }
