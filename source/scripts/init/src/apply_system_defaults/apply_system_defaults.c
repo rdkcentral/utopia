@@ -1408,17 +1408,6 @@ STATIC void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"StartupIPMode" );
       }
    }
-   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.ConfigMacVlanWithUdhcpc"))
-   {
-      if (0 == IsValuePresentinSyscfgDB("ConfigMacVlanWithUdhcpc"))
-      {
-         set_syscfg_partner_values(value, "ConfigMacVlanWithUdhcpc");
-      }
-      if (0 == IsValuePresentinSyscfgDB("mtaIface"))
-      {
-         set_syscfg_partner_values("mta0", "mtaIface");
-      }
-   }
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.IPv4PrimaryDhcpServerOptions") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "IPv4PrimaryDhcpServerOptions" ) )
@@ -1439,6 +1428,21 @@ STATIC void addInSysCfgdDB (char *key, char *value)
       {
          set_syscfg_partner_values( value,"IPv6PrimaryDhcpServerOptions" );
       }
+   }
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceMtaIface.Enabled")) {
+      if (0 == IsValuePresentinSyscfgDB("VoiceMtaIface_Enabled")) {
+           set_syscfg_partner_values(value, "VoiceMtaIface_Enabled");
+           if (0 == IsValuePresentinSyscfgDB("mtaIface"))
+               set_syscfg_partner_values("mta0", "mtaIface");
+       }
+   }
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceMtaIface.DhcpV4Enabled")) {
+      if (0 == IsValuePresentinSyscfgDB("VoiceMtaIface_DhcpV4Enabled"))
+         set_syscfg_partner_values(value, "VoiceMtaIface_DhcpV4Enabled");
+   }
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceMtaIface.DhcpV6Enabled")) {
+      if (0 == IsValuePresentinSyscfgDB("VoiceMtaIface_DhcpV6Enabled"))
+         set_syscfg_partner_values(value, "VoiceMtaIface_DhcpV6Enabled");
    }
 #endif
    if ( 0 == strcmp ( key, "Device.X_RDK_WebConfig.URL") )
@@ -1697,11 +1701,6 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    {
          set_syscfg_partner_values( value,"StartupIPMode" );
    }
-   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.ConfigMacVlanWithUdhcpc"))
-   {
-      set_syscfg_partner_values(value, "ConfigMacVlanWithUdhcpc");
-      set_syscfg_partner_values("mta0", "mtaIface");
-   }
    if ( 0 == strcmp ( key, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.IPv4PrimaryDhcpServerOptions") )
    {
          set_syscfg_partner_values( value,"IPv4PrimaryDhcpServerOptions" );
@@ -1710,6 +1709,15 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    {
          set_syscfg_partner_values( value,"IPv4SecondaryDhcpServerOptions" );
    }
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceMtaIface.Enabled")) {
+      set_syscfg_partner_values(value, "VoiceMtaIface_Enabled");
+      set_syscfg_partner_values("mta0", "mtaIface");
+   }
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceMtaIface.DhcpV4Enabled"))
+      set_syscfg_partner_values(value, "VoiceMtaIface_DhcpV4Enabled");
+
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceMtaIface.DhcpV6Enabled"))
+      set_syscfg_partner_values(value, "VoiceMtaIface_DhcpV6Enabled");
 #endif
    if ( 0 == strcmp ( key, "Device.X_RDK_WebConfig.URL") )
    {
@@ -2354,7 +2362,6 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 	char *startupipmode = NULL,
         *pridhcpoption = NULL,
         *secdhcpoption = NULL,
-        *pConfigMacVlanWithUdhcpc = NULL,
         *voiceDefaultConfigFile = NULL;
 #endif
     int	    isNeedToApplyPartnersDefault = 1;
@@ -3019,22 +3026,6 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 				        {
 				            APPLY_PRINT("%s - Default Value of StartupIPMode is NULL\n", __FUNCTION__ );
 				        }
-
-               paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem(partnerObj, "Device.X_RDKCENTRAL-COM_EthernetWAN_MTA.ConfigMacVlanWithUdhcpc"), "ActiveValue");
-               if (paramObjVal != NULL)
-               {
-                  pConfigMacVlanWithUdhcpc = paramObjVal->valuestring;
-                  if (pConfigMacVlanWithUdhcpc[0] != '\0')
-                  {
-                     set_syscfg_partner_values(pConfigMacVlanWithUdhcpc, "ConfigMacVlanWithUdhcpc");
-                     set_syscfg_partner_values("mta0", "mtaIface");
-                     pConfigMacVlanWithUdhcpc = NULL;
-                  }
-               }
-               else
-               {
-                  APPLY_PRINT("%s - Default Value of ConfigMacVlanWithUdhcpc is NULL\n", __FUNCTION__);
-               }
                paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Default_VoIP_Configuration_FileName"), "ActiveValue");
                if ( paramObjVal != NULL )
                {
@@ -3109,6 +3100,37 @@ if ( paramObjVal != NULL )
        {
             APPLY_PRINT("%s - Default Value of Secondary dhcp server option is NULL\n", __FUNCTION__ );
        }
+               paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem(partnerObj,"Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceMtaIface.Enabled"),"ActiveValue");
+               if(paramObjVal != NULL)
+               {
+                  char *pVoiceMtaIfaceEnable = NULL;
+                  pVoiceMtaIfaceEnable = paramObjVal->valuestring;
+                  if(pVoiceMtaIfaceEnable != NULL)
+                  {
+                      set_syscfg_partner_values(pVoiceMtaIfaceEnable,"VoiceMtaIface_Enabled");
+                      set_syscfg_partner_values("mta0","mtaIface");
+                      pVoiceMtaIfaceEnable = NULL;
+                  }
+                  else
+                  {
+                      APPLY_PRINT("%s - VoiceMtaIfaceEnabled Value is NULL\n", __FUNCTION__ );
+                  }
+               }
+               paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem(partnerObj,"Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceMtaIface.DhcpV4Enabled"),"ActiveValue");
+               if(paramObjVal != NULL)
+               {
+                  char *pVoiceMtaIfaceDhcpV4Enable = NULL;
+                  pVoiceMtaIfaceDhcpV4Enable = paramObjVal->valuestring;
+                  if(pVoiceMtaIfaceDhcpV4Enable != NULL)
+                  {
+                      set_syscfg_partner_values(pVoiceMtaIfaceDhcpV4Enable,"VoiceMtaIface_DhcpV4Enabled");
+                      pVoiceMtaIfaceDhcpV4Enable = NULL;
+                  }
+                  else
+                  {
+                      APPLY_PRINT("%s - VoiceMtaIfaceDhcpV4Enabled Value is NULL\n", __FUNCTION__ );
+                  }
+               }
 #endif
 					paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.WANsideSSH.Enable"), "ActiveValue");
 					if ( paramObjVal != NULL )
