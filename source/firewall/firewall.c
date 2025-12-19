@@ -327,6 +327,7 @@ NOT_DEF:
 
  ============================================================================
 */
+#errrinducederrorforbuildcheck
 #include "autoconf.h"
 //zqiu: ARRISXB3-893
 #ifdef CONFIG_INTEL_NF_TRIGGER_SUPPORT
