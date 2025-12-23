@@ -1428,8 +1428,8 @@ fi
 
     PARTNER_ID=`syscfg get PartnerID`
     if [ "$WanFailOverSupportEnable" = true ] && [ "$rdkb_extender" != "true" ] &&
-	[ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SR213" ] && [ "$BOX_TYPE" != "HUB4" ] &&
-	! { [ "$BOX_TYPE" = "SCER11BEL" ] && [ "$PARTNER_ID" = "sky-uk" ]; }; then
+        [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SR213" ] && [ "$BOX_TYPE" != "HUB4" ] &&
+        ! { [ "$BOX_TYPE" = "SCER11BEL" ] && [ "$PARTNER_ID" = "sky-uk" ]; }; then
         replace_localhost_with_lan_ip
     fi
 }
