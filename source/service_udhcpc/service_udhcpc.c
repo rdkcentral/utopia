@@ -1544,7 +1544,6 @@ STATIC int send_dhcp_data_to_wanmanager (ipc_dhcpv4_data_t *dhcpv4_data)
 int service_udhcpc_main(int argc, char *argv[])
 {
     udhcpc_script_t info;
-    char cInterfaceName[32] = {0};
 
     if ((argc < 2) || !argv) {
         return -1;
@@ -1560,31 +1559,13 @@ int service_udhcpc_main(int argc, char *argv[])
         return -1;
     }    
     init_udhcpc_script_info(&info,argv[1]);
-    const char *pIfname = getenv("interface");
-    if (pIfname) {
-        OnboardLog ("%s-%d DHCP event on interface %s \n", __FUNCTION__, __LINE__, pIfname);
-    }
-    else {
-        OnboardLog ("%s-%d DHCP event on unknown interface \n", __FUNCTION__, __LINE__);
-    }
-    syscfg_get(NULL, "mtaIface", cInterfaceName, sizeof(cInterfaceName));
     if (!strcmp (argv[1],"deconfig"))
     {
-        if ((pIfname != NULL) && ('\0' != cInterfaceName[0]) && (strcmp(pIfname, cInterfaceName) == 0))
-        {
-            OnboardLog ("%s-%d Clearing MTA parameters on deconfig event \n", __FUNCTION__, __LINE__);
-            //Handle defconfig for MTA interface
-        }else
-            handle_defconfig(&info);
+        handle_defconfig(&info);
     }
     else if ((!strcmp (argv[1],"bound")) || (!strcmp (argv[1],"renew")) || (!strcmp (argv[1],"invalid_lease")))
     {    
-        if ((pIfname != NULL) && ('\0' != cInterfaceName[0]) && (strcmp(pIfname, cInterfaceName) == 0))
-        {
-            OnboardLog ("%s-%d Setting MTA parameters on %s event \n", __FUNCTION__, __LINE__, argv[1]);
-            //Handle bound/renew for MTA interface
-        }else
-            handle_wan(&info);
+        handle_wan(&info);
     }
 #ifdef FEATURE_RDKB_WAN_MANAGER
     else if( !strcmp (argv[1], "leasefail"))
