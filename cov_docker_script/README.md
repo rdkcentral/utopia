@@ -97,12 +97,13 @@ BUILD_DIR=/tmp/build USR_DIR=/opt/rdkb ./setup_dependencies.sh
 
 **What it does:**
 1. Reads component configuration from `component_config.json`
-2. Applies source patches (if configured)
-3. Configures build environment (PKG_CONFIG_PATH, LD_LIBRARY_PATH, CPPFLAGS, LDFLAGS)
-4. Runs autogen.sh or autoreconf (for autotools)
-5. Executes configure/cmake with specified options
-6. Builds component with make (parallel by default)
-7. Copies libraries to configured output path
+2. Processes native component headers (copies to destination)
+3. Applies source patches (if configured)
+4. Configures build environment (PKG_CONFIG_PATH, LD_LIBRARY_PATH, CPPFLAGS, LDFLAGS)
+5. Runs autogen.sh or autoreconf (for autotools)
+6. Executes configure/cmake with specified options
+7. Builds component with make (parallel by default)
+8. Copies libraries to configured output path
 
 **Usage:**
 ```bash
@@ -216,9 +217,13 @@ All build configuration is in **`component_config.json`**. This file defines:
     "name": "component-name",
     "include_path": "$HOME/usr/include/rdkb/",
     "lib_output_path": "$HOME/usr/local/lib/",
+    "header_sources": [
+      { "source": "source/ccsp/include", "destination": "$HOME/usr/include/rdkb" },
+      { "source": "source/cosa/include", "destination": "$HOME/usr/include/rdkb" }
+    ],
     "source_patches": [
       {
-        "file": "../usr/include/rdkb/header.h",
+        "file": "$HOME/usr/include/rdkb/header.h",
         "type": "replace",
         "search": "old text",
         "replace": "new text"
@@ -227,7 +232,7 @@ All build configuration is in **`component_config.json`**. This file defines:
     "build": {
       "type": "autotools|cmake",
       "configure_options": [
-        "CPPFLAGS=-I$HOME/usr/include",
+        "CPPFLAGS=-I$HOME/usr/include/rdkb",
         "LDFLAGS=-L$HOME/usr/lib"
       ]
     }
@@ -235,7 +240,11 @@ All build configuration is in **`component_config.json`**. This file defines:
 }
 ```
 
-**Important:** Patch file paths are relative to component directory. Use `../` for files outside component.
+**Configuration Details:**
+- `header_sources[]` - Component headers to copy before building. Source paths are relative to component directory.
+- `source_patches[]` - Patches to apply after headers are copied. Use absolute paths with `$HOME` for files in install directories.
+- `include_path` - Colon-separated include paths for building
+- `lib_output_path` - Where to install built libraries
 
 ## Build Types
 
