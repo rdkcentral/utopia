@@ -5427,7 +5427,7 @@ static int do_wan_nat_lan_clients(FILE *fp)
   if (!isMAPTReady)
   {
 #endif //FEATURE_MAPT
-      if (0 == checkIfULAEnabled() && IsHotspotActive())
+      if (IsHotspotActive())
       {
 #if defined  (WAN_FAILOVER_SUPPORTED)
 	  applyHotspotPostRoutingRules(fp, true);
@@ -5478,7 +5478,7 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
-	 if (0 == checkIfULAEnabled() && IsHotspotActive())
+	 if (IsHotspotActive())
 	 {
              FIREWALL_DEBUG("Apply HOTSPOT nating rules do_wan_nat_lan_clients\n");       
 #if defined  (WAN_FAILOVER_SUPPORTED)
