@@ -143,16 +143,16 @@
       },
       {
         "name": "OvsAgent",
-        "repo": "https://code.rdkcentral.com/r/rdk/components/generic/OvsAgent",
-        "branch": "rdk-next",
+        "repo": "https://github.com/rdkcentral/open-virtual-switch-agent.git",
+        "branch": "main",
         "header_paths": [
           { "source": "source/include", "destination": "$HOME/usr/include/rdkb" }
         ]
       },
       {
         "name": "Utopia-headers",
-        "repo": "https://code.rdkcentral.com/r/rdkb/components/opensource/ccsp/Utopia",
-        "branch": "rdk-next",
+        "repo": "https://github.com/rdkcentral/utopia.git",
+        "branch": "main",
         "header_paths": [
           { "source": "source/include/sysevent", "destination": "$HOME/usr/include/rdkb/sysevent" },
           { "source": "source/include/syscfg", "destination": "$HOME/usr/include/rdkb/syscfg" },
@@ -167,8 +167,8 @@
       },
       {
         "name": "hotspot",
-        "repo": "https://code.rdkcentral.com/r/rdkb/components/opensource/ccsp/hotspot",
-        "branch": "rdk-next",
+        "repo": "https://github.com/rdkcentral/hotspot.git",
+        "branch": "main",
         "header_paths": [
           { "source": "source/HotspotApi", "destination": "$HOME/usr/include/rdkb" }
         ]
