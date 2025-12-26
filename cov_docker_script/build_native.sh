@@ -116,7 +116,8 @@ build_component_autotools() {
     if [[ -f "./autogen.sh" ]]; then
         step "Running autogen.sh"
         chmod +x ./autogen.sh
-        if ! ./autogen.sh; then
+        # Set NOCONFIGURE to prevent autogen.sh from automatically running configure
+        if ! NOCONFIGURE=1 ./autogen.sh; then
             err "autogen.sh failed"
             return 1
         fi
