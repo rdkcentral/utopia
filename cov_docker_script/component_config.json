@@ -42,7 +42,7 @@
         "repo": "https://github.com/open-source-parsers/jsoncpp.git",
         "branch": "master",
         "header_paths": [
-          { "source": "include", "destination": "$HOME/usr/include" }
+          { "source": "include", "destination": "$HOME/usr/include/rdkb" }
         ],
         "build": {
           "type": "cmake",
@@ -90,7 +90,7 @@
         ],
         "build": {
           "type": "autotools",
-          "configure_flags": "CPPFLAGS=\"-I$HOME/usr/include\" LDFLAGS=\"-L$HOME/usr/local/lib\""
+          "configure_flags": "CPPFLAGS=\"-I$HOME/usr/include/rdkb\" LDFLAGS=\"-L$HOME/usr/local/lib\""
         }
       },
       {
@@ -102,7 +102,7 @@
         ],
         "build": {
           "type": "autotools",
-          "configure_flags": "CPPFLAGS=\"-I$HOME/usr/include -I$HOME/usr/local/include -I$HOME/usr/include/rdkb -I$HOME/usr/include/rdkb/rtmessage -I$HOME/usr/include/rdkb/rbus\" LDFLAGS=\"-L$HOME/usr/local/lib -L$HOME/usr/lib\" LIBS=\"-lrbus -lrtMessage\""
+          "configure_flags": "CPPFLAGS=\"-I$HOME/usr/include/rdkb -I$HOME/usr/local/include -I$HOME/usr/include/rdkb/rtmessage -I$HOME/usr/include/rdkb/rbus\" LDFLAGS=\"-L$HOME/usr/local/lib -L$HOME/usr/lib\" LIBS=\"-lrbus -lrtMessage\""
         }
       },
       {
