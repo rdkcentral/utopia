@@ -79,7 +79,16 @@ apply_source_patches() {
         replace=$(jq -r ".native_component.source_patches[$i].replace // \"\"" "$CONFIG_FILE")
         content=$(jq -r ".native_component.source_patches[$i].content // \"\"" "$CONFIG_FILE")
         
-        local target_file="$COMPONENT_DIR/$file"
+        # Expand $HOME in file path, then resolve relative paths from COMPONENT_DIR
+        local expanded_file=$(expand_path "$file")
+        local target_file
+        if [[ "$expanded_file" = /* ]]; then
+            # Absolute path - use as is
+            target_file="$expanded_file"
+        else
+            # Relative path - prepend COMPONENT_DIR
+            target_file="$COMPONENT_DIR/$expanded_file"
+        fi
         
         if ! apply_patch "$target_file" "$search" "$replace" "$type" "$content"; then
             err "Failed to apply patch $((i+1))/$patch_count"
@@ -90,6 +99,37 @@ apply_source_patches() {
     done
     
     ok "All patches applied successfully"
+    echo ""
+    return 0
+}
+
+# Process native headers
+process_native_headers() {
+    local header_count
+    header_count=$(jq -r '.native_component.header_sources // [] | length' "$CONFIG_FILE")
+    
+    if [[ "$header_count" -eq 0 ]]; then
+        log "No header sources configured"
+        return 0
+    fi
+    
+    step "Processing native component headers ($header_count sources)"
+    
+    local i=0
+    while [[ $i -lt $header_count ]]; do
+        local src dst
+        src=$(jq -r ".native_component.header_sources[$i].source" "$CONFIG_FILE")
+        dst=$(jq -r ".native_component.header_sources[$i].destination" "$CONFIG_FILE")
+        
+        # Expand paths
+        src="$COMPONENT_DIR/$src"
+        dst=$(expand_path "$dst")
+        
+        copy_headers "$src" "$dst"
+        i=$((i + 1))
+    done
+    
+    ok "All headers processed successfully"
     echo ""
     return 0
 }
@@ -192,6 +232,12 @@ install_libraries() {
 # Main execution
 main() {
     configure_environment
+    
+    # Process native headers
+    if ! process_native_headers; then
+        err "Header processing failed"
+        exit 1
+    fi
     
     # Apply patches
     if ! apply_source_patches; then
