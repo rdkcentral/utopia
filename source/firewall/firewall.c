@@ -5480,10 +5480,12 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #else
 	 if (0 == checkIfULAEnabled() && IsHotspotActive())
 	 {
+             FIREWALL_DEBUG("Apply HOTSPOT nating rules do_wan_nat_lan_clients\n");       
 #if defined  (WAN_FAILOVER_SUPPORTED)
 	     applyHotspotPostRoutingRules(fp, true);
 #endif
 	 } else {
+             FIREWALL_DEBUG("Apply nating rules do_wan_nat_lan_clients\n");       
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
 	 }
       #endif
