@@ -182,6 +182,7 @@
           { "source": "source/ccsp/components/include", "destination": "$HOME/usr/include/rdkb" },
           { "source": "source/ccsp/custom", "destination": "$HOME/usr/include/rdkb" },
           { "source": "source/cosa/include", "destination": "$HOME/usr/include/rdkb" },
+          { "source": "source/cosa/include/linux", "destination": "$HOME/usr/include/rdkb" },
           { "source": "source/cosa/include/linux", "destination": "$HOME/usr/include/rdkb/linux" },
           { "source": "source/cosa/package/slap/include", "destination": "$HOME/usr/include/rdkb" },
           { "source": "source/debug_api/include", "destination": "$HOME/usr/include/rdkb" },
