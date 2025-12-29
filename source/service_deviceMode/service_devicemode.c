@@ -83,6 +83,24 @@
 #define USECS_IN_MSEC 1000
 #define MSECS_IN_SEC  1000
 
+#include <time.h>
+#define LOG_FILE "/tmp/Debug_utopia.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
+#define ROUTER_MODE_INIT_FILE "/tmp/router_mode_init_progress"
+
 #define COLLECT_WAIT_INTERVAL_MS 40
 #define ROUTER_MODE_SERVICES_PATH_1 "/etc/utopia/svc_router/"
 #define PSM_NAME_NETWORKING_DEVICE_MODE "dmsb.device.NetworkingMode"
@@ -373,8 +391,27 @@ int GetL2InterfaceNameFromPsm(int instanceNumber, char *pName, int len)
     return 0;
 }
 
+//call this function before the processes are started in router mode
+void createRouterModeInitFile()
+{
+    int fd = open(ROUTER_MODE_INIT_FILE, O_CREAT | O_WRONGLY | O_TRUNC, 0644);
+    if(fd >= 0)
+    {
+       write(fd, "init \n", 5);
+       close(fd);
+    }
+}
+
+// Remove the marker when processes are started
+
+void RemoveRouterModeInitFile()
+{
+     unlink(ROUTER_MODE_INIT_FILE);
+}
+
 int service_start(int mode)
 {
+	APPLY_PRINT("Entering into %s function\n", __FUNCTION__); 
     char buf[256];
     memset(buf,0,sizeof(buf));
     int rc = -1;
@@ -382,6 +419,8 @@ int service_start(int mode)
     {
         case DEVICE_MODE_ROUTER:
         {
+		APPLY_PRINT("Device mode switching to router \n");
+		createRouterModeInitFile();
             int bridgemode = 0;
             if( 0 == syscfg_get( NULL, "bridge_mode", buf, sizeof(buf) ) )
             {
@@ -417,7 +456,14 @@ int service_start(int mode)
              sysevent_set(sysevent_fd, sysevent_token, "lnf-setup", buf, 0);
 #endif
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
-            sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
+            //sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
+	    APPLY_PRINT("Starting zebra \n");
+            if ( 0 != sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0) ) {
+                 APPLY_PRINT(" zebra start failed");
+            } else {
+                 APPLY_PRINT(" zebra started successfully");
+            }
+            RemoveRouterModeInitFile();
         }
         break;
         case DEVICE_MODE_EXTENDER:
