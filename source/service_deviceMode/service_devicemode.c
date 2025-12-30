@@ -440,7 +440,13 @@ int service_start(int mode)
 #endif
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
 	    APPLY_PRINT("%s, zebra is getting stared when device switching to router mode \n", __FUNCTION__);
-            sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
+            if (0 != sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0)) {
+                 APPLY_PRINT("zebra restart event: sysevent_set failed\n");
+            } else {
+                 APPLY_PRINT("zebra restart event: sysevent_set succeeded\n");
+            }
+
+			
         }
         break;
         case DEVICE_MODE_EXTENDER:
