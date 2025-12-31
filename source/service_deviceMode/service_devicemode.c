@@ -394,7 +394,7 @@ int GetL2InterfaceNameFromPsm(int instanceNumber, char *pName, int len)
 //call this function before the processes are started in router mode
 void createRouterModeInitFile()
 {
-    int fd = open(ROUTER_MODE_INIT_FILE, O_CREAT | O_WRONGLY | O_TRUNC, 0644);
+    int fd = open(ROUTER_MODE_INIT_FILE, O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if(fd >= 0)
     {
        write(fd, "init \n", 5);
