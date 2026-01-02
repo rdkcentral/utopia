@@ -1427,7 +1427,7 @@ fi
    echo "DHCP SERVER : Completed preparing DHCP configuration"
 
     if [ "$WanFailOverSupportEnable" = true ] && [ "$rdkb_extender" != "true" ] &&
-        [ "$MODEL_NUM" = "CGM4981COM" ] ; then
+        [ "$MODEL_NUM" = "CGM4981COM" ] ;  then
         replace_localhost_with_lan_ip
     fi
 }
