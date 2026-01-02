@@ -387,6 +387,9 @@ STATIC int daemon_stop(const char *pid_file, const char *prog)
     
     if (pid_file)
         unlink(pid_file);
+
+	if(ZEBRA_CONF_FILE)
+		unlink(ZEBRA_CONF_FILE);
     return 0;
 }
 
@@ -2102,9 +2105,13 @@ STATIC int radv_start(struct serv_routed *sr)
 
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
+	fprintf(logfptr, "%s: starting zebra process \n", __FUNCTION__);
 #else
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
 #endif
+	int pid_check = is_daemon_running(ZEBRA_PID_FILE, "zebra");
+	if(pid_check)
+		fprintf(logfptr, "%s: zebra is running \n", __FUNCTION__);
 
     return 0;
 }
