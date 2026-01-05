@@ -99,6 +99,22 @@ static const char* const service_routed_component_id = "ccsp.routed";
 #define RIPD_PID_FILE   "/var/ripd.pid"
 #define ZEBRA_CONF_FILE "/var/zebra.conf"
 
+#include <time.h>
+#define LOG_FILE "/tmp/Debug_zebraconf.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #if defined (_BWG_PRODUCT_REQ_)
 #define RIPD_CONF_FILE  "/var/ripd.conf"
 #else
@@ -829,6 +845,7 @@ STATIC int updateExtenderConf(FILE *pFp, int sefd, token_t setok, int deviceMode
 
 STATIC int gen_zebra_conf(int sefd, token_t setok)
 {
+    APPLY_PRINT("Entering %s\n", __FUNCTION__);
     char l_cSecWebUI_Enabled[8] = {0};
     syscfg_get(NULL, "SecureWebUI_Enable", l_cSecWebUI_Enabled, sizeof(l_cSecWebUI_Enabled));
     if (!strncmp(l_cSecWebUI_Enabled, "true", 4))	
@@ -952,10 +969,12 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
     if ((fp = fopen(ZEBRA_CONF_FILE, "wb")) == NULL) {
         fprintf(logfptr, "%s: fail to open file %s\n", __FUNCTION__, ZEBRA_CONF_FILE);
+        APPLY_PRINT("%s, fail to open file %s\n", __FUNCTION__, ZEBRA_CONF_FILE);
         return -1;
     }
 
     if (fwrite(zebra_conf_base, strlen(zebra_conf_base), 1, fp) != 1) {
+        APPLY_PRINT("%s: fail to write base config to %s\n", __FUNCTION__, ZEBRA_CONF_FILE);
         fclose(fp);
         return -1;
     }
@@ -1075,6 +1094,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         if(result != 0) {
             fprintf(stderr, "getLanIpv6Info failed");
             fclose(fp);
+            APPLY_PRINT("%s: getLanIpv6Info failed\n", __FUNCTION__);
             return -1;
         }
         sysevent_get(sefd, setok, "previous_ipv6_prefix_vldtime", prev_valid_lft, sizeof(prev_valid_lft));
@@ -2005,12 +2025,13 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 #endif 
 STATIC int radv_start(struct serv_routed *sr)
 {
-
+    APPLY_PRINT("%s: Starting radv process\n", __FUNCTION__);
 #ifdef RDKB_EXTENDER_ENABLED
     int deviceMode = GetDeviceNetworkMode();
     if ( DEVICE_MODE_EXTENDER == deviceMode )
     {
         fprintf(logfptr, "Device is EXT mode , no need of running zebra for radv\n");
+        APPLY_PRINT("%s: Device is in EXT mode , no need of running zebra for radv\n", __FUNCTION__);
         return -1;
     }
 #endif
@@ -2046,6 +2067,7 @@ STATIC int radv_start(struct serv_routed *sr)
 
     if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
+        APPLY_PRINT("%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
     }
 #endif
@@ -2057,10 +2079,12 @@ STATIC int radv_start(struct serv_routed *sr)
         result = getLanIpv6Info(&ipv6_enable, &ula_enable);
         if(result != 0) {
             fprintf(logfptr, "getLanIpv6Info failed");
+            APPLY_PRINT("%s: getLanIpv6Info failed\n", __FUNCTION__);
             return -1;
         }
         if(ipv6_enable == 0) {
             daemon_stop(ZEBRA_PID_FILE, "zebra");
+            APPLY_PRINT("%s: IPv6 is disabled on LAN side, stopping zebra\n", __FUNCTION__);
             return -1;
         }
     }
@@ -2078,7 +2102,12 @@ STATIC int radv_start(struct serv_routed *sr)
 
     if (gen_zebra_conf(sr->sefd, sr->setok) != 0) {
         fprintf(logfptr, "%s: fail to save zebra config\n", __FUNCTION__);
+        APPLY_PRINT("%s: fail to save zebra config\n", __FUNCTION__);
         return -1;
+    }
+    else {
+        fprintf(logfptr, "%s: zebra config generated\n", __FUNCTION__);
+        APPLY_PRINT("%s: zebra config file generated\n", __FUNCTION__);
     }
 
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
@@ -2106,12 +2135,18 @@ STATIC int radv_start(struct serv_routed *sr)
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
 	fprintf(logfptr, "%s: starting zebra process \n", __FUNCTION__);
+    APPLY_PRINT("%s: starting zebra process \n", __FUNCTION__);
 #else
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
 #endif
 	int pid_check = is_daemon_running(ZEBRA_PID_FILE, "zebra");
-	if(pid_check)
+	if(pid_check) {
 		fprintf(logfptr, "%s: zebra is running \n", __FUNCTION__);
+        APPLY_PRINT("%s: zebra is running \n", __FUNCTION__);
+    }
+    else {
+        APPLY_PRINT("%s: zebra failed to start \n", __FUNCTION__);
+    }
 
     return 0;
 }
@@ -2127,8 +2162,10 @@ STATIC int radv_stop(struct serv_routed *sr)
 
 STATIC int radv_restart(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Restarting radv process\n", __FUNCTION__);
     if (radv_stop(sr) != 0){
         fprintf(logfptr, "%s: radv_stop error\n", __FUNCTION__);
+        APPLY_PRINT("%s: radv_stop error\n", __FUNCTION__);
     }
     return radv_start(sr);
 }
@@ -2233,6 +2270,7 @@ STATIC int rip_restart(struct serv_routed *sr)
 
 STATIC int serv_routed_start(struct serv_routed *sr)
 {
+  APPLY_PRINT("%s, error in serv_can_start() function \n", __FUNCTION__);
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
     char rtmod[16];
     char prefix[64];
@@ -2240,10 +2278,14 @@ STATIC int serv_routed_start(struct serv_routed *sr)
 
     /* state check */
     if (!serv_can_start(sr->sefd, sr->setok, "routed"))
+    {
+        APPLY_PRINT("%s, error in serv_can_start() function \n", __FUNCTION__);
         return -1;
-
+    }
+    
     if (!sr->lan_ready) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
+        APPLY_PRINT("%s, LAN is not ready ! \n", __FUNCTION__);
         return -1;
     }
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
@@ -2255,12 +2297,14 @@ STATIC int serv_routed_start(struct serv_routed *sr)
         if (atoi(rtmod) != 2) { /* IPv4-only or Dual-Stack */
             if (!sr->wan_ready) {
                 fprintf(logfptr, "%s: IPv4-WAN is not ready !\n", __FUNCTION__);
+                APPLY_PRINT("%s, IPv4-WAN is not ready ! \n", __FUNCTION__);
                 return -1;
             }
         } else { /* IPv6-only */
             sysevent_get(sr->sefd, sr->setok, "lan_prefix", prefix, sizeof(prefix));
             if (strlen(prefix) == 0) {
                 fprintf(logfptr, "%s: IPv6-WAN is not ready !\n", __FUNCTION__);
+                APPLY_PRINT("%s, IPv6-WAN is not ready ! \n", __FUNCTION__);
                 return -1;
             }
         }
@@ -2271,6 +2315,7 @@ STATIC int serv_routed_start(struct serv_routed *sr)
     /* RA daemon */
     if (radv_start(sr) != 0) {
         fprintf(logfptr, "%s: radv_start error\n", __FUNCTION__);
+        APPLY_PRINT("%s: radv_start error\n", __FUNCTION__);
         sysevent_set(sr->sefd, sr->setok, "routed-status", "error", 0);
         return -1;
     }
@@ -2278,6 +2323,7 @@ STATIC int serv_routed_start(struct serv_routed *sr)
     /* RIP daemon */
     if (rip_start(sr) != 0) {
         fprintf(logfptr, "%s: rip_start error\n", __FUNCTION__);
+        APPlY_PRINT("%s: rip_start error\n", __FUNCTION__);
         sysevent_set(sr->sefd, sr->setok, "routed-status", "error", 0);
         return -1;
     }
@@ -2285,6 +2331,7 @@ STATIC int serv_routed_start(struct serv_routed *sr)
     /* route and policy routes */
     if (route_set(sr) != 0) {
         fprintf(logfptr, "%s: route_set error\n", __FUNCTION__);
+        APPLY_PRINT("%s: route_set error\n", __FUNCTION__);
         sysevent_set(sr->sefd, sr->setok, "routed-status", "error", 0);
         return -1;
     }
@@ -2292,34 +2339,42 @@ STATIC int serv_routed_start(struct serv_routed *sr)
     /* nfq & firewall */
     if (fw_restart(sr) != 0) {
         fprintf(logfptr, "%s: fw_restart error\n", __FUNCTION__);
+        APPLY_PRINT("%s: fw_restart error\n", __FUNCTION__);
         sysevent_set(sr->sefd, sr->setok, "routed-status", "error", 0);
         return -1;
     }
 
     sysevent_set(sr->sefd, sr->setok, "routed-status", "started", 0);
+    APPLY_PRINT("%s: Service routed started successfully\n", __FUNCTION__);
     return 0;
 }
 
 STATIC int serv_routed_stop(struct serv_routed *sr)
 {
-    if (!serv_can_stop(sr->sefd, sr->setok, "routed"))
+    APPLY_PRINT("%s: Stopping service routed\n", __FUNCTION__);
+    if (!serv_can_stop(sr->sefd, sr->setok, "routed")) {
+        APPLY_PRINT("%s, error in serv_can_stop() function \n", __FUNCTION__);
         return -1;
+    }
 
     sysevent_set(sr->sefd, sr->setok, "routed-status", "stopping", 0);
 
     if (route_unset(sr) != 0){
         fprintf(logfptr, "%s: route_unset error\n", __FUNCTION__);
+        APPLY_PRINT("%s: route_unset error\n", __FUNCTION__);
     }
     if (rip_stop(sr) != 0){
         fprintf(logfptr, "%s: rip_stop error\n", __FUNCTION__);
     }
     if (radv_restart(sr) != 0){
         fprintf(logfptr, "%s: radv_restart error\n", __FUNCTION__);
+        APPLY_PRINT("%s: radv_restart error\n", __FUNCTION__);
     }
     if (fw_restart(sr) != 0){
         fprintf(logfptr, "%s: fw_restart error\n", __FUNCTION__);
     }
     sysevent_set(sr->sefd, sr->setok, "routed-status", "stopped", 0);
+    APPLY_PRINT("%s: Service routed stopped successfully\n", __FUNCTION__);
     return 0;
 }
 
@@ -2638,6 +2693,8 @@ STATIC void usage(void)
 {
     int i;
 
+    APPLY_PRINT("%s, Entering into usage function \n", __FUNCTION__);
+	APPLY_PRINT("%s, Progname = %s \n", __FUNCTION__, PROG_NAME);
     fprintf(stderr, "USAGE\n");
     fprintf(stderr, "    %s COMMAND\n", PROG_NAME);
     fprintf(stderr, "COMMANDS\n");
@@ -2691,9 +2748,18 @@ int service_routed_main(int argc, char *argv[])
         if (strcmp(argv[1], cmd_ops[i].cmd) != 0 || !cmd_ops[i].exec)
             continue;
 
-        if (cmd_ops[i].exec(&sr) != 0){
+       /* if (cmd_ops[i].exec(&sr) != 0){
             fprintf(logfptr, "[%s]: fail to exec `%s'\n", PROG_NAME, cmd_ops[i].cmd);
+        } */
+        int rc1 = cmd_ops[i].exec(&sr);
+        if (rc1 != 0) {
+             fprintf(logfptr,"[%s]: `%s` failed: rc=%d errno=%d (%s)\n", PROG_NAME, cmd_ops[i].cmd, rc1, errno, strerror(errno));
+			 APPLY_PRINT("[%s]: `%s` failed: rc=%d errno=%d (%s)\n", PROG_NAME, cmd_ops[i].cmd, rc1, errno, strerror(errno));
+        } else {
+             fprintf(logfptr, "[%s]: `%s` succeeded\n", PROG_NAME, cmd_ops[i].cmd);
+			 APPLY_PRINT("[%s]: `%s` succeeded\n", PROG_NAME, cmd_ops[i].cmd);
         }
+
         break;
     }
     if (i == NELEMS(cmd_ops)){

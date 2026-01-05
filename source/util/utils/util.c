@@ -53,6 +53,22 @@
 #include "ccsp_psm_helper.h"
 #define CCSP_SUBSYS "eRT."
 
+#include <time.h>
+#define LOG_FILE "/tmp/Debug_zebra2.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 int vsystem(const char *fmt, ...)
 {
     char cmd[512];
@@ -281,6 +297,7 @@ int pid_of(const char *name, const char *keyword)
 
 int serv_can_start(int sefd, token_t setok, const char *servname)
 {
+    APPLY_PRINT("%s: Checking whether service %s can be started or not \n", __FUNCTION__, servname);
     char st_name[64];
     char status[16];
 
@@ -289,12 +306,14 @@ int serv_can_start(int sefd, token_t setok, const char *servname)
 
     if (strcmp(status, "starting") == 0 || strcmp(status, "started") == 0) {
         fprintf(stderr, "%s: service %s has already %s !\n", __FUNCTION__, servname, status);
+        APPLY_PRINT("%s: service %s has already %s !\n", __FUNCTION__, servname, status);
         return 0;
     } else if (strcmp(status, "stopping") == 0) {
         fprintf(stderr, "%s: service %s cannot start in status %s !\n", __FUNCTION__, servname, status);
+        APPLY_PRINT("%s: service %s cannot start in status %s !\n", __FUNCTION__, servname, status);
         return 0;
     }
-
+    APPLY_PRINT("%s: Service %s can be started \n", __FUNCTION__, servname);
     return 1;
 }
 
