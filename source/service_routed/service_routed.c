@@ -2323,7 +2323,7 @@ STATIC int serv_routed_start(struct serv_routed *sr)
     /* RIP daemon */
     if (rip_start(sr) != 0) {
         fprintf(logfptr, "%s: rip_start error\n", __FUNCTION__);
-        APPlY_PRINT("%s: rip_start error\n", __FUNCTION__);
+        APPLY_PRINT("%s: rip_start error\n", __FUNCTION__);
         sysevent_set(sr->sefd, sr->setok, "routed-status", "error", 0);
         return -1;
     }
