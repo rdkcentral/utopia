@@ -99,6 +99,8 @@ static const char* const service_routed_component_id = "ccsp.routed";
 #define RIPD_PID_FILE   "/var/ripd.pid"
 #define ZEBRA_CONF_FILE "/var/zebra.conf"
 
+#define ROUTER_MODE_INIT_FILE "/tmp/.router_mode_init"
+
 #include <time.h>
 #define LOG_FILE "/tmp/Debug_zebraconf.txt"
 #define APPLY_PRINT(fmt ...) {\
@@ -378,6 +380,7 @@ STATIC int getULAAddressFromInterface(char *ulaAddress)
 #endif
 STATIC int daemon_stop(const char *pid_file, const char *prog)
 {
+	APPLY_PRINT("%s, Entering into stop function \n", __FUNCTION__);
     FILE *fp;
     char pid_str[10];
     int pid = -1;
@@ -2100,12 +2103,13 @@ STATIC int radv_start(struct serv_routed *sr)
 
 #endif 
 
-    if (gen_zebra_conf(sr->sefd, sr->setok) != 0) {
+    int gen_check = gen_zebra_conf(sr->sefd, sr->setok);
+    if (gen_check != 0) {
         fprintf(logfptr, "%s: fail to save zebra config\n", __FUNCTION__);
         APPLY_PRINT("%s: fail to save zebra config\n", __FUNCTION__);
         return -1;
     }
-    else {
+    else if (gen_check == 0) {
         fprintf(logfptr, "%s: zebra config generated\n", __FUNCTION__);
         APPLY_PRINT("%s: zebra config file generated\n", __FUNCTION__);
     }
@@ -2138,6 +2142,7 @@ STATIC int radv_start(struct serv_routed *sr)
     APPLY_PRINT("%s: starting zebra process \n", __FUNCTION__);
 #else
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
+    APPLY_PRINT("%s: starting zebra process \n", __FUNCTION__);
 #endif
 	int pid_check = is_daemon_running(ZEBRA_PID_FILE, "zebra");
 	if(pid_check) {
@@ -2147,6 +2152,7 @@ STATIC int radv_start(struct serv_routed *sr)
     else {
         APPLY_PRINT("%s: zebra failed to start \n", __FUNCTION__);
     }
+    RemoveRouterModeInitFile();
 
     return 0;
 }
@@ -2155,8 +2161,10 @@ STATIC int radv_stop(struct serv_routed *sr)
 {
     if(is_daemon_running(ZEBRA_PID_FILE, "zebra"))
     {
+	    APPLY_PRINT("%s, zebra is running \n", __FUNCTION__);
         return 0;
     }
+    APPLY_PRINT("%s, stop function is called \n", __FUNCTION__);
     return daemon_stop(ZEBRA_PID_FILE, "zebra");
 }
 
@@ -2365,6 +2373,7 @@ STATIC int serv_routed_stop(struct serv_routed *sr)
     }
     if (rip_stop(sr) != 0){
         fprintf(logfptr, "%s: rip_stop error\n", __FUNCTION__);
+	APPLY_PRINT("%s : rip_stop error \n", __FUNCTION__);
     }
     if (radv_restart(sr) != 0){
         fprintf(logfptr, "%s: radv_restart error\n", __FUNCTION__);
@@ -2382,6 +2391,7 @@ STATIC int serv_routed_restart(struct serv_routed *sr)
 {
     if (serv_routed_stop(sr) != 0){
         fprintf(logfptr, "%s: serv_routed_stop error\n", __FUNCTION__);
+	APPLY_PRINT("%s: serv_routed_stop error\n", __FUNCTION__);
     }
     return serv_routed_start(sr);
 }
@@ -2704,6 +2714,23 @@ STATIC void usage(void)
     }
 }
 
+void createRouterModeInitFile()
+{
+    int fd = open(ROUTER_MODE_INIT_FILE, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    if(fd >= 0)
+    {
+       write(fd, "init \n", 5);
+       close(fd);
+    }
+}
+
+// Remove the marker when processes are started
+
+void RemoveRouterModeInitFile()
+{
+     unlink(ROUTER_MODE_INIT_FILE);
+}
+
 int service_routed_main(int argc, char *argv[])
 {
     int i;
@@ -2751,6 +2778,8 @@ int service_routed_main(int argc, char *argv[])
        /* if (cmd_ops[i].exec(&sr) != 0){
             fprintf(logfptr, "[%s]: fail to exec `%s'\n", PROG_NAME, cmd_ops[i].cmd);
         } */
+
+        createRouterModeInitFile();
         int rc1 = cmd_ops[i].exec(&sr);
         if (rc1 != 0) {
              fprintf(logfptr,"[%s]: `%s` failed: rc=%d errno=%d (%s)\n", PROG_NAME, cmd_ops[i].cmd, rc1, errno, strerror(errno));
