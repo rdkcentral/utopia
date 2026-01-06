@@ -404,8 +404,8 @@ STATIC int daemon_stop(const char *pid_file, const char *prog)
     if (pid_file)
         unlink(pid_file);
 
-	if(ZEBRA_CONF_FILE)
-		unlink(ZEBRA_CONF_FILE);
+	//if(ZEBRA_CONF_FILE)
+	//	unlink(ZEBRA_CONF_FILE);
     return 0;
 }
 
