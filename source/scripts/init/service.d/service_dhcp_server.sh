@@ -61,6 +61,13 @@ SERVICE_NAME="dhcp_server"
 #DHCP_CONF=/etc/dnsmasq.conf
 DHCP_CONF=/var/dnsmasq.conf
 RESOLV_CONF=/etc/resolv.conf
+
+if [ "$(syscfg get staticdns_enable)" = "1" ]; then
+    RESOLV_CONF="$NVRAM_RESOLV_CONF"
+else
+    RESOLV_CONF="/etc/resolv.conf"
+fi
+
 BIN=dnsmasq
 SERVER=${BIN}
 PMON=/etc/utopia/service.d/pmon.sh
