@@ -35,7 +35,6 @@
 #######################################################################
 
 RESOLV_CONF=/etc/resolv.conf
-RESOLV_CONF_NVRAM="/nvram/resolv.conf"
 RESOLV_CONF_TMP="/tmp/resolv_tmp.conf"
 
 #-----------------------------------------------------------------
@@ -68,22 +67,21 @@ prepare_resolv_conf () {
 
    
    if [ x"1" = x"`syscfg get staticdns_enable`" ];then
-
-         TARGET_RESOLV_CONF="$RESOLV_CONF_NVRAM"
+   
          WAN_DNS=
          if [ -n "$WAN_DOMAIN" ] ; then
-            echo "search $WAN_DOMAIN" >> $TARGET_RESOLV_CONF
+            echo "search $WAN_DOMAIN" >> $RESOLV_CONF
          fi
          if [ "0.0.0.0" != "$NAMESERVER1" ] && [ -n "$NAMESERVER1" ] ; then
-            echo "nameserver $NAMESERVER1" >> $TARGET_RESOLV_CONF
+            echo "nameserver $NAMESERVER1" >> $RESOLV_CONF
             WAN_DNS=`echo "$WAN_DNS" "$NAMESERVER1"`
          fi
          if [ "0.0.0.0" != "$NAMESERVER2" ]  && [ -n "$NAMESERVER2" ]; then
-            echo "nameserver $NAMESERVER2" >> $TARGET_RESOLV_CONF
+            echo "nameserver $NAMESERVER2" >> $RESOLV_CONF
             WAN_DNS=`echo "$WAN_DNS" "$NAMESERVER2"`
          fi
          if [ "0.0.0.0" != "$NAMESERVER3" ]  && [ -n "$NAMESERVER3" ]; then
-            echo "nameserver $NAMESERVER3" >> $TARGET_RESOLV_CONF
+            echo "nameserver $NAMESERVER3" >> $RESOLV_CONF
             WAN_DNS=`echo "$WAN_DNS" "$NAMESERVER3"`
          fi
 
@@ -97,4 +95,3 @@ prepare_resolv_conf () {
 }
 
 prepare_resolv_conf
-
