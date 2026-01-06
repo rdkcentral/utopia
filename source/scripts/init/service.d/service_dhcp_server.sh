@@ -61,6 +61,7 @@ SERVICE_NAME="dhcp_server"
 #DHCP_CONF=/etc/dnsmasq.conf
 DHCP_CONF=/var/dnsmasq.conf
 RESOLV_CONF=/etc/resolv.conf
+NVRAM_RESOLV_CONF="/nvram/resolv.conf"
 
 if [ "$(syscfg get staticdns_enable)" = "1" ]; then
     RESOLV_CONF="$NVRAM_RESOLV_CONF"
