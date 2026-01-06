@@ -2026,6 +2026,24 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 }
 
 #endif 
+
+void createRouterModeInitFile()
+{
+    int fd = open(ROUTER_MODE_INIT_FILE, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    if(fd >= 0)
+    {
+       write(fd, "init \n", 5);
+       close(fd);
+    }
+}
+
+// Remove the marker when processes are started
+
+void RemoveRouterModeInitFile()
+{
+     unlink(ROUTER_MODE_INIT_FILE);
+}
+
 STATIC int radv_start(struct serv_routed *sr)
 {
     APPLY_PRINT("%s: Starting radv process\n", __FUNCTION__);
@@ -2712,23 +2730,6 @@ STATIC void usage(void)
         fprintf(logfptr, "    %-20s%s\n", cmd_ops[i].cmd, cmd_ops[i].desc);
        
     }
-}
-
-void createRouterModeInitFile()
-{
-    int fd = open(ROUTER_MODE_INIT_FILE, O_CREAT | O_WRONLY | O_TRUNC, 0644);
-    if(fd >= 0)
-    {
-       write(fd, "init \n", 5);
-       close(fd);
-    }
-}
-
-// Remove the marker when processes are started
-
-void RemoveRouterModeInitFile()
-{
-     unlink(ROUTER_MODE_INIT_FILE);
 }
 
 int service_routed_main(int argc, char *argv[])
