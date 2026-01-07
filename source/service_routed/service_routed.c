@@ -2092,13 +2092,27 @@ STATIC int radv_start(struct serv_routed *sr)
         return -1;
     }*/
 
-    while (strcmp(aBridgeMode, "0") == 0 && !sr->lan_ready) {
-        fprintf(logfptr, "%s: LAN is not ready , waiting ...!\n", __FUNCTION__);
+    APPLY_PRINT("%s: Bridge mode is %s\n", __FUNCTION__, aBridgeMode, sr->lan_ready ? "ready" : "not ready");
+    int timeout = 30;
+    while ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready) && (timeout > 0)) {
+        //fprintf(logfptr, "%s: LAN is not ready , waiting ...!\n", __FUNCTION__);
         APPLY_PRINT("%s: LAN is not ready , waiting ...!\n", __FUNCTION__);
         sleep(2);
+        timeout--;
         syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
+
+        if( DEVICE_MODE_EXTENDER == deviceMode ) {
+          //  fprintf(logfptr, "%s: Device is in EXT mode , no need of running zebra for radv\n", __FUNCTION__);
+            APPLY_PRINT("%s: Device is in EXT mode , no need of running zebra for radv\n", __FUNCTION__);
+            return -1;
+        }
     }
-    
+    if(timeout <= 0 && (!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
+       // fprintf(logfptr, "%s: LAN is not ready after waiting , exiting ...!\n", __FUNCTION__);
+        APPLY_PRINT("%s: LAN is not ready after waiting , exiting ...!\n", __FUNCTION__);
+        return -1;
+    }
+
 #endif
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
