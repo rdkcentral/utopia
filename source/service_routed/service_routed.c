@@ -2091,8 +2091,7 @@ STATIC int radv_start(struct serv_routed *sr)
         APPLY_PRINT("%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
     }*/
-
-    APPLY_PRINT("%s: Bridge mode is %s\n", __FUNCTION__, aBridgeMode, sr->lan_ready ? "ready" : "not ready");
+    APPLY_PRINT("%s: Bridge mode is %s , LAN is %s \n", __FUNCTION__, aBridgeMode, sr->lan_ready ? "ready" : "not ready");
     int timeout = 30;
     while ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready) && (timeout > 0)) {
         //fprintf(logfptr, "%s: LAN is not ready , waiting ...!\n", __FUNCTION__);
