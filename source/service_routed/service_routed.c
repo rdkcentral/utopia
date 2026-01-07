@@ -2086,11 +2086,19 @@ STATIC int radv_start(struct serv_routed *sr)
     char aBridgeMode[8];
     syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
 
-    if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
+    /*if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
         APPLY_PRINT("%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
+    }*/
+
+    while (strcmp(aBridgeMode, "0") == 0 && !sr->lan_ready) {
+        fprintf(logfptr, "%s: LAN is not ready , waiting ...!\n", __FUNCTION__);
+        APPLY_PRINT("%s: LAN is not ready , waiting ...!\n", __FUNCTION__);
+        sleep(2);
+        syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
     }
+    
 #endif
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
