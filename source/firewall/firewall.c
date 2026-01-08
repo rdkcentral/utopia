@@ -5296,7 +5296,7 @@ void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
 	{
 	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv4\n");
 	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipaddr);
-	    fprintf(fp, "-A postrouting_towan -o %s -j SNAT --to-source %s\n" , current_wan_ifname, current_wan_ipaddr);
+	    fprintf(fp, "-A postrouting_towan -o %s -j SNAT --to-source %s\n" COMMA current_wan_ifname COMMA current_wan_ipaddr);
 	}
     }
     else
@@ -5310,7 +5310,7 @@ void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
 	{
 	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv6\n");
 	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
-	    fprintf(fp, "-A POSTROUTING -o %s -j SNAT --to-source %s\n", current_wan_ifname, current_wan_ip6_addr);
+	    fprintf(fp, "-A POSTROUTING -o %s -j SNAT --to-source %s\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
 	}
 
     }
