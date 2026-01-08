@@ -773,40 +773,6 @@ updateManageWifiBridgeDetails ()
         fi
     fi
 }
-
-is_valid_ipv4() {
-    local ip="$1"
-
-    local valid_octet='(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
-
-    # Basic IPv4 format and octet vaidation
-    if [[ ! $ip =~ ^${valid_octet}\.${valid_octet}\.${valid_octet}\.${valid_octet}$ ]]; then
-        return 1
-    fi
-
-    return 0
-}
-
-replace_localhost_with_lan_ip() {
-    local lan_ip=$(syscfg get lan_ipaddr 2>/dev/null)
-
-    if ! is_valid_ipv4 "$lan_ip"; then
-        echo "REPLACE_LOCALHOST_DNS : Warning: Invalid LAN IP: '$lan_ip'" >&2
-        return
-    fi
-
-    # Check if 127.0.0.1 exists and replace
-    if grep -q "127\.0\.0\.1" /etc/resolv.conf; then
-        local temp=$(cat /etc/resolv.conf)
-        temp="${temp//127.0.0.1/$lan_ip}"
-        if echo "$temp" > /etc/resolv.conf 2>/dev/null; then
-            echo "REPLACE_LOCALHOST_DNS : Successfully updated resolv.conf with private LAN IP: $lan_ip"
-        else
-            echo "REPLACE_LOCALHOST_DNS : Error: Failed to write to resolv.conf" >&2
-        fi
-    fi
-}
-
 #-----------------------------------------------------------------
 # set the dhcp config file which is also the dns forwarders file
 #  Parameters:
@@ -1425,10 +1391,6 @@ fi
    rm -f $LOCAL_DHCP_CONF
 
    echo "DHCP SERVER : Completed preparing DHCP configuration"
-
-    if [ "$WanFailOverSupportEnable" = true ] && [ "$rdkb_extender" != "true" ] ; then
-        replace_localhost_with_lan_ip
-    fi
 }
 
 do_static_resolution() {
