@@ -93,7 +93,11 @@ extern "C" {
  * as is commonly done for reading from an fd into a buffer
  * and then using that buffer as a structure
  */
-typedef char se_buffer[SE_MAX_MSG_SIZE+1] __attribute__ ((aligned(sizeof(void*))));
+#ifdef _64BIT_ARCH_SUPPORT_
+typedef char se_buffer[SE_MAX_MSG_SIZE+1] __attribute__ ((aligned(8)));
+#else
+typedef char se_buffer[SE_MAX_MSG_SIZE+1] __attribute__ ((aligned(4)));
+#endif
 
 /*
  *    Errors
