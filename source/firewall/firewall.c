@@ -12346,6 +12346,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
    fprintf(filter_fp, ":%s - [0:0]\n", "LOG_SSH_DROP");
    fprintf(filter_fp, ":%s - [0:0]\n", "SSH_FILTER");
+   fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 10022 -j ACCEPT\n", "brlan0");
 
    if(bEthWANEnable)
    {
