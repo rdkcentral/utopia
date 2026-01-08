@@ -175,26 +175,27 @@ do_start() {
                 CM_IPV6=`ip -6 addr show dev $CMINTERFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
                 if [ ! -z "$CM_IPV6" ]; then
                     commandString="$commandString -p [$CM_IPV6]:22"
-	        fi
-	    else
+	    	    fi
+	    	else
       	        echo Look up Global scope inet6 address
-	        CM_IPV6=`ifconfig privbr | grep $Check | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
-	        if [ ! -z "$CM_IPV6" ]; then
-        	    commandString="$commandString -p [$CM_IPV6]:22" 
-	        else
-        	    echo Look up non-Global scope inet6 address
-	            CM_IPV6=`ifconfig privbr | grep $Check |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
-        	    if [ ! -z "$CM_IPV6" ]; then
-	               commandString="$commandString -p [$CM_IPV6%privbr]:22"
-        	    fi
-	        fi
-	    fi
-	else
+	        	CM_IPV6=`ifconfig privbr | grep $Check | grep Global |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
+	        	if [ ! -z "$CM_IPV6" ]; then
+        	    	commandString="$commandString -p [$CM_IPV6]:22" 
+	        	else
+        	    	echo Look up non-Global scope inet6 address
+	            	CM_IPV6=`ifconfig privbr | grep $Check |  awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
+        	    	if [ ! -z "$CM_IPV6" ]; then
+	               		commandString="$commandString -p [$CM_IPV6%privbr]:22"
+        	    	fi
+	        	fi
+	    	fi
+		else
             CM_IPV6=`ip -6 addr show dev $WAN_INTERFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-	    if [ ! -z "$CM_IPV6" ]; then
+	    	if [ ! -z "$CM_IPV6" ]; then
                 commandString="$commandString -p [$CM_IPV6]:22"
-	    fi
+	    	fi
         fi
+		commandString="$commandString -p [10.0.0.1]:10022"
     elif [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" = "true" ]; then
         # In IPv6 only case (MAP-T), and if IPv6 GUA on LAN enabled case, use brlan0 interface to get v6 global address.
         CM_IPV6=`ip -6 addr show dev brlan0 scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
