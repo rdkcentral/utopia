@@ -1183,7 +1183,7 @@ v6GPFirewallRuleNext:
       fprintf(fp, "-A INPUT -i brlan4 -j ACCEPT \n");
       fprintf(fp, "-A INPUT -i brlan5 -j ACCEPT \n");
       fprintf(fp, "-A INPUT -i brpublic -j ACCEPT \n");
-#if (defined (_XB8_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_)) && defined(RDK_ONEWIFI)
+#if defined (_XB8_PRODUCT_REQ_) && defined(RDK_ONEWIFI)
       fprintf(fp, "-A INPUT -i bropen6g -j ACCEPT \n");
       fprintf(fp, "-A INPUT -i brsecure6g -j ACCEPT \n");
 #endif
@@ -1210,7 +1210,7 @@ v6GPFirewallRuleNext:
       fprintf(fp, "-A FORWARD -i brlan4 -o brlan4 -j ACCEPT\n");
       fprintf(fp, "-A FORWARD -i brlan5 -o brlan5 -j ACCEPT\n");
       fprintf(fp, "-A FORWARD -i brpublic -o brpublic -j ACCEPT\n");
-#if (defined (_XB8_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_)) && defined(RDK_ONEWIFI)
+#if defined (_XB8_PRODUCT_REQ_) && defined(RDK_ONEWIFI)
       fprintf(fp, "-A FORWARD -i bropen6g -o bropen6g -j ACCEPT\n");
       fprintf(fp, "-A FORWARD -i brsecure6g -o brsecure6g -j ACCEPT\n");
 #endif
