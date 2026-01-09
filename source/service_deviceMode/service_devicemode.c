@@ -320,14 +320,14 @@ int runCommandInShellBlocking(char *command)
 
 int service_stop(int mode)
 {
-	APPLY_PRINT("%s, Entering \n", __FUNCTION__);
+	APPLY_PRINT("%s, Entering to stop services \n", __FUNCTION__);
     char buf[256];
     memset(buf,0,sizeof(buf));
     switch(mode)
     {
         case DEVICE_MODE_ROUTER:
         {
-		APPLY_PRINT("%s, killing the services in router mode \n", __FUNCTION__);
+		APPLY_PRINT("%s, killing the services in STOP function \n", __FUNCTION__);
             sysevent_set(sysevent_fd, sysevent_token, "lan-stop", "", 0);
             sysevent_set(sysevent_fd, sysevent_token, "ipv4-down", "5", 0);
 #if defined (_COSA_BCM_ARM_)
@@ -394,7 +394,7 @@ int GetL2InterfaceNameFromPsm(int instanceNumber, char *pName, int len)
 
 int service_start(int mode)
 {
-    APPLY_PRINT("%s, Entering \n", __FUNCTION__);
+    APPLY_PRINT("%s, Entering to start all services according to mode switch \n", __FUNCTION__);
     char buf[256];
     memset(buf,0,sizeof(buf));
     int rc = -1;
@@ -406,12 +406,15 @@ int service_start(int mode)
             int bridgemode = 0;
             if( 0 == syscfg_get( NULL, "bridge_mode", buf, sizeof(buf) ) )
             {
+                APPLY_PRINT("%s, bridge_mode is %s \n", __FUNCTION__, buf);
                 bridgemode = atoi(buf);
+                APPLY_PRINT("%s, bridge_mode value is %d \n", __FUNCTION__, bridgemode);
             }
             snprintf(buf,sizeof(buf),"execute_dir %s", ROUTER_MODE_SERVICES_PATH_1);
             runCommandInShellBlocking(buf);
             if (bridgemode == 0)
             {
+                APPLY_PRINT("%s, lan starting \n", __FUNCTION__);
                 sysevent_set(sysevent_fd, sysevent_token, "lan-start", "", 0);
             }
             else
@@ -439,14 +442,15 @@ int service_start(int mode)
              sysevent_set(sysevent_fd, sysevent_token, "lnf-setup", buf, 0);
 #endif
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
-	    APPLY_PRINT("%s, zebra is getting stared when device switching to router mode \n", __FUNCTION__);
-            if (0 != sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0)) {
-                 APPLY_PRINT("zebra restart event: sysevent_set failed\n");
-            } else {
-                 APPLY_PRINT("zebra restart event: sysevent_set succeeded\n");
-            }
-
-			
+            if(bridgemode == 0)
+            {
+                APPLY_PRINT("%s, zebra is getting stared when device switching to router mode \n", __FUNCTION__);
+                if (0 != sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0)) {
+                    APPLY_PRINT("zebra restart event: sysevent_set failed\n");
+                } else {
+                    APPLY_PRINT("zebra restart event: sysevent_set succeeded\n");
+                }
+            }			
         }
         break;
         case DEVICE_MODE_EXTENDER:

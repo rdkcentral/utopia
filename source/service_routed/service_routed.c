@@ -406,15 +406,14 @@ STATIC int daemon_stop(const char *pid_file, const char *prog)
     
     if (pid_file)
         unlink(pid_file);
-
-	//if(ZEBRA_CONF_FILE)
-	//	unlink(ZEBRA_CONF_FILE);
+        APPLY_PRINT("%s, Exiting from stop function \n", __FUNCTION__);
     return 0;
 }
 
 /* SKYH4-1765: checks the daemon running status */
 STATIC int is_daemon_running(const char *pid_file, const char *prog)
 {
+    APPLY_PRINT("%s, Entering into is_daemon_running function \n", __FUNCTION__);
     FILE *fp;
     char pid_str[10];
     int pid = -1;
@@ -2027,7 +2026,7 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 
 #endif 
 
-void createRouterModeInitFile()
+/*void createRouterModeInitFile()
 {
     int fd = open(ROUTER_MODE_INIT_FILE, O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if(fd >= 0)
@@ -2042,7 +2041,7 @@ void createRouterModeInitFile()
 void RemoveRouterModeInitFile()
 {
      unlink(ROUTER_MODE_INIT_FILE);
-}
+} */
 
 STATIC int radv_start(struct serv_routed *sr)
 {
@@ -2085,30 +2084,10 @@ STATIC int radv_start(struct serv_routed *sr)
 
     char aBridgeMode[8];
     syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
-
-    /*if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
+    APPLY_PRINT("%s: bridge_mode %s and LAN is %s\n", __FUNCTION__, aBridgeMode, sr->lan_ready ? "ready" : "not ready");
+    if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
         APPLY_PRINT("%s: LAN is not ready !\n", __FUNCTION__);
-        return -1;
-    }*/
-    APPLY_PRINT("%s: Bridge mode is %s , LAN is %s \n", __FUNCTION__, aBridgeMode, sr->lan_ready ? "ready" : "not ready");
-    int timeout = 30;
-    while ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready) && (timeout > 0)) {
-        //fprintf(logfptr, "%s: LAN is not ready , waiting ...!\n", __FUNCTION__);
-        APPLY_PRINT("%s: LAN is not ready , waiting ...!\n", __FUNCTION__);
-        sleep(2);
-        timeout--;
-        syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
-
-        if( DEVICE_MODE_EXTENDER == deviceMode ) {
-          //  fprintf(logfptr, "%s: Device is in EXT mode , no need of running zebra for radv\n", __FUNCTION__);
-            APPLY_PRINT("%s: Device is in EXT mode , no need of running zebra for radv\n", __FUNCTION__);
-            return -1;
-        }
-    }
-    if(timeout <= 0 && (!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
-       // fprintf(logfptr, "%s: LAN is not ready after waiting , exiting ...!\n", __FUNCTION__);
-        APPLY_PRINT("%s: LAN is not ready after waiting , exiting ...!\n", __FUNCTION__);
         return -1;
     }
 
@@ -2191,7 +2170,7 @@ STATIC int radv_start(struct serv_routed *sr)
     else {
         APPLY_PRINT("%s: zebra failed to start \n", __FUNCTION__);
     }
-    RemoveRouterModeInitFile();
+   // RemoveRouterModeInitFile();
 
     return 0;
 }
@@ -2801,7 +2780,7 @@ int service_routed_main(int argc, char *argv[])
             fprintf(logfptr, "[%s]: fail to exec `%s'\n", PROG_NAME, cmd_ops[i].cmd);
         } */
 
-        createRouterModeInitFile();
+       // createRouterModeInitFile();
         int rc1 = cmd_ops[i].exec(&sr);
         if (rc1 != 0) {
              fprintf(logfptr,"[%s]: `%s` failed: rc=%d errno=%d (%s)\n", PROG_NAME, cmd_ops[i].cmd, rc1, errno, strerror(errno));
