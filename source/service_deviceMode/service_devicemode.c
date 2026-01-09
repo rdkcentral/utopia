@@ -421,15 +421,16 @@ int service_start(int mode)
             {
                 sysevent_set(sysevent_fd, sysevent_token, "bridge-start", "", 0);
             }
-            
-            int rc = sysevent_get(sysevent_fd, sysevent_token, "lan-start", lanStartVal, sizeof(lanStartVal));
-            if(rc == 0)
+
+            int lanStartVal = -1;
+            int res = sysevent_get(sysevent_fd, sysevent_token, "lan-start", &lanStartVal, sizeof(lanStartVal));
+            if(res == 0)
             {
                 APPLY_PRINT("%s: lan-start value: %s\n", __FUNCTION__, lanStartVal);
             }
             else
             {
-                APPLY_PRINT("%s : Failed to get lan-start value (rc=%d)\n", __FUNCTION__, rc);
+                APPLY_PRINT("%s : Failed to get lan-start value (rc=%d)\n", __FUNCTION__, res);
             }
 
 // Do wan start only in XB technicolor for xb->xb backup wan testing.
