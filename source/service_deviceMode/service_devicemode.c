@@ -423,7 +423,7 @@ int service_start(int mode)
             }
 
             char lanStartVal[64] = {0};
-            int res = sysevent_get(sysevent_fd, sysevent_token, "lan-start", &lanStartVal, sizeof(lanStartVal));
+            int res = sysevent_get(sysevent_fd, sysevent_token, "lan-start", lanStartVal, sizeof(lanStartVal));
             if(res == 0)
             {
                 APPLY_PRINT("%s: lan-start value: %s\n", __FUNCTION__, lanStartVal);
