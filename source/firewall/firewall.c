@@ -696,7 +696,6 @@ char current_wan_ip6_addr[128];
 bool isDefHttpsPortUsed = FALSE ;
 int current_wan_ipv6_num = 0;
 char default_wan_ifname[50]; // name of the regular wan interface
-char hotspot_wan_ifname[50];
 int rfstatus;
 /*
  * For timed internet access rules we use cron 
@@ -2470,19 +2469,6 @@ static int prepare_globals_from_configuration(void)
                pStr = NULL;
          }      
    }
-
-   // Update WIFI hotspot interface name -> from PSM
-   memset(hotspot_wan_ifname,0,sizeof(hotspot_wan_ifname));
-   rc = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
-   if(rc == CCSP_SUCCESS && pStr != NULL){
-	   FIREWALL_DEBUG("HotSpot wan interface fetched \n");
-	   safec_rc = strcpy_s(hotspot_wan_ifname, sizeof(hotspot_wan_ifname),pStr);
-	   ERR_CHK(safec_rc);
-	   Ansc_FreeMemory_Callback(pStr);
-	   pStr = NULL;
-   }
-   FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
-
    memset(mesh_wan_ipv6addr,0,sizeof(mesh_wan_ipv6addr));
    get_ip6address(mesh_wan_ifname, mesh_wan_ipv6addr, &mesh_wan_ipv6_num,IPV6_ADDR_SCOPE_GLOBAL);
    #endif 
@@ -5279,37 +5265,6 @@ static int do_nat_ephemeral(FILE *fp)
    return(0);
 }
 
-void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
-{
-    FIREWALL_DEBUG(" Entering applyHotspotPostRoutingRules \n");
-    char sysEventName[256];
-    if (isIpv4 == true)
-    {
-	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
-	{
-	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv4\n");
-	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipaddr);
-	    fprintf(fp, "-A postrouting_towan -o %s -j SNAT --to-source %s\n" COMMA current_wan_ifname COMMA current_wan_ipaddr);
-	}
-    }
-    else
-    {
-	memset(current_wan_ip6_addr, 0, sizeof(current_wan_ip6_addr));
-	memset(sysEventName, 0, sizeof(sysEventName));
-	snprintf(sysEventName, sizeof(sysEventName),"tr_%s_dhcpv6_client_v6addr", hotspot_wan_ifname);
-	sysevent_get(sysevent_fd, sysevent_token, sysEventName, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
-
-	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
-	{
-	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv6\n");
-	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
-	    fprintf(fp, "-A POSTROUTING -o %s -j SNAT --to-source %s\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
-	}
-
-    }
-    FIREWALL_DEBUG(" Exiting applyHotspotPostRoutingRules \n");
-}
-
 #if defined(_BWG_PRODUCT_REQ_)
 /*
  *  Procedure     : do_raw_table_staticip
@@ -5462,14 +5417,7 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
-         #ifdef WAN_FAILOVER_SUPPORTED
-	 if (0 == checkIfULAEnabled())
-	 {
-	     applyHotspotPostRoutingRules(fp, true);
-	 } else {
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
-	 }
-         #endif
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
      }

@@ -170,22 +170,7 @@ extern int sysevent_fd;
 extern char sysevent_ip[19];
 extern unsigned short sysevent_port;
 
-/**
-* @brief Check if the HOTSPOT interface is currently active.
-*
-* This function queries the WAN Manager to determine if the HOTSPOT interface is active.
-* It retrieves the interface active status parameter which contains a pipe-delimited list
-* of WAN interfaces and their statuses in the format: "INTERFACE_NAME,STATUS|INTERFACE_NAME,STATUS|...".
-* The function parses this string to check if HOTSPOT is present and has an active status (value = 1).
-* Example response: "HOTSPOT,1|WANOE,0|DSL,0" would return true since HOTSPOT has status 1.
-*
-* @return The status of the HOTSPOT interface.
-* @retval true if the HOTSPOT interface is active (status = 1).
-* @retval false if the HOTSPOT interface is not active, not present, or if the query fails.
-*
-*/
 #define PSM_VALUE_GET_STRING(name, str) PSM_Get_Record_Value2(bus_handle, CCSP_SUBSYS, name, NULL, &(str)) 
-#define PSM_HOTSPOT_WAN_IFNAME "dmsb.wanmanager.if.3.Name"
 
 /**
 * @brief Get IPv6 addresses for a given interface.
@@ -1174,24 +1159,8 @@ extern int mesh_wan_ipv6_num;
 extern char mesh_wan_ipv6addr[IF_IPV6ADDR_MAX][40];
 extern char dev_type[20];
 extern char mesh_wan_ifname[32];
-/**
-* @brief Apply hotspot post-routing NAT rules for source address translation.
-*
-* This function writes iptables post-routing rules to enable Source NAT (SNAT) for hotspot WAN traffic.
-* It configures SNAT rules to translate outgoing traffic on the hotspot WAN interface to use the WAN IP address.
-*
-* @param[in] fp       - Pointer to an open file stream where the iptables rules will be written.
-* @param[in] isIpv4   - Boolean flag indicating the IP version.
-*                       \n true: Apply IPv4 post-routing rules.
-*                       \n false: Apply IPv6 post-routing rules.
-*
-* @return None.
-*
-*/
 #endif
 
-void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4);
-extern char hotspot_wan_ifname[50];
 extern int current_wan_ipv6_num;
 extern char default_wan_ifname[50]; // name of the regular wan interface
 extern char current_wan_ipv6[IF_IPV6ADDR_MAX][40];
