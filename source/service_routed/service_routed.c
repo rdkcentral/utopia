@@ -2026,7 +2026,7 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 
 #endif 
 
-/*void createRouterModeInitFile()
+void createRouterModeInitFile()
 {
     int fd = open(ROUTER_MODE_INIT_FILE, O_CREAT | O_WRONLY | O_TRUNC, 0644);
     if(fd >= 0)
@@ -2041,7 +2041,7 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 void RemoveRouterModeInitFile()
 {
      unlink(ROUTER_MODE_INIT_FILE);
-} */
+}
 
 STATIC int radv_start(struct serv_routed *sr)
 {
@@ -2084,7 +2084,7 @@ STATIC int radv_start(struct serv_routed *sr)
 
     char aBridgeMode[8];
     syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
-    APPLY_PRINT("%s: bridge_mode %s and LAN is %s\n", __FUNCTION__, aBridgeMode, sr->lan_ready ? "ready" : "not ready");
+    APPLY_PRINT("%s: bridge_mode %s and LAN is %d\n", __FUNCTION__, aBridgeMode, sr->lan_ready);
     if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
         APPLY_PRINT("%s: LAN is not ready !\n", __FUNCTION__);
@@ -2170,7 +2170,7 @@ STATIC int radv_start(struct serv_routed *sr)
     else {
         APPLY_PRINT("%s: zebra failed to start \n", __FUNCTION__);
     }
-   // RemoveRouterModeInitFile();
+    RemoveRouterModeInitFile();
 
     return 0;
 }
@@ -2416,6 +2416,7 @@ STATIC int serv_routed_restart(struct serv_routed *sr)
 
 STATIC int serv_routed_init(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Initializing service routed\n", __FUNCTION__);
     char wan_st[16], lan_st[16];
 
     memset(sr, 0, sizeof(struct serv_routed));
@@ -2428,11 +2429,18 @@ STATIC int serv_routed_init(struct serv_routed *sr)
 
     sysevent_get(sr->sefd, sr->setok, "wan-status", wan_st, sizeof(wan_st));
     if (strcmp(wan_st, "started") == 0)
+    {
         sr->wan_ready = true;
+        APPLY_PRINT("%s: WAN is ready and WAN value = %d\n", __FUNCTION__, sr->wan_ready);
+    }
+
     
     sysevent_get(sr->sefd, sr->setok, "lan-status", lan_st, sizeof(lan_st));
     if (strcmp(lan_st, "started") == 0)
+    {
         sr->lan_ready = true;
+        APPLY_PRINT("%s: LAN is ready and LAN value = %d\n", __FUNCTION__, sr->lan_ready);
+    }
 
     return 0;
 }
@@ -2772,6 +2780,7 @@ int service_routed_main(int argc, char *argv[])
     if (serv_routed_init(&sr) != 0){
         exit(1);
     }
+    APPLY_PRINT("%s: Service routed initialized successfully\n", __FUNCTION__);
     for (i = 0; i < NELEMS(cmd_ops); i++) {
         if (strcmp(argv[1], cmd_ops[i].cmd) != 0 || !cmd_ops[i].exec)
             continue;
@@ -2780,7 +2789,7 @@ int service_routed_main(int argc, char *argv[])
             fprintf(logfptr, "[%s]: fail to exec `%s'\n", PROG_NAME, cmd_ops[i].cmd);
         } */
 
-       // createRouterModeInitFile();
+        createRouterModeInitFile();
         int rc1 = cmd_ops[i].exec(&sr);
         if (rc1 != 0) {
              fprintf(logfptr,"[%s]: `%s` failed: rc=%d errno=%d (%s)\n", PROG_NAME, cmd_ops[i].cmd, rc1, errno, strerror(errno));
