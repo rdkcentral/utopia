@@ -422,7 +422,7 @@ int service_start(int mode)
                 sysevent_set(sysevent_fd, sysevent_token, "bridge-start", "", 0);
             }
 
-            int lanStartVal = -1;
+            char lanStartVal[64] = {0};
             int res = sysevent_get(sysevent_fd, sysevent_token, "lan-start", &lanStartVal, sizeof(lanStartVal));
             if(res == 0)
             {
