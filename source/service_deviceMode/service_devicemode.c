@@ -461,15 +461,15 @@ int service_start(int mode)
              sysevent_set(sysevent_fd, sysevent_token, "lnf-setup", buf, 0);
 #endif
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
-            //if(lanStartVal)
-           // {
+            if(strcmp(lanStartVal, "started") == 0)
+            {
                 APPLY_PRINT("%s, zebra is getting stared when device switching to router mode \n", __FUNCTION__);
                 if (0 != sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0)) {
                     APPLY_PRINT("zebra restart event: sysevent_set failed\n");
                 } else {
                     APPLY_PRINT("zebra restart event: sysevent_set succeeded\n");
                 }
-          //  }			
+            }			
         }
         break;
         case DEVICE_MODE_EXTENDER:
