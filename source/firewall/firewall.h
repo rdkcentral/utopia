@@ -783,7 +783,6 @@ void do_forwardPorts(FILE *fp);
 *
 */
 int IsValidIPv6Addr(char* ip_addr_string);
-<<<<<<< HEAD
 
 /**
 * @brief Check if ULA (Unique Local Address) is enabled.
