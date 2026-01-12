@@ -423,14 +423,14 @@ int service_start(int mode)
             }
 
             char lanStartVal[64] = {0};
-            int res = sysevent_get(sysevent_fd, sysevent_token, "lan-start", lanStartVal, sizeof(lanStartVal));
+            int res = sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
             if(res == 0)
             {
-                APPLY_PRINT("%s: lan-start value: %s\n", __FUNCTION__, lanStartVal);
+                APPLY_PRINT("%s: lan-status value: %s\n", __FUNCTION__, lanStartVal);
             }
             else
             {
-                APPLY_PRINT("%s : Failed to get lan-start value (rc=%d)\n", __FUNCTION__, res);
+                APPLY_PRINT("%s : Failed to get lan-status value (rc=%d)\n", __FUNCTION__, res);
             }
 
 // Do wan start only in XB technicolor for xb->xb backup wan testing.
@@ -454,7 +454,7 @@ int service_start(int mode)
              sysevent_set(sysevent_fd, sysevent_token, "lnf-setup", buf, 0);
 #endif
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
-           // if(lanStartVal)
+            //if(lanStartVal)
            // {
                 APPLY_PRINT("%s, zebra is getting stared when device switching to router mode \n", __FUNCTION__);
                 if (0 != sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0)) {

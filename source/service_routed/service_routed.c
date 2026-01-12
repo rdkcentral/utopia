@@ -2052,6 +2052,7 @@ STATIC int radv_start(struct serv_routed *sr)
     {
         fprintf(logfptr, "Device is EXT mode , no need of running zebra for radv\n");
         APPLY_PRINT("%s: Device is in EXT mode , no need of running zebra for radv\n", __FUNCTION__);
+        unlink(ROUTER_MODE_INIT_FILE)
         return -1;
     }
 #endif
