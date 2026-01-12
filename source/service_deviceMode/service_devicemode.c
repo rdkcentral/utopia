@@ -427,6 +427,13 @@ int service_start(int mode)
             if(res == 0)
             {
                 APPLY_PRINT("%s: lan-status value: %s\n", __FUNCTION__, lanStartVal);
+                if(strcmp(lanStartVal, "stopped") == 0)
+                {
+                    APPLY_PRINT("%s : Starting LAN here \n", __FUNCTION__);
+                    sysevent_set(sysevent_fd, sysevent_token, "lan-status", "started", 0);
+                    sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
+                    APPLY_PRINT("%s: lan-status value after set: %s\n", __FUNCTION__, lanStartVal);
+                }
             }
             else
             {
