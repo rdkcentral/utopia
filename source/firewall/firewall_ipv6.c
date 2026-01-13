@@ -1269,7 +1269,7 @@ v6GPFirewallRuleNext:
             }
          }
 #endif
-         FIREWALL_DEBUG("current_wan_ifname is %s default_wan_ifname is %s lan_ifname is %s wan6_ifname %s \n" , current_wan_ifname, default_wan_ifname, lan_ifname, wan6_ifname);
+         FIREWALL_DEBUG("current_wan_ifname is %s default_wan_ifname is %s lan_ifname is %s wan6_ifname %s \n" COMMA current_wan_ifname COMMA default_wan_ifname COMMA lan_ifname COMMA wan6_ifname);
         if (strcmp(current_wan_ifname,default_wan_ifname ) == 0)
         {
             fprintf(fp, "-A FORWARD ! -s %s -i %s -j LOG_FORWARD_DROP\n", prefix, lan_ifname);
