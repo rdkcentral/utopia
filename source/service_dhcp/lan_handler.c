@@ -50,6 +50,22 @@
 
 #define POSTD_START_FILE "/tmp/.postd_started"
 
+#include <time.h>
+#define LOG_FILE "/tmp/lan_handler.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 extern int g_iSyseventfd;
 extern token_t g_tSysevent_token;
 
@@ -601,6 +617,7 @@ void ipv4_status(int l3_inst, char *status)
             		if ( l3_inst == atoi(primary_l3net))
             		{
                 		fprintf(g_fArmConsoleLog, "LAN HANDLER : Triggering DHCP server using LAN status based on RG_MODE:2");
+                        APPLY_PRINT("%s: Triggering DHCP server using LAN status based on RG_MODE:2", __FUNCTION__);
                 		sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan-status", "started", 0);
             		}
             		system("firewall");
@@ -619,6 +636,7 @@ void ipv4_status(int l3_inst, char *status)
             		if ( l3_inst == atoi(primary_l3net))
             		{
                 		fprintf(g_fArmConsoleLog, "LAN HANDLER : Triggering DHCP server using LAN status based on start misc\n");
+                        APPLY_PRINT("%s: Triggering DHCP server using LAN status based \n", __FUNCTION__);
                 		sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan-status", "started", 0);
             		}
 			if (strncmp(l_cParcon_Nfq_Status, "started", 7))
@@ -672,6 +690,7 @@ void ipv4_status(int l3_inst, char *status)
             if ( l3_inst == atoi(primary_l3net))
             {
                 fprintf(g_fArmConsoleLog, "LAN HANDLER : Triggering DHCP server using LAN status\n");
+                APPLY_PRINT("%s: Triggering DHCP server using LAN status\n", __FUNCTION__);
                 sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan-status", "started", 0);
             }
 			fprintf(g_fArmConsoleLog, "LAN HANDLER : Triggering RDKB_FIREWALL_RESTART\n");
@@ -728,6 +747,7 @@ void ipv4_status(int l3_inst, char *status)
         {
             sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan-status",
                      l_cLan_Status, sizeof(l_cLan_Status));
+            APPLY_PRINT("%s: LAN status is %s\n", __FUNCTION__, l_cLan_Status);
 
             if (!strncmp(l_cLan_Status, "started", 7))
             {

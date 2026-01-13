@@ -72,6 +72,21 @@
 #define CONSOLE_LOG_FILE "/rdklogs/logs/ArmConsolelog.txt.0"
 #endif
 
+#define LOG_FILE "/tmp/service_dhcp.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 const char* const g_cComponent_id = "ccsp.servicedhcp";
 void* g_vBus_handle = NULL;
 FILE* g_fArmConsoleLog = NULL; //Global file pointer
@@ -432,6 +447,7 @@ int sysevent_syscfg_init()
 
 int service_dhcp_main(int argc, char *argv[])
 {
+    APPLY_PRINT("%s: Entering into service DHCP main function \n", __FUNCTION__);
 	char l_cL3Inst[8] = {0}, l_cSysevent_Cmd[255] = {0};
 	int l_iL3Inst;
 	if (argc < 2)	
@@ -498,6 +514,7 @@ int service_dhcp_main(int argc, char *argv[])
 	#endif
 	else if (!strncmp(argv[1], "lan-restart", 11))
 	{
+        APPLY_PRINT("%s: LAN restart triggered\n", __FUNCTION__);
 		lan_restart();
 	}
         else if ((!strncmp(argv[1], "ipv4_4-status", 13)) ||
@@ -516,6 +533,7 @@ int service_dhcp_main(int argc, char *argv[])
                                              l_cL3Inst, sizeof(l_cL3Inst));
                                 if (l_cL3Inst[0] != '\0')
                                 {
+                                    APPLY_PRINT("%s: Calling Ipv4 status function here \n", __FUNCTION__);
                                         ipv4_status(l_iL3Inst, argv[2]);
                                 }
                         }
