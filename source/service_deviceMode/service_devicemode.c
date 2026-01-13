@@ -426,8 +426,9 @@ int service_start(int mode)
             }
 
             char lanStartVal[64] = {0};
-            int res = sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
-            if(res == 0)
+            sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
+           // int res = sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
+          /*  if(res == 0)
             {
                 APPLY_PRINT("%s: lan-status value: %s\n", __FUNCTION__, lanStartVal);
                 if(strcmp(lanStartVal, "stopped") == 0)
@@ -437,7 +438,7 @@ int service_start(int mode)
                     sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
                     APPLY_PRINT("%s: lan-status value after set: %s\n", __FUNCTION__, lanStartVal);
                 }
-            }
+            } */
 // Do wan start only in XB technicolor for xb->xb backup wan testing.
 #if defined (_COSA_BCM_ARM_)
             APPLY_PRINT("%s: Starting WAN services\n", __FUNCTION__);
