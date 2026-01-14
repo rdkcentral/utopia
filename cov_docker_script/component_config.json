@@ -238,13 +238,6 @@
     "include_path": "$HOME/usr/include/rdkb/",
     "lib_output_path": "$HOME/usr/local/lib/",
     
-    "pre_build_commands": [
-      {
-        "description": "Create placeholder dbus include directory (workaround for Makefile.am syntax issue)",
-        "command": "mkdir -p $HOME/utopia/lib/dbus-1.0/include"
-      }
-    ],
-    
     "build": {
       "type": "autotools",
       "configure_options_file": "cov_docker_script/configure_options.conf"
