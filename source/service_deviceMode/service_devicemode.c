@@ -448,9 +448,10 @@ int service_start(int mode)
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
             char lanStartVal[64] = {0};
             sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
-            APPLY_PRINT("%s: lan-status value: %s\n", __FUNCTION__, lanStartVal);
+            
            // int res = sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
-          /*  if(res == 0)
+            APPLY_PRINT("%s: lan-status value: %s\n", __FUNCTION__, lanStartVal);
+            /*if(res == 0)
             {
                 APPLY_PRINT("%s: lan-status value: %s\n", __FUNCTION__, lanStartVal);
                 if(strcmp(lanStartVal, "stopped") == 0)
@@ -460,7 +461,7 @@ int service_start(int mode)
                     sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
                     APPLY_PRINT("%s: lan-status value after set: %s\n", __FUNCTION__, lanStartVal);
                 }
-            } */
+            }
             if(strcmp(lanStartVal, "started") == 0)
             {
                 APPLY_PRINT("%s: Restarting zebra service\n", __FUNCTION__);
@@ -471,7 +472,7 @@ int service_start(int mode)
                 else {
                     APPLY_PRINT("%s: Zebra service restarted successfully\n", __FUNCTION__);
                 }
-            }
+            }*/
         }
         break;
         case DEVICE_MODE_EXTENDER:
