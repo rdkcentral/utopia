@@ -233,8 +233,9 @@ STATIC char *GetDeviceProperties (char *param)
     return valPtr;
 }
 
-#if !defined(NO_MTA_FEATURE_SUPPORT)
-#if defined (EROUTER_DHCP_OPTION_MTA) && defined (FEATURE_RDKB_WAN_MANAGER)
+/* #if !defined(NO_MTA_FEATURE_SUPPORT) */
+/* #if defined (EROUTER_DHCP_OPTION_MTA) && defined (FEATURE_RDKB_WAN_MANAGER) */
+#if defined (FEATURE_RDKB_WAN_MANAGER)
 STATIC void clear_mta_params ()
 {
     sysevent_set(sysevent_fd, sysevent_token, MTA_DHCPV4_PRIMARY_ADDR, NULL, 0);
@@ -299,7 +300,7 @@ STATIC void set_mta_config ()
 
 }
 #endif
-#endif
+/* #endif */
 
 STATIC int handle_defconfig (udhcpc_script_t *pinfo)
 {
@@ -335,9 +336,9 @@ STATIC int handle_defconfig (udhcpc_script_t *pinfo)
          return -1;
     }    
 
-#ifdef EROUTER_DHCP_OPTION_MTA
+/* #ifdef EROUTER_DHCP_OPTION_MTA */
     clear_mta_params();
-#endif // EROUTER_DHCP_OPTION_MTA
+/* #endif // EROUTER_DHCP_OPTION_MTA */
 #else
     
     if (!pinfo)
@@ -957,9 +958,9 @@ STATIC int handle_leasefail (udhcpc_script_t *pinfo)
          OnboardLog("[%s][%d] Failed to send dhcpv4 data to wanmanager \n", __FUNCTION__,__LINE__);
          return -1;
     }
-#ifdef EROUTER_DHCP_OPTION_MTA
+/* #ifdef EROUTER_DHCP_OPTION_MTA */
     clear_mta_params();
-#endif // EROUTER_DHCP_OPTION_MTA
+/* #endif // EROUTER_DHCP_OPTION_MTA */
 
     return ret;
 }
@@ -1016,9 +1017,9 @@ STATIC int handle_wan (udhcpc_script_t *pinfo)
          return -1;
     }
 
-#if defined (EROUTER_DHCP_OPTION_MTA)
+/* #if defined (EROUTER_DHCP_OPTION_MTA) */
     set_mta_config();
-#endif // EROUTER_DHCP_OPTION_MTA
+/* #endif // EROUTER_DHCP_OPTION_MTA */
 
     return ret;
 #else
