@@ -1491,3 +1491,5 @@ $RemoteDebuggerIssueType=NULL
 #Wifi Personalization Support Default value
 $WiFiPersonalizationSupport=true
 
+#RFC for cron is enabled by default.
+$RdkbLogCronEnable=true
