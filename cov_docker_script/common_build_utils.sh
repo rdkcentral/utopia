@@ -77,6 +77,31 @@ copy_headers() {
     fi
 }
 
+# Generic API to copy all Python files from a source directory (recursively) to a destination directory (flat, no subdirs)
+copy_python_files_generic() {
+    local src_dir="${PYTHON_SRC_DIR:-$HOME/build}"
+    local dst_dir="${PYTHON_DST_DIR:-$HOME/usr/include/rdkb}"
+    if [[ -n "$src_dir" && -n "$dst_dir" ]]; then
+        log "[PYTHON COPY] Scanning for Python files in: $src_dir"
+        mkdir -p "$dst_dir"
+        local py_files
+        py_files=$(find "$src_dir" -type f -name "*.py")
+        local count=0
+        if [[ -n "$py_files" ]]; then
+            log "[PYTHON COPY] Copying Python files to: $dst_dir"
+            while IFS= read -r file; do
+                cp "$file" "$dst_dir/"
+                count=$((count+1))
+            done <<< "$py_files"
+            ok "[PYTHON COPY] $count Python file(s) copied to $dst_dir"
+        else
+            warn "[PYTHON COPY] No Python files found in $src_dir"
+        fi
+    else
+        warn "[PYTHON COPY] Source or destination directory not set. Skipping copy."
+    fi
+}
+
 # Apply source patches
 apply_patch() {
     local file="$1" search="$2" replace="$3" type="${4:-replace}" content="$5"

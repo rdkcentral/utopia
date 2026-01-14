@@ -195,6 +195,39 @@
           "type": "script",
           "script": "cov_docker_script/common_external_build.sh"
         }
+      },
+      {
+        "name": "breakpad_wrapper",
+        "repo": "https://github.com/rdkcentral/breakpad_wrapper.git",
+        "branch": "main",
+        "header_paths": [
+          { "source": ".", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      },
+      {
+        "name": "pupnp",
+        "repo": "https://github.com/pupnp/pupnp.git",
+        "branch": "branch-1.6.x",
+        "build": {
+          "type": "autotools",
+          "configure_flags": "--prefix=$HOME/usr --disable-samples PTHREAD_CFLAGS=-pthread PTHREAD_LIBS=-lpthread CPPFLAGS=\"-I$HOME/usr/include/rdkb -D_GNU_SOURCE\" LDFLAGS=\"-L$HOME/usr/local/lib\""
+        }
+      },
+      {
+        "name": "rdkb-halif-platform",
+        "repo": "https://github.com/rdkcentral/rdkb-halif-platform.git",
+        "branch": "main",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb" }
+        ]
+      },
+      {
+        "name": "rdkb-halif-ethsw",
+        "repo": "https://github.com/rdkcentral/rdkb-halif-ethsw.git",
+        "branch": "main",
+        "header_paths": [
+          { "source": "include", "destination": "$HOME/usr/include/rdkb" }
+        ]
       }
     ]
   },
@@ -205,29 +238,16 @@
     "include_path": "$HOME/usr/include/rdkb/",
     "lib_output_path": "$HOME/usr/local/lib/",
     
-    "source_patches": [
-        {
-          "file": "source/util/print_uptime/Makefile.am",
-          "type": "replace",
-          "search": "-I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 ${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include",
-          "replace": "$(DBUS_CFLAGS)"
-        },
-        {
-          "file": "source/igd/src/Makefile.am",
-          "type": "replace",
-          "search": "IGD_LDFLAGS = -lthreadutil -Bdynamic -lupnp -lrdkloggers -pthread",
-          "replace": "IGD_LDFLAGS = -Bdynamic -lupnp -lrdkloggers -pthread"
-        }
+    "pre_build_commands": [
+      {
+        "description": "Create placeholder dbus include directory (workaround for Makefile.am syntax issue)",
+        "command": "mkdir -p $HOME/utopia/lib/dbus-1.0/include"
+      }
     ],
     
     "build": {
       "type": "autotools",
-      "configure_options": [
-        "CPPFLAGS=-I$HOME/usr/include/rdkb -I/usr/include/tirpc -I/usr/include/dbus-1.0 -I/usr/lib/x86_64-linux-gnu/dbus-1.0/include -DSAFEC_DUMMY_API -D_GNU_SOURCE -Dget_current_wan_ifname=__get_current_wan_ifname_stub",
-        "CFLAGS=-include stdint.h -include errno.h -include rdk_logger.h -Wno-cpp",
-        "LDFLAGS=-L$HOME/usr/local/lib -L$HOME/usr/local/lib/x86_64-linux-gnu -Wl,-rpath,$HOME/usr/local/lib/x86_64-linux-gnu -Wl,--no-as-needed -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-all",
-        "LIBS=-lrbus -lsecure_wrapper -ltirpc -lupnp -lrdkloggers -ldbus-1"
-      ]
+      "configure_options_file": "cov_docker_script/configure_options.conf"
     }
   }
 }

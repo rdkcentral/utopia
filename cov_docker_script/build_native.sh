@@ -134,23 +134,106 @@ process_native_headers() {
     return 0
 }
 
+# Parse configure options from external file
+parse_configure_options_file() {
+    local conf_file="$1"
+    local -n options_array=$2
+    
+    if [[ ! -f "$conf_file" ]]; then
+        err "Configure options file not found: $conf_file"
+        return 1
+    fi
+    
+    local current_section=""
+    local cppflags=""
+    local cflags=""
+    local ldflags=""
+    local libs=""
+    
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Skip empty lines and comments
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+        
+        # Detect section headers
+        if [[ "$line" =~ ^\[([A-Z_]+)\] ]]; then
+            current_section="${BASH_REMATCH[1]}"
+            continue
+        fi
+        
+        # Trim whitespace
+        line=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [[ -z "$line" ]] && continue
+        
+        # Append to appropriate section
+        case "$current_section" in
+            CPPFLAGS)
+                cppflags+="$line "
+                ;;
+            CFLAGS)
+                cflags+="$line "
+                ;;
+            LDFLAGS)
+                ldflags+="$line "
+                ;;
+            LIBS)
+                libs+="$line "
+                ;;
+        esac
+    done < "$conf_file"
+    
+    # Expand environment variables in the flags using envsubst or manual replacement
+    # Use manual replacement for better control and to avoid shell interpretation issues
+    cppflags="${cppflags//\$HOME/$HOME}"
+    cflags="${cflags//\$HOME/$HOME}"
+    ldflags="${ldflags//\$HOME/$HOME}"
+    libs="${libs//\$HOME/$HOME}"
+    
+    # Build final options array
+    [[ -n "$cppflags" ]] && options_array+=("CPPFLAGS=${cppflags% }")
+    [[ -n "$cflags" ]] && options_array+=("CFLAGS=${cflags% }")
+    [[ -n "$ldflags" ]] && options_array+=("LDFLAGS=${ldflags% }")
+    [[ -n "$libs" ]] && options_array+=("LIBS=${libs% }")
+}
+
 # Build with autotools
 build_component_autotools() {
     cd "$COMPONENT_DIR"
     
     # Read configure options as array
     local configure_options=()
-    local opt_count
-    opt_count=$(jq -r '.native_component.build.configure_options // [] | length' "$CONFIG_FILE")
     
-    local i=0
-    while [[ $i -lt $opt_count ]]; do
-        local option
-        option=$(jq -r ".native_component.build.configure_options[$i]" "$CONFIG_FILE")
-        option=$(expand_path "$option")
-        configure_options+=("$option")
-        i=$((i + 1))
-    done
+    # Check if using external configure options file
+    local config_file_path
+    config_file_path=$(jq -r '.native_component.build.configure_options_file // empty' "$CONFIG_FILE")
+    
+    if [[ -n "$config_file_path" ]]; then
+        # Using external configuration file
+        config_file_path=$(expand_path "$config_file_path")
+        # If relative path, make it relative to component dir
+        if [[ ! "$config_file_path" = /* ]]; then
+            config_file_path="$COMPONENT_DIR/$config_file_path"
+        fi
+        
+        step "Reading configure options from: $config_file_path"
+        if ! parse_configure_options_file "$config_file_path" configure_options; then
+            err "Failed to parse configure options file"
+            return 1
+        fi
+        ok "Loaded configure options from file"
+    else
+        # Using inline configure_options array (legacy support)
+        local opt_count
+        opt_count=$(jq -r '.native_component.build.configure_options // [] | length' "$CONFIG_FILE")
+        
+        local i=0
+        while [[ $i -lt $opt_count ]]; do
+            local option
+            option=$(jq -r ".native_component.build.configure_options[$i]" "$CONFIG_FILE")
+            option=$(expand_path "$option")
+            configure_options+=("$option")
+            i=$((i + 1))
+        done
+    fi
     
     # Run autogen if exists
     if [[ -f "./autogen.sh" ]]; then
@@ -201,6 +284,60 @@ build_component_autotools() {
     return 0
 }
 
+# Run pre-build commands from native_component.pre_build_commands[]
+run_pre_build_commands() {
+
+    log "copying python files generic..."
+    copy_python_files_generic
+    
+    log "Running pre-build commands..."
+
+    if [[ -z "$CONFIG_FILE" ]] || [[ ! -f "$CONFIG_FILE" ]]; then
+        err "CONFIG_FILE not set or file missing"
+        return 1
+    fi
+
+    if [[ -z "$COMPONENT_DIR" ]] || [[ ! -d "$COMPONENT_DIR" ]]; then
+        err "COMPONENT_DIR not set or directory missing"
+        return 1
+    fi
+
+    local cmd_count
+    cmd_count=$(jq '.native_component.pre_build_commands // [] | length' "$CONFIG_FILE")
+
+    if [[ "$cmd_count" -eq 0 ]]; then
+        log "No pre-build commands to run"
+        return 0
+    fi
+
+    pushd "$COMPONENT_DIR" >/dev/null || {
+        err "Failed to enter component root: $COMPONENT_DIR"
+        return 1
+    }
+
+    local i description command
+    for ((i=0; i<cmd_count; i++)); do
+        description=$(jq -r ".native_component.pre_build_commands[$i].description" "$CONFIG_FILE")
+        command=$(jq -r ".native_component.pre_build_commands[$i].command" "$CONFIG_FILE")
+
+        # Expand variables safely
+        command=$(eval echo "$command")
+
+        log "  [$((i+1))/$cmd_count] $description"
+        if eval "$command"; then
+            ok "Success: $description"
+        else
+            err "Failed: $description"
+            popd >/dev/null
+            return 1
+        fi
+    done
+
+    popd >/dev/null
+    ok "Pre-build commands completed"
+    return 0
+}
+
 # Build with CMake
 build_component_cmake() {
     cd "$COMPONENT_DIR"
@@ -245,6 +382,12 @@ main() {
         exit 1
     fi
     
+    # Run pre-build commands
+    if ! run_pre_build_commands; then
+        err "Pre-build commands failed"
+        exit 1
+    fi
+
     # Build based on type
     case "$BUILD_TYPE" in
         autotools)
