@@ -165,6 +165,18 @@ service_start ()
 
       # Monitor syscfg DB every 15minutes 
       echo "*/15 * * * * /usr/ccsp/tad/syscfg_recover.sh" >> $CRONTAB_FILE
+	  
+	  # Monitor selfheal_aggressive.sh every 5 minutes 
+	  echo "*/5 * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
+	  
+	  # Monitor resource_monitor.sh every 15 minutes 
+	  echo "*/15 * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
+	  
+	  # Monitor resource_monitor.sh every 60 minutes 
+	  echo "0 * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE
+	  
+	  # Monitor rdkbLogMonitor.sh every 1 minute
+	  echo "* * * * * /bin/sh /rdklogger/rdkbLogMonitor.sh" >> $CRONTAB_FILE
 
       # Monitor resource_monitor.sh every 5 minutes TCCBR-3288
 #      if [ "$BOX_TYPE" = "TCCBR" ]; then 
