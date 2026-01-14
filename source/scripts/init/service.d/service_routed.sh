@@ -40,16 +40,15 @@
 #------------------------------------------------------------------
 
 
-# Define log file
-LOG_FILE="$HOME/my_script_$(date +'%Y-%m-%d').log"
-
 # Function to log messages with timestamp
 log() {
     local level="$1"; shift
     local message="$*"
     local timestamp
+    local log_file
     timestamp=$(date +'%Y-%m-%d %H:%M:%S')
-    echo "$timestamp [$level] $message" | tee -a "$LOG_FILE"
+    log_file="/tmp/service_routed_$(date +'%Y-%m-%d').log"
+    echo "$timestamp [$level] $message" | tee -a "$log_file"
 }
 
 source /etc/device.properties
@@ -88,6 +87,8 @@ case "$1" in
        if [ "$status" == "started" ]; then
            log INFO "LAN status started. Starting routed service."
            service_routed start
+           log INFO "LAN status started. Restarting zebra."
+           service_routed radv-restart
        elif [ "$status" == "stopped" ]; then
            log INFO "LAN status stopped. Stopping routed service."
            # As per Sky requirement, radvd should run with ULA prefix though the wan-status is down
