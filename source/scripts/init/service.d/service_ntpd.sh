@@ -249,7 +249,7 @@ set_ntp_quicksync_status ()
           uptime_ms=$((uptime*1000))
           if [ "$ntpd_exit_code" -eq 0 ]; then
              echo_t "NTP quick sync succeeded,set ntp status" >> $NTPD_LOG_NAME
-			 t2ValNotify  "SYST_INFO_NTP_SYNC_split" $uptime_ms
+			 t2ValNotify  "SYS_INFO_NTP_SYNC_split" $uptime_ms
              systemctl restart ntp-data-collector.service
              syscfg set ntp_status 3
              #Set FirstUseDate in Syscfg if this is the first time we are doing a successful NTP Sych
@@ -265,7 +265,7 @@ set_ntp_quicksync_status ()
              break
 	  elif [ "$ntpd_exit_code" -eq 127 ]; then
              echo_t "NTP quick sync not succeeded,PID has terminated or is unknown by the shell" >> $NTPD_LOG_NAME
-			 t2CountNotify "SYST_ERROR_NTP_UNSYNC"
+			 t2CountNotify "SYS_ERROR_NTP_UNSYNC"
 	     break
           fi
        else

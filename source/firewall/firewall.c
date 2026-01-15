@@ -353,6 +353,10 @@ NOT_DEF:
 #include <sys/mman.h>
 #include "secure_wrapper.h"
 #include "util.h"
+#include "ccsp_custom.h"
+#include "ccsp_psm_helper.h"
+#include <ccsp_base_api.h>
+#include "ccsp_memory.h"
 
 
 #if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
@@ -2406,7 +2410,7 @@ static int prepare_globals_from_configuration(void)
 #ifdef CORE_NET_LIB
         libnet_status ret;
         ret = get_ipv6_address(wanInterface, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
-        if (ret == CNL_STATUS_SUCCESS) {
+        if (ret == ANSC_STATUS_SUCCESS) {
             FIREWALL_DEBUG("Successfully retrived global IPv6 address for %s\n" COMMA wanInterface);
 	    current_wan_ip6_addr[sizeof(current_wan_ip6_addr) - 1] = '\0';
 	}
@@ -2422,7 +2426,7 @@ static int prepare_globals_from_configuration(void)
 	char interface_ipv6[BUFLEN_64] = "erouter0";
         libnet_status stat;
       	stat = get_ipv6_address(interface_ipv6, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
-        if (stat == CNL_STATUS_SUCCESS) {
+        if (stat == ANSC_STATUS_SUCCESS) {
             FIREWALL_DEBUG("Successfully retrived IPv6 address for erouter0\n");
 	    current_wan_ip6_addr[sizeof(current_wan_ip6_addr) - 1] = '\0';
         }
@@ -2471,15 +2475,17 @@ static int prepare_globals_from_configuration(void)
          }      
    }
 
-   // Update WIFI hotspot interface name -> from PSM
+   // Update WIFI hotspot interface name -> from CurrentActiveInterface
    memset(hotspot_wan_ifname,0,sizeof(hotspot_wan_ifname));
-   rc = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
-   if(rc == CCSP_SUCCESS && pStr != NULL){
-	   FIREWALL_DEBUG("HotSpot wan interface fetched \n");
-	   safec_rc = strcpy_s(hotspot_wan_ifname, sizeof(hotspot_wan_ifname),pStr);
-	   ERR_CHK(safec_rc);
-	   Ansc_FreeMemory_Callback(pStr);
-	   pStr = NULL;
+   if (IsHotspotActive())
+   {
+        // Get the current active interface from RDK Bus
+        if (RdkBus_GetParamValues(
+                FIREWALL_COMPONENT_NAME, FIREWALL_DBUS_PATH, "Device.X_RDK_WanManager.CurrentActiveInterface", 
+		hotspot_wan_ifname, sizeof(hotspot_wan_ifname)) == ANSC_STATUS_SUCCESS)
+        {
+	    FIREWALL_DEBUG("HotSpot wan interface fetched \n");
+        }
    }
    FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
 
@@ -5279,6 +5285,7 @@ static int do_nat_ephemeral(FILE *fp)
    return(0);
 }
 
+#if defined  (WAN_FAILOVER_SUPPORTED)
 void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
 {
     FIREWALL_DEBUG(" Entering applyHotspotPostRoutingRules \n");
@@ -5309,7 +5316,7 @@ void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
     }
     FIREWALL_DEBUG(" Exiting applyHotspotPostRoutingRules \n");
 }
-
+#endif
 #if defined(_BWG_PRODUCT_REQ_)
 /*
  *  Procedure     : do_raw_table_staticip
@@ -5418,9 +5425,15 @@ static int do_wan_nat_lan_clients(FILE *fp)
   {/*fix RDKB-21704, SNAT is required only for private IP ranges. */
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
   if (!isMAPTReady)
+  {
 #endif //FEATURE_MAPT
-     if(!IS_EMPTY_STRING(natip4))
-     {
+      if (0 == checkIfULAEnabled())
+      {
+#if defined  (WAN_FAILOVER_SUPPORTED)
+	  applyHotspotPostRoutingRules(fp, true);
+#endif
+      } else if(!IS_EMPTY_STRING(natip4))
+      {
          fprintf(fp, "-A postrouting_towan -s 10.0.0.0/8 -j SNAT --to-source %s\n", natip4);
          fprintf(fp, "-A postrouting_towan -s 192.168.0.0/16 -j SNAT --to-source %s\n", natip4);
          fprintf(fp, "-A postrouting_towan -s 172.16.0.0/12 -j SNAT --to-source %s\n", natip4);
@@ -5452,6 +5465,9 @@ static int do_wan_nat_lan_clients(FILE *fp)
             #endif /*WIFI_MANAGE_SUPPORTED*/
          }
      }
+#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
+     }
+#endif
   }
   else
   {
@@ -5462,14 +5478,14 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
-         #ifdef WAN_FAILOVER_SUPPORTED
 	 if (0 == checkIfULAEnabled())
 	 {
+#if defined  (WAN_FAILOVER_SUPPORTED)
 	     applyHotspotPostRoutingRules(fp, true);
+#endif
 	 } else {
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
 	 }
-         #endif
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
      }
@@ -8942,6 +8958,7 @@ static int do_parcon_mgmt_device(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
+#define MAX_DEV_8K 8192
 devMacSt * getPcmdList(int *devCount)
 {
 int count = 0;
@@ -8968,9 +8985,10 @@ memset(buf, 0, sizeof(buf));
                    FIREWALL_DEBUG("invalid data\n");
                    break;
                }
-               if (numDev < INT_MIN || numDev > INT_MAX)
+
+               if(numDev < 0 || numDev > MAX_DEV_8K)
                {
-                   FIREWALL_DEBUG("invalid integer\n");
+                   FIREWALL_DEBUG("value out of range\n");
                    break;
                }
 
@@ -9176,6 +9194,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
         ruleIndex += do_parcon_mgmt_lan2wan_pc_site_appendrule(fp);
 #endif
 
+        bool keywd_chains_exists = false;
         for (idx = 1; idx <= count; idx++)
         {
             char namespace[MAX_QUERY];
@@ -9381,6 +9400,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int range_max = 1024; //max payload bytes to filter
                 int range_multiplier = 2;
 
+                FIREWALL_DEBUG("adding rules for KEYWD\n");
                 // Extract keyword if user input is a full URL
                 if (strstr(query, "://") != NULL) {
                     keyword = strstr(query, "://") + 3;
@@ -9397,24 +9417,32 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int from,to;
                 for (from = 0, to = 64; from < range_max; from = to, to = (to * range_multiplier > range_max) ? range_max : to * range_multiplier)
                 {
-                    char chainName[64] = {'\0'};
+                    char chain_name[64] = {'\0'};
 
-                    // Create new chain
+                    // Create new chain only for first keyword
                     // linux iptables chainname length is max 29 chars
-                    snprintf(chainName, sizeof(chainName), "LOG_SiteBlk_KW_%d_%d", from, to);
-                    fprintf(fp, ":%s - [0:0]\n", chainName);
+                    snprintf(chain_name, sizeof(chain_name), "LOG_SiteBlk_KW_%d_%d", from, to);
+
+		    // Private chain per range is created only once
+		    if (keywd_chains_exists == false) {
+                        // create new chain
+                        fprintf(fp, ":%s - [0:0]\n", chain_name);
+                    }
 
                     // Add rule to jump to private chain if "Host:" is found in this offset range
                     fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"Host:\" --algo kmp --from %d --to %d --icase -j %s\n",
-                        from, to, chainName);
+                        from, to, chain_name);
 
                     // Add rule to match keyword in private chain within same offset range
                     fprintf(fp, "-A %s -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
-                        chainName, keyword, from, to, drop_log);
+                        chain_name, keyword, from, to, drop_log);
 
                     // Default rule to return if not matched
-                    fprintf(fp, "-A %s -j RETURN\n", chainName);
+                    fprintf(fp, "-A %s -j RETURN\n", chain_name);
                 }
+
+                // set keywd chains created
+                keywd_chains_exists = true;
 
                 // Add rule for https filter
                 fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 443 -m string --string \"%s\" --algo kmp --icase -j %s\n",
@@ -13225,7 +13253,8 @@ int do_block_ports(FILE *filter_fp)
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 49152:49153 -j DROP\n");
    /* For EasyMesh Controller Communication */
 #if defined(_PLATFORM_BANANAPI_R4_)
-   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n",get_current_wan_ifname());
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n", get_current_wan_ifname());
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 8888 -j ACCEPT\n", get_current_wan_ifname());
 #endif
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 1900 -j DROP\n");
    fprintf(filter_fp, "-I INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
@@ -14552,7 +14581,7 @@ int CleanIPConntrack(char *physAddress)
        return -1;
     }
     libnet_status status = neighbour_get_list(neigh_data, mac_filter, if_filter, af_filter);
-    if (status != CNL_STATUS_SUCCESS) {
+    if (status != ANSC_STATUS_SUCCESS) {
         FIREWALL_DEBUG("Failed to list neighbours for %s\n" COMMA physAddress);
         free(mac_filter);
         neighbour_free_neigh(neigh_data);
@@ -15506,4 +15535,124 @@ int do_wpad_isatap_blockv6 (FILE *filter_fp)
 #endif
 
     return 0;
+}
+
+// Function to query parameters from RDK Bus
+ANSC_STATUS RdkBus_GetParamValues(
+    char *pComponent,
+    char *pBus,
+    char *pParamName,
+    char *pReturnVal,
+    size_t returnValSize)
+{
+    parameterValStruct_t   **retVal = NULL;
+    char                   *ParamName[ 1 ] = { 0 };
+    int                    ret = 0, nval = 0;
+
+    if (!pReturnVal || returnValSize == 0) {
+	return ANSC_STATUS_FAILURE;
+    }
+
+    // Assign the address for the parameter name
+    ParamName[0] = pParamName;
+
+    // Make the request to get the parameter value from the RDK bus
+    ret = CcspBaseIf_getParameterValues(
+        bus_handle,
+        pComponent,
+        pBus,
+        ParamName,
+        1,
+        &nval,
+        &retVal
+    );
+
+    // Copy the value if the request was successful
+    if (CCSP_SUCCESS == ret)
+    {
+        // Copy the value to the return buffer
+	if (retVal && nval > 0 && retVal[0] && retVal[0]->parameterValue)
+        {
+	    const char *src = retVal[0]->parameterValue;
+
+	    /* Safe copy with truncation */
+	    strncpy(pReturnVal, src, returnValSize - 1);
+	    pReturnVal[returnValSize - 1] = '\0';
+        }
+
+
+        // Free the allocated memory for the return value struct
+        if (retVal)
+        {
+            free_parameterValStruct_t(bus_handle, nval, retVal);
+        }
+
+        return ANSC_STATUS_SUCCESS;
+    }
+
+    // Free the allocated memory for the return value struct if an error occurred
+    if (retVal)
+    {
+        free_parameterValStruct_t(bus_handle, nval, retVal);
+    }
+
+    return ANSC_STATUS_FAILURE;
+}
+/**********************************************************************
+ * Function:  IsHotspotActive
+ * Description:
+ *     Checks whether the HOTSPOT interface is currently active by
+ *     querying the parameter FIREWALL_INTERFACE_STATUS_PARAM_NAME which
+ *     contains the status of WAN interfaces in the format:
+ *        INTERFACE_NAME,STATUS|INTERFACE_NAME,STATUS|...
+ *     Example: "HOTSPOT,1|WANOE,0|DSL,0"
+ *
+ *     - Returns true if HOTSPOT is present and has status = 1.
+ *     - Returns false if HOTSPOT is not present or status != 1.
+ *
+ * Output:
+ *     bool - true if HOTSPOT is active, false otherwise
+ *
+ **********************************************************************/
+bool IsHotspotActive()
+{
+    char acTmpReturnValue[BUFLEN_256] = { 0 };
+
+    // Query the WAN Manager for the Interface Active Status
+    if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(
+            FIREWALL_COMPONENT_NAME, FIREWALL_DBUS_PATH, TR181_ACTIVE_WAN_INTERFACE, 
+	    acTmpReturnValue, sizeof(acTmpReturnValue)))
+    {
+        FIREWALL_DEBUG("%s %d Failed to get param value \n" COMMA __FUNCTION__ COMMA __LINE__);
+        return false;
+    }
+
+    // Tokenize the response to check for HOTSPOT
+    char buf[BUFLEN_256];
+    strncpy(buf, acTmpReturnValue, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    char* token = strtok(buf, "|");
+    while (token != NULL)
+    {
+        // Check if HOTSPOT is in the token and its value is 1
+        if (strncasecmp(token, "HOTSPOT,", 8) == 0)
+        {
+            // Last character should be '1' to be active
+	    if (strlen(token) > 8 && token[strlen(token) - 1] == '1')  
+            {
+                FIREWALL_DEBUG("HOTSPOT interface is ACTIVE\n");
+                return true;
+            }
+            else
+            {
+                FIREWALL_DEBUG("HOTSPOT interface is NOT active\n");
+                return false;
+            }
+        }
+
+        token = strtok(NULL, "|");
+    }
+
+    return false;
 }
