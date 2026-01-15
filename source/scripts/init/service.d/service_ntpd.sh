@@ -371,7 +371,8 @@ service_start ()
 # Setting Time status as Unsynchronized
    syscfg set ntp_status 2
 
-   if [ "$LANIPV6Support" = "true" ]; then
+   if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] ||  [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" = "true" ]; then
+        #TODO : could be a common code. 
        WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
        if [ "started" != "$CURRENT_WAN_STATUS" ] && [ "up" != "$WAN_IPV6_STATUS" ] ; then
            syscfg set ntp_status 2
@@ -618,7 +619,8 @@ service_start ()
        echo_t "SERVICE_NTPD : Starting NTP Daemon" >> $NTPD_LOG_NAME
        systemctl start $BIN
        ret_val=$? ### To ensure proper ret_val is obtained
-       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ]; then
+       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ] && [ "$BOX_TYPE" == "SCXF11BFL" ]; then
+            #TODO : could be a common code. 
            sysevent set firewall-restart
        fi
    fi
@@ -774,7 +776,8 @@ case "$1" in
       ;;
   wan-status)
       if [ "started" = "$CURRENT_WAN_STATUS" ] ; then
-         if [ "$ntpHealthCheck" = "true" ]; then
+         if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$ntpHealthCheck" = "true" ]; then
+            #TODO : could be a common code. Will affect common
             NTPD_PROCESS=`pidof $BIN`
             NTP_STATUS=`syscfg get ntp_status`
             if [ $NTP_STATUS == 3 ] && [ -n "$NTPD_PROCESS" ];then
@@ -806,8 +809,8 @@ case "$1" in
       fi
       ;;
   ipv6_connection_state)
-      # Removed Sky products check except Hub4 due to SKYH4-6932 synchronization issue.
-      if [ "$BOX_TYPE" = "HUB4" ] || [ "$ntpHealthCheck" = "true" ]; then
+      if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$ntpHealthCheck" = "true" ]; then
+        #TODO : could be a common code. 
          NTPD_PROCESS=`pidof $BIN`
          NTP_STATUS=`syscfg get ntp_status`
          #SKYH4-6932: When IPv6 comes up after ipv4, IPv6 listners won't be added and hence with ipv6 only ntp servers, we will have time syncing problems. So checking time sync status along with ntpd process, if time  isn't  synced there will conf update and ntpd restart.
