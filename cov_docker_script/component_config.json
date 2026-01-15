@@ -244,7 +244,7 @@
           "search": "-I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 ${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include",
           "replace": "$(DBUS_CFLAGS)"
         }
-    ]
+    ],
     "build": {
       "type": "autotools",
       "configure_options_file": "cov_docker_script/configure_options.conf"
