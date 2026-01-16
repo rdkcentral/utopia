@@ -2448,17 +2448,21 @@ STATIC int routeset_ula(struct serv_routed *sr)
     sysevent_get(sr->sefd, sr->setok,"backup_wan_prefix_v6_len", pref_rx, sizeof(pref_rx));
     syscfg_get(NULL, "IPv6subPrefix", out, sizeof(out));
 
+    DEG_PRINT1("63035 - Debug log prefix:%s pref_rx:%s out:%s\n",prefix,pref_rx,out);
     if ( strlen(pref_rx) != 0 )
     {
+	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
         pref_len = atoi(pref_rx);
     }
     else
     {
+	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
         pref_len= DEF_ULA_PREF_LEN  ;
     }
 
     if (prefix[0] != '\0' && strlen(prefix) != 0 )
     {
+	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
         SetV6Route(lan_if,prefix);
         char *token;
         token = strtok(prefix,"/");
@@ -2475,11 +2479,13 @@ STATIC int routeset_ula(struct serv_routed *sr)
 
         sysevent_set(sr->sefd, sr->setok, "lan_ipaddr_v6",token, 0);
         */
+	    DEG_PRINT1("63035 - Line:%d, lan_if:%s, token:%s, pref_len:%d\n", __LINE__, lan_if,token,pref_len);
         AssignIpv6Addr(lan_if,token,pref_len);
     }
     
     if(!strncmp(out,"true",strlen(out)))
     {
+	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
             memset(out,0,sizeof(out));
             memset(cmd,0,sizeof(cmd));
             memset(prefix,0,sizeof(prefix));
@@ -2488,6 +2494,7 @@ STATIC int routeset_ula(struct serv_routed *sr)
             pt = out;
             while((token = strtok_r(pt, ",", &pt)))
             {
+	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
                 memset(interface_name,0,sizeof(interface_name));
 
                 strncpy(interface_name,token,sizeof(interface_name)-1);
@@ -2501,16 +2508,21 @@ STATIC int routeset_ula(struct serv_routed *sr)
                 }
                 memset(prefix,0,sizeof(prefix));
 
+	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
                 sysevent_get(sr->sefd, sr->setok, cmd, prefix, sizeof(prefix));
                 token_pref= NULL;
 
                 if (prefix[0] != '\0' && strlen(prefix) != 0 )
                 {
+	    DEG_PRINT1("63035 - Line:%d prefix:%s\n", __LINE__, prefix);
                         SetV6Route(interface_name,prefix);
                         token_pref = strtok(prefix,"/");
+	    DEG_PRINT1("63035 - Line:%d, interface_name:%s, token_pref:%s, pref_len:%d\n", __LINE__, interface_name, token_pref,pref_len);
                         AssignIpv6Addr(interface_name,token_pref,pref_len);
                 }
+	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
             }
+	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
         }
 
 return 0;
