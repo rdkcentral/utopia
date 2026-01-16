@@ -171,12 +171,11 @@ enum ipv6_mode {
 
 int gIpv6AddrAssignment = GLOBAL_IPV6 ;
 int gModeSwitched = NO_SWITCHING ;
-
+#define PSM_MESH_WAN_IFNAME "dmsb.Mesh.WAN.Interface.Name"
 #define DEF_ULA_PREF_LEN 64
 #endif 
 
 #ifdef RDKB_EXTENDER_ENABLED
-//#define PSM_MESH_WAN_IFNAME "dmsb.Mesh.WAN.Interface.Name"
 typedef enum DeviceMode {
     DEVICE_MODE_ROUTER = 0,
     DEVICE_MODE_EXTENDER
@@ -930,7 +929,6 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     char default_wan_interface[64] = {0};
     char wan_interface[64] = {0};
 #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
-#define PSM_MESH_WAN_IFNAME "dmsb.Mesh.WAN.Interface.Name"
     char mesh_wan_ifname[32];
     char *pStr = NULL;
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME,pStr);
@@ -2444,7 +2442,7 @@ STATIC int routeset_ula(struct serv_routed *sr)
     memset(lan_if,0,sizeof(lan_if));
     memset(hotspot_lan_prefix,0,sizeof(hotspot_lan_prefix));
 
-
+#ifdef WAN_FAILOVER_SUPPORTED
     //Fetch Remote WAN interface name
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME, pStr);
     if(return_status == CCSP_SUCCESS && pStr != NULL){
@@ -2460,14 +2458,13 @@ STATIC int routeset_ula(struct serv_routed *sr)
         Ansc_FreeMemory_Callback(pStr);
         pStr = NULL;
     }
-
     sysevent_get(sr->sefd, sr->setok, "current_wan_ifname", wan_interface, sizeof(wan_interface));
 
     if ( (strcmp(wan_interface, hotspot_wan_ifname) == 0) || (strcmp(wan_interface, mesh_wan_ifname) == 0))
     {
 	sysevent_get(sr->sefd, sr->setok, "lan_prefix", hotspot_lan_prefix, sizeof(hotspot_lan_prefix));
     } 
-
+#endif
     sysevent_get(sr->sefd, sr->setok, "ipv6_prefix_ula", prefix, sizeof(prefix));
 
     syscfg_get(NULL, "lan_ifname", lan_if, sizeof(lan_if));
