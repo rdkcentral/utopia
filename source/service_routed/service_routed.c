@@ -171,6 +171,7 @@ enum ipv6_mode {
 
 int gIpv6AddrAssignment = GLOBAL_IPV6 ;
 int gModeSwitched = NO_SWITCHING ;
+extern bool IsHotspotActive(void);
 
 #define DEF_ULA_PREF_LEN 64
 #endif 
