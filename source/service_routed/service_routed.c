@@ -2486,7 +2486,7 @@ STATIC int routeset_ula(struct serv_routed *sr)
     if (prefix[0] != '\0' && strlen(prefix) != 0 )
     {
 	DEG_PRINT1("63035 - Line:%d\n", __LINE__);
-	if ((IsHotspotActive) || (strcmp(wan_interface, mesh_wan_ifname) == 0))
+	if (IsHotspotActive() || (strcmp(wan_interface, mesh_wan_ifname) == 0))
 	{
 	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
 	    SetV6Route(lan_if,hotspot_lan_prefix);
