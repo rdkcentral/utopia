@@ -171,7 +171,6 @@ enum ipv6_mode {
 
 int gIpv6AddrAssignment = GLOBAL_IPV6 ;
 int gModeSwitched = NO_SWITCHING ;
-extern bool IsHotspotActive(void);
 
 #define DEF_ULA_PREF_LEN 64
 #endif 
@@ -2420,6 +2419,7 @@ STATIC void UnSetV6Route(char* ifname , char* route_addr)
 }
 
 // Function sets the route and assign the ULA address to lan interfaces
+#define PSM_HOTSPOT_WAN_IFNAME "dmsb.wanmanager.if.3.Name"
 
 STATIC int routeset_ula(struct serv_routed *sr)
 {
@@ -2436,6 +2436,7 @@ STATIC int routeset_ula(struct serv_routed *sr)
     char *token_pref = NULL ;
     char *pt;
     char mesh_wan_ifname[32] = {0};
+    char hotspot_wan_ifname[32] = {0};
     char *pStr = NULL;
     char wan_interface[64] = {0};
 
@@ -2444,6 +2445,7 @@ STATIC int routeset_ula(struct serv_routed *sr)
     memset(hotspot_lan_prefix,0,sizeof(hotspot_lan_prefix));
 
 
+    //Fetch Remote WAN interface name
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME, pStr);
     if(return_status == CCSP_SUCCESS && pStr != NULL){
         snprintf(mesh_wan_ifname, sizeof(mesh_wan_ifname), "%s", pStr);
@@ -2451,12 +2453,18 @@ STATIC int routeset_ula(struct serv_routed *sr)
         pStr = NULL;
     }
 
+    //Fetch Hotspot WAN interface name
+    return_status = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
+    if(return_status == CCSP_SUCCESS && pStr != NULL){
+        snprintf(hotspot_wan_ifname, sizeof(hotspot_wan_ifname), "%s", pStr);
+        Ansc_FreeMemory_Callback(pStr);
+        pStr = NULL;
+    }
+
     sysevent_get(sr->sefd, sr->setok, "current_wan_ifname", wan_interface, sizeof(wan_interface));
 
-    DEG_PRINT1("63035 - Debug current_wan_ifname:%s mesh_wan_ifname:%s \n", wan_interface, mesh_wan_ifname);
-    if (IsHotspotActive() || (strcmp(wan_interface, mesh_wan_ifname) == 0))
+    if ( (strcmp(wan_interface, hotspot_wan_ifname) == 0) || (strcmp(wan_interface, mesh_wan_ifname) == 0))
     {
-	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
 	sysevent_get(sr->sefd, sr->setok, "lan_prefix", hotspot_lan_prefix, sizeof(hotspot_lan_prefix));
     } 
 
@@ -2471,29 +2479,23 @@ STATIC int routeset_ula(struct serv_routed *sr)
     sysevent_get(sr->sefd, sr->setok,"backup_wan_prefix_v6_len", pref_rx, sizeof(pref_rx));
     syscfg_get(NULL, "IPv6subPrefix", out, sizeof(out));
 
-    DEG_PRINT1("63035 - Debug log prefix:%s pref_rx:%s out:%s\n",prefix,pref_rx,out);
     if ( strlen(pref_rx) != 0 )
     {
-	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
         pref_len = atoi(pref_rx);
     }
     else
     {
-	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
         pref_len= DEF_ULA_PREF_LEN  ;
     }
 
     if (prefix[0] != '\0' && strlen(prefix) != 0 )
     {
-	DEG_PRINT1("63035 - Line:%d\n", __LINE__);
-	if (IsHotspotActive() || (strcmp(wan_interface, mesh_wan_ifname) == 0))
+	if ( (strcmp(wan_interface, hotspot_wan_ifname) == 0) || (strcmp(wan_interface, mesh_wan_ifname) == 0))
 	{
-	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
 	    SetV6Route(lan_if,hotspot_lan_prefix);
 	} 
 	else  
 	{
-	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
 	    SetV6Route(lan_if,prefix);
 	}
 	char *token;
@@ -2511,13 +2513,11 @@ STATIC int routeset_ula(struct serv_routed *sr)
 
         sysevent_set(sr->sefd, sr->setok, "lan_ipaddr_v6",token, 0);
         */
-	    DEG_PRINT1("63035 - Line:%d, lan_if:%s, token:%s, pref_len:%d\n", __LINE__, lan_if,token,pref_len);
         AssignIpv6Addr(lan_if,token,pref_len);
     }
     
     if(!strncmp(out,"true",strlen(out)))
     {
-	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
             memset(out,0,sizeof(out));
             memset(cmd,0,sizeof(cmd));
             memset(prefix,0,sizeof(prefix));
@@ -2526,7 +2526,6 @@ STATIC int routeset_ula(struct serv_routed *sr)
             pt = out;
             while((token = strtok_r(pt, ",", &pt)))
             {
-	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
                 memset(interface_name,0,sizeof(interface_name));
 
                 strncpy(interface_name,token,sizeof(interface_name)-1);
@@ -2540,21 +2539,16 @@ STATIC int routeset_ula(struct serv_routed *sr)
                 }
                 memset(prefix,0,sizeof(prefix));
 
-	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
                 sysevent_get(sr->sefd, sr->setok, cmd, prefix, sizeof(prefix));
                 token_pref= NULL;
 
                 if (prefix[0] != '\0' && strlen(prefix) != 0 )
                 {
-	    DEG_PRINT1("63035 - Line:%d prefix:%s\n", __LINE__, prefix);
                         SetV6Route(interface_name,prefix);
                         token_pref = strtok(prefix,"/");
-	    DEG_PRINT1("63035 - Line:%d, interface_name:%s, token_pref:%s, pref_len:%d\n", __LINE__, interface_name, token_pref,pref_len);
                         AssignIpv6Addr(interface_name,token_pref,pref_len);
                 }
-	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
             }
-	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
         }
 
 return 0;
