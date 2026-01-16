@@ -372,7 +372,6 @@ service_start ()
    syscfg set ntp_status 2
 
    if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] ||  [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" = "true" ]; then
-        #TODO : could be a common code. 
        WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
        if [ "started" != "$CURRENT_WAN_STATUS" ] && [ "up" != "$WAN_IPV6_STATUS" ] ; then
            syscfg set ntp_status 2
@@ -546,19 +545,6 @@ service_start ()
    echo "interface ignore wildcard" >> $NTP_CONF_TMP
    echo "interface listen 127.0.0.1" >> $NTP_CONF_TMP
    echo "interface listen ::1" >> $NTP_CONF_TMP
-   #SHARMAN-2301
-   #This change is for UK MAP-T SR213. Since we will not have any of the global IP on WAN interface, We need to add the IPv6 interface (currently brlan0) to the config file
-   if [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" = "true" ]; then
-       MAPT_STATS=$(sysevent get mapt_config_flag)
-       echo_t "SERVICE_NTPD : MAPT_STATS=$MAPT_STATS"
-       if [ x"$MAPT_STATS" = x"set" ]; then
-           IPV4_CONN_STATE=$(sysevent get ipv4_connection_state)
-           echo_t "SERVICE_NTPD : IPV4_CONN_STATE=$IPV4_CONN_STATE"
-           if [ x"$IPV4_CONN_STATE" != x"up" ]; then
-               echo "interface listen $NTPD_IPV6_INTERFACE" >> $NTP_CONF_TMP
-           fi
-       fi
-   fi
 
    if [ -n "$WAN_IP" ]; then
        echo "interface listen $WAN_IP" >> $NTP_CONF_TMP
@@ -566,21 +552,6 @@ service_start ()
            echo "interface listen br403" >> $NTP_CONF_TMP
        fi
    fi  
-
-   if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$LANIPV6Support" = "true" ]; then
-       # SKYH4-2006: To listen v6 server, update the conf file after getting valid v6 IP(CURRENT_WAN_V6_PREFIX)
-       CURRENT_WAN_IPV6_STATUS=`sysevent get ipv6_connection_state`
-
-       if [ "up" = "$CURRENT_WAN_IPV6_STATUS" ] ; then
-           CURRENT_WAN_V6_PREFIX=`syscfg get ipv6_prefix_address`
-           if [ -n "$CURRENT_WAN_V6_PREFIX" ]; then
-               echo "interface listen $CURRENT_WAN_V6_PREFIX" >> $NTP_CONF_TMP
-               sysevent set ntp_ipv6_listen "set"
-           else
-               sysevent set ntp_ipv6_listen "unset"
-           fi
-       fi
-   fi
 
    if [ "$MULTI_CORE" = "yes" ]  && [ "$NTPD_IMMED_PEER_SYNC" != "true" ]; then
        echo "interface listen $HOST_INTERFACE_IP" >> $NTP_CONF_TMP
@@ -600,10 +571,10 @@ service_start ()
 
        if [ -n "$QUICK_SYNC_WAN_IP" ]; then
            # Try and Force Quick Sync to Run on a single interface
-	   uptime=$(cut -d. -f1 /proc/uptime)
+		   uptime=$(cut -d. -f1 /proc/uptime)
            uptime_ms=$((uptime*1000))
            echo_t "SERVICE_NTPD : Starting NTP Quick Sync" >> $NTPD_LOG_NAME
-	   t2ValNotify "SYST_INFO_NTP_START_split" $uptime_ms
+		   t2ValNotify "SYS_INFO_NTPSTART_split" $uptime_ms
            $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME &
            QUICK_SYNC_PID=$!
            if [ -n "$QUICK_SYNC_PID" ];then
@@ -619,8 +590,7 @@ service_start ()
        echo_t "SERVICE_NTPD : Starting NTP Daemon" >> $NTPD_LOG_NAME
        systemctl start $BIN
        ret_val=$? ### To ensure proper ret_val is obtained
-       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ] && [ "$BOX_TYPE" == "SCXF11BFL" ]; then
-            #TODO : could be a common code. 
+       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ]; then
            sysevent set firewall-restart
        fi
    fi
@@ -777,7 +747,6 @@ case "$1" in
   wan-status)
       if [ "started" = "$CURRENT_WAN_STATUS" ] ; then
          if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$ntpHealthCheck" = "true" ]; then
-            #TODO : could be a common code. Will affect common
             NTPD_PROCESS=`pidof $BIN`
             NTP_STATUS=`syscfg get ntp_status`
             if [ $NTP_STATUS == 3 ] && [ -n "$NTPD_PROCESS" ];then
@@ -810,7 +779,6 @@ case "$1" in
       ;;
   ipv6_connection_state)
       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$ntpHealthCheck" = "true" ]; then
-        #TODO : could be a common code. 
          NTPD_PROCESS=`pidof $BIN`
          NTP_STATUS=`syscfg get ntp_status`
          #SKYH4-6932: When IPv6 comes up after ipv4, IPv6 listners won't be added and hence with ipv6 only ntp servers, we will have time syncing problems. So checking time sync status along with ntpd process, if time  isn't  synced there will conf update and ntpd restart.
