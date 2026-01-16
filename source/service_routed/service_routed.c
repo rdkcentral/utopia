@@ -2452,7 +2452,7 @@ STATIC int routeset_ula(struct serv_routed *sr)
     sysevent_get(sr->sefd, sr->setok, "current_wan_ifname", wan_interface, sizeof(wan_interface));
 
     DEG_PRINT1("63035 - Debug current_wan_ifname:%s hotspot_wan_ifname:%s \n", wan_interface, hotspot_wan_ifname);
-    if (strcmp(wan_interface, hotspot_wan_ifname) == 0)
+    if (hotspot_wan_ifname[0] != '\0' && strcmp(wan_interface, hotspot_wan_ifname) == 0)
     {
 	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
 	sysevent_get(sr->sefd, sr->setok, "lan_prefix", prefix, sizeof(prefix));
