@@ -944,6 +944,8 @@ $Adv_AdvSecSafeBrowsingRFCEnable=1
 $Adv_AdvSecCujoTelemetryWiFiFPRFCEnable=0
 $Adv_AdvSecCujoTracerRFCEnable=0
 $Adv_AdvSecCujoTelemetryRFCEnable=0
+$Adv_SATERFCEnable=0
+$Adv_TCPTrackerFilterDevicesRFCEnable=0
 $Adv_RaptrRFCEnable=1
 
 #Firewall log settings
