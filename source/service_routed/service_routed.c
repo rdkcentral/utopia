@@ -2420,6 +2420,7 @@ STATIC void UnSetV6Route(char* ifname , char* route_addr)
 
 // Function sets the route and assign the ULA address to lan interfaces
 
+#define PSM_HOTSPOT_WAN_IFNAME "dmsb.wanmanager.if.3.Name"
 STATIC int routeset_ula(struct serv_routed *sr)
 {
 
@@ -2433,11 +2434,34 @@ STATIC int routeset_ula(struct serv_routed *sr)
     char *token = NULL; 
     char *token_pref = NULL ;
     char *pt;
+    char hotspot_wan_ifname[32] = {0};
+    char *pStr = NULL;
+    char wan_interface[64] = {0};
 
     memset(prefix,0,sizeof(prefix));
     memset(lan_if,0,sizeof(lan_if));
 
-    sysevent_get(sr->sefd, sr->setok, "ipv6_prefix_ula", prefix, sizeof(prefix));
+
+    int return_status = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
+    if(return_status == CCSP_SUCCESS && pStr != NULL){
+        snprintf(hotspot_wan_ifname, sizeof(hotspot_wan_ifname), "%s", pStr);
+        Ansc_FreeMemory_Callback(pStr);
+        pStr = NULL;
+    }
+
+    sysevent_get(sr->sefd, sr->setok, "current_wan_ifname", wan_interface, sizeof(wan_interface));
+
+    DEG_PRINT1("63035 - Debug current_wan_ifname:%s hotspot_wan_ifname:%s \n", wan_interface, hotspot_wan_ifname);
+    if (strcmp(wan_interface, hotspot_wan_ifname) == 0)
+    {
+	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
+	sysevent_get(sr->sefd, sr->setok, "lan_prefix", prefix, sizeof(prefix));
+    } 
+    else
+    {
+	    DEG_PRINT1("63035 - Line:%d\n", __LINE__);
+	sysevent_get(sr->sefd, sr->setok, "ipv6_prefix_ula", prefix, sizeof(prefix));
+    }
 
     syscfg_get(NULL, "lan_ifname", lan_if, sizeof(lan_if));
 
