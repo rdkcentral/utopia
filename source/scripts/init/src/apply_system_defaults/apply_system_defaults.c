@@ -1429,6 +1429,18 @@ STATIC void addInSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"IPv6PrimaryDhcpServerOptions" );
       }
    }
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Enabled"))
+      if (0 == IsValuePresentinSyscfgDB("VoiceSupport_Enabled"))
+           set_syscfg_partner_values(value, "VoiceSupport_Enabled");
+
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.InterfaceName"))
+      if (0 == IsValuePresentinSyscfgDB("VoiceSupport_IfaceName"))
+           set_syscfg_partner_values(value, "VoiceSupport_IfaceName");
+
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Mode"))
+      if (0 == IsValuePresentinSyscfgDB("VoiceSupport_Mode"))
+         set_syscfg_partner_values(value, "VoiceSupport_Mode");
+
 #endif
    if ( 0 == strcmp ( key, "Device.X_RDK_WebConfig.URL") )
    {
@@ -1694,6 +1706,14 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    {
          set_syscfg_partner_values( value,"IPv4SecondaryDhcpServerOptions" );
    }
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Enabled"))
+      set_syscfg_partner_values(value, "VoiceSupport_Enabled");
+
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.InterfaceName"))
+      set_syscfg_partner_values(value, "VoiceSupport_IfaceName");
+
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Mode"))
+      set_syscfg_partner_values(value, "VoiceSupport_Mode");
 #endif
    if ( 0 == strcmp ( key, "Device.X_RDK_WebConfig.URL") )
    {
@@ -3002,7 +3022,6 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 				        {
 				            APPLY_PRINT("%s - Default Value of StartupIPMode is NULL\n", __FUNCTION__ );
 				        }
-
                paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Default_VoIP_Configuration_FileName"), "ActiveValue");
                if ( paramObjVal != NULL )
                {
@@ -3077,6 +3096,51 @@ if ( paramObjVal != NULL )
        {
             APPLY_PRINT("%s - Default Value of Secondary dhcp server option is NULL\n", __FUNCTION__ );
        }
+               paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem(partnerObj,"Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Enabled"),"ActiveValue");
+               if(paramObjVal != NULL)
+               {
+                  char *pVoiceSupportEnabled = NULL;
+                  pVoiceSupportEnabled = paramObjVal->valuestring;
+                  if(pVoiceSupportEnabled != NULL)
+                  {
+                     set_syscfg_partner_values(pVoiceSupportEnabled,"VoiceSupport_Enabled");
+                     pVoiceSupportEnabled = NULL;
+                  }
+                  else
+                  {
+                     APPLY_PRINT("%s - VoiceSupportEnabled Value is NULL\n", __FUNCTION__ );
+                  }
+               }
+               paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem(partnerObj,"Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.InterfaceName"),"ActiveValue");
+               if(paramObjVal != NULL)
+               {
+                  char *pVoiceSupportIfaceName = NULL;
+                  pVoiceSupportIfaceName = paramObjVal->valuestring;
+                  if(pVoiceSupportIfaceName != NULL)
+                  {
+                     set_syscfg_partner_values(pVoiceSupportIfaceName,"VoiceSupport_IfaceName");
+                     pVoiceSupportIfaceName = NULL;
+                  }
+                  else
+                  {
+                     APPLY_PRINT("%s - VoiceSupportIfaceName Value is NULL\n", __FUNCTION__ );
+                  }
+               }
+               paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem(partnerObj,"Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Mode"),"ActiveValue");
+               if(paramObjVal != NULL)
+               {
+                  char *pVoiceSupportMode = NULL;
+                  pVoiceSupportMode = paramObjVal->valuestring;
+                  if(pVoiceSupportMode != NULL)
+                  {
+                     set_syscfg_partner_values(pVoiceSupportMode,"VoiceSupport_Mode");
+                     pVoiceSupportMode = NULL;
+                  }
+                  else
+                  {
+                     APPLY_PRINT("%s - VoiceSupportMode Value is NULL\n", __FUNCTION__ );
+                  }
+               }
 #endif
 					paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.WANsideSSH.Enable"), "ActiveValue");
 					if ( paramObjVal != NULL )
