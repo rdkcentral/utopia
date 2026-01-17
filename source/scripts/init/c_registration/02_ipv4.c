@@ -65,7 +65,7 @@ const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_ipv4.sh";
  * keep the define outside of the string quotation symbols
  * eg. "event3|/etc/code|"ACTION_FLAG_NOT_THREADSAFE"|"TUPLE_FLAG_SERIAL
  */
-#if defined(_COSA_INTEL_USG_ARM_) && !defined(INTEL_PUMA7) && !defined(_COSA_BCM_ARM_) && !defined(_PLATFORM_IPQ_) && !defined(_COSA_QCA_ARM_)
+#if defined(_COSA_INTEL_USG_ARM_) && !defined(INTEL_PUMA7) && !defined(_COSA_BCM_ARM_) && !defined(_PLATFORM_IPQ_) && !defined(_COSA_QCA_ARM_) && !defined(_PLATFORM_BANANAPI_R4_)
 const char* SERVICE_CUSTOM_EVENTS[] = { 
     "ipv4-resyncAll|/etc/utopia/service.d/service_ipv4.sh|NULL|"TUPLE_FLAG_EVENT,
     "ipv4-resync|/etc/utopia/service.d/service_ipv4.sh|NULL|"TUPLE_FLAG_EVENT,
