@@ -171,12 +171,11 @@ enum ipv6_mode {
 
 int gIpv6AddrAssignment = GLOBAL_IPV6 ;
 int gModeSwitched = NO_SWITCHING ;
-
+#define PSM_MESH_WAN_IFNAME "dmsb.Mesh.WAN.Interface.Name"
 #define DEF_ULA_PREF_LEN 64
 #endif 
 
 #ifdef RDKB_EXTENDER_ENABLED
-//#define PSM_MESH_WAN_IFNAME "dmsb.Mesh.WAN.Interface.Name"
 typedef enum DeviceMode {
     DEVICE_MODE_ROUTER = 0,
     DEVICE_MODE_EXTENDER
@@ -930,7 +929,6 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     char default_wan_interface[64] = {0};
     char wan_interface[64] = {0};
 #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
-#define PSM_MESH_WAN_IFNAME "dmsb.Mesh.WAN.Interface.Name"
     char mesh_wan_ifname[32];
     char *pStr = NULL;
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME,pStr);
@@ -2419,12 +2417,14 @@ STATIC void UnSetV6Route(char* ifname , char* route_addr)
 }
 
 // Function sets the route and assign the ULA address to lan interfaces
+#define PSM_HOTSPOT_WAN_IFNAME "dmsb.wanmanager.if.3.Name"
 
 STATIC int routeset_ula(struct serv_routed *sr)
 {
 
     char prefix[128] ;
-        char lan_if[32] ;
+    char prev_lan_global_prefix[128] ;
+    char lan_if[32] ;
     char pref_rx[16];
 
     char cmd[256];
@@ -2433,10 +2433,38 @@ STATIC int routeset_ula(struct serv_routed *sr)
     char *token = NULL; 
     char *token_pref = NULL ;
     char *pt;
+    char mesh_wan_ifname[32] = {0};
+    char hotspot_wan_ifname[32] = {0};
+    char *pStr = NULL;
+    char wan_interface[64] = {0};
 
     memset(prefix,0,sizeof(prefix));
     memset(lan_if,0,sizeof(lan_if));
+    memset(prev_lan_global_prefix,0,sizeof(prev_lan_global_prefix));
 
+#ifdef WAN_FAILOVER_SUPPORTED
+    //Fetch Remote WAN interface name
+    int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME, pStr);
+    if(return_status == CCSP_SUCCESS && pStr != NULL){
+        snprintf(mesh_wan_ifname, sizeof(mesh_wan_ifname), "%s", pStr);
+        Ansc_FreeMemory_Callback(pStr);
+        pStr = NULL;
+    }
+
+    //Fetch Hotspot WAN interface name
+    return_status = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
+    if(return_status == CCSP_SUCCESS && pStr != NULL){
+        snprintf(hotspot_wan_ifname, sizeof(hotspot_wan_ifname), "%s", pStr);
+        Ansc_FreeMemory_Callback(pStr);
+        pStr = NULL;
+    }
+    sysevent_get(sr->sefd, sr->setok, "current_wan_ifname", wan_interface, sizeof(wan_interface));
+
+    if ( (strcmp(wan_interface, hotspot_wan_ifname) == 0) || (strcmp(wan_interface, mesh_wan_ifname) == 0))
+    {
+	sysevent_get(sr->sefd, sr->setok, "lan_prefix", prev_lan_global_prefix, sizeof(prev_lan_global_prefix));
+    } 
+#endif
     sysevent_get(sr->sefd, sr->setok, "ipv6_prefix_ula", prefix, sizeof(prefix));
 
     syscfg_get(NULL, "lan_ifname", lan_if, sizeof(lan_if));
@@ -2459,8 +2487,12 @@ STATIC int routeset_ula(struct serv_routed *sr)
 
     if (prefix[0] != '\0' && strlen(prefix) != 0 )
     {
-        SetV6Route(lan_if,prefix);
-        char *token;
+	if ( (strcmp(wan_interface, hotspot_wan_ifname) == 0) || (strcmp(wan_interface, mesh_wan_ifname) == 0))
+	{
+	    SetV6Route(lan_if,prev_lan_global_prefix);
+	} 
+	SetV6Route(lan_if,prefix);
+	char *token;
         token = strtok(prefix,"/");
 
         /*
