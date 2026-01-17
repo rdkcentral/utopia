@@ -2423,7 +2423,7 @@ STATIC int routeset_ula(struct serv_routed *sr)
 {
 
     char prefix[128] ;
-    char hotspot_lan_prefix[128] ;
+    char prev_lan_global_prefix[128] ;
     char lan_if[32] ;
     char pref_rx[16];
 
@@ -2440,7 +2440,7 @@ STATIC int routeset_ula(struct serv_routed *sr)
 
     memset(prefix,0,sizeof(prefix));
     memset(lan_if,0,sizeof(lan_if));
-    memset(hotspot_lan_prefix,0,sizeof(hotspot_lan_prefix));
+    memset(prev_lan_global_prefix,0,sizeof(prev_lan_global_prefix));
 
 #ifdef WAN_FAILOVER_SUPPORTED
     //Fetch Remote WAN interface name
@@ -2462,7 +2462,7 @@ STATIC int routeset_ula(struct serv_routed *sr)
 
     if ( (strcmp(wan_interface, hotspot_wan_ifname) == 0) || (strcmp(wan_interface, mesh_wan_ifname) == 0))
     {
-	sysevent_get(sr->sefd, sr->setok, "lan_prefix", hotspot_lan_prefix, sizeof(hotspot_lan_prefix));
+	sysevent_get(sr->sefd, sr->setok, "lan_prefix", prev_lan_global_prefix, sizeof(prev_lan_global_prefix));
     } 
 #endif
     sysevent_get(sr->sefd, sr->setok, "ipv6_prefix_ula", prefix, sizeof(prefix));
@@ -2489,12 +2489,9 @@ STATIC int routeset_ula(struct serv_routed *sr)
     {
 	if ( (strcmp(wan_interface, hotspot_wan_ifname) == 0) || (strcmp(wan_interface, mesh_wan_ifname) == 0))
 	{
-	    SetV6Route(lan_if,hotspot_lan_prefix);
+	    SetV6Route(lan_if,prev_lan_global_prefix);
 	} 
-	else  
-	{
-	    SetV6Route(lan_if,prefix);
-	}
+	SetV6Route(lan_if,prefix);
 	char *token;
         token = strtok(prefix,"/");
 
