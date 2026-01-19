@@ -327,7 +327,7 @@ static int handle_version (char* name, char* value)
     return ret;
 }
 
-static int check_version (void)
+static int check_version (const char* defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -335,7 +335,7 @@ static int check_version (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
@@ -579,7 +579,7 @@ static int set_defaults(void)
 
    printf("[DEBUG] %s: partnerId: %s, defaultsFile: %s\n", __FUNCTION__, PartnerID, defaultsFile);
 #if ! defined (ALWAYS_CONVERT)
-   check_version();
+   check_version(defaultsFile);
 #endif
 
    set_syscfg_defaults(defaultsFile);
