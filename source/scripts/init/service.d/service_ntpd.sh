@@ -819,16 +819,16 @@ CURRENT_WAN_STATUS=`sysevent get wan-status`
 case "$1" in
   "${SERVICE_NAME}-start")
       echo_t "SERVICE_NTPD : ${SERVICE_NAME}-start calling service_start" >> $NTPD_LOG_NAME
-      service_start
+      #service_start
       ;;
   "${SERVICE_NAME}-stop")
       echo_t "SERVICE_NTPD : ${SERVICE_NAME}-stop called" >> $NTPD_LOG_NAME
-      service_stop
+      #service_stop
       ;;
   "${SERVICE_NAME}-restart")
       echo_t "SERVICE_NTPD : ${SERVICE_NAME}-restart called" >> $NTPD_LOG_NAME
-      service_stop
-      service_start
+      #service_stop
+      #service_start
       ;;
   wan-status)
       if [ "started" = "$CURRENT_WAN_STATUS" ] ; then
@@ -839,11 +839,11 @@ case "$1" in
                echo_t "SERVICE_NTPD : ntp process is already running and pid is = $NTPD_PROCESS" >> $NTPD_LOG_NAME
             else
                echo_t "SERVICE_NTPD : wan-status calling service_start" >> $NTPD_LOG_NAME
-               service_start
+              # service_start
             fi
          else
             echo_t "SERVICE_NTPD : wan-status calling service_start" >> $NTPD_LOG_NAME
-            service_start
+            #service_start
          fi
       fi
       ;;
@@ -858,8 +858,8 @@ case "$1" in
           if [ "$restart_ntp" = "1" ];then
               CURRENT_WAN_STATUS=`sysevent get wan-status`
               echo_t "SERVICE_NTPD : current_wan_ifname calling service_restart" >> $NTPD_LOG_NAME
-              service_stop
-              service_start
+             # service_stop
+              #service_start
           fi
       fi
       ;;
@@ -879,7 +879,7 @@ case "$1" in
                   if [ -n "$CURRENT_WAN_V6_PREFIX" ] && ([ "$NTP_PREFIX" != "$CURRENT_WAN_V6_PREFIX" ] || [ "set" != "$NTP_IPV6_LISTEN" ]) ; then
                       echo_t "SERVICE_NTPD : ipv6_connection_state calling service_start" >> $NTPD_LOG_NAME
                       sysevent set ntp_prefix $CURRENT_WAN_V6_PREFIX
-                      service_start
+               #       service_start
                   fi
               fi
           fi
