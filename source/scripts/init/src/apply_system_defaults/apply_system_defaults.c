@@ -550,10 +550,6 @@ static int set_sysevent_defaults (const char *defaultsFile)
 
 static const char* get_defaults_file(const char *partnerId)
 {
-    if (partnerId == NULL) {
-        return DEFAULT_FILE_ARM;
-    }
-
     if (strcmp(partnerId, "comcast-business") == 0) {
         return DEFAULT_FILE_BCI;
     }
