@@ -1488,25 +1488,3 @@ $RemoteDebuggerIssueType=NULL
 
 #Wifi Personalization Support Default value
 $WiFiPersonalizationSupport=true
-
-#RIP v2 enabled on erouter0; send/receive active
-$cosa_usgv2_rip00::Version=2
-$cosa_usgv2_rip00::ConnectedMetric=1
-$cosa_usgv2_rip00::DefaultMetric=1
-$cosa_usgv2_rip00::UpdateTime=30
-$cosa_usgv2_rip00::CollectionTime=120
-$cosa_usgv2_rip00::TimoutTime=180
-
-$cosa_usgv2_rip00::If1Enable=1
-$cosa_usgv2_rip00::If1KeyChainName=keychain1
-$cosa_usgv2_rip00::If1Name=erouter0
-$cosa_usgv2_rip00::If1Alias=Ethernet
-$cosa_usgv2_rip00::If1AuthenticateType=3
-$cosa_usgv2_rip00::If1ReceiveEnable=1
-$cosa_usgv2_rip00::If1ReceiveVersion=2
-$cosa_usgv2_rip00::If1SendEnable=1
-$cosa_usgv2_rip00::If1SendVersion=2
-$cosa_usgv2_rip00::If1Neighbor=0
-$cosa_usgv2_rip00::If1KeyID=0
-$cosa_usgv2_rip00::If1Md5KeyValue=
-$cosa_usgv2_rip00::If1SimplePassword=

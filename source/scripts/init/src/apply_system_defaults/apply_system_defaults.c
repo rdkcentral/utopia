@@ -84,7 +84,8 @@
 
 static int   syscfg_dirty;
 
-#define DEFAULT_FILE "/etc/utopia/system_defaults"
+#define DEFAULT_FILE_ARM "/etc/utopia/system_defaults_arm"
+#define DEFAULT_FILE_BCI "/etc/utopia/system_defaults_bci"
 #define SE_NAME "system_default_set"
 
 STATIC int global_fd = 0;
@@ -400,7 +401,7 @@ static int check_version (void)
  * Parameters    :
  * Return Value  : 0 if ok, -1 if not
  */
-static int set_syscfg_defaults (void)
+static int set_syscfg_defaults (const char *defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -408,7 +409,7 @@ static int set_syscfg_defaults (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
@@ -470,7 +471,7 @@ static int set_syscfg_defaults (void)
  * Parameters    :
  * Return Value  : 0 if ok, -1 if not
  */
-static int set_sysevent_defaults (void)
+static int set_sysevent_defaults (const char *defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -478,7 +479,7 @@ static int set_sysevent_defaults (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
@@ -547,6 +548,19 @@ static int set_sysevent_defaults (void)
    return 0;
 }
 
+static const char* get_defaults_file(const char *partnerId)
+{
+    if (partnerId == NULL) {
+        return DEFAULT_FILE_ARM;
+    }
+
+    if (strcmp(partnerId, "comcast-business") == 0) {
+        return DEFAULT_FILE_BCI;
+    }
+
+    return DEFAULT_FILE_ARM;
+}
+
 /*
  * Procedure     : set_defaults
  * Purpose       : Go through a file twice, first for syscfg variables 
@@ -557,12 +571,19 @@ static int set_sysevent_defaults (void)
  */
 static int set_defaults(void)
 {
+   char  PartnerID[ PARTNER_ID_LEN+255 ]  = { 0 };
+   const char *defaultsFile = NULL;
+
+   get_PartnerID ( PartnerID );
+   defaultsFile = get_defaults_file(PartnerID);
+
+   printf("[DEBUG] %s: partnerId: %s, defaultsFile: %s\n", __FUNCTION__, PartnerID, defaultsFile);
 #if ! defined (ALWAYS_CONVERT)
    check_version();
 #endif
 
-   set_syscfg_defaults();
-   set_sysevent_defaults();
+   set_syscfg_defaults(defaultsFile);
+   set_sysevent_defaults(defaultsFile);
 
    return 0;
 }
