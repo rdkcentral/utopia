@@ -91,6 +91,7 @@ static int   syscfg_dirty;
 STATIC int global_fd = 0;
 STATIC token_t global_id;
 
+static int get_PartnerID(char *PartnerID);
 /*
    By default the variable "convert" will be set if $Version is found in
    system_defaults and its value does not match the currently configured value
@@ -339,7 +340,7 @@ static int check_version (const char* defaultsFile)
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -413,7 +414,7 @@ static int set_syscfg_defaults (const char *defaultsFile)
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -483,7 +484,7 @@ static int set_sysevent_defaults (const char *defaultsFile)
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
