@@ -944,6 +944,8 @@ $Adv_AdvSecSafeBrowsingRFCEnable=1
 $Adv_AdvSecCujoTelemetryWiFiFPRFCEnable=0
 $Adv_AdvSecCujoTracerRFCEnable=0
 $Adv_AdvSecCujoTelemetryRFCEnable=0
+$Adv_SATERFCEnable=0
+$Adv_TCPTrackerFilterDevicesRFCEnable=0
 $Adv_RaptrRFCEnable=1
 
 #Firewall log settings
@@ -1429,6 +1431,8 @@ $DscpSleepInterval_2=0
 #Ccsp CMagent Docsis linkdown timeout default value is 900sec
 $DocsisLinkDownTimeOut=900
 
+#Ccsp Ethagent EWAN linkdown timeout default value is 900sec
+$EWanLinkDownTimeout=900
 #LLDEnable default value is false
 $LldEnable=false
 

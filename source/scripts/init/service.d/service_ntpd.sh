@@ -276,7 +276,7 @@ set_ntp_quicksync_status ()
           uptime_ms=$((uptime*1000))
           if [ "$ntpd_exit_code" -eq 0 ]; then
              echo_t "NTP quick sync succeeded,set ntp status" >> $NTPD_LOG_NAME
-			 t2ValNotify  "SYST_INFO_NTP_SYNC_split" $uptime_ms
+			 t2ValNotify  "SYS_INFO_NTP_SYNC_split" $uptime_ms
              systemctl restart ntp-data-collector.service
              syscfg set ntp_status 3
              #Set FirstUseDate in Syscfg if this is the first time we are doing a successful NTP Sych
@@ -292,7 +292,7 @@ set_ntp_quicksync_status ()
              break
 	  elif [ "$ntpd_exit_code" -eq 127 ]; then
              echo_t "NTP quick sync not succeeded,PID has terminated or is unknown by the shell" >> $NTPD_LOG_NAME
-			 t2CountNotify "SYST_ERROR_NTP_UNSYNC"
+			 t2CountNotify "SYS_ERROR_NTP_UNSYNC"
 	     break
           fi
        else
@@ -550,7 +550,7 @@ service_start ()
    fi #if [ -n "$QUICK_SYNC_WAN_IP" ]; then
 
    if [ -n "$PEER_INTERFACE_IP" ]; then
-       if [ "$BOX_TYPE" != "HUB4" ]  && [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "SR213" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$NTPD_IMMED_PEER_SYNC" != "true" ] && [ "$BOX_TYPE" != "SCER11BEL" ]; then
+       if [ "$BOX_TYPE" != "HUB4" ]  && [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "SR213" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$NTPD_IMMED_PEER_SYNC" != "true" ] && [ "$BOX_TYPE" != "SCER11BEL" ] && [ "$BOX_TYPE" != "SCXF11BFL" ]; then
            if [ -z "$SOURCE_PING_INTF" ]; then
                MASK="255.255.255.0"
            else
@@ -629,7 +629,7 @@ service_start ()
 		   uptime=$(cut -d. -f1 /proc/uptime)
            uptime_ms=$((uptime*1000))
            echo_t "SERVICE_NTPD : Starting NTP Quick Sync" >> $NTPD_LOG_NAME
-		   t2ValNotify "SYST_INFO_NTP_START_split" $uptime_ms
+		   t2ValNotify "SYS_INFO_NTPSTART_split" $uptime_ms
            if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$ntpHealthCheck" = "true" ]; then
                if [ $WAN_IPv6_UP -eq 1 ]; then
                    $BIN -c $NTP_CONF_QUICK_SYNC --interface "$QUICK_SYNC_WAN_IP" -x -gq -l $NTPD_LOG_NAME & 
@@ -655,7 +655,7 @@ service_start ()
        echo_t "SERVICE_NTPD : Starting NTP Daemon" >> $NTPD_LOG_NAME
        systemctl start $BIN
        ret_val=$? ### To ensure proper ret_val is obtained
-       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ]; then
+       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ]; then
            sysevent set firewall-restart
        fi
    fi

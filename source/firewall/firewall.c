@@ -353,6 +353,10 @@ NOT_DEF:
 #include <sys/mman.h>
 #include "secure_wrapper.h"
 #include "util.h"
+#include "ccsp_custom.h"
+#include "ccsp_psm_helper.h"
+#include <ccsp_base_api.h>
+#include "ccsp_memory.h"
 
 
 #if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
@@ -524,7 +528,6 @@ enum{
     NAT_DISABLE_STATICIP,
 };
 #define PCMD_LIST "/tmp/.pcmd"
-
 typedef struct _decMacs_
 {
 char mac[19];
@@ -699,6 +702,7 @@ char current_wan_ip6_addr[128];
 bool isDefHttpsPortUsed = FALSE ;
 int current_wan_ipv6_num = 0;
 char default_wan_ifname[50]; // name of the regular wan interface
+char hotspot_wan_ifname[50];
 int rfstatus;
 /*
  * For timed internet access rules we use cron 
@@ -2159,7 +2163,7 @@ static int bIsContainerEnabled( void)
     deviceFilePtr = fopen( DEVICE_PROPERTIES, "r" );
 
     if (deviceFilePtr) {
-        while (fscanf(deviceFilePtr , "%s", fileContent) != EOF ) {
+        while (fscanf(deviceFilePtr , "%254s", fileContent) != EOF ) {
             if ((pContainerSupport = strstr(fileContent, "CONTAINER_SUPPORT")) != NULL) {
                 offsetValue = strlen("CONTAINER_SUPPORT=");
                 pContainerSupport = pContainerSupport + offsetValue;
@@ -2382,7 +2386,9 @@ static int prepare_globals_from_configuration(void)
    syscfg_get(NULL, "firewall_levelv6", firewall_levelv6, sizeof(firewall_levelv6));
 
    syscfg_get(NULL, "ecm_wan_ifname", ecm_wan_ifname, sizeof(ecm_wan_ifname));
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    syscfg_get(NULL, "emta_wan_ifname", emta_wan_ifname, sizeof(emta_wan_ifname));
+#endif
    syscfg_get(NULL, "eth_wan_enabled", eth_wan_enabled, sizeof(eth_wan_enabled));
    if (0 == strcmp("true", eth_wan_enabled))
       bEthWANEnable = TRUE;
@@ -2406,7 +2412,7 @@ static int prepare_globals_from_configuration(void)
 #ifdef CORE_NET_LIB
         libnet_status ret;
         ret = get_ipv6_address(wanInterface, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
-        if (ret == CNL_STATUS_SUCCESS) {
+        if (ret == ANSC_STATUS_SUCCESS) {
             FIREWALL_DEBUG("Successfully retrived global IPv6 address for %s\n" COMMA wanInterface);
 	    current_wan_ip6_addr[sizeof(current_wan_ip6_addr) - 1] = '\0';
 	}
@@ -2422,7 +2428,7 @@ static int prepare_globals_from_configuration(void)
 	char interface_ipv6[BUFLEN_64] = "erouter0";
         libnet_status stat;
       	stat = get_ipv6_address(interface_ipv6, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
-        if (stat == CNL_STATUS_SUCCESS) {
+        if (stat == ANSC_STATUS_SUCCESS) {
             FIREWALL_DEBUG("Successfully retrived IPv6 address for erouter0\n");
 	    current_wan_ip6_addr[sizeof(current_wan_ip6_addr) - 1] = '\0';
         }
@@ -2470,6 +2476,21 @@ static int prepare_globals_from_configuration(void)
                pStr = NULL;
          }      
    }
+
+   // Update WIFI hotspot interface name -> from CurrentActiveInterface
+   memset(hotspot_wan_ifname,0,sizeof(hotspot_wan_ifname));
+   if (IsHotspotActive())
+   {
+        // Get the current active interface from RDK Bus
+        if (RdkBus_GetParamValues(
+                FIREWALL_COMPONENT_NAME, FIREWALL_DBUS_PATH, "Device.X_RDK_WanManager.CurrentActiveInterface", 
+		hotspot_wan_ifname, sizeof(hotspot_wan_ifname)) == ANSC_STATUS_SUCCESS)
+        {
+	    FIREWALL_DEBUG("HotSpot wan interface fetched \n");
+        }
+   }
+   FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
+
    memset(mesh_wan_ipv6addr,0,sizeof(mesh_wan_ipv6addr));
    get_ip6address(mesh_wan_ifname, mesh_wan_ipv6addr, &mesh_wan_ipv6_num,IPV6_ADDR_SCOPE_GLOBAL);
    #endif 
@@ -5278,6 +5299,38 @@ static int do_nat_ephemeral(FILE *fp)
    return(0);
 }
 
+#if defined  (WAN_FAILOVER_SUPPORTED)
+void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
+{
+    FIREWALL_DEBUG(" Entering applyHotspotPostRoutingRules \n");
+    char sysEventName[256];
+    if (isIpv4 == true)
+    {
+	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+	{
+	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv4\n");
+	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipaddr);
+	    fprintf(fp, "-A postrouting_towan -o %s -j SNAT --to-source %s\n" , current_wan_ifname, current_wan_ipaddr);
+	}
+    }
+    else
+    {
+	memset(current_wan_ip6_addr, 0, sizeof(current_wan_ip6_addr));
+	memset(sysEventName, 0, sizeof(sysEventName));
+	snprintf(sysEventName, sizeof(sysEventName),"tr_%s_dhcpv6_client_v6addr", hotspot_wan_ifname);
+	sysevent_get(sysevent_fd, sysevent_token, sysEventName, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
+
+	if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
+	{
+	    FIREWALL_DEBUG("Apply Post Routing Rules for IPv6\n");
+	    FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
+	    fprintf(fp, "-A POSTROUTING -o %s -j SNAT --to-source %s\n", current_wan_ifname, current_wan_ip6_addr);
+	}
+
+    }
+    FIREWALL_DEBUG(" Exiting applyHotspotPostRoutingRules \n");
+}
+#endif
 #if defined(_BWG_PRODUCT_REQ_)
 /*
  *  Procedure     : do_raw_table_staticip
@@ -5386,12 +5439,19 @@ static int do_wan_nat_lan_clients(FILE *fp)
   {/*fix RDKB-21704, SNAT is required only for private IP ranges. */
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
   if (!isMAPTReady)
+  {
 #endif //FEATURE_MAPT
 #ifdef FEATURE_MAPE
   if(!isMAPEReady)
+  {
 #endif
-     if(!IS_EMPTY_STRING(natip4))
-     {
+      if (IsHotspotActive())
+      {
+#if defined  (WAN_FAILOVER_SUPPORTED)
+	  applyHotspotPostRoutingRules(fp, true);
+#endif
+      } else if(!IS_EMPTY_STRING(natip4))
+      {
          fprintf(fp, "-A postrouting_towan -s 10.0.0.0/8 -j SNAT --to-source %s\n", natip4);
          fprintf(fp, "-A postrouting_towan -s 192.168.0.0/16 -j SNAT --to-source %s\n", natip4);
          fprintf(fp, "-A postrouting_towan -s 172.16.0.0/12 -j SNAT --to-source %s\n", natip4);
@@ -5422,7 +5482,13 @@ static int do_wan_nat_lan_clients(FILE *fp)
             }
             #endif /*WIFI_MANAGE_SUPPORTED*/
          }
-      }
+     }
+#ifdef FEATURE_MAPE
+  }
+#endif  
+#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
+     }
+#endif
   }
   else
   {
@@ -5433,7 +5499,16 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
+	 if (IsHotspotActive())
+	 {
+             FIREWALL_DEBUG("Apply HOTSPOT nating rules do_wan_nat_lan_clients\n");       
+#if defined  (WAN_FAILOVER_SUPPORTED)
+	     applyHotspotPostRoutingRules(fp, true);
+#endif
+	 } else {
+             FIREWALL_DEBUG("Apply nating rules do_wan_nat_lan_clients\n");       
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
+	 }
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
      }
@@ -5980,7 +6055,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    fprintf(fp, "-A INPUT -j wanattack\n");
 
    //Smurf attack, actually the below rules are to prevent us from being the middle-man host
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_)
    fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request %s -j LOG --log-prefix \"DoS Attack - Smurf Attack\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6000,7 +6075,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request -j xlog_drop_wanattack\n");
    // ICMP Smurf Attack (timestamp)
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_) /* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A ICMPSmurfAttack -p icmp -m icmp --icmp-type timestamp-request %s -j LOG --log-prefix \"DoS Attack - Smurf Attack\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6022,7 +6097,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 
    //ICMP Flooding. Mark traffic bit rate > 5/s as attack and limit 6 log entries per hour
    fprintf(fp, "-A ICMPFlooding -p icmp -m limit --limit 5/s --limit-burst 10 -j RETURN\n");
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_) /* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A ICMPFlooding -p icmp %s -j LOG --log-prefix \"DoS Attack - ICMP Flooding\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6044,7 +6119,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 
    //TCP SYN Flooding
    fprintf(fp, "-A TCPSYNFlooding -p tcp --syn -m limit --limit 10/s --limit-burst 20 -j RETURN\n");
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_)/* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A TCPSYNFlooding -p tcp --syn %s -j LOG --log-prefix \"DoS Attack - TCP SYN Flooding\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6068,7 +6143,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    if(isWanReady) {
        /* Allow multicast packet through */
       fprintf(fp, "-A LANDAttack -p udp -s %s -d 224.0.0.0/8 -j RETURN\n", wan_ip);
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_) /* ULOG target removed in kernels 3.17+ */
       fprintf(fp, "-A LANDAttack -s %s %s -j LOG --log-prefix \"DoS Attack - LAND Attack\" --log-level 7\n", wan_ip, logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
        if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6690,6 +6765,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
            remote_access_set_proto(filter_fp, nat_fp, port, iprangeAddr[i], family, ecm_wan_ifname);
    }
 
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    /* eMTA SSH access */
    rc = syscfg_get(NULL, "mgmt_mta_sshaccess", query, sizeof(query));
    rc |= syscfg_get(NULL, "mgmt_wan_sshport", port, sizeof(port));
@@ -6711,6 +6787,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
        for(i = 0; i < count && family == AF_INET && srcany == 0; i++)
            remote_access_set_proto(filter_fp, nat_fp, port, iprangeAddr[i], family, emta_wan_ifname);
    }
+#endif
 
 #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
     // RDKB-21814 
@@ -8128,39 +8205,37 @@ static int determine_enforcement_schedule2(FILE *cron_fp, const char *namespace)
 
    int today_bits = 0;
    today_bits = (1 << local_now.tm_wday);
-   if(!(today_bits & policy_days)) {
-   } else {
-      if (1 == h24) {
-         within_policy_start_stop = 1;
-      } else {
-         int startPassedHours, startPassedMins;
-         int stopPassedHours, stopPassedMins;
-         int startPass, stopPass;
-         int sh, sm, eh, em;
+   if(!(today_bits & policy_days))
+   {
+   }
+   else
+   {
+       int startPassedHours, startPassedMins;
+       int stopPassedHours, stopPassedMins;
+       int startPass, stopPass;
+       int sh, sm, eh, em;
 
+       sscanf(policy_time_start, "%d:%d", &sh, &sm);
+       sscanf(policy_time_stop, "%d:%d", &eh, &em);
 
-         sscanf(policy_time_start, "%d:%d", &sh, &sm);
-         sscanf(policy_time_stop, "%d:%d", &eh, &em);
+       startPass = time_delta(&local_now, policy_time_start, &startPassedHours, &startPassedMins);
+       stopPass = time_delta(&local_now, policy_time_stop, &stopPassedHours, &stopPassedMins);
 
-         startPass = time_delta(&local_now, policy_time_start, &startPassedHours, &startPassedMins);
-         stopPass = time_delta(&local_now, policy_time_stop, &stopPassedHours, &stopPassedMins);
-         
-         //start time > stop time
-         if(sh > eh || (sh == eh && sm >= em)) {
-             if(!((stopPass == -1 || (stopPass == 0 && stopPassedHours == 0 && stopPassedMins == 0))
-                 && startPass == 0))
+       //start time > stop time
+       if(sh > eh || (sh == eh && sm >= em)) {
+           if(!((stopPass == -1 || (stopPass == 0 && stopPassedHours == 0 && stopPassedMins == 0))
+                       && startPass == 0))
                within_policy_start_stop = 1;
-         }
-         else { //start time < stop time
-             //printf("today is %d, start time is %d, stop time is %d\n", today_bits, sh, eh);
-             if((startPass == -1 || (startPass == 0 && startPassedHours == 0 && startPassedMins == 0))
-                 && stopPass == 0) {
+       }
+       else { //start time < stop time
+           //printf("today is %d, start time is %d, stop time is %d\n", today_bits, sh, eh);
+           if((startPass == -1 || (startPass == 0 && startPassedHours == 0 && startPassedMins == 0))
+                   && stopPass == 0) {
                within_policy_start_stop = 1;
-             }
-         }
+           }
        }
    }
-    FIREWALL_DEBUG("Exiting determine_enforcement_schedule2\n");  
+   FIREWALL_DEBUG("Exiting determine_enforcement_schedule2\n");
    return within_policy_start_stop;
 }
 
@@ -8934,12 +9009,14 @@ static int do_parcon_mgmt_device(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
+#define MAX_DEV_8K 8192
 devMacSt * getPcmdList(int *devCount)
 {
 int count = 0;
-int numDev = 0;
+long numDev = 0;
 FILE * fp;
 char buf[19];
+char *endptr = NULL;
 devMacSt *devMacs = NULL;
 devMacSt *dev = NULL;
 memset(buf, 0, sizeof(buf));
@@ -8950,11 +9027,24 @@ memset(buf, 0, sizeof(buf));
            FIREWALL_DEBUG("Error while locking file\n");
        while( fgets ( buf, sizeof(buf), fp ) != NULL ) 
        {
-           if(count == 0){
-               numDev = atoi(buf);            		
-               printf("numDev = %d \n" COMMA numDev);
-               *devCount = numDev;
-               devMacs = (devMacSt *)calloc(numDev,sizeof(devMacSt));
+           if(count == 0)
+           {
+               errno = 0;
+               numDev = strtol(buf, &endptr, 10);
+               if (endptr == buf || *endptr != '\0' || errno == ERANGE)
+               {
+                   FIREWALL_DEBUG("invalid data\n");
+                   break;
+               }
+
+               if(numDev < 0 || numDev > MAX_DEV_8K)
+               {
+                   FIREWALL_DEBUG("value out of range\n");
+                   break;
+               }
+
+               *devCount = (int)numDev;
+               devMacs = (devMacSt *)calloc(*devCount,sizeof(devMacSt));
                dev = devMacs;
            }
            else
@@ -9155,6 +9245,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
         ruleIndex += do_parcon_mgmt_lan2wan_pc_site_appendrule(fp);
 #endif
 
+        bool keywd_chains_exists = false;
         for (idx = 1; idx <= count; idx++)
         {
             char namespace[MAX_QUERY];
@@ -9332,7 +9423,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 					//Intel Proposed RDKB Generic Bug Fix from XB6 SDK
 					fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 80 -m webstr --host \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
 					fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 -m webstr --host \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)
                     fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 80 -d \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
                     fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 -d \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
 #elif !defined(_XER5_PRODUCT_REQ_)
@@ -9356,30 +9447,68 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
             }
             else if (strncasecmp(method, "KEYWD", 5)==0)
             {
-                // consider the case that user input whole url.
-                if(strstr(query, "://") != 0) {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", strstr(query, "://") + 3, drop_log);
-#if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-#if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-                     if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
-#endif
-                     {
-                        //In Hub4 keyword blocking feature is not working with FORWARD chain rules as CPE (dnsmasq) acts as DNS Proxy.
-                        //Add rules in INPUT chain to resolve this issue.
-                        fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                     }
-#endif
+                const char *keyword = NULL;
+                int range_max = 1024; //max payload bytes to filter
+                int range_multiplier = 2;
+
+                FIREWALL_DEBUG("adding rules for KEYWD\n");
+                // Extract keyword if user input is a full URL
+                if (strstr(query, "://") != NULL) {
+                    keyword = strstr(query, "://") + 3;
                 } else {
-                    fprintf(fp, "-A lan2wan_pc_site -m string --string \"%s\" --algo kmp --icase -j %s\n", query, drop_log);
+                   keyword = query;
+                }
+
+                if (keyword == NULL || strlen(keyword) == 0) {
+                    fprintf(stderr, "Warning: Empty keyword, skipping rule generation.\n");
+                    return(0);
+                }
+
+                // Create rules for various ranges of payload to filter
+                int from,to;
+                for (from = 0, to = 64; from < range_max; from = to, to = (to * range_multiplier > range_max) ? range_max : to * range_multiplier)
+                {
+                    char chain_name[64] = {'\0'};
+
+                    // Create new chain only for first keyword
+                    // linux iptables chainname length is max 29 chars
+                    snprintf(chain_name, sizeof(chain_name), "LOG_SiteBlk_KW_%d_%d", from, to);
+
+		    // Private chain per range is created only once
+		    if (keywd_chains_exists == false) {
+                        // create new chain
+                        fprintf(fp, ":%s - [0:0]\n", chain_name);
+                    }
+
+                    // Add rule to jump to private chain if "Host:" is found in this offset range
+                    fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"Host:\" --algo kmp --from %d --to %d --icase -j %s\n",
+                        from, to, chain_name);
+
+                    // Add rule to match keyword in private chain within same offset range
+                    fprintf(fp, "-A %s -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
+                        chain_name, keyword, from, to, drop_log);
+
+                    // Default rule to return if not matched
+                    fprintf(fp, "-A %s -j RETURN\n", chain_name);
+                }
+
+                // set keywd chains created
+                keywd_chains_exists = true;
+
+                // Add rule for https filter
+                fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 443 -m string --string \"%s\" --algo kmp --icase -j %s\n",
+                    keyword, drop_log);
+
 #if defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
-                     if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
+                 if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
-                     {
-                        fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
-                     }
-#endif
+                {
+                    //In Hub4 keyword blocking feature is not working with FORWARD chain rules as CPE (dnsmasq) acts as DNS Proxy.
+                    //Add rules in INPUT chain to resolve this issue.
+                    fprintf(fp, "-I INPUT -i %s -j lan2wan_pc_site \n", lan_ifname);
                 }
+#endif
             }
         }
     }
@@ -10039,7 +10168,7 @@ static void do_add_TCP_MSS_rules(FILE *mangle_fp)
 static int do_lan2wan(FILE *mangle_fp, FILE *filter_fp, FILE *nat_fp)
 {
    FIREWALL_DEBUG("Entering do_lan2wan\n");
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_)
    if (isNatReady)
    {
        FILE *f = NULL;
@@ -11089,7 +11218,7 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     fprintf(filter_fp, "-A INPUT -i brlan113 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brebhaul -d 169.254.85.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brebhaul -m pkttype ! --pkt-type unicast -j ACCEPT\n");
-#elif defined(_XB7_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
+#elif defined(_XB7_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
     fprintf(filter_fp, "-A INPUT -i brlan112 -d 169.254.0.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brlan112 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
     fprintf(filter_fp, "-A FORWARD -i brlan112 -o erouter0 -j DROP\n");
@@ -12169,6 +12298,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    fprintf(filter_fp, "-A OUTPUT -o lo -p tcp -m tcp --sport 49152:49153 -j ACCEPT\n");
    fprintf(filter_fp, "-A OUTPUT ! -o brlan0 -p tcp -m tcp --sport 49152:49153 -j DROP\n");
+   /* For EasyMesh Controller Communication */
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I OUTPUT -o %s -p tcp --sport 49153 -j ACCEPT\n",get_current_wan_ifname());
+#endif
 #ifdef CONFIG_CISCO_FEATURE_CISCOCONNECT
    fprintf(filter_fp, ":%s - [0:0]\n", "pp_disabled");
    if(isGuestNetworkEnabled) {
@@ -12475,7 +12608,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
-#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
@@ -12511,8 +12644,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    {
       fprintf(filter_fp, "-A INPUT -i %s -p icmp --icmp-type 8 -m limit --limit 3/second -j %s\n", ecm_wan_ifname, "xlog_accept_wan2self"); // ICMP PING
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_ports\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
       fprintf(filter_fp, "-A INPUT -i %s -p icmp --icmp-type 8 -m limit --limit 3/second -j %s\n", emta_wan_ifname, "xlog_accept_wan2self"); // ICMP PING
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_ports\n", emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n");
@@ -12592,7 +12727,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
          fprintf(filter_fp, "-A INPUT -i %s -j ACCEPT\n", ecm_wan_ifname);
       }
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
       if (emta_wan_ifname[0]) // spare eMTA wan interface from Utopia firewall
       {
          fprintf(filter_fp, "-A INPUT -i %s -p udp --dport 80 -j DROP\n", emta_wan_ifname);
@@ -12834,7 +12969,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    {
        fprintf(filter_fp, "-A general_input -i %s -p udp --dport 68 -j ACCEPT\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
        fprintf(filter_fp, "-A general_input -i %s -p udp --dport 68 -j ACCEPT\n", emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    }
@@ -13209,8 +13346,13 @@ int do_block_ports(FILE *filter_fp)
    fprintf(filter_fp, "-A INPUT -i lo -p udp -m udp --dport 1900 -j ACCEPT\n");
 
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 49152:49153 -j DROP\n");
+   /* For EasyMesh Controller Communication */
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n", get_current_wan_ifname());
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 8888 -j ACCEPT\n", get_current_wan_ifname());
+#endif
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 1900 -j DROP\n");
-   fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
+   fprintf(filter_fp, "-I INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 21515 -j DROP\n");
 
    /*	RDKB-22836 :
@@ -13731,7 +13873,7 @@ WAN_FAILOVER_SUPPORT_CHECk_END
    prepare_MoCA_bridge_firewall(raw_fp, mangle_fp, nat_fp, filter_fp);
 #endif
 
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_)
  /* To avoid open ssh connection to CM IP TCXB6-2879*/
    if (!isBridgeMode)
    {
@@ -14092,7 +14234,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    lan_http_access(filter_fp);
    #endif
 
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_)
    if (isBridgeMode)
    {
        FILE *f = NULL;
@@ -14537,7 +14679,7 @@ int CleanIPConntrack(char *physAddress)
        return -1;
     }
     libnet_status status = neighbour_get_list(neigh_data, mac_filter, if_filter, af_filter);
-    if (status != CNL_STATUS_SUCCESS) {
+    if (status != ANSC_STATUS_SUCCESS) {
         FIREWALL_DEBUG("Failed to list neighbours for %s\n" COMMA physAddress);
         free(mac_filter);
         neighbour_free_neigh(neigh_data);
@@ -15491,4 +15633,124 @@ int do_wpad_isatap_blockv6 (FILE *filter_fp)
 #endif
 
     return 0;
+}
+
+// Function to query parameters from RDK Bus
+ANSC_STATUS RdkBus_GetParamValues(
+    char *pComponent,
+    char *pBus,
+    char *pParamName,
+    char *pReturnVal,
+    size_t returnValSize)
+{
+    parameterValStruct_t   **retVal = NULL;
+    char                   *ParamName[ 1 ] = { 0 };
+    int                    ret = 0, nval = 0;
+
+    if (!pReturnVal || returnValSize == 0) {
+	return ANSC_STATUS_FAILURE;
+    }
+
+    // Assign the address for the parameter name
+    ParamName[0] = pParamName;
+
+    // Make the request to get the parameter value from the RDK bus
+    ret = CcspBaseIf_getParameterValues(
+        bus_handle,
+        pComponent,
+        pBus,
+        ParamName,
+        1,
+        &nval,
+        &retVal
+    );
+
+    // Copy the value if the request was successful
+    if (CCSP_SUCCESS == ret)
+    {
+        // Copy the value to the return buffer
+	if (retVal && nval > 0 && retVal[0] && retVal[0]->parameterValue)
+        {
+	    const char *src = retVal[0]->parameterValue;
+
+	    /* Safe copy with truncation */
+	    strncpy(pReturnVal, src, returnValSize - 1);
+	    pReturnVal[returnValSize - 1] = '\0';
+        }
+
+
+        // Free the allocated memory for the return value struct
+        if (retVal)
+        {
+            free_parameterValStruct_t(bus_handle, nval, retVal);
+        }
+
+        return ANSC_STATUS_SUCCESS;
+    }
+
+    // Free the allocated memory for the return value struct if an error occurred
+    if (retVal)
+    {
+        free_parameterValStruct_t(bus_handle, nval, retVal);
+    }
+
+    return ANSC_STATUS_FAILURE;
+}
+/**********************************************************************
+ * Function:  IsHotspotActive
+ * Description:
+ *     Checks whether the HOTSPOT interface is currently active by
+ *     querying the parameter FIREWALL_INTERFACE_STATUS_PARAM_NAME which
+ *     contains the status of WAN interfaces in the format:
+ *        INTERFACE_NAME,STATUS|INTERFACE_NAME,STATUS|...
+ *     Example: "HOTSPOT,1|WANOE,0|DSL,0"
+ *
+ *     - Returns true if HOTSPOT is present and has status = 1.
+ *     - Returns false if HOTSPOT is not present or status != 1.
+ *
+ * Output:
+ *     bool - true if HOTSPOT is active, false otherwise
+ *
+ **********************************************************************/
+bool IsHotspotActive()
+{
+    char acTmpReturnValue[BUFLEN_256] = { 0 };
+
+    // Query the WAN Manager for the Interface Active Status
+    if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(
+            FIREWALL_COMPONENT_NAME, FIREWALL_DBUS_PATH, TR181_ACTIVE_WAN_INTERFACE, 
+	    acTmpReturnValue, sizeof(acTmpReturnValue)))
+    {
+        FIREWALL_DEBUG("%s %d Failed to get param value \n" COMMA __FUNCTION__ COMMA __LINE__);
+        return false;
+    }
+
+    // Tokenize the response to check for HOTSPOT
+    char buf[BUFLEN_256];
+    strncpy(buf, acTmpReturnValue, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    char* token = strtok(buf, "|");
+    while (token != NULL)
+    {
+        // Check if HOTSPOT is in the token and its value is 1
+        if (strncasecmp(token, "HOTSPOT,", 8) == 0)
+        {
+            // Last character should be '1' to be active
+	    if (strlen(token) > 8 && token[strlen(token) - 1] == '1')  
+            {
+                FIREWALL_DEBUG("HOTSPOT interface is ACTIVE\n");
+                return true;
+            }
+            else
+            {
+                FIREWALL_DEBUG("HOTSPOT interface is NOT active\n");
+                return false;
+            }
+        }
+
+        token = strtok(NULL, "|");
+    }
+
+    return false;
 }
