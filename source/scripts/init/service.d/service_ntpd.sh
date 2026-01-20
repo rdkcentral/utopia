@@ -68,7 +68,7 @@ if [ -f /lib/rdk/t2Shared_api.sh ]; then
 fi
 
 CONNCHECK_FILE="/tmp/connectivity_check_done" #This file will be created once connection check success with comcast connectivity server
-
+MARKER_FILE="/tmp/ntpd_started_once"
 
 if [ -z "$NTPD_LOG_NAME" ];then
 NTPD_LOG_NAME=/rdklogs/logs/ntpLog.log
@@ -838,12 +838,19 @@ case "$1" in
             if [ $NTP_STATUS == 3 ] && [ -n "$NTPD_PROCESS" ];then
                echo_t "SERVICE_NTPD : ntp process is already running and pid is = $NTPD_PROCESS" >> $NTPD_LOG_NAME
             else
+			   
                echo_t "SERVICE_NTPD : wan-status calling service_start" >> $NTPD_LOG_NAME
-              # service_start
+			   if [ ! -f "$MARKER_FILE" ]; then
+       			   service_start
+                   touch "$MARKER_FILE"
+               fi 
             fi
          else
             echo_t "SERVICE_NTPD : wan-status calling service_start" >> $NTPD_LOG_NAME
-            #service_start
+			if [ ! -f "$MARKER_FILE" ]; then
+                service_start
+                touch "$MARKER_FILE"
+            fi
          fi
       fi
       ;;
