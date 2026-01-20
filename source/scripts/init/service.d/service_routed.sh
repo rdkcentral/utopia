@@ -39,7 +39,23 @@
 # $1 is the calling event (current_wan_state  current_lan_state  ipv6_prefix)
 #------------------------------------------------------------------
 
+
+# Function to log messages with timestamp
+log() {
+    local level="$1"; shift
+    local message="$*"
+    local timestamp
+    local log_file
+    timestamp=$(date +'%Y-%m-%d %H:%M:%S')
+    log_file="/tmp/service_routed_$(date +'%Y-%m-%d').log"
+    echo "$timestamp [$level] $message" | tee -a "$log_file"
+}
+
 source /etc/device.properties
+
+
+# Start logging
+log INFO "Script started."
 
 SERVICE_NAME="routed"
 LANULASupport=`sysevent get LANULASupport`
@@ -59,16 +75,22 @@ case "$1" in
    wan-status)
        status=$(sysevent get wan-status)
        if [ "$status" == "started" ]; then
+           log INFO "WAN status started. Starting routed service."
            service_routed start
        elif [ "$status" == "stopped" ]; then
+           log INFO "WAN status stopped. Stopping routed service."
            service_routed stop
        fi
        ;;
    lan-status)
        status=$(sysevent get lan-status)
        if [ "$status" == "started" ]; then
+           log INFO "LAN status started. Starting routed service."
            service_routed start
+         #  log INFO "LAN status started. Restarting zebra."
+          # service_routed radv-restart
        elif [ "$status" == "stopped" ]; then
+           log INFO "LAN status stopped. Stopping routed service."
            # As per Sky requirement, radvd should run with ULA prefix though the wan-status is down
            if [ "$BOX_TYPE" != "HUB4" ] && [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "SR213" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$LANULASupport" != "true" ]; then
                service_routed stop
