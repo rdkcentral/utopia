@@ -44,6 +44,11 @@ source /etc/utopia/service.d/log_capture_path.sh
 source /etc/device.properties
 source /etc/waninfo.sh
 
+if [ "$sshEnabled" = "false" ]; then
+    echo_t "[utopia] exiting from ${SERVICE_NAME} since rdkb ssh is disabled"
+    exit
+fi
+
 WAN_INTERFACE=$(getWanInterfaceName)
 DEFAULT_WAN_INTERFACE="erouter0"
 LANIPV6Support=`sysevent get LANIPv6GUASupport`
