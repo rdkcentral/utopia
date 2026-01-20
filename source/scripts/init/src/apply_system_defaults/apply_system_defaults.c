@@ -60,6 +60,7 @@
 #include  "safec_lib_common.h"
 
 #include <telemetry_busmessage_sender.h>
+
 #define PARTNERS_INFO_FILE  							"/nvram/partners_defaults.json"
 #define PARTNERS_INFO_FILE_ETC                                                 "/etc/partners_defaults.json"
 #define BOOTSTRAP_INFO_FILE                                                    "/opt/secure/bootstrap.json"
@@ -3317,6 +3318,41 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 }
 #endif
 
+#define DEV_PROP_FILE "/etc/device.properties"
+static int addPartnerDefaultsToDevPropFile()
+{
+    FILE *fp = NULL;
+    const char *is_bci = "IS_BCI=yes\n";
+    //open to check for existence
+    fp = fopen(DEV_PROP_FILE, "r");
+    if (fp == NULL)
+    {
+        APPLY_PRINT("[Utopia - %s]File %s does not exist or cannot be accessed",__FUNCTION__,DEV_PROP_FILE);
+        return 1;
+    }
+    fclose(fp);   // we don't need it anymore
+
+    //open for writing
+    fp = fopen(DEV_PROP_FILE, "a");
+    if (fp == NULL)
+    {
+        APPLY_PRINT("[Utopia - %s]File %s couldnot open for writing",__FUNCTION__,DEV_PROP_FILE);
+        return 1;
+    }
+
+    if (fputs(is_bci, fp) == EOF)
+    {
+        APPLY_PRINT("[Utopia - %s]File %s write failed",__FUNCTION__,DEV_PROP_FILE);
+        fclose(fp);
+        return 1;
+    }
+
+    APPLY_PRINT("[Utopia - %s]File %s write successful",__FUNCTION__,DEV_PROP_FILE);
+
+    fclose(fp);
+
+    return 0;
+}
 /*
  * main()
  */
@@ -3530,6 +3566,11 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
    }
 
    sysevent_close(global_fd, global_id);
+
+   if (0 == strcasecmp (PartnerID, "comcast-business"))
+   {
+      addPartnerDefaultsToDevPropFile();
+   }
 
    return(0);
 }
