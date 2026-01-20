@@ -865,8 +865,10 @@ case "$1" in
           if [ "$restart_ntp" = "1" ];then
               CURRENT_WAN_STATUS=`sysevent get wan-status`
               echo_t "SERVICE_NTPD : current_wan_ifname calling service_restart" >> $NTPD_LOG_NAME
-             # service_stop
-              #service_start
+               if [ ! -f "$MARKER_FILE" ]; then
+       			   service_start
+                   touch "$MARKER_FILE"
+               fi 
           fi
       fi
       ;;
@@ -886,7 +888,10 @@ case "$1" in
                   if [ -n "$CURRENT_WAN_V6_PREFIX" ] && ([ "$NTP_PREFIX" != "$CURRENT_WAN_V6_PREFIX" ] || [ "set" != "$NTP_IPV6_LISTEN" ]) ; then
                       echo_t "SERVICE_NTPD : ipv6_connection_state calling service_start" >> $NTPD_LOG_NAME
                       sysevent set ntp_prefix $CURRENT_WAN_V6_PREFIX
-               #       service_start
+                      if [ ! -f "$MARKER_FILE" ]; then
+       			        service_start
+                        touch "$MARKER_FILE"
+                    fi 
                   fi
               fi
           fi
