@@ -63,6 +63,21 @@
 #include <ccsp_base_api.h>
 #include "ccsp_memory.h"
 
+#define LOG_FILE "/rdklogs/logs/Debug_devicemode.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #ifdef FEATURE_SUPPORT_ONBOARD_LOGGING
 #include <rdk_debug.h>
 #define LOGGING_MODULE "Utopia"
@@ -304,18 +319,21 @@ int runCommandInShellBlocking(char *command)
 
 int service_stop(int mode)
 {
+    APPLY_PRINT("%s: Stopping services according to device mode %d\n", __FUNCTION__, mode);
     char buf[256];
     memset(buf,0,sizeof(buf));
     switch(mode)
     {
         case DEVICE_MODE_ROUTER:
         {
+            APPLY_PRINT("%s: Stopping services for ROUTER mode\n", __FUNCTION__);
             sysevent_set(sysevent_fd, sysevent_token, "lan-stop", "", 0);
             sysevent_set(sysevent_fd, sysevent_token, "ipv4-down", "5", 0);
 #if defined (_COSA_BCM_ARM_)
             sysevent_set(sysevent_fd, sysevent_token, "wan-stop", "", 0);
 #endif
              //lte-1312
+            APPLY_PRINT("%s: Killing zebra process\n", __FUNCTION__);
             runCommandInShellBlocking("killall zebra");
             snprintf(buf,sizeof(buf),"execute_dir %s stop", ROUTER_MODE_SERVICES_PATH_1);
             runCommandInShellBlocking(buf);
@@ -325,8 +343,10 @@ int service_stop(int mode)
         case DEVICE_MODE_EXTENDER:
         {
 #if defined (_COSA_BCM_ARM_)
+            APPLY_PRINT("%s: Stopping WAN services for EXTENDER mode\n", __FUNCTION__);
             sysevent_set(sysevent_fd, sysevent_token, "wan-stop", "", 0);
 #endif
+            APPLY_PRINT("%s: Stopping LAN services for EXTENDER mode\n", __FUNCTION__);
             sysevent_set(sysevent_fd, sysevent_token, "lan-stop", "", 0);
             sysevent_set(sysevent_fd, sysevent_token, "ipv4-down", "5", 0);
             runCommandInShellBlocking("systemctl stop CcspLMLite.service");
@@ -375,6 +395,7 @@ int GetL2InterfaceNameFromPsm(int instanceNumber, char *pName, int len)
 
 int service_start(int mode)
 {
+    APPLY_PRINT("%s: Starting services according to device mode %d\n", __FUNCTION__, mode);
     char buf[256];
     memset(buf,0,sizeof(buf));
     int rc = -1;
@@ -382,19 +403,23 @@ int service_start(int mode)
     {
         case DEVICE_MODE_ROUTER:
         {
+            APPLY_PRINT("%s: Starting services for ROUTER mode\n", __FUNCTION__);
             int bridgemode = 0;
             if( 0 == syscfg_get( NULL, "bridge_mode", buf, sizeof(buf) ) )
             {
                 bridgemode = atoi(buf);
+                APPLY_PRINT("%s: bridge_mode value is %d \n", __FUNCTION__, bridgemode);
             }
             snprintf(buf,sizeof(buf),"execute_dir %s", ROUTER_MODE_SERVICES_PATH_1);
             runCommandInShellBlocking(buf);
             if (bridgemode == 0)
             {
+                APPLY_PRINT("%s: Starting LAN services\n", __FUNCTION__);
                 sysevent_set(sysevent_fd, sysevent_token, "lan-start", "", 0);
             }
             else
             {
+                APPLY_PRINT("%s: Bridge mode is enabled, skipping LAN start\n", __FUNCTION__);
                 sysevent_set(sysevent_fd, sysevent_token, "bridge-start", "", 0);
             }
 // Do wan start only in XB technicolor for xb->xb backup wan testing.
@@ -417,13 +442,17 @@ int service_start(int mode)
              sysevent_set(sysevent_fd, sysevent_token, "lnf-setup", buf, 0);
 #endif
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
-            sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
+            char lanStartVal[64] = {0};
+            sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
+            APPLY_PRINT("%s: lan-status value is %s \n", __FUNCTION__, lanStartVal);
+           // sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
         }
         break;
         case DEVICE_MODE_EXTENDER:
         {
             char tmpbuf[64] = {0};
             //lte-1312
+            APPLY_PRINT("%s, killing zebra process when switching to extender mode \n", __FUNCTION__);
             runCommandInShellBlocking("killall zebra");
             sysevent_set(sysevent_fd, sysevent_token, "lan-start", "", 0);
             sysevent_set(sysevent_fd, sysevent_token, "lan_status-dhcp", "started", 0);

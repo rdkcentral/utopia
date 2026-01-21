@@ -92,6 +92,23 @@ static const char* const service_routed_component_id = "ccsp.routed";
           fclose(fptr1);\
    }\
 }
+
+#include <time.h>
+#define LOG_FILE "/rdklogs/logs/service_routed.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #include <libnet.h>
 #endif
 
@@ -2000,12 +2017,15 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 #endif 
 STATIC int radv_start(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Starting radv daemon\n", __FUNCTION__);
 
 #ifdef RDKB_EXTENDER_ENABLED
     int deviceMode = GetDeviceNetworkMode();
+    APPLY_PRINT("%s: Device Mode is %d\n", __FUNCTION__, deviceMode);
     if ( DEVICE_MODE_EXTENDER == deviceMode )
     {
         fprintf(logfptr, "Device is EXT mode , no need of running zebra for radv\n");
+        APPLY_PRINT("%s: Device is EXT mode , no need of running zebra for radv\n", __FUNCTION__);
         return -1;
     }
 #endif
@@ -2039,8 +2059,10 @@ STATIC int radv_start(struct serv_routed *sr)
     char aBridgeMode[8];
     syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
 
+    APPLY_PRINT("%s: Bridge mode is %s and LAN value = %d\n", __FUNCTION__, aBridgeMode, sr->lan_ready);
     if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
+        APPLY_PRINT("%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
     }
 #endif
@@ -2052,10 +2074,12 @@ STATIC int radv_start(struct serv_routed *sr)
         result = getLanIpv6Info(&ipv6_enable, &ula_enable);
         if(result != 0) {
             fprintf(logfptr, "getLanIpv6Info failed");
+            APPLY_PRINT("%s: getLanIpv6Info failed", __FUNCTION__);
             return -1;
         }
         if(ipv6_enable == 0) {
             daemon_stop(ZEBRA_PID_FILE, "zebra");
+            APPLY_PRINT("%s: IPv6 is not enabled so stopping zebra for radv\n", __FUNCTION__);
             return -1;
         }
     }
@@ -2073,6 +2097,7 @@ STATIC int radv_start(struct serv_routed *sr)
 
     if (gen_zebra_conf(sr->sefd, sr->setok) != 0) {
         fprintf(logfptr, "%s: fail to save zebra config\n", __FUNCTION__);
+        APPLY_PRINT("%s: fail to save zebra config\n", __FUNCTION__);
         return -1;
     }
 
@@ -2100,15 +2125,28 @@ STATIC int radv_start(struct serv_routed *sr)
 
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
+    APPLY_PRINT("%s : Zebra Process Started\n", __FUNCTION__);
+    APPLY_PRINT("%s : DHCPv6 is %s. Starting zebra Process\n", __FUNCTION__, (bEnabled?"Enabled":"Disabled"));
 #else
+    APPLY_PRINT("%s : Starting Zebra Process\n", __FUNCTION__);
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
+    APPLY_PRINT("%s : Zebra Process Started\n", __FUNCTION__);
 #endif
+    
+     if(is_daemon_running(ZEBRA_PID_FILE, "zebra") == 0)
+     {
+        APPLY_PRINT("%s: Failed to start zebra process\n", __FUNCTION__);
+     }
+     else {
+        APPLY_PRINT("%s: Zebra is running\n", __FUNCTION__);
+     }
 
     return 0;
 }
 
 STATIC int radv_stop(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s : Stopping radv services \n", __FUNCTION__);
     if(is_daemon_running(ZEBRA_PID_FILE, "zebra"))
     {
         return 0;
@@ -2118,8 +2156,10 @@ STATIC int radv_stop(struct serv_routed *sr)
 
 STATIC int radv_restart(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Restarting radv daemon\n", __FUNCTION__);
     if (radv_stop(sr) != 0){
         fprintf(logfptr, "%s: radv_stop error\n", __FUNCTION__);
+        APPLY_PRINT("%s: radv_stop error\n", __FUNCTION__);
     }
     return radv_start(sr);
 }
@@ -2224,6 +2264,7 @@ STATIC int rip_restart(struct serv_routed *sr)
 
 STATIC int serv_routed_start(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Starting radv daemon\n", __FUNCTION__);
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
     char rtmod[16];
     char prefix[64];
@@ -2235,6 +2276,7 @@ STATIC int serv_routed_start(struct serv_routed *sr)
 
     if (!sr->lan_ready) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
+        APPLY_PRINT("%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
     }
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
@@ -2262,6 +2304,7 @@ STATIC int serv_routed_start(struct serv_routed *sr)
     /* RA daemon */
     if (radv_start(sr) != 0) {
         fprintf(logfptr, "%s: radv_start error\n", __FUNCTION__);
+        APPLY_PRINT("%s: radv_start error\n", __FUNCTION__);
         sysevent_set(sr->sefd, sr->setok, "routed-status", "error", 0);
         return -1;
     }
@@ -2293,6 +2336,7 @@ STATIC int serv_routed_start(struct serv_routed *sr)
 
 STATIC int serv_routed_stop(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Stopping service routed\n", __FUNCTION__);
     if (!serv_can_stop(sr->sefd, sr->setok, "routed"))
         return -1;
 
@@ -2316,6 +2360,7 @@ STATIC int serv_routed_stop(struct serv_routed *sr)
 
 STATIC int serv_routed_restart(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Restarting service routed\n", __FUNCTION__);
     if (serv_routed_stop(sr) != 0){
         fprintf(logfptr, "%s: serv_routed_stop error\n", __FUNCTION__);
     }
@@ -2324,6 +2369,7 @@ STATIC int serv_routed_restart(struct serv_routed *sr)
 
 STATIC int serv_routed_init(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Initializing service routed\n", PROG_NAME);
     char wan_st[16], lan_st[16];
 
     memset(sr, 0, sizeof(struct serv_routed));
@@ -2331,16 +2377,21 @@ STATIC int serv_routed_init(struct serv_routed *sr)
     if ((sr->sefd = sysevent_open(SE_SERV, SE_SERVER_WELL_KNOWN_PORT, 
                     SE_VERSION, PROG_NAME, &sr->setok)) < 0) {
         fprintf(logfptr, "%s: fail to open sysevent\n", __FUNCTION__);
+        APPLY_PRINT("%s: fail to open sysevent\n", __FUNCTION__);
         return -1;
     }
 
     sysevent_get(sr->sefd, sr->setok, "wan-status", wan_st, sizeof(wan_st));
-    if (strcmp(wan_st, "started") == 0)
+    if (strcmp(wan_st, "started") == 0) {
         sr->wan_ready = true;
+        APPLY_PRINT("%s: WAN is ready and WAN value = %d\n", __FUNCTION__, sr->wan_ready);
+    }
     
     sysevent_get(sr->sefd, sr->setok, "lan-status", lan_st, sizeof(lan_st));
-    if (strcmp(lan_st, "started") == 0)
+    if (strcmp(lan_st, "started") == 0) {
         sr->lan_ready = true;
+        APPLY_PRINT("%s: LAN is ready & LAN value = %d\n", __FUNCTION__, sr->lan_ready);
+    }
 
     return 0;
 }
@@ -2674,6 +2725,7 @@ STATIC void usage(void)
 
 int service_routed_main(int argc, char *argv[])
 {
+    APPLY_PRINT("%s: Entering %s\n", PROG_NAME, __FUNCTION__);
     int i;
     struct serv_routed sr;
    logfptr = fopen ( LOG_FILE_NAME , "a+");
@@ -2709,15 +2761,22 @@ int service_routed_main(int argc, char *argv[])
     }
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
 #endif
+    APPLY_PRINT("%s: Initializing service routed\n", PROG_NAME);
     if (serv_routed_init(&sr) != 0){
         exit(1);
     }
+    APPLY_PRINT("%s: Service routed initialized\n", PROG_NAME);
+    APPLY_PRINT("%s: Executing command `%s'\n", PROG_NAME, argv[1]);
     for (i = 0; i < NELEMS(cmd_ops); i++) {
         if (strcmp(argv[1], cmd_ops[i].cmd) != 0 || !cmd_ops[i].exec)
             continue;
-
-        if (cmd_ops[i].exec(&sr) != 0){
-            fprintf(logfptr, "[%s]: fail to exec `%s'\n", PROG_NAME, cmd_ops[i].cmd);
+        int rc1 = cmd_ops[i].exec(&sr);
+        if (rc1 != 0) {
+             fprintf(logfptr,"[%s]: `%s` failed: rc=%d errno=%d (%s)\n", PROG_NAME, cmd_ops[i].cmd, rc1, errno, strerror(errno));
+			 APPLY_PRINT("[%s]: `%s` failed: rc=%d errno=%d (%s)\n", PROG_NAME, cmd_ops[i].cmd, rc1, errno, strerror(errno));
+        } else {
+             fprintf(logfptr, "[%s]: `%s` succeeded\n", PROG_NAME, cmd_ops[i].cmd);
+			 APPLY_PRINT("[%s]: `%s` succeeded\n", PROG_NAME, cmd_ops[i].cmd);
         }
         break;
     }
