@@ -92,7 +92,6 @@ static const char* const service_routed_component_id = "ccsp.routed";
           fclose(fptr1);\
    }\
 }
-
 #include <libnet.h>
 #endif
 
@@ -2001,6 +2000,7 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 #endif 
 STATIC int radv_start(struct serv_routed *sr)
 {
+
 #ifdef RDKB_EXTENDER_ENABLED
     int deviceMode = GetDeviceNetworkMode();
     if ( DEVICE_MODE_EXTENDER == deviceMode )
@@ -2038,6 +2038,7 @@ STATIC int radv_start(struct serv_routed *sr)
 
     char aBridgeMode[8];
     syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
+
     if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
@@ -2050,7 +2051,7 @@ STATIC int radv_start(struct serv_routed *sr)
     {
         result = getLanIpv6Info(&ipv6_enable, &ula_enable);
         if(result != 0) {
-            fprintf(logfptr, "getLanIpv6Info failed");   
+            fprintf(logfptr, "getLanIpv6Info failed");
             return -1;
         }
         if(ipv6_enable == 0) {
@@ -2108,7 +2109,6 @@ STATIC int radv_start(struct serv_routed *sr)
 
 STATIC int radv_stop(struct serv_routed *sr)
 {
-     
     if(is_daemon_running(ZEBRA_PID_FILE, "zebra"))
     {
         return 0;
@@ -2117,9 +2117,9 @@ STATIC int radv_stop(struct serv_routed *sr)
 }
 
 STATIC int radv_restart(struct serv_routed *sr)
-{   
+{
     if (radv_stop(sr) != 0){
-        fprintf(logfptr, "%s: radv_stop error\n", __FUNCTION__);   
+        fprintf(logfptr, "%s: radv_stop error\n", __FUNCTION__);
     }
     return radv_start(sr);
 }
@@ -2224,7 +2224,6 @@ STATIC int rip_restart(struct serv_routed *sr)
 
 STATIC int serv_routed_start(struct serv_routed *sr)
 {
-     
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
     char rtmod[16];
     char prefix[64];
@@ -2236,7 +2235,6 @@ STATIC int serv_routed_start(struct serv_routed *sr)
 
     if (!sr->lan_ready) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
-         
         return -1;
     }
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
@@ -2264,7 +2262,6 @@ STATIC int serv_routed_start(struct serv_routed *sr)
     /* RA daemon */
     if (radv_start(sr) != 0) {
         fprintf(logfptr, "%s: radv_start error\n", __FUNCTION__);
-         
         sysevent_set(sr->sefd, sr->setok, "routed-status", "error", 0);
         return -1;
     }
@@ -2296,7 +2293,6 @@ STATIC int serv_routed_start(struct serv_routed *sr)
 
 STATIC int serv_routed_stop(struct serv_routed *sr)
 {
-     
     if (!serv_can_stop(sr->sefd, sr->setok, "routed"))
         return -1;
 
@@ -2320,7 +2316,6 @@ STATIC int serv_routed_stop(struct serv_routed *sr)
 
 STATIC int serv_routed_restart(struct serv_routed *sr)
 {
-     
     if (serv_routed_stop(sr) != 0){
         fprintf(logfptr, "%s: serv_routed_stop error\n", __FUNCTION__);
     }
@@ -2329,7 +2324,6 @@ STATIC int serv_routed_restart(struct serv_routed *sr)
 
 STATIC int serv_routed_init(struct serv_routed *sr)
 {
-     
     char wan_st[16], lan_st[16];
 
     memset(sr, 0, sizeof(struct serv_routed));
@@ -2337,21 +2331,16 @@ STATIC int serv_routed_init(struct serv_routed *sr)
     if ((sr->sefd = sysevent_open(SE_SERV, SE_SERVER_WELL_KNOWN_PORT, 
                     SE_VERSION, PROG_NAME, &sr->setok)) < 0) {
         fprintf(logfptr, "%s: fail to open sysevent\n", __FUNCTION__);
-         
         return -1;
     }
 
     sysevent_get(sr->sefd, sr->setok, "wan-status", wan_st, sizeof(wan_st));
-    if (strcmp(wan_st, "started") == 0) {
+    if (strcmp(wan_st, "started") == 0)
         sr->wan_ready = true;
-         
-    }
     
     sysevent_get(sr->sefd, sr->setok, "lan-status", lan_st, sizeof(lan_st));
-    if (strcmp(lan_st, "started") == 0) {
+    if (strcmp(lan_st, "started") == 0)
         sr->lan_ready = true;
-         
-    }
 
     return 0;
 }
@@ -2685,7 +2674,6 @@ STATIC void usage(void)
 
 int service_routed_main(int argc, char *argv[])
 {
-     
     int i;
     struct serv_routed sr;
    logfptr = fopen ( LOG_FILE_NAME , "a+");
@@ -2727,11 +2715,9 @@ int service_routed_main(int argc, char *argv[])
     for (i = 0; i < NELEMS(cmd_ops); i++) {
         if (strcmp(argv[1], cmd_ops[i].cmd) != 0 || !cmd_ops[i].exec)
             continue;
-        int rc1 = cmd_ops[i].exec(&sr);
-        if (rc1 != 0) {
-             fprintf(logfptr,"[%s]: `%s` failed: rc=%d errno=%d (%s)\n", PROG_NAME, cmd_ops[i].cmd, rc1, errno, strerror(errno));
-        } else {
-             fprintf(logfptr, "[%s]: `%s` succeeded\n", PROG_NAME, cmd_ops[i].cmd);
+
+        if (cmd_ops[i].exec(&sr) != 0){
+            fprintf(logfptr, "[%s]: fail to exec `%s'\n", PROG_NAME, cmd_ops[i].cmd);
         }
         break;
     }
