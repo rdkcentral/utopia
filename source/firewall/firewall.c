@@ -5427,7 +5427,7 @@ static int do_wan_nat_lan_clients(FILE *fp)
   if (!isMAPTReady)
   {
 #endif //FEATURE_MAPT
-      if (0 == checkIfULAEnabled())
+      if (IsHotspotActive())
       {
 #if defined  (WAN_FAILOVER_SUPPORTED)
 	  applyHotspotPostRoutingRules(fp, true);
@@ -5478,12 +5478,14 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
-	 if (0 == checkIfULAEnabled())
+	 if (IsHotspotActive())
 	 {
+             FIREWALL_DEBUG("Apply HOTSPOT nating rules do_wan_nat_lan_clients\n");       
 #if defined  (WAN_FAILOVER_SUPPORTED)
 	     applyHotspotPostRoutingRules(fp, true);
 #endif
 	 } else {
+             FIREWALL_DEBUG("Apply nating rules do_wan_nat_lan_clients\n");       
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
 	 }
       #endif
@@ -11163,7 +11165,7 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     fprintf(filter_fp, "-A INPUT -i brlan113 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brebhaul -d 169.254.85.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brebhaul -m pkttype ! --pkt-type unicast -j ACCEPT\n");
-#elif defined(_XB7_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
+#elif defined(_XB7_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
     fprintf(filter_fp, "-A INPUT -i brlan112 -d 169.254.0.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brlan112 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
     fprintf(filter_fp, "-A FORWARD -i brlan112 -o erouter0 -j DROP\n");
