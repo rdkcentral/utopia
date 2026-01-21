@@ -307,11 +307,33 @@ static int msg_receive_internal (int fd, char *replymsg, unsigned int *replymsg_
      *who           = htonl(msg_hdr.sender_token);
    }
 
-   // Now we can figure out how many bytes are in the rest of the message
-   // The msg footer was added by the transport layer send routing but does not appear in the msg_hdr.mbyte count
-   int expected_bytes = ntohl(msg_hdr.mbytes) + sizeof(se_msg_footer) - recv_bytes;
-   // The transport footer occupies the last bytes
-   unsigned int msg_footer_offset = expected_bytes - sizeof(se_msg_footer);
+    // Now we can figure out how many bytes are in the rest of the message
+    // The msg footer was added by the transport layer send routing but does not appear in the msg_hdr.mbyte count
+    int host_mbytes = ntohl(msg_hdr.mbytes);
+    int expected_bytes = host_mbytes + (int)sizeof(se_msg_footer) - recv_bytes;
+    /* Validate the header-derived sizes to avoid negative or out-of-range
+      * values which could produce an out-of-bounds footer pointer.
+      */
+    if (host_mbytes < (int)sizeof(se_msg_hdr) || expected_bytes < (int)sizeof(se_msg_footer) || expected_bytes > (int)(*replymsg_size)) {
+       /* Log minimal header values for crash debugging */
+
+#ifdef RUNTIME_DEBUG       
+          FILE *fp = fopen(debug_filename, "a+");
+          if (NULL != fp) {
+             fprintf(fp, "poison = %d, mbytes = %d, mtype = %d, sender_token = %d\n",
+                     (int)ntohl(msg_hdr.poison), host_mbytes, (int)ntohl(msg_hdr.mtype), (int)htonl(msg_hdr.sender_token));
+             fclose(fp);
+          }
+#endif 
+
+       *replymsg_size = 0;
+       *who           = TOKEN_NULL;
+       *error         = EINVAL;
+       return(SE_MSG_NONE);
+    }
+    /* The transport footer occupies the last bytes.
+      */
+    unsigned int msg_footer_offset = expected_bytes - (int)sizeof(se_msg_footer);
 
    // if there is not enough room in the reply buffer for the message, then get rid of the message
    if (expected_bytes > (int) *replymsg_size) {
