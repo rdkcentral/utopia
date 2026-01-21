@@ -67,8 +67,10 @@ case "$1" in
    lan-status)
        status=$(sysevent get lan-status)
        if [ "$status" == "started" ]; then
-           service_routed start
-           service_routed radv-restart
+            service_routed start
+            if [ "$BOX_TYPE" == "WNXL11BWL" ]; then
+                service_routed radv-start
+            fi
        elif [ "$status" == "stopped" ]; then
            # As per Sky requirement, radvd should run with ULA prefix though the wan-status is down
            if [ "$BOX_TYPE" != "HUB4" ] && [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "SR213" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$LANULASupport" != "true" ]; then
