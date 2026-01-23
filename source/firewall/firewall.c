@@ -803,7 +803,7 @@ static inline int SET_IPT_PRI_MODULD(char *s){
 
 #define PSM_NAME_SPEEDTEST_SERVER_CAPABILITY "eRT.com.cisco.spvtg.ccsp.tr181pa.Device.IP.Diagnostics.X_RDKCENTRAL-COM_SpeedTest.Server.Capability"
 
-#if defined(FEATURE_SUPPORT_RADIUSGREYLIST) && (defined(_COSA_INTEL_XB3_ARM_) || defined(_XB6_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_))
+#if defined(FEATURE_SUPPORT_RADIUSGREYLIST) && (defined(_COSA_INTEL_XB3_ARM_) || defined(_XB6_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_))
 #define PSM_NAME_RADIUS_GREY_LIST_ENABLED "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.RadiusGreyList.Enable"
 #endif
 /* 
@@ -12426,7 +12426,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
        fprintf(filter_fp,"-A INPUT -p tcp --dport 8181 -j DROP\n");
    }
 
-#if defined (_XB7_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (XB6_PRODUCT_REQ)
+#if defined (_XB7_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_) || defined (XB6_PRODUCT_REQ)
     /* RDKB-57664 Blocking rx_motion port TCP 6969 for Outside access */
     fprintf(filter_fp, "-A INPUT -p tcp ! -i lo --dport 6969 -j DROP\n");
 #endif
@@ -12775,7 +12775,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
        fprintf(filter_fp, "-A general_input -i brlan0 ! -s 192.168.100.3 -d 192.168.100.1 -j xlog_drop_lan2self\n");
    }
  
-#if defined(FEATURE_SUPPORT_RADIUSGREYLIST) && ( defined (_XB7_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) )
+#if defined(FEATURE_SUPPORT_RADIUSGREYLIST) && ( defined (_XB7_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) )
      int RPsmGet = CCSP_SUCCESS;
      char *strvalue = NULL;
      RPsmGet = PSM_VALUE_GET_STRING(PSM_NAME_RADIUS_GREY_LIST_ENABLED, strvalue);
