@@ -2,7 +2,7 @@
 # If not stated otherwise in this file or this component's Licenses.txt
 # file the following copyright and licenses apply:
 #
-# Copyright 2015 RDK Management
+# Copyright 2026 RDK Management
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,9 +16,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-#SUBDIRS = c_registration src service.d syslog_conf
-SUBDIRS = c_registration src
+AM_CFLAGS = -Wall -Werror
 
-if ENABLE_STACKMODE_SERVICE
-SUBDIRS += stackmode
-endif
+bin_PROGRAMS = stackmode
+
+stackmode_SOURCES = stackmode.c stackmode_log.c
+
+stackmode_CPPFLAGS = -I$(top_srcdir)/source/stackmode
+
+stackmode_LDADD = -lsyscfg -lrdkloggers -lhal_platform
