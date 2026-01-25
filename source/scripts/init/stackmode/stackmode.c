@@ -7,7 +7,7 @@
 #include "syscfg/syscfg.h"
 #include "platform_hal.h"
 
-#if defined(_STACKMODE_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_)
 #define BUFLEN_32 32
 #define BUFLEN_256 256
 #define MAX_RETRY 3
@@ -186,7 +186,7 @@ int main(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-    fprintf(stderr, "ERROR: StackMode utility is not enabled (_STACKMODE_PRODUCT_REQ_ not defined)\n");
+    fprintf(stderr, "ERROR: StackMode utility is not enabled (_ONESTACK_PRODUCT_REQ_ not defined)\n");
     return 1;
 }
 

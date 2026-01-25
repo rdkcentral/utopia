@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#ifdef _STACKMODE_PRODUCT_REQ_
+#ifdef _ONESTACK_PRODUCT_REQ_
 
 /**
  * @brief Get partner ID and set stack mode with fallback mechanism
