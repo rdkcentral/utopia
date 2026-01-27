@@ -8980,7 +8980,7 @@ memset(buf, 0, sizeof(buf));
            {
                errno = 0;
                numDev = strtol(buf, &endptr, 10);
-               if (endptr == buf || *endptr != '\0' || errno == ERANGE)
+               if (endptr == buf || (*endptr != '\0' && *endptr != '\n') || errno == ERANGE)
                {
                    FIREWALL_DEBUG("invalid data\n");
                    break;
