@@ -84,6 +84,7 @@
 
 static int   syscfg_dirty;
 
+#define DEFAULT_FILE "/etc/utopia/system_defaults"
 #define DEFAULT_FILE_ARM "/etc/utopia/system_defaults_arm"
 #define DEFAULT_FILE_BCI "/etc/utopia/system_defaults_bci"
 #define SE_NAME "system_default_set"
@@ -551,11 +552,15 @@ static int set_sysevent_defaults (const char *defaultsFile)
 
 static const char* get_defaults_file(const char *partnerId)
 {
+#if defined(_ONESTACK_PRODUCT_REQ_)
     if (strcmp(partnerId, "comcast-business") == 0) {
         return DEFAULT_FILE_BCI;
     }
 
     return DEFAULT_FILE_ARM;
+#endif
+
+    return DEFAULT_FILE;
 }
 
 /*
