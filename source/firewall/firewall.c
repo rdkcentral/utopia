@@ -10707,9 +10707,9 @@ static int do_wan2lan(FILE *fp)
 
 /*
  *  Procedure     : do_block_SSH_wan
- *  Purpose       : To block SSH from WAN IP
+ *  Purpose       : To block SSH using WAN IP from LAN client
  *  Parameters    :
- *    fp             : An open file to write wan2lan rules to
+ *    fp             : An open file to write rules to block SSH using WAN IP in LAN client
  * Return Values  :
  *    0              : Success
  */
