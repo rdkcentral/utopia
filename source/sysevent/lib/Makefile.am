@@ -19,7 +19,7 @@
 AM_CFLAGS =
 AM_CFLAGS += -DSET_REPLY_REQUIRED
 AM_CFLAGS += -DIPV6=1
-
+AM_CFLAGS += -Wno-format
 ACLOCAL_AMFLAGS = -I m4
 
 lib_LTLIBRARIES = libsysevent.la
