@@ -10706,6 +10706,23 @@ static int do_wan2lan(FILE *fp)
 }
 
 /*
+ *  Procedure     : do_block_SSH_wan
+ *  Purpose       : To block SSH from WAN IP
+ *  Parameters    :
+ *    fp             : An open file to write wan2lan rules to
+ * Return Values  :
+ *    0              : Success
+ */
+
+static int do_block_SSH_wan(FILE *fp)
+{
+   FIREWALL_DEBUG("Entering do_block_SSH_wan\n");
+   fprintf(fp, "-I INPUT 1 -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", current_wan_ipaddr);
+   FIREWALL_DEBUG("Exiting do_block_SSH_wan\n");
+   return(0);
+}
+
+/*
  ==========================================================================
               Ephemeral filter rules
  ==========================================================================
@@ -13710,6 +13727,8 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_lan2wan(mangle_fp, filter_fp, nat_fp); 
    do_wan2lan(filter_fp);
    do_filter_table_general_rules(filter_fp);
+   if(isWanReady)
+        do_block_SSH_wan(filter_fp);
 #if defined(SPEED_BOOST_SUPPORTED)
 WAN_FAILOVER_SUPPORT_CHECK
    if(isWanServiceReady)
