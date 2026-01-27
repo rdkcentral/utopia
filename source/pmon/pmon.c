@@ -60,7 +60,7 @@
 
 static void pmon_usage ()
 {
-    printf("Usage: pmon config-file\n %s");
+    printf("Usage: pmon config-file\n");
 }
 
 /*
