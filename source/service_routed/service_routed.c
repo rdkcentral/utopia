@@ -95,6 +95,22 @@ static const char* const service_routed_component_id = "ccsp.routed";
 #include <libnet.h>
 #endif
 
+#include <time.h>
+#define LOG_FILE "/tmp/service_routed.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #define ZEBRA_PID_FILE  "/var/zebra.pid"
 #define RIPD_PID_FILE   "/var/ripd.pid"
 #define ZEBRA_CONF_FILE "/var/zebra.conf"
@@ -2000,12 +2016,15 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 #endif 
 STATIC int radv_start(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Starting radv daemon\n", __FUNCTION__);
 
 #ifdef RDKB_EXTENDER_ENABLED
     int deviceMode = GetDeviceNetworkMode();
+    APPLY_PRINT("%s: Device Mode is %d\n", __FUNCTION__, deviceMode);
     if ( DEVICE_MODE_EXTENDER == deviceMode )
     {
         fprintf(logfptr, "Device is EXT mode , no need of running zebra for radv\n");
+        APPLY_PRINT("%s: Device is EXT mode , no need of running zebra for radv\n", __FUNCTION__);
         return -1;
     }
 #endif
@@ -2039,8 +2058,10 @@ STATIC int radv_start(struct serv_routed *sr)
     char aBridgeMode[8];
     syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
 
+    APPLY_PRINT("%s: Bridge mode is %s and LAN ready is %d\n", __FUNCTION__, aBridgeMode, sr->lan_ready);
     if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
+        APPLY_PRINT("%s: LAN is not ready to start zebra process!\n", __FUNCTION__);
         return -1;
     }
 #endif
@@ -2073,6 +2094,7 @@ STATIC int radv_start(struct serv_routed *sr)
 
     if (gen_zebra_conf(sr->sefd, sr->setok) != 0) {
         fprintf(logfptr, "%s: fail to save zebra config\n", __FUNCTION__);
+        APPLY_PRINT("%s: fail to save zebra config\n", __FUNCTION__);
         return -1;
     }
 
@@ -2101,14 +2123,24 @@ STATIC int radv_start(struct serv_routed *sr)
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
 #else
+    APPLY_PRINT("%s: Starting zebra Process\n", __FUNCTION__);
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
 #endif
+
+    if(!is_daemon_running(ZEBRA_PID_FILE, "zebra"))
+    {
+        APPLY_PRINT("%s: fail to start zebra daemon\n", __FUNCTION__);
+    }
+    else {
+        APPLY_PRINT("%s: zebra daemon started successfully\n", __FUNCTION__);
+    }
 
     return 0;
 }
 
 STATIC int radv_stop(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Stopping radv daemon\n", __FUNCTION__);
     if(is_daemon_running(ZEBRA_PID_FILE, "zebra"))
     {
         return 0;
@@ -2118,9 +2150,12 @@ STATIC int radv_stop(struct serv_routed *sr)
 
 STATIC int radv_restart(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Restarting radv daemon\n", __FUNCTION__);
     if (radv_stop(sr) != 0){
         fprintf(logfptr, "%s: radv_stop error\n", __FUNCTION__);
+        APPLY_PRINT("%s: radv_stop error\n", __FUNCTION__);
     }
+    APPLY_PRINT("%s: Starting radv daemon after stop\n", __FUNCTION__);
     return radv_start(sr);
 }
 
@@ -2224,6 +2259,7 @@ STATIC int rip_restart(struct serv_routed *sr)
 
 STATIC int serv_routed_start(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Starting serv_routed\n", __FUNCTION__);
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
     char rtmod[16];
     char prefix[64];
@@ -2316,6 +2352,7 @@ STATIC int serv_routed_stop(struct serv_routed *sr)
 
 STATIC int serv_routed_restart(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Restarting serv_routed\n", __FUNCTION__);
     if (serv_routed_stop(sr) != 0){
         fprintf(logfptr, "%s: serv_routed_stop error\n", __FUNCTION__);
     }
@@ -2324,6 +2361,7 @@ STATIC int serv_routed_restart(struct serv_routed *sr)
 
 STATIC int serv_routed_init(struct serv_routed *sr)
 {
+    APPLY_PRINT("%s: Initializing serv_routed\n", __FUNCTION__);
     char wan_st[16], lan_st[16];
 
     memset(sr, 0, sizeof(struct serv_routed));
@@ -2335,12 +2373,15 @@ STATIC int serv_routed_init(struct serv_routed *sr)
     }
 
     sysevent_get(sr->sefd, sr->setok, "wan-status", wan_st, sizeof(wan_st));
-    if (strcmp(wan_st, "started") == 0)
+    if (strcmp(wan_st, "started") == 0) {
         sr->wan_ready = true;
-    
+        APPLY_PRINT("%s: WAN is ready and WAN ready value = %d\n", __FUNCTION__, sr->wan_ready);
+    }
     sysevent_get(sr->sefd, sr->setok, "lan-status", lan_st, sizeof(lan_st));
-    if (strcmp(lan_st, "started") == 0)
+    if (strcmp(lan_st, "started") == 0) {
         sr->lan_ready = true;
+        APPLY_PRINT("%s: LAN is ready and LAN ready value = %d\n", __FUNCTION__, sr->lan_ready);
+    }
 
     return 0;
 }
@@ -2674,6 +2715,7 @@ STATIC void usage(void)
 
 int service_routed_main(int argc, char *argv[])
 {
+    APPLY_PRINT("%s: Entering service_routed_main\n", __FUNCTION__);
     int i;
     struct serv_routed sr;
    logfptr = fopen ( LOG_FILE_NAME , "a+");

@@ -72,6 +72,21 @@
 #endif
 #include "print_uptime.h"
 
+#define LOG_FILE "/tmp/Debug_devicemode.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #ifndef RETURN_OK
 #define RETURN_OK   0
 #endif
@@ -304,12 +319,14 @@ int runCommandInShellBlocking(char *command)
 
 int service_stop(int mode)
 {
+    APPLY_PRINT("%s: Stopping services for mode %d\n", __FUNCTION__, mode);
     char buf[256];
     memset(buf,0,sizeof(buf));
     switch(mode)
     {
         case DEVICE_MODE_ROUTER:
         {
+            APPLY_PRINT("%s: Stopping services for ROUTER mode\n", __FUNCTION__);
             sysevent_set(sysevent_fd, sysevent_token, "lan-stop", "", 0);
             sysevent_set(sysevent_fd, sysevent_token, "ipv4-down", "5", 0);
 #if defined (_COSA_BCM_ARM_)
@@ -324,6 +341,7 @@ int service_stop(int mode)
         break;
         case DEVICE_MODE_EXTENDER:
         {
+            APPLY_PRINT("%s : Stopping services for extender mode \n", __FUNCTION__);
 #if defined (_COSA_BCM_ARM_)
             sysevent_set(sysevent_fd, sysevent_token, "wan-stop", "", 0);
 #endif
@@ -375,6 +393,7 @@ int GetL2InterfaceNameFromPsm(int instanceNumber, char *pName, int len)
 
 int service_start(int mode)
 {
+    APPLY_PRINT("%s: Starting services for mode %d\n", __FUNCTION__, mode);
     char buf[256];
     memset(buf,0,sizeof(buf));
     int rc = -1;
@@ -382,23 +401,28 @@ int service_start(int mode)
     {
         case DEVICE_MODE_ROUTER:
         {
+            APPLY_PRINT("%s: Starting services for ROUTER mode\n", __FUNCTION__);
             int bridgemode = 0;
             if( 0 == syscfg_get( NULL, "bridge_mode", buf, sizeof(buf) ) )
             {
                 bridgemode = atoi(buf);
+                APPLY_PRINT("%s: bridge_mode is %d\n", __FUNCTION__, bridgemode);
             }
             snprintf(buf,sizeof(buf),"execute_dir %s", ROUTER_MODE_SERVICES_PATH_1);
             runCommandInShellBlocking(buf);
             if (bridgemode == 0)
             {
+                APPLY_PRINT("%s: Setting lan-start sysevent\n", __FUNCTION__);
                 sysevent_set(sysevent_fd, sysevent_token, "lan-start", "", 0);
             }
             else
             {
+                APPLY_PRINT("%s: Bridge mode is enabled, setting bridge-start sysevent\n", __FUNCTION__);
                 sysevent_set(sysevent_fd, sysevent_token, "bridge-start", "", 0);
             }
 // Do wan start only in XB technicolor for xb->xb backup wan testing.
 #if defined (_COSA_BCM_ARM_)
+            APPLY_PRINT("%s: Setting wan-start sysevent\n", __FUNCTION__);
             sysevent_set(sysevent_fd, sysevent_token, "wan-start", "", 0);
 #endif
             // start ipv4 for XHS 
@@ -417,6 +441,11 @@ int service_start(int mode)
              sysevent_set(sysevent_fd, sysevent_token, "lnf-setup", buf, 0);
 #endif
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
+            char lanStartVal[64] = {0};
+            sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
+            APPLY_PRINT("%s: lan-status after lan-start is %s\n", __FUNCTION__, lanStartVal);
+
+            APPLY_PRINT("%s: Triggering zebra-restart sysevent\n", __FUNCTION__);
             sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
         }
         break;
