@@ -2041,7 +2041,7 @@ static int connect_to_local_sysevent_daemon(char *target, int* sockfd)
    int address_length;
    se_server_addr.sun_family = AF_UNIX;
    address_length = sizeof(se_server_addr.sun_family) +
-                 snprintf(se_server_addr.sun_path, sizeof(se_server_addr.sun_path), "%s", target);
+                 snprintf(se_server_addr.sun_path, sizeof(se_server_addr.sun_path), "%s");
    int rc;
    int num_tries = NUM_CONNECT_ATTEMPTS;
    while (num_tries) {
@@ -3339,7 +3339,7 @@ unsigned int sysevent_get_binmsg_maxsize()
         unsigned int value = 0;
         if (fscanf(fp, "%5u",&value) <= 0)
         {
-            printf("read error of %s \n",SE_MAX_MSG_DATA_SIZE_READ_FILE); //CID -160978
+            printf("read error of %s %s \n",SE_MAX_MSG_DATA_SIZE_READ_FILE); //CID -160978
             fclose(fp);
             return SE_MAX_MSG_DATA_SIZE + 1024;
         }
