@@ -225,7 +225,7 @@ struct sock_filter dhcp_packet_filter[] = {
  */
 void usage(const char* program)
 {
-   printf("Usage: %s [-w wan_interface_name] [-l lan_interface_name] [-s my_ip_address] [-f lease_file]\n",
+   printf("Usage: %s [-w wan_interface_name] [-l lan_interface_name] [-s my_ip_address] [-f lease_file] %s\n",
           program);
    exit(-1);
 }

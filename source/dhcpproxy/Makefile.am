@@ -16,7 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-AM_CFLAGS =
+AM_CFLAGS = -fPIC -fno-exceptions -Os -Wall -Wextra
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -24,7 +24,7 @@ bin_PROGRAMS = dhcp_proxy
 
 dhcp_proxy_SOURCES = packet_util.c dhcp_proxy.c dhcp_util.c dhcp_msg.c
 
-dhcp_proxy_CPPFLAGS = -I$(top_srcdir)/source/include
+dhcp_proxy_CPPFLAGS = -Wno-format -I$(top_srcdir)/source/include
 
 dhcp_proxy_LDADD = $(top_builddir)/source/services/lib/libsrvmgr.la \
                    $(top_builddir)/source/syscfg/lib/libsyscfg.la \

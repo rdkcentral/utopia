@@ -18,7 +18,7 @@
 ##########################################################################
 AUTOMAKE_OPTIONS = subdir-objects
 
-AM_CFLAGS = -Wno-format -I$(top_srcdir)/source/include \
+AM_CFLAGS = -I$(top_srcdir)/source/include \
             -I$(top_srcdir)/source/util \
             -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
 	    -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include

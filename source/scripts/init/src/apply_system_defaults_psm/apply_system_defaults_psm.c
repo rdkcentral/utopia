@@ -116,7 +116,7 @@ int main( int argc, char **argv )
         APPLY_PRINT("[Utopia] global_fd is %d\n",global_fd);
 
         APPLY_PRINT("[Utopia] %s unable to register with sysevent daemon.\n", argv[0]);
-        printf("[Utopia] %s unable to register with sysevent daemon.\n %s", argv[0]);
+        printf("[Utopia] %s unable to register with sysevent daemon.\n", argv[0]);
 
         //sleep with subsecond precision
         t.tv_sec = 0;
