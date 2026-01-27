@@ -73,7 +73,7 @@
 // how many times does library attempt to connect to a non blocking socket returning EINPROGRESS
 #define NUM_CONNECT_ATTEMPTS 10   
 
-//#define RUNTIME_DEBUG 1
+#define RUNTIME_DEBUG 1
 #ifdef RUNTIME_DEBUG
 char *debug_filename = "/var/log/sysevent_lib.err";
 #endif  // RUNTIME_DEBUG
