@@ -326,7 +326,7 @@ STATIC int mbus_get(char *path, char *val, int size)
         return -1;
 
     if (!bus_handle) {
-         fprintf(stderr, "DBUS not connected\n");
+         fprintf(stderr, "DBUS not connected %s \n");
          return -1;
     }
 
