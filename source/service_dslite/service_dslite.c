@@ -178,7 +178,7 @@ static void dns_cb (int result, char type, int count, int ttl, void *addresses, 
     {
         in6_addrs = NULL;
 #ifdef DEBUG
-        fprintf(fp_dslt_dbg, "Unexpected result %d \n");
+        fprintf(fp_dslt_dbg, "Unexpected result %d \n", result);
 #endif
         goto OUT;
     }

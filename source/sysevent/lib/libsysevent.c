@@ -2291,7 +2291,7 @@ static int connect_to_sysevent_daemon(char *ip, unsigned short port, int* sockfd
 #ifdef RUNTIME_DEBUG
                                FILE *fp = fopen(debug_filename, "a+");
                                if (NULL != fp) {
-                                  fprintf(fp, "connect_to_sysevent_daemon connect (ipv4) timed out using fd %d\n",
+                                  fprintf(fp, "connect_to_sysevent_daemon connect (ipv4) timed out using fd %d\n %s",
                                                 *sockfd);
                                   fclose(fp);
                                }
