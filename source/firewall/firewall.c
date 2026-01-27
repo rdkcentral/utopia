@@ -10713,7 +10713,7 @@ static int do_wan2lan(FILE *fp)
  * Return Values  :
  *    0              : Success
  */
-#ifdef _SR213_PRODUCT_REQ_
+#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_)
 static int do_block_lan_access_to_wan_ssh(FILE *fp)
 {
    FIREWALL_DEBUG("Entering do_block_lan_access_to_wan_ssh\n");
@@ -13728,7 +13728,7 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_lan2wan(mangle_fp, filter_fp, nat_fp); 
    do_wan2lan(filter_fp);
    do_filter_table_general_rules(filter_fp);
-#ifdef _SR213_PRODUCT_REQ_
+#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_)
    if(isWanReady)
         do_block_lan_access_to_wan_ssh(filter_fp);
 #endif
