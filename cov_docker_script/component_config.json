@@ -176,7 +176,7 @@
       {
         "name": "common-library",
         "repo": "https://github.com/rdkcentral/common-library.git",
-        "branch": "feature/native_build_for_coverity",
+        "branch": "develop",
         "header_paths": [
           { "source": "source/ccsp/include", "destination": "$HOME/usr/include/rdkb" },
           { "source": "source/ccsp/components/include", "destination": "$HOME/usr/include/rdkb" },
