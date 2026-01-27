@@ -10717,8 +10717,8 @@ static int do_wan2lan(FILE *fp)
 static int do_block_SSH_wan(FILE *fp)
 {
    FIREWALL_DEBUG("Entering do_block_SSH_wan\n");
-   fprintf(fp, "-I INPUT 1 -i brlan0 -d %s -p tcp --dport 10022 -j REJECT", current_wan_ipaddr);
-   FIREWALL_DEBUG("Exiting do_block_SSH_wan\n");
+   fprintf(fp, "-I INPUT 1 -i brlan0 -d %s -p tcp --dport 10022 -j REJECT\n", current_wan_ipaddr);
+   FIREWALL_DEBUG("Exiting do_block_SSH_wan %s \n", current_wan_ipaddr);
    return(0);
 }
 #endif
