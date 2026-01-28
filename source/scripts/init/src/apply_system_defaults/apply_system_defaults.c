@@ -1606,12 +1606,12 @@ STATIC void addInSysCfgdDB (char *key, char *value)
            if (!isFeatureSupportedInCurrentMode(FEATURE_MAPT))
            {
                printf("MAP-T enable rejected, unsupported mode\n");
-               return FALSE;
+               return;
            }
            else if (IsMAPTConflictingFeaturesEnabled())
            {
                printf("MAP-T enable rejected due to conflicting features\n");
-               return FALSE;
+               return;
            }
 #endif
            set_syscfg_partner_values( value,"MAPT_Enable" );
