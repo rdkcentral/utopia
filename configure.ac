@@ -52,7 +52,7 @@ AC_ARG_ENABLE([stackmode],
               case "${enableval}" in
                 yes)
                   ENABLE_STACKMODE_SERVICE=true
-                  m4_if(m4_sysval,[0],[AC_CONFIG_FILES([source/scripts/init/stackmode/Makefile])])
+                  m4_if(m4_sysval,[0],[AC_CONFIG_FILES([source/scripts/init/src/stackmode/Makefile])])
                   ;;
                 no)
                   ENABLE_STACKMODE_SERVICE=false
