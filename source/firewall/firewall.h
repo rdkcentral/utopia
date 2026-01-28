@@ -62,6 +62,25 @@
 #include "safec_lib_common.h"
 #include "ansc_status.h"
 
+/* ===== OneStack Feature Support Patch ===== */
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+
+#ifndef FEATURE_IPV6_DELEGATION
+#define FEATURE_IPV6_DELEGATION  1
+#endif
+
+/* Dummy runtime feature check — always enabled */
+static inline bool isFeatureSupportedInCurrentMode(int feature)
+{
+    (void)feature;
+    return true;
+}
+
+#endif /* _ONESTACK_PRODUCT_REQ_ */
+
+/* ========================================== */
+
 /**
 * @brief Apply logging rules to the filter table.
 *
@@ -619,7 +638,7 @@ int prepare_multinet_filter_output_v6(FILE *fp);
 */
 int prepare_ipv6_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *filter_fp);
 #endif
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && !defined(_CBR_PRODUCT_REQ_)
+#if (defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && !defined(_CBR_PRODUCT_REQ_)) || defined(_ONESTACK_PRODUCT_REQ_)
 /**
 * @brief Prepare IPv6 MultiNet rules with DHCPv6 prefix delegation support.
 *
