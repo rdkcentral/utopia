@@ -54,6 +54,24 @@
 #include <signal.h>
 #include "safec_lib_common.h"
 #include "secure_wrapper.h"
+/* ===== OneStack Feature Support Patch ===== */
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+
+#ifndef FEATURE_IPV6_DELEGATION
+#define FEATURE_IPV6_DELEGATION  1
+#endif
+
+/* Dummy runtime feature check — always enabled */
+static inline bool isFeatureSupportedInCurrentMode(int feature)
+{
+    (void)feature;
+    return true;
+}
+
+#endif /* _ONESTACK_PRODUCT_REQ_ */
+
+/* ========================================== */
 
 #if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
 #include <sys/stat.h>
@@ -425,8 +443,11 @@ STATIC int get_active_lanif(int sefd, token_t setok, unsigned int *insts, unsign
     char *p = NULL;
     int i = 0;
 
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
-
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
     char lan_pd_if[128] = {0};
     char if_name[16] = {0};
     char buf[64] = {0};
@@ -449,8 +470,13 @@ STATIC int get_active_lanif(int sefd, token_t setok, unsigned int *insts, unsign
 
         p = strtok(NULL, " ");
     }
-
-#else
+    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
 
     /* service_ipv6 sets active IPv6 interfaces instances. */
     sysevent_get(sefd, setok, "ipv6_active_inst", active_insts, sizeof(active_insts));
@@ -459,14 +485,14 @@ STATIC int get_active_lanif(int sefd, token_t setok, unsigned int *insts, unsign
         insts[i++] = atoi(p);
         p = strtok(NULL, " ");
     }
-
+    }
 #endif
     *num = i;
 
     return *num;
 }
 #else
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
 STATIC int get_active_lanif(int sefd, token_t setok, unsigned int *insts, unsigned int *num)
 {
     char active_insts[32] = {0};
@@ -505,7 +531,11 @@ STATIC int get_active_lanif(int sefd, token_t setok, unsigned int *insts, unsign
 
 STATIC int route_set(struct serv_routed *sr)
 {
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(MULTILAN_FEATURE)
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(MULTILAN_FEATURE) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
     unsigned int l2_insts[4] = {0};
     unsigned int enabled_iface_num = 0;
     char evt_name[64] = {0};
@@ -559,6 +589,7 @@ STATIC int route_set(struct serv_routed *sr)
                         "ip -6 rule add iif %s table erouter",
                         lan_if, lan_if, lan_if, lan_if);
 #endif
+    }
     }
 #endif
 
@@ -657,7 +688,11 @@ STATIC int route_unset(struct serv_routed *sr)
 #ifdef CORE_NET_LIB
     libnet_status status;
 #endif
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(MULTILAN_FEATURE)
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(MULTILAN_FEATURE) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
     unsigned int l2_insts[4] = {0};
     unsigned int enabled_iface_num = 0;
     char evt_name[64] = {0};
@@ -731,7 +766,13 @@ STATIC int route_unset(struct serv_routed *sr)
         return -1;
 #endif
 #endif
-#else
+    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
 #ifdef CORE_NET_LIB
     status = rule_delete("-6 iif brlan0 table erouter");
     if (status != CNL_STATUS_SUCCESS) {
@@ -743,6 +784,7 @@ STATIC int route_unset(struct serv_routed *sr)
 #else
     vsystem("ip -6 rule del iif brlan0 table erouter");
 #endif
+    }
 #endif
     return 0;
 }
@@ -901,7 +943,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         "!log stdout\n"
         "log file /var/tmp/zebra.log errors\n"
         "table 255\n";
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     int i = 0;
     unsigned int l2_insts[4] = {0};
     unsigned int enabled_iface_num = 0;
@@ -1000,15 +1042,27 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif
 
     syscfg_get(NULL, "ra_interval", ra_interval, sizeof(ra_interval));
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+
+#ifdef WAN_FAILOVER_SUPPORTED
+    char last_broadcasted_prefix[64] = {0};
+#endif
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
     sysevent_get(sefd, setok, "previous_ipv6_prefix", orig_prefix, sizeof(orig_prefix));
     sysevent_get(sefd, setok, "ipv6_prefix_prdtime", preferred_lft, sizeof(preferred_lft));
     sysevent_get(sefd, setok, "ipv6_prefix_vldtime", valid_lft, sizeof(valid_lft));
-#else
-
+    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
     #ifdef WAN_FAILOVER_SUPPORTED
 
-    char last_broadcasted_prefix[64] ;
     memset(last_broadcasted_prefix,0,sizeof(last_broadcasted_prefix));
     if (gIpv6AddrAssignment == ULA_IPV6)
     {
@@ -1119,6 +1173,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     sysevent_get(sefd, setok, "ipv6_prefix_vldtime", valid_lft, sizeof(valid_lft));
 #endif
     syscfg_get(NULL, "lan_ifname", lan_if, sizeof(lan_if));
+    }
 #endif
     if (atoi(preferred_lft) <= 0)
         snprintf(preferred_lft, sizeof(preferred_lft), "300");
@@ -1438,11 +1493,22 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         if ((strncmp(buf,"true",4) == 0) && iresCode == 204)
         {
 #if defined (_COSA_BCM_MIPS_)
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
             // For CBR platform, the captive portal redirection feature was removed
             // inWifiCp = 1;
-#else
+    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
             inWifiCp = 1;
+    }
 #endif
 #else
             inWifiCp = 1;
@@ -1557,16 +1623,32 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     	}
 #endif
         /* static IPv6 DNS */
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION          
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
             snprintf(rec, sizeof(rec), "dhcpv6spool%d0::optionnumber", i);
             syscfg_get(NULL, rec, val, sizeof(val));
-#else
+    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
         syscfg_get(NULL, "dhcpv6spool00::optionnumber", val, sizeof(val));
+    }
 #endif
         nopt = atoi(val);
         for (j = 0; j < nopt; j++) {
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION              
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
              memset(name_servs, 0, sizeof(name_servs));
+    }
 #endif
             snprintf(rec, sizeof(rec), "dhcpv6spool0option%d::bEnabled", j); /*RDKB-12965 & CID:-34147*/
             syscfg_get(NULL, rec, val, sizeof(val));
