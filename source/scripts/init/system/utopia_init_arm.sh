@@ -233,6 +233,12 @@ if [ -f $SYSCFG_BKUP_FILE ]; then
 		CheckAndReCreateDB
 	fi
 else
+   # Call stackmode binary to set stackmode marker
+   if [ -x /usr/bin/stackmode ]; then
+      echo "[utopia][init] Calling stackmode binary to configure stack mode"
+      /usr/bin/stackmode
+   fi
+   
    echo -n > $SYSCFG_FILE
    syscfg_create -f $SYSCFG_FILE
    if [ $? != 0 ]; then

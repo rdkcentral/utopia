@@ -10,7 +10,7 @@
 #if defined(_ONESTACK_PRODUCT_REQ_)
 #define BUFLEN_32 32
 #define BUFLEN_256 256
-#define MAX_RETRY 3
+#define MAX_RETRY 2
 #define RETRY_DELAY_SEC 1
 #define PARTNER_ID_FILE "/nvram/.partner_ID"
 #define SETSTACKMODE_FILE "/nvram/setstackmode"
@@ -66,6 +66,16 @@ int get_setstackmode(char *pValue, int size)
                     strncpy(pValue, buffer, size - 1);
                     pValue[size - 1] = '\0';
                     fclose(fp);
+                    
+                    // Copy content to /tmp/ for record keeping
+                    FILE *record_fp = fopen("/tmp/.partner_ID_record", "w");
+                    if (record_fp)
+                    {
+                        fprintf(record_fp, "%s\n", pValue);
+                        fclose(record_fp);
+                        STACKMODE_DEBUG("%s: Partner ID copied to /tmp/.partner_ID_record\n", __FUNCTION__);
+                    }
+                    
                     STACKMODE_INFO("%s: Partner ID retrieved from file: %s\n", __FUNCTION__, pValue);
                     return 0;
                 }
@@ -115,7 +125,6 @@ int main(int argc, char *argv[])
     char partnerId[BUFLEN_256] = {0};
     bool isBci = false;
     FILE *fp = NULL;
-    int ret;
 
     // Initialize RDK logger
     if (!stackmode_log_init())
@@ -144,33 +153,9 @@ int main(int argc, char *argv[])
             {
                 STACKMODE_WARN("Failed to create marker file: %s\n", SETSTACKMODE_FILE);
             }
-            
-            // Set stackmode to business-commercial-mode
-            ret = syscfg_set(NULL, "stackmode", STACKMODE_BUSINESS);
-            if (ret == 0)
-            {
-                syscfg_commit();
-                STACKMODE_INFO("Set stackmode to: %s\n", STACKMODE_BUSINESS);
-            }
-            else
-            {
-                STACKMODE_ERROR("Failed to set stackmode to: %s\n", STACKMODE_BUSINESS);
-            }
         }
-        else
-        {
-            // Set stackmode to residential-mode
-            ret = syscfg_set(NULL, "stackmode", STACKMODE_RESIDENTIAL);
-            if (ret == 0)
-            {
-                syscfg_commit();
-                STACKMODE_INFO("Set stackmode to: %s\n", STACKMODE_RESIDENTIAL);
-            }
-            else
-            {
-                STACKMODE_ERROR("Failed to set stackmode to: %s\n", STACKMODE_RESIDENTIAL);
-            }
-        }
+        
+        STACKMODE_INFO("Stackmode configuration will be handled by apply_system_defaults\n");
         
         stackmode_log_deinit();
         return 0;

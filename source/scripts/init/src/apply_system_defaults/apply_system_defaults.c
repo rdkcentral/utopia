@@ -3529,6 +3529,36 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
       APPLY_PRINT("%s - Failed to apply_value_to_sysevent block into sysevent for '%s'\n", __FUNCTION__, PartnerID);
    }
 
+#if defined(_ONESTACK_PRODUCT_REQ_)
+   // Set stackmode based on /nvram/setstackmode marker file
+   if (access("/nvram/setstackmode", F_OK) == 0)
+   {
+      // File exists, set to business-commercial-mode
+      if (syscfg_set(NULL, "stackmode", "business-commercial-mode") == 0)
+      {
+         syscfg_commit();
+         APPLY_PRINT("%s - Set stackmode to business-commercial-mode\n", __FUNCTION__);
+      }
+      else
+      {
+         APPLY_PRINT("%s - Failed to set stackmode to business-commercial-mode\n", __FUNCTION__);
+      }
+   }
+   else
+   {
+      // File does not exist, set to residential-mode
+      if (syscfg_set(NULL, "stackmode", "residential-mode") == 0)
+      {
+         syscfg_commit();
+         APPLY_PRINT("%s - Set stackmode to residential-mode\n", __FUNCTION__);
+      }
+      else
+      {
+         APPLY_PRINT("%s - Failed to set stackmode to residential-mode\n", __FUNCTION__);
+      }
+   }
+#endif
+
    sysevent_close(global_fd, global_id);
 
    return(0);
