@@ -19,6 +19,3 @@
 #SUBDIRS = c_registration src service.d syslog_conf
 SUBDIRS = c_registration src
 
-if ENABLE_STACKMODE_SERVICE
-SUBDIRS += stackmode
-endif
