@@ -8978,9 +8978,13 @@ memset(buf, 0, sizeof(buf));
        {
            if(count == 0)
            {
+               int len = strlen(buf);
+               if(len > 0 && buf[len-1] == '\n')
+                   buf[len-1] = '\0';
+               
                errno = 0;
                numDev = strtol(buf, &endptr, 10);
-               if (endptr == buf || (*endptr != '\0' && *endptr != '\n') || errno == ERANGE)
+               if (endptr == buf || *endptr != '\0' || errno == ERANGE)
                {
                    FIREWALL_DEBUG("invalid data\n");
                    break;
