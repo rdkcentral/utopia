@@ -1366,7 +1366,7 @@ static int ApplyPartnersObjectItemsIntoSysevents( char *pcPartnerID )
 #if defined(_ONESTACK_PRODUCT_REQ_)
 #define FEATURE_MAPT 1
 // TODO: Temporary stub
-static BOOL isFeatureSupportedInCurrentMode(int feature_id)
+static bool isFeatureSupportedInCurrentMode(int feature_id)
 {
     struct stat st;
     (void)feature_id;
@@ -1374,7 +1374,7 @@ static BOOL isFeatureSupportedInCurrentMode(int feature_id)
     return (stat("/nvram2/mapt.support", &st) == 0) ? TRUE : FALSE;
 }
 
-static BOOL IsMAPTConflictingFeaturesEnabled(void)
+static bool IsMAPTConflictingFeaturesEnabled(void)
 {
     struct {
         const char *feature_syscfg;
@@ -1388,7 +1388,7 @@ static BOOL IsMAPTConflictingFeaturesEnabled(void)
 
     for (int i = 0; i < range; i++)
     {
-        if ( 0 == IsValuePresentinSyscfgDB(conflicts[i].feature_syscfg) )
+        if ( 0 == IsValuePresentinSyscfgDB((char *)conflicts[i].feature_syscfg) )
         {
             printf("MAP-T blocked: feature %s is already enabled\n", conflicts[i].log);
             return TRUE;
@@ -1397,6 +1397,7 @@ static BOOL IsMAPTConflictingFeaturesEnabled(void)
 
     return FALSE;
 }
+#endif
 #endif
 
 STATIC void addInSysCfgdDB (char *key, char *value)
