@@ -1364,7 +1364,6 @@ static int ApplyPartnersObjectItemsIntoSysevents( char *pcPartnerID )
 
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 #if defined(_ONESTACK_PRODUCT_REQ_)
-#define FEATURE_MAPT 1
 // TODO: Temporary stub
 static bool isFeatureSupportedInCurrentMode(int feature_id)
 {
@@ -1390,7 +1389,7 @@ static bool IsMAPTConflictingFeaturesEnabled(void)
     {
         if ( 0 == IsValuePresentinSyscfgDB((char *)conflicts[i].feature_syscfg) )
         {
-            printf("MAP-T blocked: feature %s is already enabled\n", conflicts[i].log);
+            APPLY_PRINT("MAP-T blocked: feature %s is already enabled\n", conflicts[i].log);
             return TRUE;
         }
     }
@@ -1605,12 +1604,12 @@ STATIC void addInSysCfgdDB (char *key, char *value)
 #if defined(_ONESTACK_PRODUCT_REQ_)
            if (!isFeatureSupportedInCurrentMode(FEATURE_MAPT))
            {
-               printf("MAP-T enable rejected, unsupported mode\n");
+               APPLY_PRINT("MAP-T enable rejected, unsupported mode\n");
                return;
            }
            else if (IsMAPTConflictingFeaturesEnabled())
            {
-               printf("MAP-T enable rejected due to conflicting features\n");
+               APPLY_PRINT("MAP-T enable rejected due to conflicting features\n");
                return;
            }
 #endif
@@ -1857,12 +1856,12 @@ STATIC void updateSysCfgdDB (char *key, char *value)
 #if defined(_ONESTACK_PRODUCT_REQ_)
           if (!isFeatureSupportedInCurrentMode(FEATURE_MAPT))
           {
-              printf("MAP-T enable rejected, unsupported mode\n");
+              APPLY_PRINT("MAP-T enable rejected, unsupported mode\n");
               return;
           }
           else if (IsMAPTConflictingFeaturesEnabled())
           {
-              printf("MAP-T enable rejected due to conflicting features\n");
+              APPLY_PRINT("MAP-T enable rejected due to conflicting features\n");
               return;
           }
 #endif
