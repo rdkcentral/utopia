@@ -52,7 +52,6 @@ AC_ARG_ENABLE([stackmode],
               case "${enableval}" in
                 yes)
                   ENABLE_STACKMODE_SERVICE=true
-                  m4_if(m4_sysval,[0],[AC_CONFIG_FILES([source/scripts/init/src/stackmode/Makefile])])
                   ;;
                 no)
                   ENABLE_STACKMODE_SERVICE=false
@@ -63,7 +62,7 @@ AC_ARG_ENABLE([stackmode],
                   ;;
               esac
              ],
-             [AC_MSG_WARN([StackMode support is disabled])])
+             [ENABLE_STACKMODE_SERVICE=false])
 
 AM_CONDITIONAL([ENABLE_STACKMODE_SERVICE], [test x$ENABLE_STACKMODE_SERVICE = xtrue])
 
@@ -246,6 +245,11 @@ AC_ARG_ENABLE([hotspot],
            ],
         [enable_hotspot=true])
 AM_CONDITIONAL([ENABLE_HOTSPOT_SERVICE], [test x$enable_hotspot = xtrue])
+
+AM_COND_IF( [ENABLE_STACKMODE_SERVICE], [
+AC_CONFIG_FILES([
+   source/scripts/init/src/stackmode/Makefile
+])] )
 
 AC_CONFIG_FILES(
 	Makefile

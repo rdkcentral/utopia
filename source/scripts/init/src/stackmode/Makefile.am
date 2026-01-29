@@ -22,6 +22,8 @@ bin_PROGRAMS = stackmode
 
 stackmode_SOURCES = stackmode.c stackmode_log.c
 
-stackmode_CPPFLAGS = -I$(top_srcdir)/source/stackmode
+stackmode_CPPFLAGS = -I$(top_srcdir)/source/scripts/init/src/stackmode \
+                     -I$(top_srcdir)/source/syscfg \
+                     -I$(top_srcdir)/source/include
 
-stackmode_LDADD = -lsyscfg -lrdkloggers -lhal_platform
+stackmode_LDADD = -lsyscfg -lrdkloggers -lhal_platform -lpthread
