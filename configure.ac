@@ -46,26 +46,6 @@ AC_ARG_ENABLE([unitTestDockerSupport],
 
 AM_CONDITIONAL([UNIT_TEST_DOCKER_SUPPORT], [test x$UNIT_TEST_DOCKER_SUPPORT = xtrue])
 
-AC_ARG_ENABLE([stackmode],
-             AS_HELP_STRING([--enable-stackmode],[enable StackMode support (default is no)]),
-             [
-              case "${enableval}" in
-                yes)
-                  ENABLE_STACKMODE_SERVICE=true
-                  ;;
-                no)
-                  ENABLE_STACKMODE_SERVICE=false
-                  AC_MSG_WARN([StackMode support is disabled])
-                  ;;
-                *)
-                  AC_MSG_ERROR([bad value ${enableval} for --enable-stackmode])
-                  ;;
-              esac
-             ],
-             [ENABLE_STACKMODE_SERVICE=false])
-
-AM_CONDITIONAL([ENABLE_STACKMODE_SERVICE], [test x$ENABLE_STACKMODE_SERVICE = xtrue])
-
 AC_PREFIX_DEFAULT(`pwd`)
 AC_ENABLE_SHARED
 AC_DISABLE_STATIC
@@ -246,11 +226,6 @@ AC_ARG_ENABLE([hotspot],
         [enable_hotspot=true])
 AM_CONDITIONAL([ENABLE_HOTSPOT_SERVICE], [test x$enable_hotspot = xtrue])
 
-AM_COND_IF( [ENABLE_STACKMODE_SERVICE], [
-AC_CONFIG_FILES([
-   source/scripts/init/src/stackmode/Makefile
-])] )
-
 AC_CONFIG_FILES(
 	Makefile
 	source/Makefile
@@ -270,6 +245,7 @@ AC_CONFIG_FILES(
 	source/scripts/init/src/apply_system_defaults/Makefile
         source/scripts/init/src/apply_system_defaults_psm/Makefile
 	source/scripts/init/src/execute_dir/Makefile
+	source/scripts/init/src/stackmode/Makefile
 	source/services/Makefile
 	source/services/lib/Makefile
 	source/service_ipv6/Makefile
