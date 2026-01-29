@@ -8976,6 +8976,10 @@ memset(buf, 0, sizeof(buf));
            FIREWALL_DEBUG("Error while locking file\n");
        while( fgets ( buf, sizeof(buf), fp ) != NULL ) 
        {
+           int len = strlen(buf);
+           if(len > 0 && buf[len-1] == '\n')
+               buf[len-1] = '\0';
+
            if(count == 0)
            {
                errno = 0;
