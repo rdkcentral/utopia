@@ -16,7 +16,8 @@ This directory contains the configuration and wrapper scripts necessary for buil
 ├── component_config.json          # Dependency & build configuration
 ├── configure_options.conf         # Autotools configure flags (optional)
 ├── run_setup_dependencies.sh      # Wrapper: Setup build tools & dependencies
-└── run_native_build.sh           # Wrapper: Setup build tools & build component
+├── run_native_build.sh           # Wrapper: Build main component
+└── run_external_build.sh         # Wrapper: For dependency builds (used in component_config.json)
 ```
 
 ### Important: Add to .gitignore
@@ -48,7 +49,7 @@ build/
 # From your component root directory
 cd /path/to/your-component
 
-# Run complete build pipeline
+# Standard build pipeline for main component
 ./cov_docker_script/run_setup_dependencies.sh
 ./cov_docker_script/run_native_build.sh
 
@@ -56,6 +57,20 @@ cd /path/to/your-component
 CLEAN_BUILD=true ./cov_docker_script/run_setup_dependencies.sh
 ./cov_docker_script/run_native_build.sh
 ```
+
+#### Alternative: Single-Script Build (All-in-One)
+
+If you prefer to run everything in a single command:
+
+```bash
+# Run setup dependencies + native build in one script
+./cov_docker_script/run_external_build.sh
+
+# Clean build
+CLEAN_BUILD=true ./cov_docker_script/run_external_build.sh
+```
+
+**Note:** `run_external_build.sh` performs both dependency setup and component build in one execution. While primarily designed to be invoked by the dependency setup process when specified in `component_config.json` (see [run_external_build.sh](#3-run_external_buildsh) section), it can also be used directly for the main component as a convenience script that handles the complete build pipeline.
 
 #### Individual Steps
 
@@ -138,6 +153,76 @@ CLEAN_BUILD=true ./run_setup_dependencies.sh
 **Outputs:**
 - Component libraries in `$HOME/usr/local/lib/`
 - Build artifacts in component root directory
+
+---
+
+### 3. run_external_build.sh
+
+**Purpose:** Builds dependencies with complex build requirements (invoked from component_config.json).
+
+**Key Differences from run_native_build.sh:**
+- Designed for **dependency repositories**, not the main component
+- Invokes `common_external_build.sh` without arguments (dependencies manage their own configuration)
+- Does **NOT** clean up `build_tools_workflows` (may be used by multiple dependencies)
+- Typically called automatically during dependency setup, not manually
+
+**What it does:**
+1. Clones `build_tools_workflows` if not present (or verifies it exists)
+2. Verifies `common_external_build.sh` is present
+3. Runs `common_external_build.sh` from build_tools_workflows
+4. Preserves `build_tools_workflows` directory for subsequent use
+
+**Usage:**
+```bash
+./run_external_build.sh
+```
+
+**Prerequisites:**
+- `run_setup_dependencies.sh` must be run first (to clone build_tools_workflows)
+- All dependency headers/libraries must be available
+
+**Outputs:**
+- Build artifacts based on common_external_build.sh implementation
+- build_tools_workflows remains in place (not cleaned up)
+
+**Primary Use Case - Dependency Builds in component_config.json:**
+
+This script is primarily used to build **dependency repositories** that have complex build requirements. When a dependency has its own `cov_docker_script/run_external_build.sh`, it can be invoked from the parent component's `component_config.json`.
+
+**Example configuration in component_config.json:**
+
+```json
+{
+  "name": "Utopia",
+  "repo": "https://github.com/rdkcentral/utopia.git",
+  "branch": "feature/cov_native_build",
+  "header_paths": [
+    { "source": "source/include", "destination": "$HOME/usr/include/rdkb" }
+  ],
+  "build": {
+    "type": "script",
+    "script": "cov_docker_script/run_external_build.sh"
+  }
+}
+```
+
+**How it works for dependencies:**
+1. The parent component's `setup_dependencies.sh` clones the dependency repository (e.g., Utopia)
+2. The dependency's `run_external_build.sh` is executed from the dependency's directory
+3. This script internally:
+   - Sets up the dependency's own build tools and dependencies
+   - Runs the dependency's native build process
+   - Produces shared libraries (`.so` files)
+4. The generated shared libraries are installed to `$HOME/usr/local/lib/` or `$HOME/usr/lib/`
+5. These libraries are then available for the parent component's native build
+
+**When to use this approach:**
+- Dependency has complex multi-step build requirements
+- Dependency has its own sub-dependencies that need to be built
+- Dependency requires custom build logic beyond standard autotools/cmake/meson
+- Dependency repository already has a `cov_docker_script/run_external_build.sh` script
+
+**Note:** This approach allows dependencies to manage their own complete build pipeline, producing the necessary shared libraries that the parent component links against during its native compilation.
 
 ---
 
