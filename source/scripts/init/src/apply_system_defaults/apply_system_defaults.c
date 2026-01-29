@@ -3317,6 +3317,50 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 }
 #endif
 
+#if defined (_ONESTACK_PRODUCT_REQ_)
+
+#define DEV_PROP_FILE "/etc/device.properties"
+static const char *g_dev_prop_params[] = {
+    "IS_BCI=yes",
+    NULL
+};
+
+static int addPartnerDefaultsToDevPropFile()
+{
+    FILE *fp = NULL;
+    //check file for existence
+    if (access(DEV_PROP_FILE, F_OK) != 0)
+    {
+        APPLY_PRINT("[Utopia - %s]File %s does not exist\n",__FUNCTION__,DEV_PROP_FILE);
+        return 1;
+    }
+
+    //open for writing
+    fp = fopen(DEV_PROP_FILE, "a");
+    if (fp == NULL)
+    {
+        APPLY_PRINT("[Utopia - %s]File %s could not open for writing\n",__FUNCTION__,DEV_PROP_FILE);
+        return 1;
+    }
+
+    int i = 0;
+    for (i = 0; g_dev_prop_params[i] != NULL; i++)
+    {
+        if (fprintf(fp, "%s\n", g_dev_prop_params[i]) < 0)
+	{
+            APPLY_PRINT("[Utopia - %s]File %s write failed\n",__FUNCTION__,DEV_PROP_FILE);
+            fclose(fp);
+            return 1;
+        }
+    }
+
+    APPLY_PRINT("[Utopia - %s]File %s write successful\n",__FUNCTION__,DEV_PROP_FILE);
+
+    fclose(fp);
+
+    return 0;
+}
+#endif
 /*
  * main()
  */
@@ -3530,6 +3574,16 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
    }
 
    sysevent_close(global_fd, global_id);
+
+#if defined (_ONESTACK_PRODUCT_REQ_)
+   if (0 == strcasecmp (PartnerID, "comcast-business"))
+   {
+      if ( 1 == addPartnerDefaultsToDevPropFile())
+      {
+         APPLY_PRINT("%s - Failed to write default props to '%s'\n", __FUNCTION__, DEV_PROP_FILE);
+      }
+   }
+#endif
 
    return(0);
 }
