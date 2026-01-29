@@ -237,6 +237,8 @@ else
    if [ -x /usr/bin/stackmode ]; then
       echo "[utopia][init] Calling stackmode binary to configure stack mode"
       /usr/bin/stackmode
+   else
+      echo "[utopia][init] stackmode binary not found, skipping stack mode configuration"
    fi
    
    echo -n > $SYSCFG_FILE
