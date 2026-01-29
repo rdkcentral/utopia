@@ -1373,6 +1373,8 @@ static bool isFeatureSupportedInCurrentMode(int feature_id)
     return (stat("/nvram2/mapt.support", &st) == 0) ? TRUE : FALSE;
 }
 
+#if 0
+// uncomment later when actual check is finalized
 static bool IsMAPTConflictingFeaturesEnabled(void)
 {
     struct {
@@ -1392,6 +1394,12 @@ static bool IsMAPTConflictingFeaturesEnabled(void)
         }
     }
 
+    return FALSE;
+}
+#endif
+
+static bool IsMAPTConflictingFeaturesEnabled(void)
+{
     return FALSE;
 }
 #endif
