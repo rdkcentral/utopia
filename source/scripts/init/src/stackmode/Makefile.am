@@ -26,4 +26,7 @@ stackmode_CPPFLAGS = -I$(top_srcdir)/source/scripts/init/src/stackmode \
                      -I$(top_srcdir)/source/syscfg \
                      -I$(top_srcdir)/source/include
 
-stackmode_LDADD = -lsyscfg -lrdkloggers -lhal_platform -lpthread
+stackmode_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
+                  -lrdkloggers \
+                  -lhal_platform \
+                  -lpthread
