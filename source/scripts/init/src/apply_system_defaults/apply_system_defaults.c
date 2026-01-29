@@ -1606,7 +1606,7 @@ STATIC void addInSysCfgdDB (char *key, char *value)
    if ( 0 == strcmp ( key, "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MAP-T.Enable") )
    {
 #if defined(_ONESTACK_PRODUCT_REQ_)
-       if (!isFeatureSupportedInCurrentMode(FEATURE_MAPT))
+       if (!isFeatureSupportedInCurrentMode(0 /* FEATURE_MAPT id */))
        {
            APPLY_PRINT("MAP-T enable rejected, unsupported mode\n");
            return;
@@ -1860,7 +1860,7 @@ STATIC void updateSysCfgdDB (char *key, char *value)
       if ( 0 == strcmp ( key, "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MAP-T.Enable" ) )
       {
 #if defined(_ONESTACK_PRODUCT_REQ_)
-          if (!isFeatureSupportedInCurrentMode(FEATURE_MAPT))
+          if (!isFeatureSupportedInCurrentMode(0 /* FEATURE_MAPT id */))
           {
               APPLY_PRINT("MAP-T enable rejected, unsupported mode\n");
               return;
