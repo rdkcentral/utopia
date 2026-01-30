@@ -18,28 +18,67 @@
 */
 
 #include <stdio.h>
+#include <stdarg.h>
+#include <time.h>
+#include <string.h>
 #include "stackmode_log.h"
+
+static FILE *log_fp = NULL;
+
+void stackmode_log(const char *level, const char *format, ...)
+{
+    va_list args;
+    time_t now;
+    struct tm *timeinfo;
+    char timestamp[64];
+    
+    // Get current time
+    time(&now);
+    timeinfo = localtime(&now);
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", timeinfo);
+    
+    // Open log file in append mode
+    FILE *fp = fopen(STACKMODE_LOG_FILE, "a");
+    if (fp)
+    {
+        fprintf(fp, "[%s] [%s] ", timestamp, level);
+        va_start(args, format);
+        vfprintf(fp, format, args);
+        va_end(args);
+        fclose(fp);
+    }
+    
+    // Also print to stderr for immediate visibility
+    fprintf(stderr, "[STACKMODE][%s] ", level);
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+}
 
 bool stackmode_log_init(void)
 {
-    if (rdk_logger_init(DEBUG_INI_PATH) != 0)
+    // Create/truncate log file
+    log_fp = fopen(STACKMODE_LOG_FILE, "w");
+    if (!log_fp)
     {
-        fprintf(stderr, "Warning: RDK logger initialization failed for %s\n", DEBUG_INI_PATH);
+        fprintf(stderr, "Warning: Failed to create log file %s\n", STACKMODE_LOG_FILE);
         return false;
     }
     
-    STACKMODE_INFO("%s: Logging initialized successfully\n", __FUNCTION__);
+    fprintf(log_fp, "=== StackMode Log Started ===\n");
+    fclose(log_fp);
+    log_fp = NULL;
+    
     return true;
 }
 
 bool stackmode_log_deinit(void)
 {
-    STACKMODE_DEBUG("%s: Deinitializing logging\n", __FUNCTION__);
-    
-    if (rdk_logger_deinit() != 0)
+    FILE *fp = fopen(STACKMODE_LOG_FILE, "a");
+    if (fp)
     {
-        fprintf(stderr, "Warning: RDK logger deinitialization failed\n");
-        return false;
+        fprintf(fp, "=== StackMode Log Ended ===\n");
+        fclose(fp);
     }
     
     return true;

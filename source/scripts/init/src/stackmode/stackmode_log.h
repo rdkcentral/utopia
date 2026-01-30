@@ -21,19 +21,17 @@
 #define _STACKMODE_LOG_H_
 
 #include <stdbool.h>
-#include "rdk_debug.h"
 
-#define LOG_MODULE "LOG.RDK.STACKMODE"
-#define DEBUG_INI_PATH "/etc/debug.ini"
+#define STACKMODE_LOG_FILE "/tmp/stackmode.txt"
+
+// Logging function
+void stackmode_log(const char *level, const char *format, ...);
 
 // Logging macros
-#define STACKMODE_LOG(level, ...) \
-    RDK_LOG(level, LOG_MODULE, __VA_ARGS__)
-
-#define STACKMODE_ERROR(...) STACKMODE_LOG(RDK_LOG_ERROR, __VA_ARGS__)
-#define STACKMODE_WARN(...)  STACKMODE_LOG(RDK_LOG_WARN, __VA_ARGS__)
-#define STACKMODE_INFO(...)  STACKMODE_LOG(RDK_LOG_INFO, __VA_ARGS__)
-#define STACKMODE_DEBUG(...) STACKMODE_LOG(RDK_LOG_DEBUG, __VA_ARGS__)
+#define STACKMODE_ERROR(...) stackmode_log("ERROR", __VA_ARGS__)
+#define STACKMODE_WARN(...)  stackmode_log("WARN", __VA_ARGS__)
+#define STACKMODE_INFO(...)  stackmode_log("INFO", __VA_ARGS__)
+#define STACKMODE_DEBUG(...) stackmode_log("DEBUG", __VA_ARGS__)
 
 /**
  * @brief Initialize StackMode logging
