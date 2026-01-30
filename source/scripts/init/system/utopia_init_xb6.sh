@@ -409,6 +409,16 @@ else
    echo "SSH: Forward SSH changed to disabled" >> $Log_file
 fi
 
+#Change devicetype on firmware udgrade
+DEVICETYPE_MIGRATE="`syscfg get devicetype_migrate`"
+if [ -z "DEVICETYPE_MIGRATE" ]; then
+  echo "setting DeviceType to PROD" >> $Log_file
+  syscfg set DeviceType "PROD"
+  syscfg commit
+  syscfg set devicetype_migrate "1"
+  syscfg commit
+fi
+
 #IGMP PROXY Disbaling on migration
 IGMP_MIGRATE="`syscfg get igmp_migrate`"
 if [ -z "$IGMP_MIGRATE" ]; then
