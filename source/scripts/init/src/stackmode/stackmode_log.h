@@ -21,17 +21,28 @@
 #define _STACKMODE_LOG_H_
 
 #include <stdbool.h>
+#include <stdio.h>
 
-#define STACKMODE_LOG_FILE "/tmp/stackmode.txt"
+#if defined (_CBR_PRODUCT_REQ_) || defined (_XB6_PRODUCT_REQ_)
+#define STACKMODE_LOG_FILE "/rdklogs/logs/Consolelog.txt.0"
+#else
+#define STACKMODE_LOG_FILE "/rdklogs/logs/ArmConsolelog.txt.0"
+#endif
 
-// Logging function
-void stackmode_log(const char *level, const char *format, ...);
+#define STACKMODE_LOG(level, fmt...) {\
+   FILE *logfp = fopen(STACKMODE_LOG_FILE, "a+");\
+   if (logfp)\
+   {\
+        fprintf(logfp, "[STACKMODE][%s] ", level);\
+        fprintf(logfp, fmt);\
+        fclose(logfp);\
+   }\
+}
 
-// Logging macros
-#define STACKMODE_ERROR(...) stackmode_log("ERROR", __VA_ARGS__)
-#define STACKMODE_WARN(...)  stackmode_log("WARN", __VA_ARGS__)
-#define STACKMODE_INFO(...)  stackmode_log("INFO", __VA_ARGS__)
-#define STACKMODE_DEBUG(...) stackmode_log("DEBUG", __VA_ARGS__)
+#define STACKMODE_ERROR(...) STACKMODE_LOG("ERROR", __VA_ARGS__)
+#define STACKMODE_WARN(...)  STACKMODE_LOG("WARN", __VA_ARGS__)
+#define STACKMODE_INFO(...)  STACKMODE_LOG("INFO", __VA_ARGS__)
+#define STACKMODE_DEBUG(...) STACKMODE_LOG("DEBUG", __VA_ARGS__)
 
 /**
  * @brief Initialize StackMode logging

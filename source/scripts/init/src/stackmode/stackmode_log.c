@@ -18,68 +18,16 @@
 */
 
 #include <stdio.h>
-#include <stdarg.h>
-#include <time.h>
-#include <string.h>
 #include "stackmode_log.h"
-
-static FILE *log_fp = NULL;
-
-void stackmode_log(const char *level, const char *format, ...)
-{
-    va_list args;
-    time_t now;
-    struct tm *timeinfo;
-    char timestamp[64];
-    
-    // Get current time
-    time(&now);
-    timeinfo = localtime(&now);
-    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", timeinfo);
-    
-    // Open log file in append mode
-    FILE *fp = fopen(STACKMODE_LOG_FILE, "a");
-    if (fp)
-    {
-        fprintf(fp, "[%s] [%s] ", timestamp, level);
-        va_start(args, format);
-        vfprintf(fp, format, args);
-        va_end(args);
-        fclose(fp);
-    }
-    
-    // Also print to stderr for immediate visibility
-    fprintf(stderr, "[STACKMODE][%s] ", level);
-    va_start(args, format);
-    vfprintf(stderr, format, args);
-    va_end(args);
-}
 
 bool stackmode_log_init(void)
 {
-    // Create/truncate log file
-    log_fp = fopen(STACKMODE_LOG_FILE, "w");
-    if (!log_fp)
-    {
-        fprintf(stderr, "Warning: Failed to create log file %s\n", STACKMODE_LOG_FILE);
-        return false;
-    }
-    
-    fprintf(log_fp, "=== StackMode Log Started ===\n");
-    fclose(log_fp);
-    log_fp = NULL;
-    
+    STACKMODE_INFO("StackMode logging initialized\n");
     return true;
 }
 
 bool stackmode_log_deinit(void)
 {
-    FILE *fp = fopen(STACKMODE_LOG_FILE, "a");
-    if (fp)
-    {
-        fprintf(fp, "=== StackMode Log Ended ===\n");
-        fclose(fp);
-    }
-    
+    STACKMODE_INFO("StackMode logging deinitialized\n");
     return true;
 }
