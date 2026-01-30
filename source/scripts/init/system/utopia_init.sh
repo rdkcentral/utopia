@@ -616,6 +616,22 @@ fi
 ifconfig l2sd0.1060 up
 ip rule add from all iif l2sd0.1060 lookup erouter
 
+#Add new bridges for Mesh Backhaul and IOT SSIDs for Traffic separation
+brctl addbr brlan1
+brctl addbr brlan2
+
+ifconfig brlan1 192.168.25.1 netmask 255.255.255.0 up
+ifconfig brlan2 192.168.26.1 netmask 255.255.255.0 up
+
+iptables -I FORWARD -i brlan0 -o brlan1 -j DROP
+iptables -I FORWARD -i brlan1 -o brlan0 -j DROP
+iptables -I FORWARD -i brlan2 -o brlan1 -j DROP
+iptables -I FORWARD -i brlan1 -o brlan2 -j DROP
+iptables -I FORWARD -i brlan0 -o brlan2 -j DROP
+iptables -I FORWARD -i brlan2 -o brlan0 -j DROP
+
+
+
 # Add QinQ for pod ethernet backhaul traffic
 brctl addbr br403
 ifconfig br403 192.168.245.1 netmask 255.255.255.0 up
