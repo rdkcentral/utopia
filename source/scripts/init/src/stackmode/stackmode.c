@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
 
     if (get_setstackmode(partnerId, sizeof(partnerId)) == 0)
     {
-        isBci = (strcmp(partnerId, "comcast-business") == 0);
+        isBci = (strcmp(partnerId, "rogers") == 0);
         
         STACKMODE_INFO("Partner ID: %s | Is BCI: %s\n", partnerId, isBci ? "Yes" : "No");
         
