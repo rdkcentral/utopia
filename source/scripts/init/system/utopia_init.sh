@@ -190,9 +190,10 @@ CheckAndReCreateDB()
 	fi 
 }
 
+echo "[utopia][init] Calling goutam 1 utopia_init.sh"
 if [ "$ENCRYPT_SYSCFG" = false ] ; then
    echo_t "[utopia][init] Starting syscfg using file store ($SYSCFG_BKUP_FILE)"
-   echo "[utopia][init] Calling goutam 1"
+   echo_t "[utopia][init] Calling goutam 1"
    if [ -f $SYSCFG_BKUP_FILE ]; then
       echo "[utopia][init] Checking and removing immutable attribute on syscfg.db if set"
       cp $SYSCFG_BKUP_FILE $SYSCFG_FILE

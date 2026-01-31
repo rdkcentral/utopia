@@ -288,6 +288,7 @@ CheckAndReCreateDB()
 }
 
 echo "[utopia][init] Starting syscfg using file store ($SYSCFG_NEW_FILE)"
+echo "[utopia][init] Calling goutam 1 utopia_init_xb6.sh"
 if [ -f $SYSCFG_NEW_FILE ]; then
         # Check and remove immutable attribute on syscfg.db if set
         attr_flag=$(lsattr "$SYSCFG_NEW_FILE" 2>/dev/null | awk '{print $1}')

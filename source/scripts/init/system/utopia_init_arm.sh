@@ -227,6 +227,7 @@ CheckAndReCreateDB()
 
 echo "[utopia][init] Starting syscfg using file store ($SYSCFG_BKUP_FILE)"
 echo "[utopia][init] SYSCFG_FILE location is ($SYSCFG_FILE)"
+echo "[utopia][init] Calling goutam 1 utopia_init_arm.sh"
 if [ -f $SYSCFG_BKUP_FILE ]; then
 	cp $SYSCFG_BKUP_FILE $SYSCFG_FILE
 	syscfg_create -f $SYSCFG_FILE
@@ -235,14 +236,6 @@ if [ -f $SYSCFG_BKUP_FILE ]; then
 		CheckAndReCreateDB
 	fi
 else
-   # Call stackmode binary to set stackmode marker
-   if [ -x /usr/bin/stackmode ]; then
-      echo "[utopia][init] Calling stackmode binary to configure stack mode"
-      /usr/bin/stackmode
-   else
-      echo "[utopia][init] stackmode binary not found, skipping stack mode configuration"
-   fi
-   
    echo -n > $SYSCFG_FILE
    syscfg_create -f $SYSCFG_FILE
    if [ $? != 0 ]; then
