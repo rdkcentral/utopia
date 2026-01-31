@@ -226,12 +226,9 @@ CheckAndReCreateDB()
 }
 
 echo "[utopia][init] Starting syscfg using file store ($SYSCFG_BKUP_FILE)"
-echo "[utopia][init] SYSCFG_FILE location is ($SYSCFG_FILE)"
-echo "[utopia][init] Calling goutam 1 utopia_init_arm.sh"
 if [ -f $SYSCFG_BKUP_FILE ]; then
 	cp $SYSCFG_BKUP_FILE $SYSCFG_FILE
 	syscfg_create -f $SYSCFG_FILE
-   echo "[utopia][init] syscfg_create return code: $?"
 	if [ $? != 0 ]; then
 		CheckAndReCreateDB
 	fi

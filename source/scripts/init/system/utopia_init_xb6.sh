@@ -288,8 +288,8 @@ CheckAndReCreateDB()
 }
 
 echo "[utopia][init] Starting syscfg using file store ($SYSCFG_NEW_FILE)"
-echo "[utopia][init] Calling goutam 1 utopia_init_xb6.sh"
 if [ -f $SYSCFG_NEW_FILE ]; then
+        echo "[utopia][init] $SYSCFG_NEW_FILE file is available"
         # Check and remove immutable attribute on syscfg.db if set
         attr_flag=$(lsattr "$SYSCFG_NEW_FILE" 2>/dev/null | awk '{print $1}')
         if echo "$attr_flag" | grep -q "i"; then
@@ -302,6 +302,14 @@ if [ -f $SYSCFG_NEW_FILE ]; then
              CheckAndReCreateDB
         fi
 else
+      # Call stackmode binary to set stackmode marker
+      echo "[utopia][init] Checking for stackmode binary to configure stack mode else case"
+      if [ -x /usr/bin/stackmode ]; then
+         echo "[utopia][init] Calling stackmode binary to configure stack mode"
+         /usr/bin/stackmode
+      else
+         echo "[utopia][init] stackmode binary not found, skipping stack mode configuration"
+      fi         
          echo -n > $SYSCFG_FILE
          echo -n > $SYSCFG_NEW_FILE
    syscfg_create -f $SYSCFG_FILE

@@ -159,7 +159,6 @@ CheckAndReCreateDB()
 }
 
 #SKYH4-5485: The admin user unable to login to GUI after flashing factory image.
-echo "[utopia][init] Calling goutam 1 utopia_init_hub4.sh"
 if [ -s $SYSCFG_NEW_FILE ]; then
      echo "[utopia][init] Starting syscfg using file store ($SYSCFG_NEW_FILE)"
      cp $SYSCFG_NEW_FILE $SYSCFG_FILE 

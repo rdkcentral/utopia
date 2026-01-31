@@ -190,26 +190,15 @@ CheckAndReCreateDB()
 	fi 
 }
 
-echo "[utopia][init] Calling goutam 1 utopia_init.sh"
 if [ "$ENCRYPT_SYSCFG" = false ] ; then
    echo_t "[utopia][init] Starting syscfg using file store ($SYSCFG_BKUP_FILE)"
-   echo_t "[utopia][init] Calling goutam 1"
    if [ -f $SYSCFG_BKUP_FILE ]; then
-      echo "[utopia][init] Checking and removing immutable attribute on syscfg.db if set"
       cp $SYSCFG_BKUP_FILE $SYSCFG_FILE
       syscfg_create -f $SYSCFG_FILE
       if [ $? != 0 ]; then
          CheckAndReCreateDB
       fi
    else
-      # Call stackmode binary to set stackmode marker
-      echo "[utopia][init] Checking for stackmode binary to configure stack mode"
-      if [ -x /usr/bin/stackmode ]; then
-         echo "[utopia][init] Calling stackmode binary to configure stack mode"
-         /usr/bin/stackmode
-      else
-         echo "[utopia][init] stackmode binary not found, skipping stack mode configuration"
-      fi
       echo -n > $SYSCFG_FILE
       echo -n > $SYSCFG_BKUP_FILE
       syscfg_create -f $SYSCFG_FILE
@@ -231,7 +220,6 @@ if [ "$ENCRYPT_SYSCFG" = false ] ; then
    fi
 else
    echo_t "[utopia][init] Starting syscfg using file store ($SYSCFG_NEW_FILE)"
-   echo "[utopia][init] Calling goutam 2"
    if [ -f $SYSCFG_NEW_FILE ]; then
        # Check and remove immutable attribute on syscfg.db if set
        attr_flag=$(lsattr "$SYSCFG_NEW_FILE" 2>/dev/null | awk '{print $1}')
@@ -245,14 +233,6 @@ else
          CheckAndReCreateDB
       fi
    else
-      # Call stackmode binary to set stackmode marker
-      echo "[utopia][init] Checking for stackmode binary to configure stack mode else case"
-      if [ -x /usr/bin/stackmode ]; then
-         echo "[utopia][init] Calling stackmode binary to configure stack mode"
-         /usr/bin/stackmode
-      else
-         echo "[utopia][init] stackmode binary not found, skipping stack mode configuration"
-      fi
       echo -n > $SYSCFG_FILE
       echo -n > $SYSCFG_NEW_FILE
       syscfg_create -f $SYSCFG_FILE
