@@ -287,6 +287,15 @@ CheckAndReCreateDB()
 	fi 
 }
 
+# Check if partner_ID file exists and log uptime
+DEVICE_UPTIME=`uptime`
+echo "[utopia][init] Device uptime: $DEVICE_UPTIME"
+if [ -f /nvram/.partner_ID ]; then
+      echo "[utopia][init] Partner ID file exists at /nvram/.partner_ID"
+else
+      echo "[utopia][init] Partner ID file does not exist at /nvram/.partner_ID"
+fi
+
 # Call stackmode binary to set stackmode marker
 echo "[utopia][init] Checking for stackmode binary to configure stack mode else case"
 if [ -x /usr/bin/stackmode ]; then

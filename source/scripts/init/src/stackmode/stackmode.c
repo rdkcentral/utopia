@@ -31,6 +31,25 @@ static inline void trim_newline(char *str)
 }
 
 /**
+ * @brief Record partner ID to file for tracking
+ * @param partnerId The partner ID to record
+ */
+static inline void record_partner_id(const char *partnerId)
+{
+    FILE *record_fp = fopen("/tmp/.partner_ID_record", "w");
+    if (record_fp)
+    {
+        fprintf(record_fp, "%s\n", partnerId);
+        fclose(record_fp);
+        STACKMODE_DEBUG("%s: Partner ID copied to /tmp/.partner_ID_record\n", __FUNCTION__);
+    }
+    else
+    {
+        STACKMODE_WARN("%s: Failed to create record file /tmp/.partner_ID_record\n", __FUNCTION__);
+    }
+}
+
+/**
  * @brief Get partner ID with fallback mechanism
  * @param pValue Buffer to store the partner ID
  * @param size Size of the buffer
@@ -67,14 +86,8 @@ int get_setstackmode(char *pValue, int size)
                     pValue[size - 1] = '\0';
                     fclose(fp);
                     
-                    // Copy content to /tmp/ for record keeping
-                    FILE *record_fp = fopen("/tmp/.partner_ID_record", "w");
-                    if (record_fp)
-                    {
-                        fprintf(record_fp, "%s\n", pValue);
-                        fclose(record_fp);
-                        STACKMODE_DEBUG("%s: Partner ID copied to /tmp/.partner_ID_record\n", __FUNCTION__);
-                    }
+                    // Record partner ID for tracking
+                    record_partner_id(pValue);
                     
                     STACKMODE_INFO("%s: Partner ID retrieved from file: %s\n", __FUNCTION__, pValue);
                     return 0;
@@ -98,6 +111,9 @@ int get_setstackmode(char *pValue, int size)
         STACKMODE_DEBUG("%s: Attempting HAL API call (attempt %d/%d)\n", __FUNCTION__, retry + 1, MAX_RETRY);
         if (platform_hal_getFactoryPartnerId(pValue) == 0 && pValue[0] != '\0')
         {
+            // Record partner ID for tracking
+            record_partner_id(pValue);
+            
             STACKMODE_INFO("%s: Partner ID retrieved from HAL API: %s (attempt %d)\n", __FUNCTION__, pValue, retry + 1);
             return 0;
         }
@@ -112,6 +128,9 @@ int get_setstackmode(char *pValue, int size)
     STACKMODE_DEBUG("%s: Attempting syscfg_get for PartnerID\n", __FUNCTION__);
     if (syscfg_get(NULL, "PartnerID", pValue, size) == 0 && pValue[0] != '\0')
     {
+        // Record partner ID for tracking
+        record_partner_id(pValue);
+        
         STACKMODE_INFO("%s: Partner ID retrieved from syscfg: %s\n", __FUNCTION__, pValue);
         return 0;
     }
