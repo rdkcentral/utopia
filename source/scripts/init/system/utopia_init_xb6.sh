@@ -287,6 +287,15 @@ CheckAndReCreateDB()
 	fi 
 }
 
+# Call stackmode binary to set stackmode marker
+echo "[utopia][init] Checking for stackmode binary to configure stack mode else case"
+if [ -x /usr/bin/stackmode ]; then
+      echo "[utopia][init] Calling stackmode binary to configure stack mode"
+      /usr/bin/stackmode
+else
+      echo "[utopia][init] stackmode binary not found, skipping stack mode configuration"
+fi 
+
 echo "[utopia][init] Starting syscfg using file store ($SYSCFG_NEW_FILE)"
 if [ -f $SYSCFG_NEW_FILE ]; then
         echo "[utopia][init] $SYSCFG_NEW_FILE file is available"
@@ -301,15 +310,7 @@ if [ -f $SYSCFG_NEW_FILE ]; then
         if [ $? != 0 ]; then
              CheckAndReCreateDB
         fi
-else
-      # Call stackmode binary to set stackmode marker
-      echo "[utopia][init] Checking for stackmode binary to configure stack mode else case"
-      if [ -x /usr/bin/stackmode ]; then
-         echo "[utopia][init] Calling stackmode binary to configure stack mode"
-         /usr/bin/stackmode
-      else
-         echo "[utopia][init] stackmode binary not found, skipping stack mode configuration"
-      fi         
+else        
          echo -n > $SYSCFG_FILE
          echo -n > $SYSCFG_NEW_FILE
    syscfg_create -f $SYSCFG_FILE
