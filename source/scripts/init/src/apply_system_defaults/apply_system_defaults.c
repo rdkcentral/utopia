@@ -73,7 +73,7 @@
 #define PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER  	"/tmp/.apply_partner_defaults_new_psm_member"
 
 #if defined(_ONESTACK_PRODUCT_REQ_)
-#define SETSTACKMODE_FILE "/tmp/setstackmode"
+#define SETSTACKMODE_FILE "/nvram/setstackmode"
 #endif
 
 #define PARTNER_ID_LEN 64
@@ -3542,6 +3542,16 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
       {
          syscfg_commit();
          APPLY_PRINT("%s - Set stackmode to commercial\n", __FUNCTION__);
+         
+         // Delete the marker file after successfully setting syscfg
+         if (unlink(SETSTACKMODE_FILE) == 0)
+         {
+            APPLY_PRINT("%s - Deleted marker file: %s\n", __FUNCTION__, SETSTACKMODE_FILE);
+         }
+         else
+         {
+            APPLY_PRINT("%s - Warning: Failed to delete marker file: %s\n", __FUNCTION__, SETSTACKMODE_FILE);
+         }
       }
       else
       {
