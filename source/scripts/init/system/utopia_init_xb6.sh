@@ -287,27 +287,16 @@ CheckAndReCreateDB()
 	fi 
 }
 
-# Check if partner_ID file exists and log uptime
-DEVICE_UPTIME=`uptime`
-echo "[utopia][init] Device uptime: $DEVICE_UPTIME"
-if [ -f /nvram/.partner_ID ]; then
-      echo "[utopia][init] Partner ID file exists at /nvram/.partner_ID"
-else
-      echo "[utopia][init] Partner ID file does not exist at /nvram/.partner_ID"
-fi
-
 # Call stackmode binary to set stackmode marker
-echo "[utopia][init] Checking for stackmode binary to configure stack mode else case"
 if [ -x /usr/bin/stackmode ]; then
       echo "[utopia][init] Calling stackmode binary to configure stack mode"
       /usr/bin/stackmode
 else
       echo "[utopia][init] stackmode binary not found, skipping stack mode configuration"
-fi 
+fi
 
 echo "[utopia][init] Starting syscfg using file store ($SYSCFG_NEW_FILE)"
 if [ -f $SYSCFG_NEW_FILE ]; then
-        echo "[utopia][init] $SYSCFG_NEW_FILE file is available"
         # Check and remove immutable attribute on syscfg.db if set
         attr_flag=$(lsattr "$SYSCFG_NEW_FILE" 2>/dev/null | awk '{print $1}')
         if echo "$attr_flag" | grep -q "i"; then
@@ -319,7 +308,7 @@ if [ -f $SYSCFG_NEW_FILE ]; then
         if [ $? != 0 ]; then
              CheckAndReCreateDB
         fi
-else        
+else
          echo -n > $SYSCFG_FILE
          echo -n > $SYSCFG_NEW_FILE
    syscfg_create -f $SYSCFG_FILE
