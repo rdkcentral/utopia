@@ -172,27 +172,36 @@ service_start ()
 
       # Monitor selfheal_aggressive.sh based on syscfg value
      AGGRESIVE_INTERVAL=$(syscfg get AggressiveInterval)
+      echo "AggressiveInterval value = $AGGRESIVE_INTERVAL"
       if [ "$AGGRESIVE_INTERVAL" == "" ]; then
-          echo "*/15 * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
+          echo "*/5 * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
+          echo "Selfheal aggressive interval set to default 5 minutes"
       else
           echo "*/$AGGRESIVE_INTERVAL * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
+          echo "Selfheal aggressive interval set to $AGGRESIVE_INTERVAL minutes"
+
       fi
-	 # echo "*/5 * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
 	  
 	  # Monitor resource_monitor.sh based on syscfg value 
      RESOURCE_MONITOR_INTERVAL=$(syscfg get resource_monitor_interval)
+     echo "Resource Monitor interval value = $RESOURCE_MONITOR_INTERVAL"
        if [ "$RESOURCE_MONITOR_INTERVAL" == "" ]; then
             echo "*/15 * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
+            echo "Resource Monitor interval set to default 15 minutes"
        else
-          echo "*/$RESOURCE_MONITOR_INTERVAL * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
+            echo "*/$RESOURCE_MONITOR_INTERVAL * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
+            echo "Resource Monitor interval set to $RESOURCE_MONITOR_INTERVAL minutes"
        fi
 	  
 	  # Monitor resource_monitor.sh based on syscfg value 
      SELFHEAL_PING_INTERVAL=$(syscfg get ConnTest_PingInterval)
+     echo "Selfheal connectivity test ping interval value = $SELFHEAL_PING_INTERVAL"
        if [ "$SELFHEAL_PING_INTERVAL" == "" ]; then
           echo "0 * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE
+          echo "Selfheal connectivity test ping interval set to default 60 minutes"
        else
           echo "*/$SELFHEAL_PING_INTERVAL * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE
+          echo "Selfheal connectivity test ping interval set to $SELFHEAL_PING_INTERVAL minutes"
        fi
    
 	  # Monitor rdkbLogMonitor.sh every 1 minute
