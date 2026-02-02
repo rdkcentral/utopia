@@ -73,7 +73,7 @@
 #define PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER  	"/tmp/.apply_partner_defaults_new_psm_member"
 
 #if defined(_ONESTACK_PRODUCT_REQ_)
-#define SETSTACKMODE_FILE "/nvram/setstackmode"
+#define SETSTACKMODE_FILE "/tmp/setstackmode"
 #endif
 
 #define PARTNER_ID_LEN 64
