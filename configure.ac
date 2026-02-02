@@ -245,7 +245,6 @@ AC_CONFIG_FILES(
 	source/scripts/init/src/apply_system_defaults/Makefile
         source/scripts/init/src/apply_system_defaults_psm/Makefile
 	source/scripts/init/src/execute_dir/Makefile
-	source/scripts/init/src/stackmode/Makefile
 	source/services/Makefile
 	source/services/lib/Makefile
 	source/service_ipv6/Makefile
