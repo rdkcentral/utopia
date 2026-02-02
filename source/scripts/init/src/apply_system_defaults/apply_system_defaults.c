@@ -60,7 +60,6 @@
 #include  "safec_lib_common.h"
 
 #include <telemetry_busmessage_sender.h>
-
 #define PARTNERS_INFO_FILE  							"/nvram/partners_defaults.json"
 #define PARTNERS_INFO_FILE_ETC                                                 "/etc/partners_defaults.json"
 #define BOOTSTRAP_INFO_FILE                                                    "/opt/secure/bootstrap.json"
