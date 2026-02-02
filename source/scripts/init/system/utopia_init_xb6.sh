@@ -287,14 +287,6 @@ CheckAndReCreateDB()
 	fi 
 }
 
-# Call stackmode binary to set stackmode marker
-if [ -x /usr/bin/stackmode ]; then
-      echo "[utopia][init] Calling stackmode binary to configure stack mode"
-      /usr/bin/stackmode
-else
-      echo "[utopia][init] stackmode binary not found, skipping stack mode configuration"
-fi
-
 echo "[utopia][init] Starting syscfg using file store ($SYSCFG_NEW_FILE)"
 if [ -f $SYSCFG_NEW_FILE ]; then
         # Check and remove immutable attribute on syscfg.db if set
@@ -334,6 +326,14 @@ fi
    # This value again will be modified from network_response.sh 
    echo "[utopia][init] Echoing network response during Factory reset"
    echo 204 > /var/tmp/networkresponse.txt
+fi
+
+# Call stackmode binary to set stackmode marker
+if [ -x /usr/bin/stackmode ]; then
+      echo "[utopia][init] Calling stackmode binary to configure stack mode"
+      /usr/bin/stackmode
+else
+      echo "[utopia][init] stackmode binary not found, skipping stack mode configuration"
 fi
 
 if [ -f $SYSCFG_OLDBKUP_FILE ];then

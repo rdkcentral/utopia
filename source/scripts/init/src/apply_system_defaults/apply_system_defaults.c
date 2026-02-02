@@ -60,6 +60,7 @@
 #include  "safec_lib_common.h"
 
 #include <telemetry_busmessage_sender.h>
+
 #define PARTNERS_INFO_FILE  							"/nvram/partners_defaults.json"
 #define PARTNERS_INFO_FILE_ETC                                                 "/etc/partners_defaults.json"
 #define BOOTSTRAP_INFO_FILE                                                    "/opt/secure/bootstrap.json"
@@ -71,6 +72,10 @@
 #define PARTNER_DEFAULT_APPLY_FILE  					"/nvram/.apply_partner_defaults"
 #define PARTNER_DEFAULT_MIGRATE_PSM  					"/tmp/.apply_partner_defaults_psm"
 #define PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER  	"/tmp/.apply_partner_defaults_new_psm_member"
+
+#if defined(_ONESTACK_PRODUCT_REQ_)
+#define SETSTACKMODE_FILE "/nvram/setstackmode"
+#endif
 
 #define PARTNER_ID_LEN 64
 
@@ -3531,30 +3536,30 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 
 #if defined(_ONESTACK_PRODUCT_REQ_)
    // Set stackmode based on /nvram/setstackmode marker file
-   if (access("/nvram/setstackmode", F_OK) == 0)
+   if (access(SETSTACKMODE_FILE, F_OK) == 0)
    {
       // File exists, set to business-commercial-mode
-      if (syscfg_set(NULL, "stackmode", "business-commercial-mode") == 0)
+      if (syscfg_set(NULL, "stackmode", "commercial") == 0)
       {
          syscfg_commit();
-         APPLY_PRINT("%s - Set stackmode to business-commercial-mode\n", __FUNCTION__);
+         APPLY_PRINT("%s - Set stackmode to commercial\n", __FUNCTION__);
       }
       else
       {
-         APPLY_PRINT("%s - Failed to set stackmode to business-commercial-mode\n", __FUNCTION__);
+         APPLY_PRINT("%s - Failed to set stackmode to commercial\n", __FUNCTION__);
       }
    }
    else
    {
       // File does not exist, set to residential-mode
-      if (syscfg_set(NULL, "stackmode", "residential-mode") == 0)
+      if (syscfg_set(NULL, "stackmode", "residential") == 0)
       {
          syscfg_commit();
-         APPLY_PRINT("%s - Set stackmode to residential-mode\n", __FUNCTION__);
+         APPLY_PRINT("%s - Set stackmode to residential\n", __FUNCTION__);
       }
       else
       {
-         APPLY_PRINT("%s - Failed to set stackmode to residential-mode\n", __FUNCTION__);
+         APPLY_PRINT("%s - Failed to set stackmode to residential\n", __FUNCTION__);
       }
    }
 #endif
