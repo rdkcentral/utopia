@@ -170,9 +170,37 @@ service_start ()
       # Monitor syscfg DB every 15minutes 
       echo "*/15 * * * * /usr/ccsp/tad/syscfg_recover.sh" >> $CRONTAB_FILE
 
+      # Monitor selfheal_aggressive.sh based on syscfg value
+     AGGRESIVE_INTERVAL=$(syscfg get AggressiveInterval)
+      if [ "$AGGRESIVE_INTERVAL" == "" ]; then
+          echo "*/15 * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
+      else
+          echo "*/$AGGRESIVE_INTERVAL * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
+      fi
+	 # echo "*/5 * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
+	  
+	  # Monitor resource_monitor.sh based on syscfg value 
+     RESOURCE_MONITOR_INTERVAL=$(syscfg get resource_monitor_interval)
+       if [ "$RESOURCE_MONITOR_INTERVAL" == "" ]; then
+            echo "*/15 * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
+       else
+          echo "*/$RESOURCE_MONITOR_INTERVAL * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
+       fi
+	  
+	  # Monitor resource_monitor.sh based on syscfg value 
+     SELFHEAL_PING_INTERVAL=$(syscfg get ConnTest_PingInterval)
+       if [ "$SELFHEAL_PING_INTERVAL" == "" ]; then
+          echo "0 * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE
+       else
+          echo "*/$SELFHEAL_PING_INTERVAL * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE
+       fi
+   
+	  # Monitor rdkbLogMonitor.sh every 1 minute
+	  echo "* * * * * flock -n /tmp/rdkb_cron.lock /rdklogger/rdkbLogMonitor.sh" >> $CRONTAB_FILE
+
       # Monitor resource_monitor.sh every 5 minutes TCCBR-3288
 #      if [ "$BOX_TYPE" = "TCCBR" ]; then 
-         echo "*/5 * * * * /usr/ccsp/tad/resource_monitor_recover.sh" >> $CRONTAB_FILE
+    #     echo "*/5 * * * * /usr/ccsp/tad/resource_monitor_recover.sh" >> $CRONTAB_FILE
 #      fi
 
       # RDKB-23651
