@@ -412,9 +412,14 @@ fi
 #Change devicetype on firmware udgrade
 DEVICETYPE_MIGRATE="`syscfg get devicetype_migrate`"
 if [ -z "$DEVICETYPE_MIGRATE" ]; then
-  echo "setting DeviceType to PROD" >> $Log_file
-  syscfg set DeviceType "PROD"
-  syscfg commit
+  CURRENT_DEVICETYPE="`syscfg get DeviceType`"
+  if [ "$CURRENT_DEVICETYPE" != "PROD" ]; then
+    echo "setting DeviceType to PROD"
+    syscfg set DeviceType "PROD"
+    syscfg commit
+  else
+    echo "DeviceType is already PROD, no change needed"
+  fi
   syscfg set devicetype_migrate "1"
   syscfg commit
 fi
