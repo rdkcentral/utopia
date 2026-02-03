@@ -1240,9 +1240,11 @@ v6GPFirewallRuleNext:
       // Basic RPF check on the egress & ingress traffic
       char prefix[129];
       prefix[0] = 0;
+#ifdef FEATURE_MAPE
       char prev_prefix[MAX_QUERY] = {0};
 
       sysevent_get(sysevent_fd, sysevent_token, "previous_ipv6_prefix", prev_prefix, sizeof(prev_prefix));
+#endif
 
       #ifdef WAN_FAILOVER_SUPPORTED
       if (0 == checkIfULAEnabled())
