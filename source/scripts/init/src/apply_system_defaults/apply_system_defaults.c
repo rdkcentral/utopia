@@ -662,6 +662,43 @@ static int set_syscfg_partner_values (char *pValue, char *param)
 	}
 }
 
+static int set_syscfg_stackmode(char *stackmode)
+{
+	if ((syscfg_set_commit(NULL, "stackmode", stackmode) != 0))
+	{
+		APPLY_PRINT("set_syscfg_stackmode : syscfg_set failed for stackmode\n");
+		return 1;
+	}
+	else
+	{
+		APPLY_PRINT("set_syscfg_stackmode : stackmode set to %s\n", stackmode);
+		return 0;
+	}
+}
+
+static void override_partnerid_and_set_stackmode(char *PartnerID)
+{
+	char stackmode[32] = {0};
+	
+	// Check if PartnerID is "comcastbusiness"
+	if (strncmp(PartnerID, "comcastbusiness", strlen("comcastbusiness")) == 0)
+	{
+		// Override PartnerID to "comcast"
+		sprintf(PartnerID, "%s", "comcast");
+		sprintf(stackmode, "%s", "business");
+		APPLY_PRINT("%s - PartnerID overridden from 'comcastbusiness' to 'comcast', stackmode set to 'business'\n", __FUNCTION__);
+	}
+	else
+	{
+		// Set stackmode to "residential"
+		sprintf(stackmode, "%s", "residential");
+		APPLY_PRINT("%s - PartnerID unchanged: %s, stackmode set to 'residential'\n", __FUNCTION__, PartnerID);
+	}
+	
+	// Set the stackmode syscfg variable
+	set_syscfg_stackmode(stackmode);
+}
+
 static int GetDevicePropertiesEntry (char *pOutput, int size, char *sDevicePropContent)
 {
     FILE 	*fp1 		 = NULL;
@@ -944,6 +981,10 @@ static int get_PartnerID (char *PartnerID)
         validatePartnerId ( PartnerID );
         unlink("/nvram/.partner_ID");
     }
+    
+    // Override PartnerID if needed and set stackmode
+    override_partnerid_and_set_stackmode(PartnerID);
+    
     set_syscfg_partner_values(PartnerID,"PartnerID");
 
     //To print Facgtory PartnerID on every boot-up
