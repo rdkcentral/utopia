@@ -677,7 +677,7 @@ static int set_syscfg_devicemode(char *devicemode)
 	}
 }
 
-static void override_partnerid_and_set_stackmode(char *PartnerID)
+static void override_partnerid_and_set_devicemode(char *PartnerID)
 {
 	char devicemode[32] = {0};
 	char original_partnerid[PARTNER_ID_LEN] = {0};
@@ -990,7 +990,7 @@ static int get_PartnerID (char *PartnerID)
     
 #ifdef _ONESTACK_PRODUCT_REQ_
     // Override PartnerID if needed and set devicemode
-    override_partnerid_and_set_stackmode(PartnerID);
+    override_partnerid_and_set_devicemode(PartnerID);
 #endif // _ONESTACK_PRODUCT_REQ_
 
     //To print Facgtory PartnerID on every boot-up
