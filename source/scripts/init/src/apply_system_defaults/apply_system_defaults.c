@@ -84,8 +84,7 @@
 
 static int   syscfg_dirty;
 
-#define DEFAULT_FILE "/etc/utopia/system_defaults"
-#define DEFAULT_FILE_ARM "/etc/utopia/system_defaults_arm"
+#define DEFAULT_FILE "/etc/utopia/system_defaults_arm"
 #define DEFAULT_FILE_BCI "/etc/utopia/system_defaults_bci"
 #define SE_NAME "system_default_set"
 
@@ -557,7 +556,7 @@ static const char* get_defaults_file(const char *partnerId)
         return DEFAULT_FILE_BCI;
     }
 
-    return DEFAULT_FILE_ARM;
+    return DEFAULT_FILE;
 #endif
 
     return DEFAULT_FILE;
