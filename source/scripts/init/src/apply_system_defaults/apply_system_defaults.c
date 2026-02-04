@@ -662,6 +662,7 @@ static int set_syscfg_partner_values (char *pValue, char *param)
 	}
 }
 
+#ifdef _ONESTACK_PRODUCT_REQ_
 static int set_syscfg_stackmode(char *stackmode)
 {
 	if ((syscfg_set_commit(NULL, "stackmode", stackmode) != 0))
@@ -698,6 +699,7 @@ static void override_partnerid_and_set_stackmode(char *PartnerID)
 	// Set the stackmode syscfg variable
 	set_syscfg_stackmode(stackmode);
 }
+#endif // _ONESTACK_PRODUCT_REQ_
 
 static int GetDevicePropertiesEntry (char *pOutput, int size, char *sDevicePropContent)
 {
@@ -982,8 +984,10 @@ static int get_PartnerID (char *PartnerID)
         unlink("/nvram/.partner_ID");
     }
     
+#ifdef _ONESTACK_PRODUCT_REQ_
     // Override PartnerID if needed and set stackmode
     override_partnerid_and_set_stackmode(PartnerID);
+#endif // _ONESTACK_PRODUCT_REQ_
     
     set_syscfg_partner_values(PartnerID,"PartnerID");
 
