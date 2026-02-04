@@ -949,12 +949,13 @@ static int get_PartnerID (char *PartnerID)
         unlink("/nvram/.partner_ID");
     }
     
-    set_syscfg_partner_values(PartnerID,"PartnerID");
-    
 #ifdef _ONESTACK_PRODUCT_REQ_
     // Override PartnerID if needed and set devicemode
+    // Must be called BEFORE set_syscfg_partner_values to ensure syscfg gets the correct PartnerID
     onestackutils_override_partnerid_and_set_devicemode(PartnerID);
 #endif // _ONESTACK_PRODUCT_REQ_
+    
+    set_syscfg_partner_values(PartnerID,"PartnerID");
 
     //To print Facgtory PartnerID on every boot-up
     memset(buf, 0, sizeof(buf));
