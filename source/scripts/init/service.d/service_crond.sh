@@ -172,39 +172,42 @@ service_start ()
       # Monitor syscfg DB every 15minutes 
       echo "*/15 * * * * /usr/ccsp/tad/syscfg_recover.sh" >> $CRONTAB_FILE
 
-      # Monitor selfheal_aggressive.sh based on syscfg value
-     AGGRESSIVE_INTERVAL=$(syscfg get AggressiveInterval)
-      echo "AggressiveInterval value = $AGGRESSIVE_INTERVAL" >> $CRON_LOG
-      if [ -z "$AGGRESSIVE_INTERVAL" ]; then
-         AGGRESSIVE_INTERVAL=5
-         echo "Selfheal aggressive interval not set → using default 5 minutes" >> $CRON_LOG
-      else
-         echo "Selfheal aggressive interval set to $AGGRESSIVE_INTERVAL minutes" >> $CRON_LOG
-      fi
-      #Write cron rule
-      echo "*/$AGGRESSIVE_INTERVAL * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
+      SELFHEAL_ENABLE=$(syscfg get selfheal_enable)
+      if [ "$SELFHEAL_ENABLE" = "true" ]; then
+         # Monitor selfheal_aggressive.sh based on syscfg value
+         AGGRESSIVE_INTERVAL=$(syscfg get AggressiveInterval)
+         echo "AggressiveInterval value = $AGGRESSIVE_INTERVAL" >> $CRON_LOG
+         if [ -z "$AGGRESSIVE_INTERVAL" ]; then
+            AGGRESSIVE_INTERVAL=5
+            echo "Selfheal aggressive interval not set → using default 5 minutes" >> $CRON_LOG
+         else
+            echo "Selfheal aggressive interval set to $AGGRESSIVE_INTERVAL minutes" >> $CRON_LOG
+         fi
+         #Write cron rule
+         echo "*/$AGGRESSIVE_INTERVAL * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
 	  
-	  # Monitor resource_monitor.sh based on syscfg value 
-     RESOURCE_MONITOR_INTERVAL=$(syscfg get resource_monitor_interval)
-     echo "Resource Monitor interval value = $RESOURCE_MONITOR_INTERVAL" >> $CRON_LOG
-       if [ -z "$RESOURCE_MONITOR_INTERVAL" ]; then
-            RESOURCE_MONITOR_INTERVAL = 15
+	      # Monitor resource_monitor.sh based on syscfg value 
+         RESOURCE_MONITOR_INTERVAL=$(syscfg get resource_monitor_interval)
+         echo "Resource Monitor interval value = $RESOURCE_MONITOR_INTERVAL" >> $CRON_LOG
+         if [ -z "$RESOURCE_MONITOR_INTERVAL" ]; then
+            RESOURCE_MONITOR_INTERVAL=15
             echo "Resource Monitor interval set to default 15 minutes" >> $CRON_LOG
-       else
+         else
             echo "Resource Monitor interval set to $RESOURCE_MONITOR_INTERVAL minutes" >> $CRON_LOG
-       fi
-       echo "*/$RESOURCE_MONITOR_INTERVAL * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
+         fi
+         echo "*/$RESOURCE_MONITOR_INTERVAL * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
 	  
-	  # Monitor resource_monitor.sh based on syscfg value 
-     SELFHEAL_PING_INTERVAL=$(syscfg get ConnTest_PingInterval)
-     echo "Selfheal connectivity test ping interval value = $SELFHEAL_PING_INTERVAL" >> $CRON_LOG
-      if [ -z "$SELFHEAL_PING_INTERVAL" ]; then
-         SELFHEAL_PING_INTERVAL = 60
-         echo "Selfheal connectivity test ping interval set to default 60 minutes" >> $CRON_LOG
-       else
-         echo "Selfheal connectivity test ping interval set to $SELFHEAL_PING_INTERVAL minutes" >> $CRON_LOG
-       fi
-      echo "*/$SELFHEAL_PING_INTERVAL * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE
+	      # Monitor resource_monitor.sh based on syscfg value 
+         SELFHEAL_PING_INTERVAL=$(syscfg get ConnTest_PingInterval)
+         echo "Selfheal connectivity test ping interval value = $SELFHEAL_PING_INTERVAL" >> $CRON_LOG
+         if [ -z "$SELFHEAL_PING_INTERVAL" ]; then
+            SELFHEAL_PING_INTERVAL=60
+            echo "Selfheal connectivity test ping interval set to default 60 minutes" >> $CRON_LOG
+         else
+            echo "Selfheal connectivity test ping interval set to $SELFHEAL_PING_INTERVAL minutes" >> $CRON_LOG
+         fi
+         echo "*/$SELFHEAL_PING_INTERVAL * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE
+      fi 
    
       # Monitor resource_monitor.sh every 5 minutes TCCBR-3288
 #      if [ "$BOX_TYPE" = "TCCBR" ]; then 
