@@ -59,6 +59,10 @@
 #include <cjson/cJSON.h>
 #include  "safec_lib_common.h"
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <onestackutils/onestackutils.h>
+#endif
+
 #include <telemetry_busmessage_sender.h>
 #define PARTNERS_INFO_FILE  							"/nvram/partners_defaults.json"
 #define PARTNERS_INFO_FILE_ETC                                                 "/etc/partners_defaults.json"
@@ -663,44 +667,8 @@ static int set_syscfg_partner_values (char *pValue, char *param)
 }
 
 #ifdef _ONESTACK_PRODUCT_REQ_
-static int set_syscfg_devicemode(char *devicemode)
-{
-	if ((syscfg_set_commit(NULL, "devicemode", devicemode) != 0))
-	{
-		APPLY_PRINT("set_syscfg_devicemode : syscfg_set failed for devicemode\n");
-		return 1;
-	}
-	else
-	{
-		APPLY_PRINT("set_syscfg_devicemode : devicemode set to %s\n", devicemode);
-		return 0;
-	}
-}
-
-static void override_partnerid_and_set_devicemode(char *PartnerID)
-{
-	char devicemode[32] = {0};
-	char original_partnerid[PARTNER_ID_LEN] = {0};
-	
-	// Check if PartnerID contains "business" (e.g., comcastbusiness, rogersbusiness, shawbusiness)
-	if (strstr(PartnerID, "business") != NULL)
-	{
-		strncpy(original_partnerid, PartnerID, PARTNER_ID_LEN - 1);
-		// Override PartnerID to "comcast"
-		sprintf(PartnerID, "%s", "comcast");
-		sprintf(devicemode, "%s", "business");
-		APPLY_PRINT("%s - PartnerID overridden from '%s' to 'comcast', devicemode set to 'business'\n", __FUNCTION__, original_partnerid);
-	}
-	else
-	{
-		// Set devicemode to "residential"
-		sprintf(devicemode, "%s", "residential");
-		APPLY_PRINT("%s - PartnerID unchanged: %s, devicemode set to 'residential'\n", __FUNCTION__, PartnerID);
-	}
-	
-	// Set the devicemode syscfg variable
-	set_syscfg_devicemode(devicemode);
-}
+// Functions moved to libonestackutils shared library
+// See: rdkb_common_utils/source/onestackutils/onestackutils.c
 #endif // _ONESTACK_PRODUCT_REQ_
 
 static int GetDevicePropertiesEntry (char *pOutput, int size, char *sDevicePropContent)
@@ -990,7 +958,7 @@ static int get_PartnerID (char *PartnerID)
     
 #ifdef _ONESTACK_PRODUCT_REQ_
     // Override PartnerID if needed and set devicemode
-    override_partnerid_and_set_devicemode(PartnerID);
+    onestackutils_override_partnerid_and_set_devicemode(PartnerID);
 #endif // _ONESTACK_PRODUCT_REQ_
 
     //To print Facgtory PartnerID on every boot-up
