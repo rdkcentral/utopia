@@ -666,11 +666,6 @@ static int set_syscfg_partner_values (char *pValue, char *param)
 	}
 }
 
-#ifdef _ONESTACK_PRODUCT_REQ_
-// Functions moved to libonestackutils shared library
-// See: rdkb_common_utils/source/onestackutils/onestackutils.c
-#endif // _ONESTACK_PRODUCT_REQ_
-
 static int GetDevicePropertiesEntry (char *pOutput, int size, char *sDevicePropContent)
 {
     FILE 	*fp1 		 = NULL;
