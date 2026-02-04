@@ -663,41 +663,43 @@ static int set_syscfg_partner_values (char *pValue, char *param)
 }
 
 #ifdef _ONESTACK_PRODUCT_REQ_
-static int set_syscfg_stackmode(char *stackmode)
+static int set_syscfg_devicemode(char *devicemode)
 {
-	if ((syscfg_set_commit(NULL, "stackmode", stackmode) != 0))
+	if ((syscfg_set_commit(NULL, "devicemode", devicemode) != 0))
 	{
-		APPLY_PRINT("set_syscfg_stackmode : syscfg_set failed for stackmode\n");
+		APPLY_PRINT("set_syscfg_devicemode : syscfg_set failed for devicemode\n");
 		return 1;
 	}
 	else
 	{
-		APPLY_PRINT("set_syscfg_stackmode : stackmode set to %s\n", stackmode);
+		APPLY_PRINT("set_syscfg_devicemode : devicemode set to %s\n", devicemode);
 		return 0;
 	}
 }
 
 static void override_partnerid_and_set_stackmode(char *PartnerID)
 {
-	char stackmode[32] = {0};
+	char devicemode[32] = {0};
+	char original_partnerid[PARTNER_ID_LEN] = {0};
 	
-	// Check if PartnerID is "comcastbusiness"
-	if (strncmp(PartnerID, "comcastbusiness", strlen("comcastbusiness")) == 0)
+	// Check if PartnerID contains "business" (e.g., comcastbusiness, rogersbusiness, shawbusiness)
+	if (strstr(PartnerID, "business") != NULL)
 	{
+		strncpy(original_partnerid, PartnerID, PARTNER_ID_LEN - 1);
 		// Override PartnerID to "comcast"
 		sprintf(PartnerID, "%s", "comcast");
-		sprintf(stackmode, "%s", "business");
-		APPLY_PRINT("%s - PartnerID overridden from 'comcastbusiness' to 'comcast', stackmode set to 'business'\n", __FUNCTION__);
+		sprintf(devicemode, "%s", "business");
+		APPLY_PRINT("%s - PartnerID overridden from '%s' to 'comcast', devicemode set to 'business'\n", __FUNCTION__, original_partnerid);
 	}
 	else
 	{
-		// Set stackmode to "residential"
-		sprintf(stackmode, "%s", "residential");
-		APPLY_PRINT("%s - PartnerID unchanged: %s, stackmode set to 'residential'\n", __FUNCTION__, PartnerID);
+		// Set devicemode to "residential"
+		sprintf(devicemode, "%s", "residential");
+		APPLY_PRINT("%s - PartnerID unchanged: %s, devicemode set to 'residential'\n", __FUNCTION__, PartnerID);
 	}
 	
-	// Set the stackmode syscfg variable
-	set_syscfg_stackmode(stackmode);
+	// Set the devicemode syscfg variable
+	set_syscfg_devicemode(devicemode);
 }
 #endif // _ONESTACK_PRODUCT_REQ_
 
@@ -984,12 +986,12 @@ static int get_PartnerID (char *PartnerID)
         unlink("/nvram/.partner_ID");
     }
     
+    set_syscfg_partner_values(PartnerID,"PartnerID");
+    
 #ifdef _ONESTACK_PRODUCT_REQ_
-    // Override PartnerID if needed and set stackmode
+    // Override PartnerID if needed and set devicemode
     override_partnerid_and_set_stackmode(PartnerID);
 #endif // _ONESTACK_PRODUCT_REQ_
-    
-    set_syscfg_partner_values(PartnerID,"PartnerID");
 
     //To print Facgtory PartnerID on every boot-up
     memset(buf, 0, sizeof(buf));
