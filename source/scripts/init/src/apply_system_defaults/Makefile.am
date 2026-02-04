@@ -31,11 +31,8 @@ AM_LDFLAGS = $(top_builddir)/source/services/lib/libsrvmgr.la \
              $(top_builddir)/source/utctx/lib/libutctx.la \
              -ltelemetry_msgsender \
              -lcjson \
+             -lonestackutils \
 	         -lccsp_common $(DBUS_LIBS)
-
-if BUILD_ONESTACKUTILS
-AM_LDFLAGS += -lonestackutils
-endif
 
 if PLATFORM_HAL_SYNDICATION
 AM_LDFLAGS += "-lhal_platform -lsysevent -lutctx -lutapi -lhal_wifi"

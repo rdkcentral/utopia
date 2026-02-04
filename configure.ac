@@ -226,13 +226,6 @@ AC_ARG_ENABLE([hotspot],
         [enable_hotspot=true])
 AM_CONDITIONAL([ENABLE_HOTSPOT_SERVICE], [test x$enable_hotspot = xtrue])
 
-# OneStack Utilities Support
-AC_ARG_ENABLE([onestackutils],
-    AS_HELP_STRING([--enable-onestackutils], [Enable OneStack utilities library]),
-    [enable_onestackutils=$enableval],
-    [enable_onestackutils=no])
-AM_CONDITIONAL([BUILD_ONESTACKUTILS], [test "x$enable_onestackutils" = "xyes"])
-
 AC_CONFIG_FILES(
 	Makefile
 	source/Makefile
