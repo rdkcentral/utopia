@@ -346,9 +346,9 @@ if [ "$SYSCFG_LAN_DOMAIN" == "utopia.net" ]; then
    syscfg commit
 fi
 
-if [ "$MANUFACTURE" = "Technicolor" ]; then
+if [ "$MANUFACTURE" = "Technicolor" ] || [ "$MANUFACTURE" = "Sercomm" ]; then
     PROCESS_TRACE_FILE="/nvram/process_trace.log"
-    if [ "$MODEL_NUM" = "CVA601ZCOM" ]; then
+    if [ "$MODEL_NUM" = "CVA601ZCOM" ] || [ "$MODEL_NUM" = "CGM601TCOM" ] || [ "$MODEL_NUM" = "SG417DBCT" ]; then
         reboot_type=$(latticecli -n reason | awk '{print $5}')
         if [ "power_on_reset" == $reboot_type ]; then
             if [ "unknown" == $(syscfg get X_RDKCENTRAL-COM_LastRebootReason) ] || [ "0" == $(syscfg get X_RDKCENTRAL-COM_LastRebootCounter) ]; then
