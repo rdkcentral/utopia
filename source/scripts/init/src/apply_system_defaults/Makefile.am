@@ -21,7 +21,8 @@ AUTOMAKE_OPTIONS = subdir-objects
 AM_CFLAGS = -I$(top_srcdir)/source/include \
             -I$(top_srcdir)/source/util \
             -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
-	        -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include
+	        -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include \
+            -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)
 
 AM_LDFLAGS = $(top_builddir)/source/services/lib/libsrvmgr.la \
              $(top_builddir)/source/sysevent/lib/libsysevent.la \
@@ -31,8 +32,11 @@ AM_LDFLAGS = $(top_builddir)/source/services/lib/libsrvmgr.la \
              $(top_builddir)/source/utctx/lib/libutctx.la \
              -ltelemetry_msgsender \
              -lcjson \
-             -lonestackutils \
 	         -lccsp_common $(DBUS_LIBS)
+
+if ONESTACK_PRODUCT_REQ
+AM_LDFLAGS += -L${PKG_CONFIG_SYSROOT_DIR}$(libdir) -lonestackutils
+endif
 
 if PLATFORM_HAL_SYNDICATION
 AM_LDFLAGS += "-lhal_platform -lsysevent -lutctx -lutapi -lhal_wifi"
