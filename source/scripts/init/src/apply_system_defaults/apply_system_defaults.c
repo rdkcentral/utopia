@@ -84,7 +84,7 @@
 
 static int   syscfg_dirty;
 
-#define DEFAULT_FILE "/etc/utopia/system_defaults_arm"
+#define DEFAULT_FILE "/etc/utopia/system_defaults"
 #define DEFAULT_FILE_BCI "/etc/utopia/system_defaults_bci"
 #define SE_NAME "system_default_set"
 
