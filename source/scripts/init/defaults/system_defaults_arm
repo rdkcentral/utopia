@@ -1491,11 +1491,11 @@ $RemoteDebuggerIssueType=NULL
 #Wifi Personalization Support Default value
 $WiFiPersonalizationSupport=true
 
-#RFC for cron is enabled by default.
-$SelfHealCronEnable=true
 #FwDwld_AvlMem_RsrvThreshold Default value
 $FwDwld_AvlMem_RsrvThreshold=20
 
 #FwDwld_ImageProcMemPercent Default value
 $FwDwld_ImageProcMemPercent=0
 
+#SelfHeal Cron - RFC flag is enabled by default
+$SelfHealCronEnable=true
