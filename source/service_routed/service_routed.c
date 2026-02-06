@@ -54,24 +54,6 @@
 #include <signal.h>
 #include "safec_lib_common.h"
 #include "secure_wrapper.h"
-/* ===== OneStack Feature Support Patch ===== */
-
-#ifdef _ONESTACK_PRODUCT_REQ_
-
-#ifndef FEATURE_IPV6_DELEGATION
-#define FEATURE_IPV6_DELEGATION  1
-#endif
-
-/* Dummy runtime feature check — always enabled */
-static inline bool isFeatureSupportedInCurrentMode(int feature)
-{
-    (void)feature;
-    return true;
-}
-
-#endif /* _ONESTACK_PRODUCT_REQ_ */
-
-/* ========================================== */
 
 #if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
 #include <sys/stat.h>

@@ -52,24 +52,6 @@
 #include <ccsp_base_api.h>
 #include "ccsp_memory.h"
 #endif
-/* ===== OneStack Feature Support Patch ===== */
-
-#ifdef _ONESTACK_PRODUCT_REQ_
-
-#ifndef FEATURE_IPV6_DELEGATION
-#define FEATURE_IPV6_DELEGATION  1
-#endif
-
-/* Dummy runtime feature check — always enabled */
-static inline bool isFeatureSupportedInCurrentMode(int feature)
-{
-    (void)feature;
-    return true;
-}
-
-#endif /* _ONESTACK_PRODUCT_REQ_ */
-
-/* ========================================== */
 
 #ifdef _HUB4_PRODUCT_REQ_
 #include "ccsp_dm_api.h"

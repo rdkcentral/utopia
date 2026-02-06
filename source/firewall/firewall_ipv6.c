@@ -97,24 +97,6 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #endif
-/* ===== OneStack Feature Support Patch ===== */
-
-#ifdef _ONESTACK_PRODUCT_REQ_
-
-#ifndef FEATURE_IPV6_DELEGATION
-#define FEATURE_IPV6_DELEGATION  1
-#endif
-
-/* Dummy runtime feature check — always enabled */
-static inline bool isFeatureSupportedInCurrentMode(int feature)
-{
-    (void)feature;
-    return true;
-}
-
-#endif /* _ONESTACK_PRODUCT_REQ_ */
-
-/* ========================================== */
 
 void* bus_handle ;
 int sysevent_fd;
