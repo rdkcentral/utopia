@@ -6,18 +6,26 @@
 
 ## 📋 Overview
 
-This directory contains the configuration and wrapper scripts necessary for building RDK-B components in a native (non-Yocto) environment. This setup enables Coverity static analysis and validates that components can be built with explicitly declared dependencies.
+This directory contains configuration files for building RDK-B components in a native (non-Yocto) environment. This setup enables Coverity static analysis and validates that components can be built with explicitly declared dependencies.
+
+The build scripts are maintained in the `build_tools_workflows` repository and included as a git submodule.
 
 ### Directory Contents
 
 ```
-<your-component>/cov_docker_script/
-├── README.md                      # This file
-├── component_config.json          # Dependency & build configuration
-├── configure_options.conf         # Autotools configure flags (optional)
-├── run_setup_dependencies.sh      # Wrapper: Setup build tools & dependencies
-├── run_native_build.sh           # Wrapper: Build main component
-└── run_external_build.sh         # Wrapper: For dependency builds (used in component_config.json)
+<your-component>/
+├── .gitmodules                       # Git submodule configuration
+├── cov_docker_script/
+│   ├── README.md                     # This file
+│   ├── component_config.json         # Dependency & build configuration
+│   └── configure_options.conf        # Autotools configure flags (optional)
+└── build_tools_workflows/            # Git submodule (rdkcentral/build_tools_workflows)
+    └── cov_docker_script/
+        ├── build_native.sh           # Build main component
+        ├── common_build_utils.sh     # Utility functions for other scripts
+        ├── common_external_build.sh  # Combined setup + build script
+        ├── setup_dependencies.sh     # Setup build tools & dependencies
+        └── README.md                 # Detailed build tools documentation
 ```
 
 ### Important: Add to .gitignore
@@ -25,11 +33,30 @@ This directory contains the configuration and wrapper scripts necessary for buil
 Add the following to your component's `.gitignore` to exclude temporary build artifacts:
 
 ```gitignore
-# Build tools (downloaded by wrapper scripts)
-build_tools_workflows/
-
 # Dependency build artifacts
 build/
+```
+
+### Required: Add build_tools_workflows as Git Submodule
+
+The `build_tools_workflows` directory **must be tracked as a git submodule** in your repository. Add it using the following commands:
+
+```bash
+# Add build_tools_workflows as a submodule
+git submodule add -b develop https://github.com/rdkcentral/build_tools_workflows.git build_tools_workflows
+
+# Commit the .gitmodules file and submodule reference
+git add .gitmodules build_tools_workflows
+git commit -m "Add build_tools_workflows as submodule"
+```
+
+**Important:** When cloning your repository, always initialize and update submodules to ensure `build_tools_workflows` is available:
+
+```bash
+git clone --recurse-submodules <your-repo-url>
+# OR
+git clone <your-repo-url>
+git submodule update --init --recursive
 ```
 
 ---
@@ -39,7 +66,7 @@ build/
 ### Prerequisites
 
 - Docker container with [docker-rdk-ci](https://github.com/rdkcentral/docker-rdk-ci) image
-- All wrapper scripts have execute permissions
+- Git submodules initialized
 
 ### Build Commands
 
@@ -49,106 +76,100 @@ build/
 # From your component root directory
 cd /path/to/your-component
 
-# Standard build pipeline for main component
-./cov_docker_script/run_setup_dependencies.sh
-./cov_docker_script/run_native_build.sh
+# Initialize/update build_tools_workflows submodule
+git submodule update --init --recursive --remote
+
+# Step 1: Setup dependencies
+./build_tools_workflows/cov_docker_script/setup_dependencies.sh ./cov_docker_script/component_config.json
+
+# Step 2: Build component
+./build_tools_workflows/cov_docker_script/build_native.sh ./cov_docker_script/component_config.json "$(pwd)"
 
 # Clean build (removes previous artifacts)
-CLEAN_BUILD=true ./cov_docker_script/run_setup_dependencies.sh
-./cov_docker_script/run_native_build.sh
+CLEAN_BUILD=true ./build_tools_workflows/cov_docker_script/setup_dependencies.sh ./cov_docker_script/component_config.json
+./build_tools_workflows/cov_docker_script/build_native.sh ./cov_docker_script/component_config.json "$(pwd)"
 ```
 
 #### Alternative: Single-Script Build (All-in-One)
 
-If you prefer to run everything in a single command:
-
 ```bash
-# Run setup dependencies + native build in one script
-./cov_docker_script/run_external_build.sh
+# Run setup dependencies + native build in one command
+./build_tools_workflows/cov_docker_script/common_external_build.sh ./cov_docker_script/component_config.json
 
 # Clean build
-CLEAN_BUILD=true ./cov_docker_script/run_external_build.sh
+CLEAN_BUILD=true ./build_tools_workflows/cov_docker_script/common_external_build.sh ./cov_docker_script/component_config.json
 ```
 
-**Note:** `run_external_build.sh` performs both dependency setup and component build in one execution. While primarily designed to be invoked by the dependency setup process when specified in `component_config.json` (see [run_external_build.sh](#3-run_external_buildsh) section), it can also be used directly for the main component as a convenience script that handles the complete build pipeline.
-
-#### Individual Steps
-
-```bash
-# Step 1: Setup dependencies only
-./cov_docker_script/run_setup_dependencies.sh
-
-# Step 2: Build component only (requires Step 1 completed)
-./cov_docker_script/run_native_build.sh
-```
+**Note:** `common_external_build.sh` automatically detects the configuration file location and performs both dependency setup and component build in one execution.
 
 ---
 
-## 📖 Scripts Reference
+## 📖 Build Scripts Reference
 
-### 1. run_setup_dependencies.sh
+All build scripts are located in `build_tools_workflows/cov_docker_script/` and are maintained in the [rdkcentral/build_tools_workflows](https://github.com/rdkcentral/build_tools_workflows) repository.
 
-**Purpose:** Sets up build tools and runs dependency setup.
+### 1. setup_dependencies.sh
 
-**What it does:**
-1. Clones `build_tools_workflows` repository (develop branch)
-2. Verifies required scripts are present
-3. Runs `setup_dependencies.sh` from build_tools_workflows with config path to:
-   - Clone all dependency repositories
-   - Copy headers to `$HOME/usr/include/rdkb/`
-   - Build and install dependency libraries
-4. Leaves build_tools_workflows in place for run_native_build.sh
+**Purpose:** Clone and build all external dependencies required by the component.
+
+**Location:** `build_tools_workflows/cov_docker_script/setup_dependencies.sh`
 
 **Usage:**
 ```bash
-./run_setup_dependencies.sh
+./build_tools_workflows/cov_docker_script/setup_dependencies.sh <path-to-component_config.json>
 
-# Clean build
-CLEAN_BUILD=true ./run_setup_dependencies.sh
+# Example
+./build_tools_workflows/cov_docker_script/setup_dependencies.sh ./cov_docker_script/component_config.json
 ```
 
-**Required files:**
-- `component_config.json` (defines dependencies)
-
-**Outputs:**
-- Downloads: `$HOME/build/` (dependency repositories)
-- Headers: `$HOME/usr/include/rdkb/`
-- Libraries: `$HOME/usr/local/lib/`, `$HOME/usr/lib/`
-- build_tools_workflows: Remains in place for run_native_build.sh
+**What it does:**
+1. Reads dependency list from `component_config.json`
+2. Clones all dependency repositories to `$HOME/build/`
+3. Copies header files to `$HOME/usr/include/rdkb/`
+4. Builds and installs dependency libraries to `$HOME/usr/local/lib/` and `$HOME/usr/lib/`
 
 **Environment Variables:**
 - `BUILD_DIR` - Override build directory (default: `$HOME/build`)
 - `USR_DIR` - Override install directory (default: `$HOME/usr`)
-- `CLEAN_BUILD` - Set to `true` to remove previous builds
+- `CLEAN_BUILD` - Set to `true` to remove previous builds before starting
+
+**Outputs:**
+- Dependency source code: `$HOME/build/<dependency-name>/`
+- Headers: `$HOME/usr/include/rdkb/`
+- Libraries: `$HOME/usr/local/lib/` and `$HOME/usr/lib/`
 
 ---
 
-### 2. run_native_build.sh
+### 2. build_native.sh
 
-**Purpose:** Verifies build tools and builds the component.
+**Purpose:** Build the main component using autotools, cmake, or meson.
 
-**What it does:**
-1. Verifies `build_tools_workflows` directory exists (cloned by `run_setup_dependencies.sh`)
-2. Verifies `build_native.sh` is present
-3. Runs `build_native.sh` from build_tools_workflows with config and component paths to:
-   - Apply patches to source code
-   - Configure build environment
-   - Build component
-   - Install libraries
-4. Cleans up build_tools_workflows directory
+**Location:** `build_tools_workflows/cov_docker_script/build_native.sh`
 
 **Usage:**
 ```bash
-./run_native_build.sh
+./build_tools_workflows/cov_docker_script/build_native.sh <path-to-component_config.json> <component-directory>
+
+# Example
+./build_tools_workflows/cov_docker_script/build_native.sh ./cov_docker_script/component_config.json "$(pwd)"
 ```
 
+**What it does:**
+1. Reads build configuration from `component_config.json`
+2. Applies source patches (if configured)
+3. Processes component headers
+4. Reads compiler/linker flags from `configure_options.conf`
+5. Runs pre-build commands (if configured)
+6. Configures and builds the component (autogen/configure/make or cmake/make)
+7. Installs component libraries to `$HOME/usr/local/lib/`
+
 **Prerequisites:**
-- `run_setup_dependencies.sh` must be run first (to clone build_tools_workflows)
+- `setup_dependencies.sh` must be run first
 - All dependency headers/libraries must be available
 
 **Required files:**
-- `component_config.json` (defines component build settings)
-- `configure_options.conf` (autotools configuration)
+- `component_config.json` - Build configuration
+- `configure_options.conf` - Compiler/linker flags (for autotools builds)
 
 **Outputs:**
 - Component libraries in `$HOME/usr/local/lib/`
@@ -156,73 +177,45 @@ CLEAN_BUILD=true ./run_setup_dependencies.sh
 
 ---
 
-### 3. run_external_build.sh
+### 3. common_external_build.sh
 
-**Purpose:** Builds dependencies with complex build requirements (invoked from component_config.json).
+**Purpose:** Combined script that runs both dependency setup and component build.
 
-**Key Differences from run_native_build.sh:**
-- Designed for **dependency repositories**, not the main component
-- Invokes `common_external_build.sh` without arguments (dependencies manage their own configuration)
-- Does **NOT** clean up `build_tools_workflows` (may be used by multiple dependencies)
-- Typically called automatically during dependency setup, not manually
-
-**What it does:**
-1. Clones `build_tools_workflows` if not present (or verifies it exists)
-2. Verifies `common_external_build.sh` is present
-3. Runs `common_external_build.sh` from build_tools_workflows
-4. Preserves `build_tools_workflows` directory for subsequent use
+**Location:** `build_tools_workflows/cov_docker_script/common_external_build.sh`
 
 **Usage:**
 ```bash
-./run_external_build.sh
+./build_tools_workflows/cov_docker_script/common_external_build.sh [config-file]
+
+# Example with explicit config
+./build_tools_workflows/cov_docker_script/common_external_build.sh ./cov_docker_script/component_config.json
+
+# Example with auto-detection
+./build_tools_workflows/cov_docker_script/common_external_build.sh
 ```
 
-**Prerequisites:**
-- `run_setup_dependencies.sh` must be run first (to clone build_tools_workflows)
-- All dependency headers/libraries must be available
+**What it does:**
+1. Auto-detects `component_config.json` location (if not provided)
+2. Runs `setup_dependencies.sh` with the configuration
+3. Runs `build_native.sh` with the configuration
+4. Provides complete build pipeline in one command
 
-**Outputs:**
-- Build artifacts based on common_external_build.sh implementation
-- build_tools_workflows remains in place (not cleaned up)
+**Use Cases:**
+- **Main component builds:** Simplifies the build process into a single command
+- **Dependency builds:** Used when a dependency repository has complex build requirements and is referenced in a parent component's `component_config.json` with `"type": "script"`
 
-**Primary Use Case - Dependency Builds in component_config.json:**
-
-This script is primarily used to build **dependency repositories** that have complex build requirements. When a dependency has its own `cov_docker_script/run_external_build.sh`, it can be invoked from the parent component's `component_config.json`.
-
-**Example configuration in component_config.json:**
-
+**Example in component_config.json (for dependency builds):**
 ```json
 {
   "name": "Utopia",
   "repo": "https://github.com/rdkcentral/utopia.git",
-  "branch": "feature/cov_native_build",
-  "header_paths": [
-    { "source": "source/include", "destination": "$HOME/usr/include/rdkb" }
-  ],
+  "branch": "develop",
   "build": {
     "type": "script",
-    "script": "cov_docker_script/run_external_build.sh"
+    "script": "build_tools_workflows/cov_docker_script/common_external_build.sh"
   }
 }
 ```
-
-**How it works for dependencies:**
-1. The parent component's `setup_dependencies.sh` clones the dependency repository (e.g., Utopia)
-2. The dependency's `run_external_build.sh` is executed from the dependency's directory
-3. This script internally:
-   - Sets up the dependency's own build tools and dependencies
-   - Runs the dependency's native build process
-   - Produces shared libraries (`.so` files)
-4. The generated shared libraries are installed to `$HOME/usr/local/lib/` or `$HOME/usr/lib/`
-5. These libraries are then available for the parent component's native build
-
-**When to use this approach:**
-- Dependency has complex multi-step build requirements
-- Dependency has its own sub-dependencies that need to be built
-- Dependency requires custom build logic beyond standard autotools/cmake/meson
-- Dependency repository already has a `cov_docker_script/run_external_build.sh` script
-
-**Note:** This approach allows dependencies to manage their own complete build pipeline, producing the necessary shared libraries that the parent component links against during its native compilation.
 
 ---
 
@@ -305,43 +298,60 @@ See [configure_options.conf](configure_options.conf) for your component's comple
 ## 🔧 Build System Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│         run_setup_dependencies.sh                   │
-│  ┌──────────────────────────────────────────────┐   │
-│  │ 1. Clone build_tools_workflows               │   │
-│  │    (develop branch)                       │   │
-│  │                                               │   │
-│  │ 2. Verify required scripts present           │   │
-│  │                                               │   │
-│  │ 3. Run setup_dependencies.sh from            │   │
-│  │    build_tools_workflows with config path    │   │
-│  │    - Read component_config.json              │   │
-│  │    - Clone dependency repos                  │   │
-│  │    - Copy headers                            │   │
-│  │    - Build & install libraries               │   │
-│  └──────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────┘
-                        │
-                        ▼
-┌─────────────────────────────────────────────────────┐
-│         run_native_build.sh                         │
-│  ┌──────────────────────────────────────────────┐   │
-│  │ 1. Verify build_tools_workflows exists       │   │
-│  │    (cloned by run_setup_dependencies.sh)     │   │
-│  │                                               │   │
-│  │ 2. Run build_native.sh from                  │   │
-│  │    build_tools_workflows with config and     │   │
-│  │    component directory paths                 │   │
-│  │    - Process component headers               │   │
-│  │    - Apply source patches (if configured)    │   │
-│  │    - Read configure_options.conf             │   │
-│  │    - Configure build (autogen/configure)     │   │
-│  │    - Build component (make/cmake/meson)      │   │
-│  │    - Install libraries                       │   │
-│  │                                               │   │
-│  │ 3. Cleanup build_tools_workflows directory   │   │
-│  └──────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Git Submodule: build_tools_workflows (develop branch)     │
+│  https://github.com/rdkcentral/build_tools_workflows       │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│         setup_dependencies.sh                               │
+│  build_tools_workflows/cov_docker_script/                   │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ Input: ./cov_docker_script/component_config.json      │  │
+│  │                                                        │  │
+│  │ 1. Read dependencies from component_config.json       │  │
+│  │ 2. Clone dependency repositories to $HOME/build/      │  │
+│  │ 3. Copy headers to $HOME/usr/include/rdkb/            │  │
+│  │ 4. Build dependencies (autotools/cmake/meson)         │  │
+│  │ 5. Install libraries to $HOME/usr/local/lib/          │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│         build_native.sh                                     │
+│  build_tools_workflows/cov_docker_script/                   │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ Input: ./cov_docker_script/component_config.json      │  │
+│  │        $(pwd)  # Component directory                  │  │
+│  │                                                        │  │
+│  │ 1. Process component headers                          │  │
+│  │ 2. Apply source patches (if configured)               │  │
+│  │ 3. Run pre-build commands (if configured)             │  │
+│  │ 4. Read configure_options.conf                        │  │
+│  │ 5. Configure build (autogen/configure or cmake)       │  │
+│  │ 6. Build component (make)                             │  │
+│  │ 7. Install libraries to $HOME/usr/local/lib/          │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Alternative: Single-Command Build**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│         common_external_build.sh                            │
+│  build_tools_workflows/cov_docker_script/                   │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │ Auto-detects component_config.json                    │  │
+│  │                                                        │  │
+│  │ 1. Run setup_dependencies.sh                          │  │
+│  │ 2. Run build_native.sh                                │  │
+│  │                                                        │  │
+│  │ Complete pipeline in one command                      │  │
+│  └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -357,10 +367,10 @@ See [configure_options.conf](configure_options.conf) for your component's comple
 ls -la $HOME/usr/include/rdkb/
 
 # Verify component_config.json has correct header_paths
-cat component_config.json | jq '.dependencies.repos[].header_paths'
+cat ./cov_docker_script/component_config.json | jq '.dependencies.repos[].header_paths'
 
 # Re-run dependency setup
-CLEAN_BUILD=true ./cov_docker_script/run_setup_dependencies.sh
+CLEAN_BUILD=true ./build_tools_workflows/cov_docker_script/setup_dependencies.sh ./cov_docker_script/component_config.json
 ```
 
 **Problem:** Missing libraries
@@ -383,22 +393,29 @@ cat build/meson-log.txt  # For meson
 
 ```bash
 # Solution: Check configure_options.conf syntax
-cat cov_docker_script/configure_options.conf
+cat ./cov_docker_script/configure_options.conf
 
 # Verify flags are valid
 ./configure --help
 ```
 
-### Script Errors
-
-**Problem:** Script not found
+**Problem:** build_tools_workflows not found
 
 ```bash
-# Solution: Ensure scripts are executable
-chmod +x cov_docker_script/*.sh
+# Solution: Initialize git submodules
+git submodule update --init --recursive --remote
 
-# Check if build_tools_workflows was cloned
-ls -la ../build_tools_workflows/
+# Verify submodule is present
+ls -la build_tools_workflows/cov_docker_script/
+```
+
+### Script Errors
+
+**Problem:** Permission denied
+
+```bash
+# Solution: Make scripts executable
+chmod +x build_tools_workflows/cov_docker_script/*.sh
 ```
 
 **Problem:** Permission denied
@@ -406,47 +423,37 @@ ls -la ../build_tools_workflows/
 ```bash
 # Solution: Fix container permissions
 # (Run on host, not in container)
-sudo docker exec rdkb-builder groupadd $USER --gid=$(id -g $USER)
-sudo docker exec rdkb-builder useradd -m $USER -G users \
-  --uid=$(id -u $USER) --gid=$(id -g $USER)
+sudo docker exec <container-name> chown -R $(id -u):$(id -g) /path/to/workspace
 ```
 
 ---
 
-## 📚 Related Documentation
-
-- **Build Tools Repository:** [build_tools_workflows](https://github.com/rdkcentral/build_tools_workflows/tree/develop)
-- **Docker Environment:** [docker-rdk-ci](https://github.com/rdkcentral/docker-rdk-ci)
-- **Example Component:** [moca-agent](https://github.com/rdkcentral/moca-agent) (reference implementation)
-- **Detailed Build Guide:** See `build_tools_workflows/cov_docker_script/README.md`
-
----
-
-## ⚠️ Important Notes
-
-### DO NOT Modify
-
-The following scripts are automatically copied from `build_tools_workflows` and **must not be modified locally**:
-
-- ❌ `build_native.sh`
-- ❌ `common_build_utils.sh`
-- ❌ `common_external_build.sh`
-- ❌ `setup_dependencies.sh`
-
-Any changes will be overwritten when wrapper scripts run.
-
-### DO Modify
-
-The following files are component-specific and **should be customized**:
-
-- ✅ `component_config.json` - Dependency and build configuration
-- ✅ `configure_options.conf` - Autotools flags
-- ✅ `run_setup_dependencies.sh` - Wrapper script (if needed)
-- ✅ `run_native_build.sh` - Wrapper script (if needed)
-
----
-
 ## 🔄 Workflow Integration
+
+### CI/CD Integration (GitHub Actions)
+
+This configuration is used by GitHub Actions to validate builds. See [.github/workflows/native-build.yml](.github/workflows/native-build.yml):
+
+```yaml
+- name: Checkout code
+  uses: actions/checkout@v3
+
+- name: native build
+  run: |
+    # Trust the workspace
+    git config --global --add safe.directory '*'
+    
+    # Pull the latest changes for the native build system
+    git submodule update --init --recursive --remote
+    
+    # Build and install dependencies
+    chmod +x build_tools_workflows/cov_docker_script/setup_dependencies.sh
+    ./build_tools_workflows/cov_docker_script/setup_dependencies.sh ./cov_docker_script/component_config.json
+    
+    # Build component
+    chmod +x build_tools_workflows/cov_docker_script/build_native.sh
+    ./build_tools_workflows/cov_docker_script/build_native.sh ./cov_docker_script/component_config.json "$(pwd)"
+```
 
 ### Local Development
 
@@ -454,34 +461,44 @@ The following files are component-specific and **should be customized**:
 # Make changes to source code
 vim source/your_component.c
 
-# Rebuild component
-CLEAN_BUILD=true ./cov_docker_script/run_native_build.sh
+# Rebuild component (dependencies already built)
+./build_tools_workflows/cov_docker_script/build_native.sh ./cov_docker_script/component_config.json "$(pwd)"
+
+# Clean rebuild (rebuild dependencies too)
+CLEAN_BUILD=true ./build_tools_workflows/cov_docker_script/setup_dependencies.sh ./cov_docker_script/component_config.json
+./build_tools_workflows/cov_docker_script/build_native.sh ./cov_docker_script/component_config.json "$(pwd)"
 ```
-
-### CI/CD Integration
-
-This configuration is used by GitHub Actions to validate builds:
-
-```yaml
-- name: Setup Dependencies
-  run: ./cov_docker_script/run_setup_dependencies.sh
-
-- name: Build Component
-  run: ./cov_docker_script/run_native_build.sh
-```
-
-See `.github/workflows/` for complete CI configuration.
 
 ---
 
-## 📞 Support
+## � Related Documentation
 
-For issues or questions:
-
-1. Check [Troubleshooting](#troubleshooting) section
-2. Review [build_tools_workflows README](https://github.com/rdkcentral/build_tools_workflows/blob/develop/cov_docker_script/README.md)
-3. Raise issue in your component repository or [build_tools_workflows](https://github.com/rdkcentral/build_tools_workflows/issues)
+- **Build Tools Repository:** [build_tools_workflows](https://github.com/rdkcentral/build_tools_workflows/tree/develop)
+- **Docker Environment:** [docker-rdk-ci](https://github.com/rdkcentral/docker-rdk-ci)
+- **Detailed Build Guide:** See `build_tools_workflows/cov_docker_script/README.md`
 
 ---
 
-**Last Updated:** January 2026
+## ⚠️ Important Notes
+
+### DO NOT Modify Scripts in build_tools_workflows
+
+The scripts in `build_tools_workflows/` are maintained as a git submodule and **must not be modified locally**:
+
+- ❌ `build_tools_workflows/cov_docker_script/build_native.sh`
+- ❌ `build_tools_workflows/cov_docker_script/common_build_utils.sh`
+- ❌ `build_tools_workflows/cov_docker_script/common_external_build.sh`
+- ❌ `build_tools_workflows/cov_docker_script/setup_dependencies.sh`
+
+Changes to these scripts should be made in the [rdkcentral/build_tools_workflows](https://github.com/rdkcentral/build_tools_workflows) repository.
+
+### DO Modify Component Configuration
+
+The following files are component-specific and **should be customized**:
+
+- ✅ `cov_docker_script/component_config.json` - Dependency and build configuration
+- ✅ `cov_docker_script/configure_options.conf` - Autotools compiler/linker flags
+
+---
+
+**Last Updated:** February 2026
