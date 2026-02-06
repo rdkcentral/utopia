@@ -60,7 +60,7 @@
 #include  "safec_lib_common.h"
 
 #ifdef _ONESTACK_PRODUCT_REQ_
-#include <onestackutils/onestackutils.h>
+#include <devicemode.h>
 #endif
 
 #include <telemetry_busmessage_sender.h>

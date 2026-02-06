@@ -35,7 +35,7 @@ AM_LDFLAGS = $(top_builddir)/source/services/lib/libsrvmgr.la \
 	         -lccsp_common $(DBUS_LIBS)
 
 if ONESTACK_PRODUCT_REQ
-AM_LDFLAGS += -L${PKG_CONFIG_SYSROOT_DIR}$(libdir) -lonestackutils
+AM_LDFLAGS += -L${PKG_CONFIG_SYSROOT_DIR}$(libdir) -ldevicemode -lonestack_syscfg -lonestack_log
 endif
 
 if PLATFORM_HAL_SYNDICATION
