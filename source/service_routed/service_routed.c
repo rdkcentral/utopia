@@ -779,8 +779,6 @@ STATIC int route_unset(struct serv_routed *sr)
 #else
     vsystem("ip -6 rule del iif brlan0 table erouter");
 #endif
-    }
-    }
 #endif
     return 0;
 }
