@@ -1729,8 +1729,9 @@ end_of_ipv6_firewall:
       FIREWALL_DEBUG("Exiting prepare_ipv6_firewall \n");
 }
 
-#if (defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && !defined(_CBR_PRODUCT_REQ_)) || defined(_ONESTACK_PRODUCT_REQ_)
-static int prepare_ipv6_multinet(FILE *fp)
+#if (defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && !defined(_CBR_PRODUCT_REQ_)) \
+    || defined(_ONESTACK_PRODUCT_REQ_)
+int prepare_ipv6_multinet(FILE *fp)
 {    
 #ifdef _ONESTACK_PRODUCT_REQ_
     if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
