@@ -172,8 +172,8 @@ service_start ()
       # Monitor syscfg DB every 15minutes 
       echo "*/15 * * * * /usr/ccsp/tad/syscfg_recover.sh" >> $CRONTAB_FILE
 
-      SELFHEAL_ENABLE=$(syscfg get selfheal_enable)
-      if [ "$SELFHEAL_ENABLE" = "true" ]; then
+      SELFHEAL_CRON_ENABLE=$(syscfg get SelfHealCronEnable)
+      if [ "$SELFHEAL_CRON_ENABLE" = "true" ]; then
          # Monitor selfheal_aggressive.sh based on syscfg value
          AGGRESSIVE_INTERVAL=$(syscfg get AggressiveInterval)
          echo "$(date '+%Y-%m-%d %H:%M:%S') : AggressiveInterval value = $AGGRESSIVE_INTERVAL" >> $CRON_LOG
