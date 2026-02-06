@@ -59,6 +59,10 @@
 #include <cjson/cJSON.h>
 #include  "safec_lib_common.h"
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <devicemode.h>
+#endif
+
 #include <telemetry_busmessage_sender.h>
 #define PARTNERS_INFO_FILE  							"/nvram/partners_defaults.json"
 #define PARTNERS_INFO_FILE_ETC                                                 "/etc/partners_defaults.json"
@@ -911,6 +915,13 @@ static int get_PartnerID (char *PartnerID)
         if( ( 0 == getFactoryPartnerId( PartnerID ) ) && ( PartnerID [ 0 ] != '\0' ) )
         {
             APPLY_PRINT("%s - PartnerID from HAL: %s\n",__FUNCTION__,PartnerID );
+#ifdef _ONESTACK_PRODUCT_REQ_
+            // Override PartnerID if needed and set devicemode
+            // Must be called BEFORE set_syscfg_partner_values to ensure syscfg gets the correct PartnerID
+            APPLY_PRINT("%s - Calling onestackutils_override_partnerid_and_set_devicemode with PartnerID from HAL: %s\n", __FUNCTION__, PartnerID);
+            onestackutils_override_partnerid_and_set_devicemode(PartnerID);
+            APPLY_PRINT("%s - onestackutils_override_partnerid_and_set_devicemode completed. PartnerID from HAL: %s\n", __FUNCTION__, PartnerID);
+#endif // _ONESTACK_PRODUCT_REQ_
             validatePartnerId ( PartnerID );
         }
         else
@@ -963,9 +974,18 @@ static int get_PartnerID (char *PartnerID)
         sprintf( PartnerID, "%s", fileContent );
 
         APPLY_PRINT("%s - PartnerID from File: %s\n",__FUNCTION__,PartnerID );
+#ifdef _ONESTACK_PRODUCT_REQ_
+            // Override PartnerID if needed and set devicemode
+            // Must be called BEFORE set_syscfg_partner_values to ensure syscfg gets the correct PartnerID
+            APPLY_PRINT("%s - Calling onestackutils_override_partnerid_and_set_devicemode with PartnerID: %s\n", __FUNCTION__, PartnerID);
+            onestackutils_override_partnerid_and_set_devicemode(PartnerID);
+            APPLY_PRINT("%s - onestackutils_override_partnerid_and_set_devicemode completed. PartnerID: %s\n", __FUNCTION__, PartnerID);
+#endif // _ONESTACK_PRODUCT_REQ_
+
         validatePartnerId ( PartnerID );
         unlink("/nvram/.partner_ID");
     }
+    
     set_syscfg_partner_values(PartnerID,"PartnerID");
 
     //To print Facgtory PartnerID on every boot-up
