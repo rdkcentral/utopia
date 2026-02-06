@@ -1182,18 +1182,18 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     sysevent_get(sefd, setok, "wan-status", wan_st, sizeof(wan_st));
     syscfg_get(NULL, "last_erouter_mode", rtmod, sizeof(rtmod));
 
+
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined (_ONESTACK_PRODUCT_REQ_)
     int multilan_enabled = 0;
+    int pd_enabled = 0;
 
 #if defined(MULTILAN_FEATURE)
     multilan_enabled = 1;
 #endif
 
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined (_ONESTACK_PRODUCT_REQ_)
-    int pd_enabled = 0;
-
-    #if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
-        pd_enabled = 1;
-    #endif
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+    pd_enabled = 1;
+#endif
 
     #ifdef _ONESTACK_PRODUCT_REQ_
         pd_enabled = isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION);
