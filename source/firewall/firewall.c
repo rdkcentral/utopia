@@ -532,9 +532,7 @@ typedef struct _decMacs_
 {
 char mac[19];
 }devMacSt;
-#ifndef CISCO_CONFIG_TRUE_STATIC_IP
-#define CISCO_CONFIG_TRUE_STATIC_IP 1
-#endif
+
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP 
 bool business_mode = true;
 #define MAX_TS_ASN_COUNT 64
