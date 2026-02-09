@@ -445,8 +445,13 @@ int service_start(int mode)
             sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
             APPLY_PRINT("%s: lan-status after lan-start is %s\n", __FUNCTION__, lanStartVal);
 
-            APPLY_PRINT("%s: Triggering zebra-restart sysevent\n", __FUNCTION__);
-            sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
+            #if defined(_WNXL11BWL_PRODUCT_REQ_)
+			    APPLY_PRINT("%s: Triggering zebra-restart sysevent commented\n", __FUNCTION__);
+               //  sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
+	        #else
+		        APPLY_PRINT("%s: Triggering zebra-restart sysevent \n", __FUNCTION__);
+                  sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
+            #endif
         }
         break;
         case DEVICE_MODE_EXTENDER:
