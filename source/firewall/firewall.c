@@ -536,6 +536,7 @@ char mac[19];
 #define CISCO_CONFIG_TRUE_STATIC_IP 1
 #endif
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP 
+bool business_mode = true;
 #define MAX_TS_ASN_COUNT 64
 typedef struct{
     char ip[20];
@@ -2552,11 +2553,22 @@ static int prepare_globals_from_configuration(void)
    isDmzEnabled      = (0 == strcmp("1", dmz_enabled)) ? 1 : 0;
    /* nat_enabled(0): disable  (1) DHCP (2)StaticIP (others) disable */
    isNatEnabled      = atoi(nat_enabled);
-   #ifdef CISCO_CONFIG_TRUE_STATIC_IP
-   isNatEnabled      = (isNatEnabled > NAT_STATICIP ? NAT_DISABLE : isNatEnabled);
-   #else
-   isNatEnabled      = (isNatEnabled == NAT_DISABLE ? NAT_DISABLE : NAT_DHCP);
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(business_mode)
    #endif
+    {
+   isNatEnabled      = (isNatEnabled > NAT_STATICIP ? NAT_DISABLE : isNatEnabled);
+    }
+#endif
+#if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(!business_mode)
+   #endif
+    {
+   isNatEnabled      = (isNatEnabled == NAT_DISABLE ? NAT_DISABLE : NAT_DHCP);
+    }
+#endif
    isLogEnabled      = (log_leveli > 1) ? 1 : 0;
    isLogSecurityEnabled = (isLogEnabled && log_leveli > 1) ? 1 : 0;
 #if 0
@@ -2568,7 +2580,11 @@ static int prepare_globals_from_configuration(void)
    isLogOutgoingEnabled = 0;
    isCmDiagEnabled   = (0 == strcmp("1", cmdiag_enabled)) ? 1 : 0;
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(business_mode)
+   #endif
+    {
    /* get true static IP info */   
    sysevent_get(sysevent_fd, sysevent_token, "wan_staticip-status", wan_staticip_status, sizeof(wan_staticip_status));
    isWanStaticIPReady = (0 == strcmp("started", wan_staticip_status)) ? 1 : 0; 
@@ -2687,11 +2703,17 @@ static int prepare_globals_from_configuration(void)
    memset(firewall_true_static_ip_enable, 0, sizeof(firewall_true_static_ip_enable));
    syscfg_get(NULL, "firewall_true_static_ip_enable", firewall_true_static_ip_enable,sizeof(firewall_true_static_ip_enable));
    isFWTS_enable = (0 == strcmp("1", firewall_true_static_ip_enable) ? 1 : 0);
-	   
-#else
+    }	   
+#endif
+#if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(!business_mode)
+   #endif
+    {
     safec_rc = strcpy_s(natip4, sizeof(natip4),current_wan_ipaddr);
     ERR_CHK(safec_rc);
-    isNatReady = isWanReady; 
+    isNatReady = isWanReady;
+    }
 #endif
 
 
