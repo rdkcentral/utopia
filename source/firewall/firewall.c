@@ -13982,6 +13982,10 @@ WAN_FAILOVER_SUPPORT_CHECk_END
          }
          fprintf(filter_fp, "-I FORWARD -o %s -m state --state INVALID -j DROP\n",current_wan_ifname);
    #endif
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I INPUT -p udp --dport 5060 -j ACCEPT\n");
+   fprintf(filter_fp, "-I INPUT -p udp --dport 10000:20000 -j ACCEPT\n");
+#endif
    fprintf(raw_fp, "COMMIT\n");
    fprintf(mangle_fp, "COMMIT\n");
    fprintf(nat_fp, "COMMIT\n");
