@@ -1490,3 +1490,10 @@ $RemoteDebuggerIssueType=NULL
 
 #Wifi Personalization Support Default value
 $WiFiPersonalizationSupport=true
+
+#FwDwld_AvlMem_RsrvThreshold Default value
+$FwDwld_AvlMem_RsrvThreshold=20
+
+#FwDwld_ImageProcMemPercent Default value
+$FwDwld_ImageProcMemPercent=0
+
