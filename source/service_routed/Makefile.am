@@ -21,6 +21,9 @@ bin_PROGRAMS = service_routed
 
 AM_LDFLAGS = -lsecure_wrapper
 
+if ONESTACK_PRODUCT_REQ
+AM_LDFLAGS += -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
+endif
 service_routed_SOURCES = service_routed.c service_routed_main.c
 
 service_routed_CFLAGS = -I$(top_srcdir)/source \

@@ -59,6 +59,9 @@
 #include <sys/stat.h>
 #endif
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 #include "util.h"
 #include <telemetry_busmessage_sender.h>
 #include "sysevent/sysevent.h"
