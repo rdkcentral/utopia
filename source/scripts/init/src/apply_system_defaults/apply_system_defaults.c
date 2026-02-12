@@ -61,6 +61,7 @@
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <devicemode.h>
+#define DEFAULT_FILE_BCI "/etc/utopia/system_defaults_bci"
 #endif
 
 #include <telemetry_busmessage_sender.h>
@@ -93,6 +94,8 @@ static int   syscfg_dirty;
 
 STATIC int global_fd = 0;
 STATIC token_t global_id;
+
+static int get_PartnerID(char *PartnerID);
 
 /*
    By default the variable "convert" will be set if $Version is found in
@@ -330,7 +333,7 @@ static int handle_version (char* name, char* value)
     return ret;
 }
 
-static int check_version (void)
+static int check_version (const char* defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -338,11 +341,11 @@ static int check_version (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -404,7 +407,7 @@ static int check_version (void)
  * Parameters    :
  * Return Value  : 0 if ok, -1 if not
  */
-static int set_syscfg_defaults (void)
+static int set_syscfg_defaults (const char *defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -412,11 +415,11 @@ static int set_syscfg_defaults (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -474,7 +477,7 @@ static int set_syscfg_defaults (void)
  * Parameters    :
  * Return Value  : 0 if ok, -1 if not
  */
-static int set_sysevent_defaults (void)
+static int set_sysevent_defaults (const char *defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -482,11 +485,11 @@ static int set_sysevent_defaults (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -561,13 +564,22 @@ static int set_sysevent_defaults (void)
  */
 static int set_defaults(void)
 {
+   const char *defaultsFile = DEFAULT_FILE;
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+   // Determine defaults file based on device mode for OneStack products
+   defaultsFile = onestackutils_get_defaults_file();
+   APPLY_PRINT("%s - onestackutils_get_defaults_file returned %s\n", __FUNCTION__, defaultsFile);
+#endif // _ONESTACK_PRODUCT_REQ_
+
+   APPLY_PRINT("%s: PartnerID: %s, defaultsFile: %s\n", __FUNCTION__, PartnerID, defaultsFile);
 #if ! defined (ALWAYS_CONVERT)
    check_version();
+   check_version(defaultsFile);
 #endif
 
-   set_syscfg_defaults();
-   set_sysevent_defaults();
-
+   set_syscfg_defaults(defaultsFile);
+   set_sysevent_defaults(defaultsFile);
    return 0;
 }
 
