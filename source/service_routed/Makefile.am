@@ -19,7 +19,11 @@
 
 bin_PROGRAMS = service_routed
 
-AM_LDFLAGS = -lccsp_common -lsecure_wrapper 
+AM_CPPFLAGS = -I$(top_srcdir)/source/include \
+              -I$(top_srcdir)/source/util/utils \
+              $(DBUS_CFLAGS)
+
+AM_LDFLAGS = -lccsp_common -lsecure_wrapper $(DBUS_LIBS)
 
 service_routed_SOURCES = service_routed.c service_routed_main.c
 
