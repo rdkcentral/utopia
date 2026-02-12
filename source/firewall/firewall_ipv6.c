@@ -98,6 +98,9 @@
 #include <net/if.h>
 #endif
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 void* bus_handle ;
 int sysevent_fd;
 char sysevent_ip[19];

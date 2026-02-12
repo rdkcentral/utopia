@@ -29,6 +29,9 @@ firewall_SOURCES += firewall_lib.c firewall_dsl.c rabid.c
 AM_LDFLAGS += -lrdkconfig
 endif
 
+if _ONESTACK_PRODUCT_REQ_
+AM_LDFLAGS += -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
+endif
 nfq_handler_SOURCES = raw_socket_send.c nfq_handler.c
 
 firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \

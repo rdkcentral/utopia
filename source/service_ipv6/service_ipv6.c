@@ -53,6 +53,9 @@
 #include "ccsp_memory.h"
 #endif
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 #ifdef _HUB4_PRODUCT_REQ_
 #include "ccsp_dm_api.h"
 #include "ccsp_custom.h"
