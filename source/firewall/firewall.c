@@ -12546,7 +12546,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       updateAmenityNetworkRules(filter_fp,mangle_fp , AF_INET);
       #endif
    }
-   #if defined(SCXF10)
+   #if defined(VOICE_MTA_SUPPORT)
    char cVoiceRule[64] = {0};
    sysevent_get(sysevent_fd, sysevent_token, "VoiceIpRule", cVoiceRule, sizeof(cVoiceRule));
    FIREWALL_DEBUG("%s: VoiceIpRule=%s\n" COMMA __FUNCTION__ COMMA cVoiceRule);
