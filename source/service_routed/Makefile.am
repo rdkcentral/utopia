@@ -44,7 +44,10 @@ service_routed_LDADD = $(top_builddir)/source/util/utils/libutopiautil.la \
                        $(top_builddir)/source/utctx/lib/libutctx.la \
                        $(top_builddir)/source/ulog/libulog.la \
                        -ltelemetry_msgsender
-service_routed_LDFLAGS = -L${PKG_CONFIG_SYSROOT_DIR}$(libdir) -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
+service_routed_LDFLAGS = -L${PKG_CONFIG_SYSROOT_DIR}${libdir}
+if ONESTACK_PRODUCT_REQ
+service_routed_LDFLAGS += -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
+endif
 if CORE_NET_LIB_FEATURE_SUPPORT
 service_routed_LDFLAGS += -lnet
 endif
