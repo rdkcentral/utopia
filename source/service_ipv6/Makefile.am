@@ -26,7 +26,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/source/include \
 AM_LDFLAGS = -lccsp_common -lsecure_wrapper $(DBUS_LIBS)
 
 if ONESTACK_PRODUCT_REQ
-service_ipv6_LDFLAGS = -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
+AM_LDFLAGS += -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
 endif
 service_ipv6_SOURCES = service_ipv6.c service_ipv6_main.c
 
@@ -36,5 +36,5 @@ service_ipv6_LDADD = $(top_builddir)/source/util/utils/libutopiautil.la \
                      $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                      $(top_builddir)/source/ulog/libulog.la
 if CORE_NET_LIB_FEATURE_SUPPORT
-service_ipv6_LDFLAGS += -lnet
+service_ipv6_LDFLAGS = -lnet
 endif
