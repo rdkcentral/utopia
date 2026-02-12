@@ -19,11 +19,10 @@
 
 bin_PROGRAMS = service_routed
 
-AM_LDFLAGS = -lsecure_wrapper
+AM_LDFLAGS = -lccsp_common -lsecure_wrapper 
 
-if ONESTACK_PRODUCT_REQ
-AM_LDFLAGS += -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
-endif
+
+
 service_routed_SOURCES = service_routed.c service_routed_main.c
 
 service_routed_CFLAGS = -I$(top_srcdir)/source \
@@ -43,6 +42,9 @@ service_routed_LDADD = $(top_builddir)/source/util/utils/libutopiautil.la \
                        $(top_builddir)/source/utctx/lib/libutctx.la \
                        $(top_builddir)/source/ulog/libulog.la \
                        -ltelemetry_msgsender
+if ONESTACK_PRODUCT_REQ
+AM_LDFLAGS += -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
+endif
 if CORE_NET_LIB_FEATURE_SUPPORT
 service_routed_LDFLAGS = -lnet
 endif
