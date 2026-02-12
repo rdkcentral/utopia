@@ -23,7 +23,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/source/include \
               -I$(top_srcdir)/source/util/utils \
               $(DBUS_CFLAGS)
 
-AM_LDFLAGS = -lccsp_common -lsecure_wrapper $(DBUS_LIBS)
+AM_LDFLAGS = -lsecure_wrapper -lccsp_common $(DBUS_LIBS)
 
 service_routed_SOURCES = service_routed.c service_routed_main.c
 
@@ -44,7 +44,7 @@ service_routed_LDADD = $(top_builddir)/source/util/utils/libutopiautil.la \
                        $(top_builddir)/source/utctx/lib/libutctx.la \
                        $(top_builddir)/source/ulog/libulog.la \
                        -ltelemetry_msgsender
-AM_LDFLAGS += -L${PKG_CONFIG_SYSROOT_DIR}$(libdir) -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
+service_routed_LDFLAGS = -L${PKG_CONFIG_SYSROOT_DIR}$(libdir) -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
 if CORE_NET_LIB_FEATURE_SUPPORT
-service_routed_LDFLAGS = -lnet
+service_routed_LDFLAGS += -lnet
 endif
