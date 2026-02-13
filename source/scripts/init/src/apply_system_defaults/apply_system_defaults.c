@@ -61,7 +61,6 @@
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <devicemode.h>
-#define DEFAULT_FILE_BCI "/etc/utopia/system_defaults_bci"
 #endif
 
 #include <telemetry_busmessage_sender.h>
