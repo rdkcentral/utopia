@@ -330,7 +330,7 @@ static int handle_version (char* name, char* value)
     return ret;
 }
 
-static int check_version (void)
+static int check_version (const char* defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -338,11 +338,11 @@ static int check_version (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -404,7 +404,7 @@ static int check_version (void)
  * Parameters    :
  * Return Value  : 0 if ok, -1 if not
  */
-static int set_syscfg_defaults (void)
+static int set_syscfg_defaults (const char *defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -412,11 +412,11 @@ static int set_syscfg_defaults (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -474,7 +474,7 @@ static int set_syscfg_defaults (void)
  * Parameters    :
  * Return Value  : 0 if ok, -1 if not
  */
-static int set_sysevent_defaults (void)
+static int set_sysevent_defaults (const char *defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -482,11 +482,11 @@ static int set_sysevent_defaults (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -561,13 +561,21 @@ static int set_sysevent_defaults (void)
  */
 static int set_defaults(void)
 {
+   const char *defaultsFile = DEFAULT_FILE;
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+   // Determine defaults file based on device mode for OneStack products
+   defaultsFile = onestackutils_get_defaults_file();
+   APPLY_PRINT("%s - onestackutils_get_defaults_file returned %s\n", __FUNCTION__, defaultsFile);
+#endif // _ONESTACK_PRODUCT_REQ_
+
+   APPLY_PRINT("%s: defaultsFile: %s\n", __FUNCTION__, defaultsFile);
 #if ! defined (ALWAYS_CONVERT)
-   check_version();
+   check_version(defaultsFile);
 #endif
 
-   set_syscfg_defaults();
-   set_sysevent_defaults();
-
+   set_syscfg_defaults(defaultsFile);
+   set_sysevent_defaults(defaultsFile);
    return 0;
 }
 
@@ -3453,7 +3461,9 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
       retryCount--;
    }
 
+#ifndef _ONESTACK_PRODUCT_REQ_
    set_defaults();
+
    
    if (syscfg_dirty) 
    {
@@ -3461,6 +3471,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
       syscfg_commit();
       APPLY_PRINT("Number_Of_Entries_Commited_to_Sysconfig_Database=%d\n",syscfg_dirty);
    }
+#endif
 
 #if defined(_SYNDICATION_BUILDS_)
    v_secure_system( "/lib/rdk/apply_partner_customization.sh" );
@@ -3532,6 +3543,19 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
     APPLY_PRINT("%s - PartnerID :%s. Calling get_PartnerID() to get a valid PartnerID that was received from XConf \n", __FUNCTION__, PartnerID );
     get_PartnerID ( PartnerID );
   }
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+   // For OneStack products, set_defaults() must be called after get_PartnerID() to ensure the partner ID and device mode are correctly configured
+   set_defaults();
+
+   if (syscfg_dirty)
+   {
+      printf("[utopia] [init] committing default syscfg values\n");
+      syscfg_commit();
+      APPLY_PRINT("Number_Of_Entries_Commited_to_Sysconfig_Database=%d\n",syscfg_dirty);
+   }
+#endif
+
 
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    CheckAndHandleInvalidPartnerIDRecoveryProcess(PartnerID);
