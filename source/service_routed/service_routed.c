@@ -95,6 +95,10 @@ static const char* const service_routed_component_id = "ccsp.routed";
 #include <libnet.h>
 #endif
 
+#if defined(_ONESTACK_PRODUCT_REQ_)
+#include <rdkb_feature_mode_gate.h>
+#endif
+
 #define ZEBRA_PID_FILE  "/var/zebra.pid"
 #define RIPD_PID_FILE   "/var/ripd.pid"
 #define ZEBRA_CONF_FILE "/var/zebra.conf"
@@ -136,7 +140,7 @@ struct serv_routed {
     bool        wan_ready;
 };
 
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_XB10_PRODUCT_REQ_)
 #ifdef _BWG_PRODUCT_REQ_
 #define LOG_FILE "/rdklogs/logs/ArmConsolelog.txt.0"
 #else
@@ -2124,10 +2128,19 @@ STATIC int radv_restart(struct serv_routed *sr)
     return radv_start(sr);
 }
 
+#if defined(_ONESTACK_PRODUCT_REQ_)
+static BOOL IsRIPConflictingFeaturesEnabled(void)
+{
+    // TODO: Add check to see if any conflicting feature of RIP
+    //       like MAP-T are enabled
+    return FALSE;
+}
+#endif
+
 STATIC int rip_start(struct serv_routed *sr)
 {
     char enable[16];
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_XB10_PRODUCT_REQ_)
     char ripd_conf_status[16];
 #endif
     if (!serv_can_start(sr->sefd, sr->setok, "rip"))
@@ -2172,7 +2185,21 @@ sleep(45); /*sleep upto update ripd.conf after reboot*/
         sysevent_set(sr->sefd, sr->setok, "rip-status", "error", 0);
         return -1;
     }
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_XB10_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_RIPv2))
+    {
+        DEG_PRINT("RIP enable rejected, unsupported mode\n");
+        t2_event_d("RIP_NotSupported", 1);
+        return -1;
+    }
+    else if (IsRIPConflictingFeaturesEnabled())
+    {
+        DEG_PRINT("RIP enable rejected due to conflicting features\n");
+        t2_event_d("RIP_NotSupported", 1);
+        return -1;
+    }
+#endif
 	  int retries=0;
     	  while (retries<20)  {
           memset(ripd_conf_status,0,sizeof(ripd_conf_status));
