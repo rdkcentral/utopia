@@ -179,7 +179,6 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_BLOCKFRAGIPPKT   "v6_BlockFragIPPkts"
 #define V6_PORTSCANPROTECT  "v6_PortScanProtect"
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
-
 /*
  ****************************************************************
  *               IPv6 Firewall                                  *
@@ -643,13 +642,13 @@ fprintf(fp, "add chain ip filter %s\n", IPOE_HEALTHCHECK);
    // Rate limiting the webui-access lan side
    if(isBridgeMode)
    {
-       lan_access_set_proto(fp, "80",cmdiag_ifname);
-       lan_access_set_proto(fp, "443",cmdiag_ifname);
+       lan_access_set_proto_ipv6(fp, "80",cmdiag_ifname);
+       lan_access_set_proto_ipv6(fp, "443",cmdiag_ifname);
    }
    else
    {
-       lan_access_set_proto(fp, "80",lan_ifname);
-       lan_access_set_proto(fp, "443",lan_ifname);
+       lan_access_set_proto_ipv6(fp, "80",lan_ifname);
+       lan_access_set_proto_ipv6(fp, "443",lan_ifname);
    }
    // Blocking webui access to unnecessary interfaces
    fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto tcp tcp dport { 80,443 } counter accept\n", lan_ifname);
@@ -1576,7 +1575,7 @@ v6GPFirewallRuleNext:
       else if (strncasecmp(firewall_levelv6, "Low", strlen("Low")) == 0)
       {
          fprintf(fp, "add rule ip6 filter wan2lan tcp dport 113 counter return\n"); // IDENT
-         fprintf(fp, "add rule ip6 filte wan2lan counter accept\n");
+         fprintf(fp, "add rule ip6 filter wan2lan counter accept\n");
       }
       else if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
       {
@@ -2149,7 +2148,21 @@ void applyIpv6ULARules(FILE* fp)
 
    #endif
 }
-#endif 
+#endif
+
+int lan_access_set_proto_ipv6(FILE *fp,const char *port, const char *interface)
+{
+        if ((0 == strcmp("80", port)) || (0 == strcmp("443", port))) {
+           fprintf(fp, "add rule ip6 filter INPUT iifname \"%s \"tcp dport %s jump webui_limit\n", interface, port);
+        }
+        else
+        {
+            fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport %s accept\n", interface, port);
+        }
+        return 0;
+}
+
+
 void do_ipv6_nat_table(FILE* fp)
 {
     char IPv6[INET6_ADDRSTRLEN] = "0";
