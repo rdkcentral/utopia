@@ -3383,7 +3383,9 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
       retryCount--;
    }
 
+#ifndef _ONESTACK_PRODUCT_REQ_
    set_defaults();
+#endif
    
    if (syscfg_dirty) 
    {
@@ -3462,6 +3464,12 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
     APPLY_PRINT("%s - PartnerID :%s. Calling get_PartnerID() to get a valid PartnerID that was received from XConf \n", __FUNCTION__, PartnerID );
     get_PartnerID ( PartnerID );
   }
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+   // For OneStack products, set_defaults() must be called after get_PartnerID() to ensure the partner ID and device mode are correctly configured
+   set_defaults();
+#endif
+
 
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    CheckAndHandleInvalidPartnerIDRecoveryProcess(PartnerID);
