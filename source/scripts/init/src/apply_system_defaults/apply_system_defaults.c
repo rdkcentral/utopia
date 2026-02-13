@@ -572,9 +572,8 @@ static int set_defaults(void)
    APPLY_PRINT("%s - onestackutils_get_defaults_file returned %s\n", __FUNCTION__, defaultsFile);
 #endif // _ONESTACK_PRODUCT_REQ_
 
-   APPLY_PRINT("%s: PartnerID: %s, defaultsFile: %s\n", __FUNCTION__, PartnerID, defaultsFile);
+   APPLY_PRINT("%s: defaultsFile: %s\n", __FUNCTION__, defaultsFile);
 #if ! defined (ALWAYS_CONVERT)
-   check_version();
    check_version(defaultsFile);
 #endif
 
