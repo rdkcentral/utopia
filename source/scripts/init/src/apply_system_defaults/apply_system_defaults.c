@@ -3385,7 +3385,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 
 #ifndef _ONESTACK_PRODUCT_REQ_
    set_defaults();
-#endif
+
    
    if (syscfg_dirty) 
    {
@@ -3393,6 +3393,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
       syscfg_commit();
       APPLY_PRINT("Number_Of_Entries_Commited_to_Sysconfig_Database=%d\n",syscfg_dirty);
    }
+#endif
 
 #if defined(_SYNDICATION_BUILDS_)
    v_secure_system( "/lib/rdk/apply_partner_customization.sh" );
@@ -3468,6 +3469,13 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 #ifdef _ONESTACK_PRODUCT_REQ_
    // For OneStack products, set_defaults() must be called after get_PartnerID() to ensure the partner ID and device mode are correctly configured
    set_defaults();
+
+   if (syscfg_dirty)
+   {
+      printf("[utopia] [init] committing default syscfg values\n");
+      syscfg_commit();
+      APPLY_PRINT("Number_Of_Entries_Commited_to_Sysconfig_Database=%d\n",syscfg_dirty);
+   }
 #endif
 
 
