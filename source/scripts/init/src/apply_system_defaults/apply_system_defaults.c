@@ -95,8 +95,6 @@ static int   syscfg_dirty;
 STATIC int global_fd = 0;
 STATIC token_t global_id;
 
-static int get_PartnerID(char *PartnerID);
-
 /*
    By default the variable "convert" will be set if $Version is found in
    system_defaults and its value does not match the currently configured value
