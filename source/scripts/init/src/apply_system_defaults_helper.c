@@ -733,6 +733,21 @@ static int GetDevicePropertiesEntry (char *pOutput, int size, char *sDevicePropC
     return ret;
 }
 
+static int isXER10Device(void)
+{
+    char devModel[32] = {0};
+    
+    if (GetDevicePropertiesEntry(devModel, sizeof(devModel), "MODEL_NUM") == 0)
+    {
+        if (strcmp(devModel, "SCER11BEL") == 0)
+        {
+            APPLY_PRINT("%s - SCER11BEL device detected\n", __FUNCTION__);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int getFactoryPartnerId (char *pValue)
 {
 #if defined (_XB6_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_SR300_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -1285,6 +1300,7 @@ static int addParamInPartnersFile (char *pKey, char *PartnerId, char *pValue)
 }
 
 /** ApplyPartnersObjectItemsIntoSysevents() */
+__attribute__((unused))
 static int ApplyPartnersObjectItemsIntoSysevents( char *pcPartnerID )
 {
    if( NULL == pcPartnerID )
@@ -1925,6 +1941,54 @@ int init_bootstrap_json (char *partner_nvram_obj, char *partner_etc_obj, char *P
          addInSysCfgdDB(key, value);
          param = param->next;
       }
+
+      /* Process override-only parameters (parameters that exist only in override, not in main partner defaults)
+         This allows model-specific parameters like dmsb.* to be added through override section */
+      if (overrideObj)
+      {
+         APPLY_PRINT("%s - Processing override-only parameters for model %s\n", __FUNCTION__, devModel);
+         cJSON *overrideParam = overrideObj->child;
+         while (overrideParam)
+         {
+            char *override_key = overrideParam->string;
+            
+            // Check if this key was already processed from subitem_etc
+            if (!cJSON_HasObjectItem(newPartnerObj, override_key))
+            {
+               char *override_value = overrideParam->valuestring;
+               if (override_value != NULL)
+               {
+                  APPLY_PRINT("%s - Adding override-only parameter: %s = %s\n", __FUNCTION__, override_key, override_value);
+                  
+                  cJSON *newOverrideParamObj = cJSON_CreateObject();
+                  cJSON_AddStringToObject(newOverrideParamObj, "DefaultValue", override_value);
+                  cJSON_AddStringToObject(newOverrideParamObj, "BuildTime", getBuildTime());
+                  cJSON_AddStringToObject(newOverrideParamObj, "ActiveValue", override_value);
+                  cJSON_AddStringToObject(newOverrideParamObj, "UpdateTime", "-");
+                  cJSON_AddStringToObject(newOverrideParamObj, "UpdateSource", "-");
+                  
+                  cJSON_AddItemToObject(newPartnerObj, override_key, newOverrideParamObj);
+                  
+                  // Handle dmsb.* parameters - store in PSM database
+                  if (0 != strstr(override_key, "dmsb.") || 0 != strstr(override_key, "X_AIRTIES_Obj"))
+                  {
+                     if (psm_supported == 1)
+                     {
+                        APPLY_PRINT("Add override PSM value %s for param %s\n", override_value, override_key);
+                        set_psm_record(override_key, override_value);
+                     }
+                  }
+                  else
+                  {
+                     // Handle other parameters - store in syscfg database or through addInSysCfgdDB
+                     addInSysCfgdDB(override_key, override_value);
+                  }
+               }
+            }
+            overrideParam = overrideParam->next;
+         }
+      }
+
       cJSON_AddItemToObject(root_nvram_bs_json, PartnerID, newPartnerObj);
 
       char *out = cJSON_Print(root_nvram_bs_json);
@@ -2249,6 +2313,62 @@ int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner_etc_ob
          param = param->next;
       }
 
+      /* Process override-only parameters (parameters that exist only in override, not in main partner defaults)
+         This allows model-specific parameters like dmsb.* to be added through override section */
+      if (overrideObj)
+      {
+         APPLY_PRINT("%s - Processing override-only parameters for model %s\n", __FUNCTION__, devModel);
+         cJSON *overrideParam = overrideObj->child;
+         while (overrideParam)
+         {
+            char *override_key = overrideParam->string;
+            
+            // Check if this key was already processed from subitem_etc
+            if (!cJSON_HasObjectItem(subitem_etc, override_key))
+            {
+               char *override_value = overrideParam->valuestring;
+               if (override_value != NULL)
+               {
+                  APPLY_PRINT("%s - Adding override-only parameter: %s = %s\n", __FUNCTION__, override_key, override_value);
+                  
+                  cJSON *bs_obj = cJSON_GetObjectItem(subitem_nvram_bs, override_key);
+                  if (bs_obj == NULL)
+                  {
+                     cJSON *newParamObj = cJSON_CreateObject();
+                     cJSON_AddStringToObject(newParamObj, "DefaultValue", override_value);
+                     cJSON_AddStringToObject(newParamObj, "BuildTime", getBuildTime());
+                     cJSON_AddStringToObject(newParamObj, "ActiveValue", override_value);
+                     cJSON_AddStringToObject(newParamObj, "UpdateTime", "-");
+                     cJSON_AddStringToObject(newParamObj, "UpdateSource", "-");
+                     
+                     // Handle dmsb.* parameters - store in PSM database
+                     if (0 != strstr(override_key, "dmsb.") || 0 != strstr(override_key, "X_AIRTIES_Obj"))
+                     {
+                        if (psm_supported == 1)
+                        {
+                           APPLY_PRINT("Add override PSM value %s for param %s\n", override_value, override_key);
+                           cJSON_AddItemToObject(subitem_nvram_bs, override_key, newParamObj);
+                           addParamInPartnersFile(override_key, PartnerID, override_value);
+                           set_psm_record(override_key, override_value);
+                        }
+                     }
+                     else
+                     {
+                        if (syscfg_supported == 1)
+                        {
+                           APPLY_PRINT("Add override syscfg value %s for param %s\n", override_value, override_key);
+                           cJSON_AddItemToObject(subitem_nvram_bs, override_key, newParamObj);
+                           addParamInPartnersFile(override_key, PartnerID, override_value);
+                           set_syscfg_partner_values(override_value, override_key);
+                        }
+                     }
+                  }
+               }
+            }
+            overrideParam = overrideParam->next;
+         }
+      }
+
       /* Check if nvram file has same count as etc file
          if nvram has more entries, we may need to check what was
          removed from etc in current release.
@@ -2403,6 +2523,10 @@ int apply_partnerId_default_values (char *data, char *PartnerID)
                             cJSON *param = partnerObj->child;
                             char  *key   = NULL;
                             char  *value = NULL;
+                            
+                            // For XER10 devices, explicitly handle PSM values
+                            int isXER10 = isXER10Device();
+                            
                             while( param )
                             {
                                 key = param->string;
@@ -2417,6 +2541,13 @@ int apply_partnerId_default_values (char *data, char *PartnerID)
                                     {
                                         //Its PSM entry
                                         APPLY_PRINT("Update psm value %s for param %s\n", value, key);
+                                        
+                                        // For XER10, ensure PSM values are set
+                                        if (isXER10)
+                                        {
+                                            APPLY_PRINT("XER10: Setting PSM value %s for param %s\n", value, key);
+                                        }
+                                        
                                         set_psm_record(key, value);
                                     }
                                 }
