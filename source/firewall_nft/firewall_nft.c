@@ -5374,8 +5374,8 @@ static int do_wan_nat_lan_clients(FILE *fp)
             strcmp(dp->d_name, ".") == 0) {
           continue;
         }
-        fprintf(fp, "add rule ip filter postrouting_towan iifname %s return\n", dp->d_name);
-        fprintf(fp, "add rule ip filter postrouting_towan oifname %s return\n", dp->d_name);
+        fprintf(fp, "add rule ip nat postrouting_towan iifname %s return\n", dp->d_name);
+        fprintf(fp, "add rule ip nat postrouting_towan oifname %s return\n", dp->d_name);
       }
       closedir(dirp);
     }
@@ -5432,9 +5432,9 @@ static int do_wan_nat_lan_clients(FILE *fp)
      {
 #endif
       #ifdef RDKB_EXTENDER_ENABLED
-         fprintf(fp, "add rule ip filter postrouting_towan masquerade\n");
+         fprintf(fp, "add rule ip nat postrouting_towan masquerade\n");
       #else
-	     fprintf(fp, "add rule ip filter postrouting_towan  counter snat to %s\n", natip4);
+	     fprintf(fp, "add rule ip nat postrouting_towan  counter snat to %s\n", natip4);
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
      }
