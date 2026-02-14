@@ -563,12 +563,6 @@ static int set_defaults(void)
 {
    const char *defaultsFile = DEFAULT_FILE;
 
-#ifdef _ONESTACK_PRODUCT_REQ_
-   // Determine defaults file based on device mode for OneStack products
-   defaultsFile = onestackutils_get_defaults_file();
-   APPLY_PRINT("%s - onestackutils_get_defaults_file returned %s\n", __FUNCTION__, defaultsFile);
-#endif // _ONESTACK_PRODUCT_REQ_
-
    APPLY_PRINT("%s: defaultsFile: %s\n", __FUNCTION__, defaultsFile);
 #if ! defined (ALWAYS_CONVERT)
    check_version(defaultsFile);
