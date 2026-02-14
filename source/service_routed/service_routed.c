@@ -2187,7 +2187,7 @@ sleep(45); /*sleep upto update ripd.conf after reboot*/
     }
 #if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_XB10_PRODUCT_REQ_)
 #if defined(_ONESTACK_PRODUCT_REQ_)
-    if (!isFeatureSupportedInCurrentMode(FEATURE_RIPv2))
+    if (!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
     {
         DEG_PRINT("RIP enable rejected, unsupported mode\n");
         t2_event_d("RIP_NotSupported", 1);
