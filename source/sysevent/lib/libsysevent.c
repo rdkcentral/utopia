@@ -2041,7 +2041,7 @@ static int connect_to_local_sysevent_daemon(char *target, int* sockfd)
    int address_length;
    se_server_addr.sun_family = AF_UNIX;
    address_length = sizeof(se_server_addr.sun_family) +
-                 snprintf(se_server_addr.sun_path, sizeof(se_server_addr.sun_path), "%s", target);
+                 snprintf(se_server_addr.sun_path, sizeof(se_server_addr.sun_path), "%s");
    int rc;
    int num_tries = NUM_CONNECT_ATTEMPTS;
    while (num_tries) {
