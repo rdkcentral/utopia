@@ -555,24 +555,16 @@ else
 fi
 
 
-if [ "$nft_enable" != "1" ];then
-#disable telnet / ssh ports
-iptables -A INPUT -i "$lan_ifname" -p tcp --dport 23 -j DROP
-iptables -A INPUT -i "$lan_ifname" -p tcp --dport 22 -j DROP
-iptables -A INPUT -i "$cmdiag_ifname" -p tcp --dport 23 -j DROP
-iptables -A INPUT -i "$cmdiag_ifname" -p tcp --dport 22 -j DROP
+if [ "$nft_enable" != "1" ]; then
+	#disable telnet / ssh ports
+	#iptables -A INPUT -i "$lan_ifname" -p tcp --dport 22 -j DROP
+	#iptables -A INPUT -i "$cmdiag_ifname" -p tcp --dport 22 -j DROP
+	#ip6tables -A INPUT -i "$lan_ifname" -p tcp --dport 22 -j DROP
+	#ip6tables -A INPUT -i "$cmdiag_ifname" -p tcp --dport 22 -j DROP
 
-ip6tables -A INPUT -i "$lan_ifname" -p tcp --dport 23 -j DROP
-ip6tables -A INPUT -i "$lan_ifname" -p tcp --dport 22 -j DROP
-ip6tables -A INPUT -i "$cmdiag_ifname" -p tcp --dport 23 -j DROP
-ip6tables -A INPUT -i "$cmdiag_ifname" -p tcp --dport 22 -j DROP
-
-#protect from IPv6 NS flooding
-ip6tables -t mangle -A PREROUTING -i "$ecm_wan_ifname" -d ff00::/8 -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP
-ip6tables -t mangle -A PREROUTING -i "$wan_ifname" -d ff00::/8 -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP
-else
-
-#TODO: Implement rules using nftables
+	#protect from IPv6 NS flooding
+	ip6tables -t mangle -A PREROUTING -i "$ecm_wan_ifname" -d ff00::/8 -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP
+	ip6tables -t mangle -A PREROUTING -i "$wan_ifname" -d ff00::/8 -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP
 
 fi
 
