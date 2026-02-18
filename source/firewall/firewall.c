@@ -12546,6 +12546,16 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       updateAmenityNetworkRules(filter_fp,mangle_fp , AF_INET);
       #endif
    }
+   #if defined(VOICE_MTA_SUPPORT)
+   char cVoiceRule[64] = {0};
+   sysevent_get(sysevent_fd, sysevent_token, "VoiceIpRule", cVoiceRule, sizeof(cVoiceRule));
+   FIREWALL_DEBUG("%s: VoiceIpRule=%s\n" COMMA __FUNCTION__ COMMA cVoiceRule);
+   if (strlen(cVoiceRule) > 0)
+   {
+      fprintf(filter_fp,"%s\n", cVoiceRule);
+      FIREWALL_DEBUG("%s: Applied VoiceIpRule\n" COMMA __FUNCTION__);
+   }
+   #endif
    //Add wan2self restrictions to other wan interfaces
    //ping is allowed to cm and mta inferfaces regardless the firewall level
 #if !defined(_HUB4_PRODUCT_REQ_)
