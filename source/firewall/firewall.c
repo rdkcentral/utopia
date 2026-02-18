@@ -369,6 +369,10 @@ NOT_DEF:
 
 #endif
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <devicemode.h>
+#endif
+
 #ifdef FEATURE_464XLAT
 #define XLAT_IF "xlat"
 #define XLAT_IP "192.0.0.1"
@@ -536,7 +540,6 @@ char mac[19];
 #define CISCO_CONFIG_TRUE_STATIC_IP 1
 #endif
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP 
-bool business_mode = true;
 #define MAX_TS_ASN_COUNT 64
 typedef struct{
     char ip[20];
@@ -2555,7 +2558,7 @@ static int prepare_globals_from_configuration(void)
    isNatEnabled      = atoi(nat_enabled);
 #if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(business_mode)
+        if(is_devicemode_business())
    #endif
     {
    isNatEnabled      = (isNatEnabled > NAT_STATICIP ? NAT_DISABLE : isNatEnabled);
@@ -2563,7 +2566,7 @@ static int prepare_globals_from_configuration(void)
 #endif
 #if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(!business_mode)
+        if(!is_devicemode_business())
    #endif
     {
    isNatEnabled      = (isNatEnabled == NAT_DISABLE ? NAT_DISABLE : NAT_DHCP);
@@ -2582,7 +2585,7 @@ static int prepare_globals_from_configuration(void)
 
 #if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(business_mode)
+        if(is_devicemode_business())
    #endif
     {
    /* get true static IP info */   
@@ -2707,7 +2710,7 @@ static int prepare_globals_from_configuration(void)
 #endif
 #if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(!business_mode)
+        if(!is_devicemode_business())
    #endif
     {
     safec_rc = strcpy_s(natip4, sizeof(natip4),current_wan_ipaddr);
