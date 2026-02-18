@@ -1606,8 +1606,27 @@ int prepare_dhcp_conf (char *input)
 		prepare_dhcp_options_wan_dns();
 	}
   
-#if defined (_XB6_PRODUCT_REQ_) || defined (_CBR_PRODUCT_REQ_)
+#if !defined _LG_OFW_
+    char dslite_enable[8] = {0};
+    if (syscfg_get(NULL, "dslite_enable", dslite_enable, sizeof(dslite_enable)) == 0 && !strcmp(dslite_enable, "1"))
     {
+        FILE *fp = fopen(DHCP_OPTIONS_FILE, "a");
+        if (fp)
+        {
+            char lan_ip[32] = {0};
+
+            if (!syscfg_get(NULL, "lan_ipaddr", lan_ip, sizeof(lan_ip)) &&
+                lan_ip[0] != '\0')
+            {
+                fprintf(fp, "option:dns-server,%s\n", lan_ip);
+            }
+            fclose(fp);
+        }
+    }
+    else
+#endif /* _LG_OFW_ */
+    {
+#if defined (_XB6_PRODUCT_REQ_) || defined (_CBR_PRODUCT_REQ_)
         struct in_addr ipv4Addr;
         int    ret = -1;
         int    resComp = -1;
@@ -1656,8 +1675,8 @@ int prepare_dhcp_conf (char *input)
         {
             fprintf(g_fArmConsoleLog, "DHCP_SERVER : Error in opening %s\n",RESOLV_CONF );
         }
-    }
 #endif
+    }
   
    	sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan-status", l_cLan_Status, sizeof(l_cLan_Status));
 	if (!strncmp(l_cLan_Status, "started", 7)) 
