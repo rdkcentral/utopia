@@ -969,7 +969,9 @@ static int get_PartnerID (char *PartnerID)
 #endif // _ONESTACK_PRODUCT_REQ_
 
         validatePartnerId ( PartnerID );
+#ifndef _ONESTACK_PRODUCT_REQ_
         unlink("/nvram/.partner_ID");
+#endif // _ONESTACK_PRODUCT_REQ_
     }
     
     set_syscfg_partner_values(PartnerID,"PartnerID");
