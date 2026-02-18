@@ -427,6 +427,25 @@ static void reinit_signal_handler (int signum)
    ulog(ULOG_SYSTEM, UL_SYSEVENT, "Received reinit signal");
 }
 
+static int set_fd_socket_timeouts(int fd, int timeout_ms)
+{
+   if (timeout_ms <= 0) {
+      return(-1);
+   }
+
+   struct timeval tv;
+   tv.tv_sec = timeout_ms / 1000;
+   tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+   if (-1 == setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv))) {
+      return(-1);
+   }
+   if (-1 == setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))) {
+      return(-1);
+   }
+   return(0);
+}
+
 /*
  * Procedure     : initialize_system
  * Purpose       : Initialize the system
@@ -1479,6 +1498,13 @@ int main (int argc, char **argv)
                   close(newsockfd);
                   continue;
                } else {
+                   // Keep sockets in blocking mode, but cap read/write wait time.
+                   // Start with 200ms and tune in the 100-500ms range.
+                   if (-1 == set_fd_socket_timeouts(newsockfd, 200)) {
+                      ulogf(ULOG_SYSTEM, UL_SYSEVENT,
+                            "Unable to set client fd %d socket timeouts. (%d) %s",
+                            newsockfd, errno, strerror(errno));
+                   }
                    if (SE_MSG_OPEN_CONNECTION_DATA == msgtype)
                    {
                        new_client->isData = 1;
