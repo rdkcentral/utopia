@@ -3120,7 +3120,7 @@ static int prepare_globals_from_configuration(void)
    fprintf(fp, "-A xlog_accept_wan2lan -j ACCEPT\n");
 
    fprintf(fp, "-A xlog_accept_wan2self -j ACCEPT\n");
-#if !(defined INTEL_PUMA7) && !(defined _COSA_BCM_ARM_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined(_COSA_QCA_ARM_)
+#if !(defined INTEL_PUMA7) && !(defined _COSA_BCM_ARM_) && !defined(_GENERIC_LINUX_DATA_PATH_) && !defined(_COSA_QCA_ARM_)
    fprintf(fp, "-A xlog_drop_wan2lan -j DROP\n");
 #endif
    fprintf(fp, "-A xlog_drop_wan2self -j DROP\n");
@@ -5417,7 +5417,7 @@ static int do_wan_nat_lan_clients(FILE *fp)
   }
 #endif
 
-#if (defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)) && !defined (_HUB4_PRODUCT_REQ_)
+#if (defined (_COSA_BCM_ARM_) || defined(_GENERIC_LINUX_DATA_PATH_)) && !defined (_HUB4_PRODUCT_REQ_)
   if(bEthWANEnable || isBridgeMode) // Check is required for TCHXB6 TCHXB7 CBR and not for HUB4
 #else
   if(bEthWANEnable)
@@ -6028,7 +6028,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    {
       fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request %s -j ULOG --ulog-prefix \"DoS Attack - Smurf Attack\" --ulog-cprange 50\n", logRateLimit);
    }
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_GENERIC_LINUX_DATA_PATH_)
    fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request %s -j LOG --log-prefix \"DoS Attack - Smurf Attack\"\n", logRateLimit);
 #elif defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_))  
    fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request %s -j NFLOG --nflog-group 2 --nflog-prefix \"DoS Attack - Smurf Attack\" --nflog-size 50\n", logRateLimit);
@@ -6048,7 +6048,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    {
       fprintf(fp, "-A ICMPSmurfAttack -p icmp -m icmp --icmp-type timestamp-request %s -j ULOG --ulog-prefix \"DoS Attack - Smurf Attack\" --ulog-cprange 50\n", logRateLimit);
    }
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_GENERIC_LINUX_DATA_PATH_)
    fprintf(fp, "-A ICMPSmurfAttack -p icmp -m icmp --icmp-type timestamp-request %s -j LOG --log-prefix \"DoS Attack - Smurf Attack\"\n", logRateLimit);
 #elif defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) 
    fprintf(fp, "-A ICMPSmurfAttack -p icmp -m icmp --icmp-type timestamp-request %s -j NFLOG --nflog-group 2 --nflog-prefix \"DoS Attack - Smurf Attack\" --nflog-size 50\n", logRateLimit);
@@ -6070,7 +6070,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    {
       fprintf(fp, "-A ICMPFlooding -p icmp %s -j ULOG --ulog-prefix \"DoS Attack - ICMP Flooding\" --ulog-cprange 50\n", logRateLimit);
    }
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined (_PLATFORM_TURRIS_) ||  defined(_PLATFORM_BANANAPI_R4_)
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined (_GENERIC_LINUX_DATA_PATH_)
    fprintf(fp, "-A ICMPFlooding -p icmp %s -j LOG --log-prefix \"DoS Attack - ICMP Flooding\"\n", logRateLimit);
 #elif defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) 
    fprintf(fp, "-A ICMPFlooding -p icmp %s -j NFLOG --nflog-group 2 --nflog-prefix \"DoS Attack - ICMP Flooding\" --nflog-size 50\n", logRateLimit);
@@ -6092,7 +6092,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    {
       fprintf(fp, "-A TCPSYNFlooding -p tcp --syn %s -j ULOG --ulog-prefix \"DoS Attack - TCP SYN Flooding\" --ulog-cprange 50\n", logRateLimit);
    }
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined (_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined (_GENERIC_LINUX_DATA_PATH_)
    fprintf(fp, "-A TCPSYNFlooding -p tcp --syn %s -j LOG --log-prefix \"DoS Attack - TCP SYN Flooding\"\n", logRateLimit);
 #elif defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) 
    fprintf(fp, "-A TCPSYNFlooding -p tcp --syn %s -j NFLOG --nflog-group 2 --nflog-prefix \"DoS Attack - TCP SYN Flooding\" --nflog-size 50\n", logRateLimit);
@@ -6116,7 +6116,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
        {
          fprintf(fp, "-A LANDAttack -s %s %s -j ULOG --ulog-prefix \"DoS Attack - LAND Attack\" --ulog-cprange 50\n", wan_ip, logRateLimit);
        }
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined (_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined (_GENERIC_LINUX_DATA_PATH_)
       fprintf(fp, "-A LANDAttack -s %s %s -j LOG --log-prefix \"DoS Attack - LAND Attack\"\n", wan_ip, logRateLimit);
 #elif defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) 
       fprintf(fp, "-A LANDAttack -s %s %s -j NFLOG --nflog-group 2 --nflog-prefix \"DoS Attack - LAND Attack\" --nflog-size 50\n", wan_ip, logRateLimit);
@@ -6468,7 +6468,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
     if (family == AF_INET6)
     {
 #endif
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_)  && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_GENERIC_LINUX_DATA_PATH_)
 	   remote_access_set_proto(filter_fp, nat_fp, "80", srcaddr, family, ecm_wan_ifname);
        remote_access_set_proto(filter_fp, nat_fp, "443", srcaddr, family, ecm_wan_ifname);
 #endif
@@ -6740,7 +6740,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
    }
 #endif
 
-#if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+#if defined(_COSA_BCM_ARM_) || defined(_GENERIC_LINUX_DATA_PATH_)
     // RDKB-21814 
     // Drop only remote managment port(8080,8181) in bridge_mode 
     // because port 80, 443 will be used to access MSO page / local admin page.
@@ -7733,7 +7733,7 @@ InternetAccessPolicyNext3:
                snprintf(str, sizeof(str), 
                         "-A %s -p tcp -m tcp --dport 80 -m webstr --host \"%s\" -j %s",
                         rules_table, url + host_name_offset, block_site);
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_GENERIC_LINUX_DATA_PATH_)
                snprintf(str, sizeof(str), 
                         "-A %s -p tcp -m tcp --dport 80 -d \"%s\" -j %s",
                         rules_table, url + host_name_offset, block_site);
@@ -9196,7 +9196,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
         if (count < 0) count = 0;
         if (count > MAX_SYSCFG_ENTRIES) count = MAX_SYSCFG_ENTRIES;
 
-#if !defined(_COSA_BCM_MIPS_) && !defined(_CBR_PRODUCT_REQ_) && !defined(_COSA_BCM_ARM_) && !defined(_PLATFORM_TURRIS_) && !defined(_COSA_QCA_ARM_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_COSA_BCM_MIPS_) && !defined(_CBR_PRODUCT_REQ_) && !defined(_COSA_BCM_ARM_) && !defined(_GENERIC_LINUX_DATA_PATH_) && !defined(_COSA_QCA_ARM_)
         ruleIndex += do_parcon_mgmt_lan2wan_pc_site_appendrule(fp);
 #endif
 
@@ -9378,7 +9378,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 					//Intel Proposed RDKB Generic Bug Fix from XB6 SDK
 					fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 80 -m webstr --host \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
 					fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 -m webstr --host \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_GENERIC_LINUX_DATA_PATH_) || defined(_COSA_QCA_ARM_)
                     fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 80 -d \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
                     fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 -d \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
 #elif !defined(_XER5_PRODUCT_REQ_)
@@ -10916,7 +10916,7 @@ static int prepare_multinet_postrouting_nat(FILE *nat_fp) {
 
 static void prepare_ipc_filter(FILE *filter_fp) {
                 FIREWALL_DEBUG("Entering prepare_ipc_filter\n"); 	  
-#if !defined (_COSA_BCM_ARM_) && !defined(INTEL_PUMA7) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined(_COSA_QCA_ARM_)
+#if !defined (_COSA_BCM_ARM_) && !defined(INTEL_PUMA7) && !defined(_GENERIC_LINUX_DATA_PATH_) && !defined(_COSA_QCA_ARM_)
     // TODO: fix this hard coding
     fprintf(filter_fp, "-I OUTPUT -o %s -j ACCEPT\n", "l2sd0.500");
     fprintf(filter_fp, "-I INPUT -i %s -j ACCEPT\n", "l2sd0.500");
@@ -10927,7 +10927,7 @@ static void prepare_ipc_filter(FILE *filter_fp) {
 //zqiu<<
 #endif
 
-#if (defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)) && !defined(_HUB4_PRODUCT_REQ_)
+#if (defined (_COSA_BCM_ARM_) || defined(_GENERIC_LINUX_DATA_PATH_)) && !defined(_HUB4_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
@@ -11134,7 +11134,7 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
 #endif /*_HUB4_PRODUCT_REQ_*/
         //fprintf(filter_fp, "-A OUTPUT -o %s -j ACCEPT\n", net_resp);
 
-#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined (_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_))
+#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined (_GENERIC_LINUX_DATA_PATH_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_))
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
@@ -11225,7 +11225,7 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
 
     fprintf(filter_fp, "-A INPUT -i brebhaul -d 169.254.85.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brebhaul -m pkttype ! --pkt-type unicast -j ACCEPT\n");
-#elif defined (_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+#elif defined (_GENERIC_LINUX_DATA_PATH_)
     fprintf(filter_fp, "-A INPUT -i wifi2 -d 169.254.0.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i wifi2 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i wifi3 -d 169.254.1.0/24 -j ACCEPT\n");
@@ -11268,7 +11268,7 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     fprintf(filter_fp, "-A INPUT -i br403 -s 192.168.245.0/24 -p tcp -m tcp --dport 8883 -j ACCEPT\n");
 #endif
 
-#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_)) || defined (_CBR2_PRODUCT_REQ_)
+#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_GENERIC_LINUX_DATA_PATH_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_)) || defined (_CBR2_PRODUCT_REQ_)
     fprintf(filter_fp, "-A INPUT -i br403 -d 192.168.245.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i br403 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
 #endif
@@ -12026,9 +12026,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
 
 #if WAN_FAILOVER_SUPPORTED
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_GENERIC_LINUX_DATA_PATH_)
    redirect_dns_to_extender(nat_fp,AF_INET);
-#endif //_PLATFORM_RASPBERRYPI_ && _PLATFORM_BANANAPI_R4_
+#endif //_PLATFORM_RASPBERRYPI_ && _GENERIC_LINUX_DATA_PATH
 #endif 
 
 #if defined(_WNXL11BWL_PRODUCT_REQ_) 
@@ -12201,7 +12201,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    //Avoid blocking packets at the Intel NIL layer
    fprintf(filter_fp, "-A FORWARD -i a-mux -j ACCEPT\n");
 #endif
-#if defined(INTEL_PUMA7) || defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)
+#if defined(INTEL_PUMA7) || defined (_COSA_BCM_ARM_) || defined(_GENERIC_LINUX_DATA_PATH_) || defined(_COSA_QCA_ARM_)
    fprintf(filter_fp, "-A INPUT -i host0 -s 192.168.147.0/255.255.255.0 -j ACCEPT\n");
    fprintf(filter_fp, "-A OUTPUT -o host0 -d 192.168.147.0/255.255.255.0 -j ACCEPT\n");
 #endif
@@ -12211,7 +12211,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, "-A OUTPUT -o lo -p tcp -m tcp --sport 49152:49153 -j ACCEPT\n");
    fprintf(filter_fp, "-A OUTPUT ! -o brlan0 -p tcp -m tcp --sport 49152:49153 -j DROP\n");
    /* For EasyMesh Controller Communication */
-#if defined(_PLATFORM_BANANAPI_R4_)
+#if defined(_GENERIC_LINUX_DATA_PATH_)
    fprintf(filter_fp, "-I OUTPUT -o %s -p tcp --sport 49153 -j ACCEPT\n",get_current_wan_ifname());
 #endif
 #ifdef CONFIG_CISCO_FEATURE_CISCOCONNECT
@@ -12410,7 +12410,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #if !defined(_COSA_INTEL_XB3_ARM_)
    filterPortMap(filter_fp);
 #endif
-#if defined(_COSA_BCM_ARM_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if defined(_COSA_BCM_ARM_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_GENERIC_LINUX_DATA_PATH_)
    fprintf(filter_fp, "-A INPUT -s 172.31.255.40/32 -p tcp -m tcp --dport 9000 -j ACCEPT\n");
    fprintf(filter_fp, "-A INPUT -s 172.31.255.40/32 -p udp -m udp --dport 9000 -j ACCEPT\n");
    fprintf(filter_fp, "-A INPUT -p tcp -m tcp --dport 9000 -j DROP\n");
@@ -12455,7 +12455,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
        fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);  
    }
 
-   #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+   #if defined(_COSA_BCM_ARM_) || defined(_GENERIC_LINUX_DATA_PATH_)
        #if !defined(_CBR_PRODUCT_REQ_) && !defined (_BWG_PRODUCT_REQ_) && !defined (_CBR2_PRODUCT_REQ_)
            fprintf(filter_fp, "-A FORWARD -i %s -o privbr -p tcp -m multiport --dport 22,23,80,443 -j DROP\n",XHS_IF_NAME);
            fprintf(filter_fp, "-A FORWARD -i %s -o privbr -p tcp -m multiport --dport 22,23,80,443 -j DROP\n",LNF_IF_NAME);
@@ -12519,7 +12519,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", current_wan_ifname);
-#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
+#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_GENERIC_LINUX_DATA_PATH_) && !defined (NO_MTA_FEATURE_SUPPORT)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
@@ -12648,7 +12648,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
          fprintf(filter_fp, "-A INPUT -i %s -j ACCEPT\n", ecm_wan_ifname);
       }
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_GENERIC_LINUX_DATA_PATH_) && !defined (NO_MTA_FEATURE_SUPPORT)
       if (emta_wan_ifname[0]) // spare eMTA wan interface from Utopia firewall
       {
          fprintf(filter_fp, "-A INPUT -i %s -p udp --dport 80 -j DROP\n", emta_wan_ifname);
@@ -12664,7 +12664,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    } else {
        fprintf(filter_fp, "-A SSH_FILTER -j ACCEPT\n");
    } */   
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_GENERIC_LINUX_DATA_PATH_)
    do_ssh_IpAccessTable(filter_fp, "22", AF_INET, ecm_wan_ifname);
 #else
     fprintf(filter_fp, "-A SSH_FILTER -j ACCEPT\n");
@@ -12731,13 +12731,13 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    prepare_multinet_filter_forward(filter_fp);
    fprintf(filter_fp, "-A FORWARD -j xlog_drop_wan2lan\n");
 
-#if !defined(_COSA_BCM_ARM_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_COSA_BCM_ARM_) && !defined(_GENERIC_LINUX_DATA_PATH_)
    fprintf(filter_fp, "-I FORWARD 3 -i %s -o l2sd0.4090 -j ACCEPT\n", current_wan_ifname);
    fprintf(filter_fp, "-I FORWARD 2 -i br403 -o %s -j ACCEPT\n", current_wan_ifname);
    fprintf(filter_fp, "-I FORWARD 3 -i %s -o br403 -j ACCEPT\n", current_wan_ifname);
 #endif
 
-#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_)) || defined (_CBR2_PRODUCT_REQ_)
+#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_GENERIC_LINUX_DATA_PATH_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_)) || defined (_CBR2_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
@@ -12756,7 +12756,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, "-I FORWARD -m conntrack --ctdir reply -m connbytes --connbytes 0:15 --connbytes-dir reply --connbytes-mode packets -j GWMETA --dis-pp\n");
 #endif
 
-#if (defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_))
+#if (defined(_COSA_BCM_ARM_) || defined(_GENERIC_LINUX_DATA_PATH_))
    fprintf(filter_fp, "-I FORWARD -d 192.168.100.1/32 -i %s -j DROP\n", lan_ifname);
    fprintf(filter_fp, "-I FORWARD -d 172.31.255.0/24 -j DROP\n");
    fprintf(filter_fp, "-I INPUT -d 172.31.255.0/24 -i %s -j DROP\n", lan_ifname);
@@ -12796,7 +12796,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       //zqiu: R5337
       //do_lan2wan_IoT_Allow(filter_fp);
       do_wan2lan_IoT_Allow(filter_fp);
-#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_)) // ARRIS XB6 ATOM, TCXB6
+#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_GENERIC_LINUX_DATA_PATH_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_)) // ARRIS XB6 ATOM, TCXB6
       // Block forwarding between bridges.
       fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", lan_ifname, iot_ifName);
       fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", XHS_IF_NAME, iot_ifName);
@@ -13268,7 +13268,7 @@ int do_block_ports(FILE *filter_fp)
 
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 49152:49153 -j DROP\n");
    /* For EasyMesh Controller Communication */
-#if defined(_PLATFORM_BANANAPI_R4_)
+#if defined(_GENERIC_LINUX_DATA_PATH_)
    fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n", get_current_wan_ifname());
    fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 8888 -j ACCEPT\n", get_current_wan_ifname());
 #endif
@@ -13535,7 +13535,7 @@ void  proxy_dns(FILE *nat_fp,int family)
 #endif
 
 #ifdef WAN_FAILOVER_SUPPORTED
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_GENERIC_LINUX_DATA_PATH_)
 void  redirect_dns_to_extender(FILE *nat_fp,int family)
 {
    FIREWALL_DEBUG("Entering redirect_dns_to_extender,current_wan_ifname is %s , default wan is %s\n" COMMA current_wan_ifname COMMA default_wan_ifname);
@@ -14098,7 +14098,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    filterPortMap(filter_fp);
 #endif
 
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_GENERIC_LINUX_DATA_PATH_)
    do_ssh_IpAccessTable(filter_fp, "22", AF_INET, ecm_wan_ifname);
 #else
    fprintf(filter_fp, "-A SSH_FILTER -j ACCEPT\n");
@@ -14193,7 +14193,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    {
        fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);  
    }
-   #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+   #if defined(_COSA_BCM_ARM_) || defined(_GENERIC_LINUX_DATA_PATH_)
         #if !defined(_CBR_PRODUCT_REQ_) && !defined (_BWG_PRODUCT_REQ_) && !defined (_CBR2_PRODUCT_REQ_)
            fprintf(filter_fp, "-A FORWARD -i %s -o privbr -p tcp -m multiport --dport 22,23,80,443 -j DROP\n",XHS_IF_NAME);
            fprintf(filter_fp, "-A FORWARD -i %s -o privbr -p tcp -m multiport --dport 22,23,80,443 -j DROP\n",LNF_IF_NAME);
@@ -14975,15 +14975,7 @@ static int service_start ()
 #endif
    FIREWALL_DEBUG("iptables-restore for ipv6 ends\n");
 
-   #ifdef _PLATFORM_RASPBERRYPI_
-       /* Apply Mac Filtering rules for RPI-Device */
-       v_secure_system("/bin/sh -c /tmp/mac_filter.sh");
-   #endif
-   #ifdef _PLATFORM_TURRIS_
-       /* Apply Mac Filtering rules */
-       v_secure_system("/bin/sh -c /tmp/mac_filter.sh");
-   #endif
-   #ifdef _PLATFORM_BANANAPI_R4_
+   #if defined(_GENERIC_LINUX_DATA_PATH_)
        /* Apply Mac Filtering rules */
        v_secure_system("/bin/sh -c /tmp/mac_filter.sh");
    #endif
