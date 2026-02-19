@@ -37,7 +37,8 @@ nfq_handler_SOURCES = raw_socket_send.c nfq_handler.c
 firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                  $(top_builddir)/source/sysevent/lib/libsysevent.la \
                  $(top_builddir)/source/ulog/libulog.la \
-                 $(top_builddir)/source/util/utils/libutopiautil.la
+                 $(top_builddir)/source/util/utils/libutopiautil.la \
+                 $(top_builddir)/source/feature_mode_gate/lib/librdkb_feature_mode_gate.la
 
 nfq_handler_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                     $(top_builddir)/source/sysevent/lib/libsysevent.la \
