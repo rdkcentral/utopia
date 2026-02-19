@@ -59,6 +59,10 @@
 #include <cjson/cJSON.h>
 #include  "safec_lib_common.h"
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <devicemode.h>
+#endif
+
 #include <telemetry_busmessage_sender.h>
 #define PARTNERS_INFO_FILE  							"/nvram/partners_defaults.json"
 #define PARTNERS_INFO_FILE_ETC                                                 "/etc/partners_defaults.json"
@@ -326,7 +330,7 @@ static int handle_version (char* name, char* value)
     return ret;
 }
 
-static int check_version (void)
+static int check_version (const char* defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -334,11 +338,11 @@ static int check_version (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -400,7 +404,7 @@ static int check_version (void)
  * Parameters    :
  * Return Value  : 0 if ok, -1 if not
  */
-static int set_syscfg_defaults (void)
+static int set_syscfg_defaults (const char *defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -408,11 +412,11 @@ static int set_syscfg_defaults (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -470,7 +474,7 @@ static int set_syscfg_defaults (void)
  * Parameters    :
  * Return Value  : 0 if ok, -1 if not
  */
-static int set_sysevent_defaults (void)
+static int set_sysevent_defaults (const char *defaultsFile)
 {
    char buf[1024];
    char *line;
@@ -478,11 +482,11 @@ static int set_sysevent_defaults (void)
    char *value;
    FILE *fp;
 
-   fp = fopen (DEFAULT_FILE, "r");
+   fp = fopen (defaultsFile, "r");
 
    if (fp == NULL)
    {
-      printf ("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
+      printf ("[utopia] no system default file (%s) found\n", defaultsFile);
       return -1;
    }
 
@@ -557,13 +561,21 @@ static int set_sysevent_defaults (void)
  */
 static int set_defaults(void)
 {
+   const char *defaultsFile = DEFAULT_FILE;
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+   // Determine defaults file based on device mode for OneStack products
+   defaultsFile = onestackutils_get_defaults_file();
+   APPLY_PRINT("%s - onestackutils_get_defaults_file returned %s\n", __FUNCTION__, defaultsFile);
+#endif // _ONESTACK_PRODUCT_REQ_
+
+   APPLY_PRINT("%s: defaultsFile: %s\n", __FUNCTION__, defaultsFile);
 #if ! defined (ALWAYS_CONVERT)
-   check_version();
+   check_version(defaultsFile);
 #endif
 
-   set_syscfg_defaults();
-   set_sysevent_defaults();
-
+   set_syscfg_defaults(defaultsFile);
+   set_sysevent_defaults(defaultsFile);
    return 0;
 }
 
@@ -889,6 +901,13 @@ static int get_PartnerID (char *PartnerID)
         if( ( 0 == getFactoryPartnerId( PartnerID ) ) && ( PartnerID [ 0 ] != '\0' ) )
         {
             APPLY_PRINT("%s - PartnerID from HAL: %s\n",__FUNCTION__,PartnerID );
+#ifdef _ONESTACK_PRODUCT_REQ_
+            // Override PartnerID if needed and set devicemode
+            // Must be called BEFORE set_syscfg_partner_values to ensure syscfg gets the correct PartnerID
+            APPLY_PRINT("%s - Calling onestackutils_override_partnerid_and_set_devicemode with PartnerID from HAL: %s\n", __FUNCTION__, PartnerID);
+            onestackutils_override_partnerid_and_set_devicemode(PartnerID);
+            APPLY_PRINT("%s - onestackutils_override_partnerid_and_set_devicemode completed. PartnerID from HAL: %s\n", __FUNCTION__, PartnerID);
+#endif // _ONESTACK_PRODUCT_REQ_
             validatePartnerId ( PartnerID );
         }
         else
@@ -941,9 +960,20 @@ static int get_PartnerID (char *PartnerID)
         sprintf( PartnerID, "%s", fileContent );
 
         APPLY_PRINT("%s - PartnerID from File: %s\n",__FUNCTION__,PartnerID );
+#ifdef _ONESTACK_PRODUCT_REQ_
+            // Override PartnerID if needed and set devicemode
+            // Must be called BEFORE set_syscfg_partner_values to ensure syscfg gets the correct PartnerID
+            APPLY_PRINT("%s - Calling onestackutils_override_partnerid_and_set_devicemode with PartnerID: %s\n", __FUNCTION__, PartnerID);
+            onestackutils_override_partnerid_and_set_devicemode(PartnerID);
+            APPLY_PRINT("%s - onestackutils_override_partnerid_and_set_devicemode completed. PartnerID: %s\n", __FUNCTION__, PartnerID);
+#endif // _ONESTACK_PRODUCT_REQ_
+
         validatePartnerId ( PartnerID );
+#ifndef _ONESTACK_PRODUCT_REQ_
         unlink("/nvram/.partner_ID");
+#endif // _ONESTACK_PRODUCT_REQ_
     }
+    
     set_syscfg_partner_values(PartnerID,"PartnerID");
 
     //To print Facgtory PartnerID on every boot-up
@@ -1430,6 +1460,19 @@ STATIC void addInSysCfgdDB (char *key, char *value)
       }
    }
 #endif
+   #if defined (VOICE_MTA_SUPPORT)
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Enabled"))
+      if (0 == IsValuePresentinSyscfgDB("VoiceSupport_Enabled"))
+           set_syscfg_partner_values(value, "VoiceSupport_Enabled");
+
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.InterfaceName"))
+      if (0 == IsValuePresentinSyscfgDB("VoiceSupport_IfaceName"))
+           set_syscfg_partner_values(value, "VoiceSupport_IfaceName");
+
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Mode"))
+      if (0 == IsValuePresentinSyscfgDB("VoiceSupport_Mode"))
+         set_syscfg_partner_values(value, "VoiceSupport_Mode");
+   #endif /*VOICE_MTA_SUPPORT*/
    if ( 0 == strcmp ( key, "Device.X_RDK_WebConfig.URL") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "WEBCONFIG_INIT_URL" ) )
@@ -1695,6 +1738,16 @@ STATIC void updateSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"IPv4SecondaryDhcpServerOptions" );
    }
 #endif
+   #if defined (VOICE_MTA_SUPPORT)
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Enabled"))
+      set_syscfg_partner_values(value, "VoiceSupport_Enabled");
+
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.InterfaceName"))
+      set_syscfg_partner_values(value, "VoiceSupport_IfaceName");
+
+   if (0 == strcmp(key, "Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Mode"))
+      set_syscfg_partner_values(value, "VoiceSupport_Mode");
+   #endif /*VOICE_MTA_SUPPORT*/
    if ( 0 == strcmp ( key, "Device.X_RDK_WebConfig.URL") )
    {
          set_syscfg_partner_values( value,"WEBCONFIG_INIT_URL" );
@@ -3002,7 +3055,6 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 				        {
 				            APPLY_PRINT("%s - Default Value of StartupIPMode is NULL\n", __FUNCTION__ );
 				        }
-
                paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Default_VoIP_Configuration_FileName"), "ActiveValue");
                if ( paramObjVal != NULL )
                {
@@ -3077,7 +3129,64 @@ if ( paramObjVal != NULL )
        {
             APPLY_PRINT("%s - Default Value of Secondary dhcp server option is NULL\n", __FUNCTION__ );
        }
+
 #endif
+               #if defined (VOICE_MTA_SUPPORT)
+               paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem(partnerObj,"Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Enabled"),"ActiveValue");
+               if(paramObjVal != NULL)
+               {
+                  char *pVoiceSupportEnabled = NULL;
+                  pVoiceSupportEnabled = paramObjVal->valuestring;
+                  if(pVoiceSupportEnabled != NULL && pVoiceSupportEnabled[0] != '\0')
+                  {
+                     set_syscfg_partner_values(pVoiceSupportEnabled,"VoiceSupport_Enabled");
+                  }
+                  else
+                  {
+                     APPLY_PRINT("%s - VoiceSupportEnabled Value is NULL\n", __FUNCTION__ );
+                  }
+               }
+               else
+               {
+                  APPLY_PRINT("%s - VoiceSupportEnabled Object is NULL\n", __FUNCTION__ );
+               }
+               paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem(partnerObj,"Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.InterfaceName"),"ActiveValue");
+               if(paramObjVal != NULL)
+               {
+                  char *pVoiceSupportIfaceName = NULL;
+                  pVoiceSupportIfaceName = paramObjVal->valuestring;
+                  if(pVoiceSupportIfaceName != NULL && pVoiceSupportIfaceName[0] != '\0')
+                  {
+                     set_syscfg_partner_values(pVoiceSupportIfaceName,"VoiceSupport_IfaceName");
+                  }
+                  else
+                  {
+                     APPLY_PRINT("%s - VoiceSupportIfaceName Value is NULL\n", __FUNCTION__ );
+                  }
+               }
+               else
+               {
+                  APPLY_PRINT("%s - VoiceSupportIfaceName Object is NULL\n", __FUNCTION__ );
+               }
+               paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem(partnerObj,"Device.X_RDKCENTRAL-COM_Epon_MTA.VoiceSupport.Mode"),"ActiveValue");
+               if(paramObjVal != NULL)
+               {
+                  char *pVoiceSupportMode = NULL;
+                  pVoiceSupportMode = paramObjVal->valuestring;
+                  if(pVoiceSupportMode != NULL && pVoiceSupportMode[0] != '\0')
+                  {
+                     set_syscfg_partner_values(pVoiceSupportMode,"VoiceSupport_Mode");
+                  }
+                  else
+                  {
+                     APPLY_PRINT("%s - VoiceSupportMode Value is NULL\n", __FUNCTION__ );
+                  }
+               }
+               else
+               {
+                  APPLY_PRINT("%s - VoiceSupportMode Object is NULL\n", __FUNCTION__ );
+               }
+               #endif /*VOICE_MTA_SUPPORT*/
 					paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.WANsideSSH.Enable"), "ActiveValue");
 					if ( paramObjVal != NULL )
 					{
@@ -3354,7 +3463,9 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
       retryCount--;
    }
 
+#ifndef _ONESTACK_PRODUCT_REQ_
    set_defaults();
+
    
    if (syscfg_dirty) 
    {
@@ -3362,6 +3473,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
       syscfg_commit();
       APPLY_PRINT("Number_Of_Entries_Commited_to_Sysconfig_Database=%d\n",syscfg_dirty);
    }
+#endif
 
 #if defined(_SYNDICATION_BUILDS_)
    v_secure_system( "/lib/rdk/apply_partner_customization.sh" );
@@ -3433,6 +3545,19 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
     APPLY_PRINT("%s - PartnerID :%s. Calling get_PartnerID() to get a valid PartnerID that was received from XConf \n", __FUNCTION__, PartnerID );
     get_PartnerID ( PartnerID );
   }
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+   // For OneStack products, set_defaults() must be called after get_PartnerID() to ensure the partner ID and device mode are correctly configured
+   set_defaults();
+
+   if (syscfg_dirty)
+   {
+      printf("[utopia] [init] committing default syscfg values\n");
+      syscfg_commit();
+      APPLY_PRINT("Number_Of_Entries_Commited_to_Sysconfig_Database=%d\n",syscfg_dirty);
+   }
+#endif
+
 
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    CheckAndHandleInvalidPartnerIDRecoveryProcess(PartnerID);
