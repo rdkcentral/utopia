@@ -1497,3 +1497,5 @@ $FwDwld_AvlMem_RsrvThreshold=20
 #FwDwld_ImageProcMemPercent Default value
 $FwDwld_ImageProcMemPercent=0
 
+#STAGE Default value
+$StageEnabled=false
