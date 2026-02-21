@@ -1261,7 +1261,7 @@ $XconfRecoveryUrl=https://recovery.xconfds.coast.xcal.tv/xconf/swu/stb
 #Defaults for Telemetry T2 Enable
 $T2Enable=true
 $T2Version=2.0.1
-$T2ConfigURL=https://xconf.xcal.tv/loguploader/getT2Settings
+$T2ConfigURL=https://secure.xconfds.coast.xcal.tv/loguploader/getT2Settings
 
 #Defaults for mTLS in T2
 $T2mTLSEnable=true
@@ -1381,7 +1381,7 @@ $ddns_server_retryinterval_5=660
 
 #Control firmware update exclusion
 $AutoExcludedEnabled=false
-$AutoExcludedURL=https://xconf.xcal.tv/xconf/swu/stb
+$AutoExcludedURL=https://secure.xconfds.coast.xcal.tv/xconf/swu/stb
 
 #HWSelfTest Enable(Default =false)
 $hwHealthTest=false
