@@ -88,6 +88,45 @@ Author: mark enright
 
 static const char *emptystr = "";
 
+static void handle_client_send_failure(const int fd, const token_t who, const char *context)
+{
+   int send_errno = errno;
+
+   if (EAGAIN == send_errno || EWOULDBLOCK == send_errno) {
+      int threshold_rc = CLI_MGR_handle_client_error_by_fd(fd);
+      SE_INC_LOG(ERROR,
+         int id = thread_get_id(worker_data_key);
+         printf("Thread %d: send timeout to client fd %d (%s). errno=%d %s threshold_rc=%d\n",
+                id, fd, (NULL == context) ? "unknown" : context, send_errno, strerror(send_errno), threshold_rc);
+      )
+      if (1 == threshold_rc) {
+         SE_INC_LOG(ERROR,
+            int id = thread_get_id(worker_data_key);
+            printf("Thread %d: client fd %d disconnected after repeated send timeouts\n", id, fd);
+         )
+      }
+      return;
+   }
+
+   if (EPIPE == send_errno || ECONNRESET == send_errno || ENOTCONN == send_errno) {
+      SE_INC_LOG(ERROR,
+         int id = thread_get_id(worker_data_key);
+         printf("Thread %d: hard send failure on client fd %d (%s). errno=%d %s. Disconnecting immediately\n",
+                id, fd, (NULL == context) ? "unknown" : context, send_errno, strerror(send_errno));
+      )
+      CLI_MGR_remove_client_by_fd(fd, who, 1);
+      return;
+   }
+
+   // Any other send failure still contributes to client-health tracking.
+   (void)CLI_MGR_handle_client_error_by_fd(fd);
+   SE_INC_LOG(ERROR,
+      int id = thread_get_id(worker_data_key);
+      printf("Thread %d: send failure on client fd %d (%s). errno=%d %s\n",
+             id, fd, (NULL == context) ? "unknown" : context, send_errno, strerror(send_errno));
+   )
+}
+
 /*
  * Procedure     : send_msg_to_fork_helper 
  * Purpose       : send a message to the fork helper process
@@ -1538,6 +1577,7 @@ static int handle_send_notification_msg(const int local_fd, const token_t who, s
          printf("Thread %d: Failed to send %s (%d) to client on fd %d (%d) %s\n",
                 id, SE_print_mtype(SE_MSG_NOTIFICATION), SE_MSG_NOTIFICATION, fd, rc2, SE_strerror(rc2));
       )
+      handle_client_send_failure(fd, id, "SE_MSG_NOTIFICATION");
    } else {
       SE_INC_LOG(MESSAGES,
          int id = thread_get_id(worker_data_key);
@@ -1658,6 +1698,7 @@ static int handle_send_notification_msg_data(const int local_fd, const token_t w
          printf("Thread %d: Failed to send %s (%d) to client on fd %d (%d) %s\n",
                 id, SE_print_mtype(SE_MSG_NOTIFICATION_DATA), SE_MSG_NOTIFICATION_DATA, fd, rc2, SE_strerror(rc2));
       )
+      handle_client_send_failure(fd, id, "SE_MSG_NOTIFICATION_DATA");
    } else {
       SE_INC_LOG(MESSAGES,
          int id = thread_get_id(worker_data_key);
