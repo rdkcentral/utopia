@@ -204,6 +204,21 @@ if [ "$SYSCFG_LAN_DOMAIN" == "utopia.net" ]; then
    syscfg commit
 fi
 
+#Change devicetype on firmware udgrade
+DEVICETYPE_MIGRATE="$(syscfg get devicetype_migrate)"
+if [ -z "$DEVICETYPE_MIGRATE" ]; then
+  CURRENT_DEVICETYPE="$(syscfg get DeviceType)"
+  echo "[utopia] Devicetype is $CURRENT_DEVICETYPE"
+  if [ "$CURRENT_DEVICETYPE" != "PROD" ]; then
+    echo "setting DeviceType to PROD"
+    syscfg set DeviceType "PROD"
+  else
+    echo "DeviceType is already PROD, no change needed"
+  fi
+  syscfg set devicetype_migrate "1"
+  syscfg commit
+fi
+
 #Hard Factory reset from mount-fs.sh
 if [ `cat /data/HFRES_UTOPIA` -eq 1 ]; then
    syscfg set $FACTORY_RESET_KEY $FACTORY_RESET_RGWIFI
