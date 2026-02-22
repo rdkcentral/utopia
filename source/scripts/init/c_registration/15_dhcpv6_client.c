@@ -57,7 +57,7 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "lan-status|/usr/bin/service_dhcpv6_client",
                                         NULL
                                       };
-#elif defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+#elif defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
 const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "erouter_mode-updated|/etc/utopia/service.d/service_dhcpv6_client.sh",
                                         "phylink_wan_state|/etc/utopia/service.d/service_dhcpv6_client.sh",

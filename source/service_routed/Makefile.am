@@ -19,7 +19,11 @@
 
 bin_PROGRAMS = service_routed
 
-AM_LDFLAGS = -lsecure_wrapper
+AM_CPPFLAGS = -I$(top_srcdir)/source/include \
+              -I$(top_srcdir)/source/util/utils \
+              $(DBUS_CFLAGS)
+
+AM_LDFLAGS = -lsecure_wrapper -lccsp_common $(DBUS_LIBS)
 
 service_routed_SOURCES = service_routed.c service_routed_main.c
 
@@ -29,8 +33,8 @@ service_routed_CFLAGS = -I$(top_srcdir)/source \
                         -I$(top_srcdir)/source/utapi/lib \
                         -I$(top_srcdir)/source/util/utils \
                         -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
-                        -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include
-
+                        -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include \
+                        -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)
 
 service_routed_LDADD = $(top_builddir)/source/util/utils/libutopiautil.la \
                        $(top_builddir)/source/services/lib/libsrvmgr.la \
@@ -40,6 +44,10 @@ service_routed_LDADD = $(top_builddir)/source/util/utils/libutopiautil.la \
                        $(top_builddir)/source/utctx/lib/libutctx.la \
                        $(top_builddir)/source/ulog/libulog.la \
                        -ltelemetry_msgsender
+service_routed_LDFLAGS = -L${PKG_CONFIG_SYSROOT_DIR}${libdir}
+if ONESTACK_PRODUCT_REQ
+service_routed_LDFLAGS += -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
+endif
 if CORE_NET_LIB_FEATURE_SUPPORT
-service_routed_LDFLAGS = -lnet
+service_routed_LDFLAGS += -lnet
 endif

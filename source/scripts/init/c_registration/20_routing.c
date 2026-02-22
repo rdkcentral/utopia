@@ -44,7 +44,7 @@
 #define SERVICE_NAME "routed"
 #define SERVICE_DEFAULT_HANDLER "/etc/utopia/service.d/service_routed.sh"
 
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
 const char* SERVICE_CUSTOM_EVENTS[] = { 
                                         "wan-status|/etc/utopia/service.d/service_routed.sh",
                                         "lan-status|/etc/utopia/service.d/service_routed.sh",

@@ -627,7 +627,8 @@ int prepare_multinet_filter_output_v6(FILE *fp);
 */
 int prepare_ipv6_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *filter_fp);
 #endif
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && !defined(_CBR_PRODUCT_REQ_)
+#if (defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && !defined(_CBR_PRODUCT_REQ_)) \
+    || defined(_ONESTACK_PRODUCT_REQ_)
 /**
 * @brief Prepare IPv6 MultiNet rules with DHCPv6 prefix delegation support.
 *
