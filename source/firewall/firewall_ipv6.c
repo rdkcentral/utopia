@@ -1249,6 +1249,12 @@ v6GPFirewallRuleNext:
       // Basic RPF check on the egress & ingress traffic
       char prefix[129];
       prefix[0] = 0;
+#ifdef FEATURE_MAPE
+      char prev_prefix[MAX_QUERY] = {0};
+
+      sysevent_get(sysevent_fd, sysevent_token, "previous_ipv6_prefix", prev_prefix, sizeof(prev_prefix));
+#endif
+
       #ifdef WAN_FAILOVER_SUPPORTED
       if (0 == checkIfULAEnabled())
       {
@@ -1261,6 +1267,12 @@ v6GPFirewallRuleNext:
       #else
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
       #endif
+#ifdef FEATURE_MAPE
+      if (prev_prefix[0] != '\0' && prefix[0] != '\0' && strcmp(prev_prefix, prefix) != 0)
+      {
+         fprintf(fp, "-A FORWARD -i brlan0 -o erouter0 -s %s -j REJECT --reject-with icmp6-policy-fail\n", prev_prefix);
+      }
+#endif
       if ( '\0' != prefix[0] ) {
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j LOG --log-level %d --log-prefix \"UTOPIA: FW. IPv6 FORWARD anti-spoofing\"\n", prefix, lan_ifname,syslog_level);
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j REJECT --reject-with icmp6-adm-prohibited\n", prefix, lan_ifname);
@@ -1753,10 +1765,11 @@ int prepare_ipv6_multinet(FILE *fp)
             */
 
             fprintf(fp, "-A INPUT -i %s -j ACCEPT\n", iface_name);
-            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", iface_name, current_wan_ifname);
-            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", iface_name, ecm_wan_ifname);
-            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", current_wan_ifname, iface_name);
-            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", ecm_wan_ifname, iface_name);
+	    fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", iface_name, isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
+	    fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", iface_name, ecm_wan_ifname);
+            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname, iface_name);
+	    fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", ecm_wan_ifname, iface_name);
+
         }
 
     } while ((p = strtok(NULL, " ")) != NULL);
@@ -2031,6 +2044,9 @@ void do_ipv6_sn_filter(FILE* fp) {
 	prepare_dscp_rules_to_prioritized_clnt(fp);
 	prepare_dscp_rule_for_host_mngt_traffic(fp);
 	prepare_xconf_rules(fp);
+#ifdef FEATURE_MAPE
+	prepare_mape_rules(fp);
+#endif
 #endif
 
 #ifdef _COSA_INTEL_XB3_ARM_
