@@ -265,16 +265,16 @@ fi
 #Change devicetype on firmware upgrade
 DEVICETYPE_MIGRATE="$(syscfg get devicetype_migrate)"
 if [ -z "$DEVICETYPE_MIGRATE" ]; then
-  CURRENT_DEVICETYPE="$(syscfg get DeviceType)"
-  echo_t "[utopia][init] Devicetype is $CURRENT_DEVICETYPE"
-  if [ "$CURRENT_DEVICETYPE" != "PROD" ]; then
-    echo_t "[utopia][init] setting DeviceType to PROD"
-    syscfg set DeviceType "PROD"
-  else
-    echo_t "[utopia][init] DeviceType is already PROD, no change needed"
-  fi
-  syscfg set devicetype_migrate "1"
-  syscfg commit
+    CURRENT_DEVICETYPE="$(syscfg get DeviceType)"
+    echo_t "[utopia][init] Devicetype is $CURRENT_DEVICETYPE"
+    if [ "$CURRENT_DEVICETYPE" != "PROD" ]; then
+        echo_t "[utopia][init] setting DeviceType to PROD"
+        syscfg set DeviceType "PROD"
+    else
+        echo_t "[utopia][init] DeviceType is already PROD, no change needed"
+    fi
+    syscfg set devicetype_migrate "1"
+    syscfg commit
 fi
 
 if [ -f $SYSCFG_OLDBKUP_FILE ];then
