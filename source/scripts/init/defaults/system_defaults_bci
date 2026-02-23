@@ -1316,8 +1316,36 @@ $SWDLDirectEnable=false
 #DeviceType default value
 $DeviceType=PROD
 
+#advertaisement pvd default value
+$Advertisement_pvd_hflag=1
+$Advertisement_pvd_delay=1
+$Advertisement_pvd_seqNum=1
+
+#speedboost values
+$SpeedBoost_Port_StartV4=40001
+$SpeedBoost_Port_EndV4=41000
+$SpeedBoost_ProtoV4=BOTH
+$SpeedBoost_Port_StartV6=40001
+$SpeedBoost_Port_EndV6=41000
+$SpeedBoost_ProtoV6=BOTH
+
+#speedboost normal values
+$NoSpeedBoost_Port_StartV4=50000
+$NoSpeedBoost_Port_EndV4=65000
+$NoSpeedBoost_Port_StartV6=50000
+$NoSpeedBoost_Port_EndV6=65000
+
 #TrackRemotePortUsage default value
 $TrackRemotePortUsage=NULL
 
 #Wifi Personalization Support Default value
 $WiFiPersonalizationSupport=true
+
+#FwDwld_AvlMem_RsrvThreshold Default value
+$FwDwld_AvlMem_RsrvThreshold=20
+
+#FwDwld_ImageProcMemPercent Default value
+$FwDwld_ImageProcMemPercent=0
+
+#STAGE Default value
+$StageEnabled=false
