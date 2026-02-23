@@ -45,6 +45,6 @@ AM_LDFLAGS += -lnet
 endif
 
 if ONESTACK_PRODUCT_REQ
-firewall_LDFLAGS += -ldevicemode -lrdkb_feature_mode_gate
+AM_LDFLAGS += -ldevicemode -lrdkb_feature_mode_gate
 endif
 
