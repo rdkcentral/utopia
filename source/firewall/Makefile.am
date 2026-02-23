@@ -34,16 +34,17 @@ nfq_handler_SOURCES = raw_socket_send.c nfq_handler.c
 firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                  $(top_builddir)/source/sysevent/lib/libsysevent.la \
                  $(top_builddir)/source/ulog/libulog.la \
-                 $(top_builddir)/source/util/utils/libutopiautil.la 
+                 $(top_builddir)/source/util/utils/libutopiautil.la
 
 nfq_handler_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                     $(top_builddir)/source/sysevent/lib/libsysevent.la \
                     $(top_builddir)/source/ulog/libulog.la
 
-firewall_LDFLAGS = -L${PKG_CONFIG_SYSROOT_DIR}${libdir}
-if ONESTACK_PRODUCT_REQ
-firewall_LDFLAGS += -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
-endif
 if CORE_NET_LIB_FEATURE_SUPPORT
 AM_LDFLAGS += -lnet
 endif
+
+if ONESTACK_PRODUCT_REQ
+firewall_LDFLAGS += -ldevicemode -lrdkb_feature_mode_gate
+endif
+
