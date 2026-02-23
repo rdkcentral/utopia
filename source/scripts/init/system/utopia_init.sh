@@ -262,7 +262,7 @@ if [ "$SYSCFG_LAN_DOMAIN" == "utopia.net" ]; then
    syscfg commit
 fi
 
-#Change devicetype on firmware udgrade
+#Change devicetype on firmware upgrade
 DEVICETYPE_MIGRATE="$(syscfg get devicetype_migrate)"
 if [ -z "$DEVICETYPE_MIGRATE" ]; then
   CURRENT_DEVICETYPE="$(syscfg get DeviceType)"
