@@ -409,7 +409,7 @@ else
    echo "SSH: Forward SSH changed to disabled" >> $Log_file
 fi
 
-#Change devicetype on firmware udgrade
+# Change device type on firmware upgrade
 DEVICETYPE_MIGRATE="$(syscfg get devicetype_migrate)"
 if [ -z "$DEVICETYPE_MIGRATE" ]; then
   CURRENT_DEVICETYPE="$(syscfg get DeviceType)"
