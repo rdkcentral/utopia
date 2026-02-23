@@ -266,12 +266,12 @@ fi
 DEVICETYPE_MIGRATE="$(syscfg get devicetype_migrate)"
 if [ -z "$DEVICETYPE_MIGRATE" ]; then
   CURRENT_DEVICETYPE="$(syscfg get DeviceType)"
-  echo "[utopia] Devicetype is $CURRENT_DEVICETYPE"
+  echo_t "[utopia][init] Devicetype is $CURRENT_DEVICETYPE"
   if [ "$CURRENT_DEVICETYPE" != "PROD" ]; then
-    echo "setting DeviceType to PROD"
+    echo_t "[utopia][init] setting DeviceType to PROD"
     syscfg set DeviceType "PROD"
   else
-    echo "DeviceType is already PROD, no change needed"
+    echo_t "[utopia][init] DeviceType is already PROD, no change needed"
   fi
   syscfg set devicetype_migrate "1"
   syscfg commit
