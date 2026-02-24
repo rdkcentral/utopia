@@ -35,11 +35,18 @@
 
 #include <stdio.h>
 #include "srvmgr.h"
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 
 const char* SERVICE_NAME            = "dhcpv6_server";
 const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_dhcpv6_server.sh";
 
-#if (defined(_CBR_PRODUCT_REQ_) && !defined(_CBR2_PRODUCT_REQ_))
+#if defined(_ONESTACK_PRODUCT_REQ_)
+const char** SERVICE_CUSTOM_EVENTS = NULL;
+#endif
+
+#if defined(_CBR_PRODUCT_REQ_) && !defined(_CBR2_PRODUCT_REQ_)
 const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "dhcpv6_option_changed|/usr/bin/service_ipv6",
                                         "dhcpv6_server-start|/usr/bin/service_ipv6",
@@ -47,10 +54,17 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "dhcpv6_server-restart|/usr/bin/service_ipv6",
                                         NULL
                                       };
-#elif defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+#elif defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
 const char* SERVICE_CUSTOM_EVENTS[] = { 
                                         "dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server.sh|NULL|"TUPLE_FLAG_EVENT,
                                         NULL
+                                      };
+#elif defined(_ONESTACK_PRODUCT_REQ_)
+const char* SERVICE_CUSTOM_EVENTS_RESIDENTIAL[] = {
+                                        "dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,NULL
+                                      };
+const char* SERVICE_CUSTOM_EVENTS_BUSINESS[] = {
+                                        "dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,NULL
                                       };
 #else
 const char* SERVICE_CUSTOM_EVENTS[] = { 
@@ -64,8 +78,21 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                       };
 #endif                                      
                                    
+#if defined(_ONESTACK_PRODUCT_REQ_)
+static void init_service_custom_events(void)
+{
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) {
+        SERVICE_CUSTOM_EVENTS = SERVICE_CUSTOM_EVENTS_BUSINESS;
+    } else {
+        SERVICE_CUSTOM_EVENTS = SERVICE_CUSTOM_EVENTS_RESIDENTIAL;
+    }
+}
+#endif
 
 void srv_register(void) {
+#if defined(_ONESTACK_PRODUCT_REQ_)
+    init_service_custom_events();
+#endif
    sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
 }
 
