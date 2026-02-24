@@ -2131,8 +2131,15 @@ STATIC int radv_restart(struct serv_routed *sr)
 #if defined(_ONESTACK_PRODUCT_REQ_)
 static BOOL IsRIPConflictingFeaturesEnabled(void)
 {
-    // TODO: Add check to see if any conflicting feature of RIP
-    //       like MAP-T are enabled
+    /* MAP-T and RIP are mutually exclusive */
+    char value[8] = {0};
+    if (syscfg_get(NULL, "MAPT_Enable", value, sizeof(value)) == 0)
+    {
+        if (strcmp(value, "true") == 0)
+        {
+            return TRUE;
+        }
+    }
     return FALSE;
 }
 #endif
