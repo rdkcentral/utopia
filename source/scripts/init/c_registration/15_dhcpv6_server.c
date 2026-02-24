@@ -61,10 +61,19 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                       };
 #elif defined(_ONESTACK_PRODUCT_REQ_)
 const char* SERVICE_CUSTOM_EVENTS_RESIDENTIAL[] = {
-                                        "dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,NULL
+                                        "lan-status|/etc/utopia/service.d/service_dhcpv6_server.sh",
+                                        "ipv6_nameserver|/etc/utopia/service.d/service_dhcpv6_server.sh",
+                                        "ipv6_domain|/etc/utopia/service.d/service_dhcpv6_server.sh",
+                                        "ipv6_ntp_server|/etc/utopia/service.d/service_dhcpv6_server.sh",
+                                        "dhcp_domain|/etc/utopia/service.d/service_dhcpv6_server.sh",
+                                        "current_lan_ipv6address|/etc/utopia/service.d/service_dhcpv6_server.sh", 
+					NULL
                                       };
 const char* SERVICE_CUSTOM_EVENTS_BUSINESS[] = {
-                                        "ipv6_prefix_delegation|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "dhcpv6_server-start|/etc/utopia/service.d/service_dhcpv6_server_bci.sh",
+                                        "dhcpv6_server-stop|/etc/utopia/service.d/service_dhcpv6_server_bci.sh",
+                                        "dhcpv6_server-restart|/etc/utopia/service.d/service_dhcpv6_server_bci.sh",
+                                        "ipv6_prefix_delegation|/etc/utopia/service.d/service_dhcpv6_server_bci.sh",
                                         "dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,NULL
                                       };
 #else
