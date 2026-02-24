@@ -81,6 +81,7 @@ const char* SERVICE_CUSTOM_EVENTS_BUSINESS[] = {
                                         "ripd-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
                                         "zebra-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
                                         "staticroute-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "ipv6_prefix_delegation|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
                                         NULL
                                       };
 

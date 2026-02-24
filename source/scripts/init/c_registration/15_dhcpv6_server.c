@@ -64,6 +64,7 @@ const char* SERVICE_CUSTOM_EVENTS_RESIDENTIAL[] = {
                                         "dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,NULL
                                       };
 const char* SERVICE_CUSTOM_EVENTS_BUSINESS[] = {
+                                        "ipv6_prefix_delegation|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,
                                         "dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,NULL
                                       };
 #else
