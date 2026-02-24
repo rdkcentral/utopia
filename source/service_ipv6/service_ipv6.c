@@ -260,7 +260,7 @@ struct dhcpv6_tag tag_list[] =
     else if ( val[0] ) out = atoi(val); \
 } \
 
-#ifdef _CBR_PRODUCT_REQ_
+#if defined( _CBR_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
 STATIC uint64_t helper_ntoh64(const uint64_t *inputval)
 {
     uint64_t returnval;
@@ -463,7 +463,7 @@ STATIC int get_ia_info(struct serv_ipv6 *si6, char *config_file, ia_na_t *iana, 
     
     if(iana == NULL || iapd == NULL)
         return -1;
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) 
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
 	sysevent_get(si6->sefd, si6->setok, COSA_DML_DHCPV6C_PREF_T1_SYSEVENT_NAME, action, sizeof(action));
         errno_t  rc  = -1;
 	if(action[0]!='\0')
@@ -905,7 +905,7 @@ STATIC int divide_ipv6_prefix(struct serv_ipv6 *si6)
     p_prefix = sub_prefixes;
 
     memcpy((void *)&tmp_prefix, (void *)prefix, 8); // the first 64 bits of mso prefix value
-#ifdef _CBR_PRODUCT_REQ_
+#if defined (_CBR_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
 	tmp_prefix = helper_ntoh64(&tmp_prefix); // The memcpy is copying in reverse order due to LEndianess
 #endif
 #ifdef MULTILAN_FEATURE
@@ -918,7 +918,7 @@ STATIC int divide_ipv6_prefix(struct serv_ipv6 *si6)
         sub_prefix = tmp_prefix | (i << (delta_bits - bit_boundary));
 #endif
         memset(buf, 0, sizeof(buf));
-#ifdef _CBR_PRODUCT_REQ_	
+#if defined (_CBR_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
 		sub_prefix = helper_hton64(&sub_prefix);// The memcpy is copying in reverse order due to LEndianess
 #endif
         memcpy((void *)buf, (void *)&sub_prefix, 8);
@@ -946,13 +946,13 @@ STATIC int divide_ipv6_prefix(struct serv_ipv6 *si6)
        fprintf(stderr, "inet_pton failed\n");
     }
     memcpy((void *)&tmp_prefix, (void *)prefix, 8); //the first 64 bits of the first sub-prefix
-#ifdef _CBR_PRODUCT_REQ_
+#if defined (_CBR_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
 	tmp_prefix = helper_ntoh64(&tmp_prefix); // The memcpy is copying in reverse order due to LEndianess
 #endif
     for (i = 0; i < enabled_iface_num; i++) {
         //p_prefix->b_used = 1;
         memset(buf, 0, sizeof(buf));
-#ifdef _CBR_PRODUCT_REQ_
+#if defined (_CBR_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
 		tmp_prefix = helper_hton64(&tmp_prefix);// The memcpy is copying in reverse order due to LEndianess
 #endif		
         memcpy((void *)buf, (void *)&tmp_prefix, 8);
@@ -1708,7 +1708,7 @@ STATIC int gen_dibbler_conf(struct serv_ipv6 *si6)
     fprintf(fp, "inactive-mode\n");
 
    /*Run scipt to config route */
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
     fprintf(fp, "script \"/lib/rdk/server-notify.sh\" \n");
 #endif
 
@@ -1804,7 +1804,7 @@ STATIC int gen_dibbler_conf(struct serv_ipv6 *si6)
             /*pd pool*/
             if(get_pd_pool(si6, &pd_pool) == 0) {
                 fprintf(fp, "   pd-class {\n");
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
                 fprintf(fp, "       pd-pool %s /%d\n", pd_pool.start, pd_pool.prefix_length);
 #else
 				fprintf(fp, "       pd-pool %s - %s /%d\n", pd_pool.start, pd_pool.end, pd_pool.prefix_length);
@@ -2105,6 +2105,7 @@ STATIC int dhcpv6s_restart(struct serv_ipv6 *si6)
 
 STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
 {
+     fprintf(stderr, "Entered serv_ipv6_start \n");
     char rtmod[16];
 
     /* state check */
@@ -2124,7 +2125,7 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
     sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "starting", 0);
 
     /* Fix for IPv6 prefix not getting updated in dibbler server conf file on WAN mode  change */    
-#if defined(_CBR2_PRODUCT_REQ_)  
+#if defined(_CBR2_PRODUCT_REQ_)  || defined(_ONESTACK_PRODUCT_REQ_)
     sysevent_get(si6->sefd, si6->setok, "ipv6_prefix", si6->mso_prefix, sizeof(si6->mso_prefix));
     sysevent_set(si6->sefd, si6->setok, "ipv6_prefix-divided", "", 0);
 #endif
@@ -2144,11 +2145,20 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
      *  5) Send RA, start DHCPv6 server
      */
 	/* For CBR product the lan(brlan0) v6 address set is done as part of PandM process*/
-#if !defined(_CBR_PRODUCT_REQ_) && !defined(_BWG_PRODUCT_REQ_)
+#if !defined(_CBR_PRODUCT_REQ_) && !defined(_BWG_PRODUCT_REQ_) && !defined(_ONESTACK_PRODUCT_REQ_)
     if (lan_addr6_set(si6) !=0) {
         fprintf(stderr, "assign IPv6 address for lan interfaces error!\n");
         sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "error", 0);
         return -1;
+    }
+#endif
+#if defined (_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)){
+    if (lan_addr6_set(si6) !=0) {
+        fprintf(stderr, "assign IPv6 address for lan interfaces error!\n");
+        sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "error", 0);
+        return -1;
+    }
     }
 #endif
 	
@@ -2178,6 +2188,7 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
 
 STATIC int serv_ipv6_stop(struct serv_ipv6 *si6)
 {
+     fprintf(stderr, "Entered serv_ipv6_stop \n");
     if (!serv_can_stop(si6->sefd, si6->setok, "service_ipv6"))
         return -1;
 
@@ -2188,7 +2199,7 @@ STATIC int serv_ipv6_stop(struct serv_ipv6 *si6)
         sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "error", 0);
         return -1;
     }
-#if !defined(_CBR_PRODUCT_REQ_) && !defined(_BWG_PRODUCT_REQ_)
+#if !defined(_CBR_PRODUCT_REQ_) && !defined(_BWG_PRODUCT_REQ_) && !defined(_ONESTACK_PRODUCT_REQ_)
     del_addr6_flg = false;
     if (lan_addr6_unset(si6) !=0) {
         fprintf(stderr, "unset IPv6 address for lan interfaces error!\n");
@@ -2197,6 +2208,18 @@ STATIC int serv_ipv6_stop(struct serv_ipv6 *si6)
         return -1;
     }
     del_addr6_flg = true;
+#endif
+#if defined (_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)){
+    del_addr6_flg = false;
+    if (lan_addr6_unset(si6) !=0) {
+        fprintf(stderr, "unset IPv6 address for lan interfaces error!\n");
+        sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "error", 0);
+        del_addr6_flg = true;
+        return -1;
+    }
+    del_addr6_flg = true;
+	}
 #endif
     sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "stopped", 0);
     return 0;
@@ -2293,7 +2316,7 @@ struct cmd_op {
 };
 
 static struct cmd_op cmd_ops[] = {
-#if defined(_CBR_PRODUCT_REQ_) && !defined(_CBR2_PRODUCT_REQ_)
+#if defined((_CBR_PRODUCT_REQ_) && !defined(_CBR2_PRODUCT_REQ_)) || defined(_ONESTACK_PRODUCT_REQ_)
     {"dhcpv6_server-start", serv_ipv6_start,   "start DHCPv6 Server"},
     {"dhcpv6_server-stop", serv_ipv6_stop,   "stop DHCPv6 Server"},
     {"dhcpv6_server-restart", serv_ipv6_restart,   "restart DHCPv6 Server"},
