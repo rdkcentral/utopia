@@ -285,7 +285,7 @@ fi
    #----------------------------------------------------------------------------------
    # Add other event entry points here
    #----------------------------------------------------------------------------------
-   ipv6_prefix_prefixdelegation)
+   ipv6_prefix_delegation)
        service_ipv6 restart
        ;;
 #   ipv6_nameserver|ipv6_dnssl)
