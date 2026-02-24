@@ -409,7 +409,7 @@ case "$1" in
         sysevent set primary_lan_l2net ${L2INST}
         sysevent set primary_lan_brport ${BRPORT}
 
-        rdkb_feature_check -q XHS_LNF > /dev/null 2>&1
+        rdkb_feature_check -q XHS > /dev/null 2>&1
         is_xhs_supported=$?
 
         if [ $is_xhs_supported -eq 0 ] || [ $is_xhs_supported -eq 127 ]; then
