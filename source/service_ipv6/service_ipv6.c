@@ -261,7 +261,7 @@ struct dhcpv6_tag tag_list[] =
 } \
 
 #if defined( _CBR_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
-STATIC uint64_t helper_ntoh64(const uint64_t *inputval)
+STATIC uint64_t helper_ntoh64(const long long unsigned int *inputval)
 {
     uint64_t returnval;
     uint8_t *data = (uint8_t *)&returnval;
@@ -278,7 +278,7 @@ STATIC uint64_t helper_ntoh64(const uint64_t *inputval)
     return returnval;
 }
 
-STATIC uint64_t helper_hton64(const uint64_t *inputval)
+STATIC uint64_t helper_hton64(const long long unsigned int *inputval)
 {
     return (helper_ntoh64(inputval));
 }
@@ -2316,7 +2316,7 @@ struct cmd_op {
 };
 
 static struct cmd_op cmd_ops[] = {
-#if defined((_CBR_PRODUCT_REQ_) && !defined(_CBR2_PRODUCT_REQ_)) || defined(_ONESTACK_PRODUCT_REQ_)
+#if (defined(_CBR_PRODUCT_REQ_) && !defined(_CBR2_PRODUCT_REQ_)) || defined(_ONESTACK_PRODUCT_REQ_)
     {"dhcpv6_server-start", serv_ipv6_start,   "start DHCPv6 Server"},
     {"dhcpv6_server-stop", serv_ipv6_stop,   "stop DHCPv6 Server"},
     {"dhcpv6_server-restart", serv_ipv6_restart,   "restart DHCPv6 Server"},
