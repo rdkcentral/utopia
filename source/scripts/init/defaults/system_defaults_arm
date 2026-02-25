@@ -1498,6 +1498,6 @@ $FwDwld_AvlMem_RsrvThreshold=20
 $FwDwld_ImageProcMemPercent=0
 
 #SelfHeal Cron - RFC flag is enabled by default
-$SelfHealCronEnable=true
+#$SelfHealCronEnable=true
 #STAGE Default value
 $StageEnabled=false
