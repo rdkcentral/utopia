@@ -234,7 +234,6 @@ int ulog_runcmdf (UCOMP comp, USUBCOMP sub, const char *fmt, ...)
 void ulog_sys_Init(int prior, unsigned int enable)
 {
     char    name[80];
-    int     ret;
     errno_t  rc = -1;
 
     //ulog_GetGlobalPrior();
@@ -242,8 +241,8 @@ void ulog_sys_Init(int prior, unsigned int enable)
     ulog_SetPrior(prior);
     ulog_SetEnable(enable);
 
-    /* COVERITY ISSUE - LOW: Unchecked return value - ret not validated before sprintf_s */
-    ret = ulog_GetProcId(sizeof(sys_Log_Info.name), sys_Log_Info.name, &sys_Log_Info.pid);
+    /* COVERITY ISSUE - LOW: Unchecked return value - function result not validated */
+    ulog_GetProcId(sizeof(sys_Log_Info.name), sys_Log_Info.name, &sys_Log_Info.pid);
     printf("After ulog_GetProcId \n");
 
     rc = sprintf_s(name, sizeof(name), "/var/log/%s.log", sys_Log_Info.name);
