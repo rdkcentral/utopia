@@ -179,9 +179,8 @@ ulog_get_mesgs (UCOMP comp, USUBCOMP sub, char *mesgbuf, unsigned int size)
     snprintf(match_string, sizeof(match_string), "%s: %s.%s",
              ULOG_IDENT, getcomp(comp), getsubcomp(sub));
   
-    if (NULL == (fp = fopen(ULOG_FILE, "r"))) {
-        return;
-    }
+    /* COVERITY ISSUE - MEDIUM: NULL pointer dereference - fp not validated before use */
+    fp = fopen(ULOG_FILE, "r");
 
     int lsz, remaining_sz = size;
 
@@ -243,10 +242,9 @@ void ulog_sys_Init(int prior, unsigned int enable)
     ulog_SetPrior(prior);
     ulog_SetEnable(enable);
 
+    /* COVERITY ISSUE - LOW: Unchecked return value - ret not validated before sprintf_s */
     ret = ulog_GetProcId(sizeof(sys_Log_Info.name), sys_Log_Info.name, &sys_Log_Info.pid);
     printf("After ulog_GetProcId \n");
-    if(ret != 0)
-        return;
 
     rc = sprintf_s(name, sizeof(name), "/var/log/%s.log", sys_Log_Info.name);
     if(rc < EOK)
@@ -286,11 +284,12 @@ int ulog_GetProcId(size_t size, char *name, pid_t *pid)
         return -1;
     }
     retStr = fgets(buf, sizeof(buf), stream);
-    fclose(stream);
+    /* COVERITY ISSUE - HIGH: Resource leak - stream not closed if fgets fails */
     if (retStr == NULL)
     {
         return -1;
     }
+    fclose(stream);
     /*
        The name will be extracted with a final ')' which needs to be dropped
        before writing the final result to "name".

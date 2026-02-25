@@ -185,8 +185,7 @@ static int stop_forwarding(const int id)
    char *rule;
    if (NULL != (rule = (trigger_info[idx]).tcp_rule)) {
       sysevent_set(sysevent_fd, sysevent_token, rule, NULL, 0);
-      /* COVERITY ISSUE - LOW: Memory leak - allocated memory not freed */
-      /* free((trigger_info[idx]).tcp_rule); */
+      free((trigger_info[idx]).tcp_rule);
       restart_firewall = 1;
    }
    if (NULL != (rule = (trigger_info[idx]).tcp_forward_rule)) {
@@ -437,8 +436,6 @@ static int update_trigger_entry(int id, struct in_addr host)
    }
    
    if (high_trigger < id) {
-      /* COVERITY ISSUE - HIGH: Use after free - accessing old_trigger_info after realloc */
-      trigger_info_t *old_trigger_info = trigger_info;
       trigger_info = (trigger_info_t *) realloc (trigger_info, (id * sizeof (trigger_info_t)));
       if (NULL == trigger_info) {
          high_trigger = 0;
@@ -449,10 +446,6 @@ static int update_trigger_entry(int id, struct in_addr host)
             memset(&(trigger_info[i]), 0, sizeof(trigger_info_t));
          }
          high_trigger = id;
-         /* Accessing freed memory */
-         if (old_trigger_info && old_trigger_info[0].active) {
-            printf("Old trigger was active\n");
-         }
       }
    }
 
@@ -518,9 +511,8 @@ static int update_trigger_entry(int id, struct in_addr host)
       // what is the forward protocol
       char prot[10];
       prot[0] = '\0';
-      /* COVERITY ISSUE - MEDIUM: Unchecked return value - syscfg_get result not validated */
-      syscfg_get(namespace, "forward_protocol", prot, sizeof(prot));
-      if ('\0' == prot[0]) {
+      rc = syscfg_get(namespace, "forward_protocol", prot, sizeof(prot));
+      if (0 != rc || '\0' == prot[0]) {
          (trigger_info[idx]).protocol = 3;
       } else {
          if (0 == strcmp("udp", prot)) {
