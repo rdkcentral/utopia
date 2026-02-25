@@ -95,7 +95,6 @@ static const char* const service_routed_component_id = "ccsp.routed";
 #include <libnet.h>
 #endif
 
-
 #define ZEBRA_PID_FILE  "/var/zebra.pid"
 #define RIPD_PID_FILE   "/var/ripd.pid"
 #define ZEBRA_CONF_FILE "/var/zebra.conf"
