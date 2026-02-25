@@ -47,6 +47,3 @@ if CORE_NET_LIB_FEATURE_SUPPORT
 service_routed_LDFLAGS += -lnet
 endif
 
-if ONESTACK_PRODUCT_REQ
-service_routed_LDFLAGS += -L${PKG_CONFIG_SYSROOT_DIR}$(libdir) -lrdkb_feature_mode_gate
-endif
