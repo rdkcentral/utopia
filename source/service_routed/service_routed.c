@@ -2147,7 +2147,7 @@ static BOOL IsRIPConflictingFeaturesEnabled(void)
 STATIC int rip_start(struct serv_routed *sr)
 {
     char enable[16];
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_XB10_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
     char ripd_conf_status[16];
 #endif
     if (!serv_can_start(sr->sefd, sr->setok, "rip"))
@@ -2192,7 +2192,7 @@ sleep(45); /*sleep upto update ripd.conf after reboot*/
         sysevent_set(sr->sefd, sr->setok, "rip-status", "error", 0);
         return -1;
     }
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_XB10_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
 #if defined(_ONESTACK_PRODUCT_REQ_)
     if (!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
     {
