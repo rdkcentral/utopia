@@ -10221,6 +10221,20 @@ static int do_lan2wan(FILE *mangle_fp, FILE *filter_fp, FILE *nat_fp)
            pclose(f);
        }
    }
+   char cEnabled[8] = {0};
+   sysevent_get(sysevent_fd, sysevent_token, "lan_wan_forwarding_enabled", cEnabled, sizeof(cEnabled));
+   if ('\0' != cEnabled[0])
+   {
+       if('\0' == lan_ifname[0])
+           snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
+
+      int iEnabled = atoi(cEnabled);
+       if (0 == iEnabled)
+       {
+           fprintf(filter_fp, "-A lan2wan -i %s -j DROP\n", lan_ifname);
+           FIREWALL_DEBUG("LAN to WAN forwarding disabled, dropping all traffic from LAN to WAN\n");
+       }
+   }
 #endif
    do_lan2wan_misc(filter_fp);
    //do_lan2wan_IoT_Allow(filter_fp);
