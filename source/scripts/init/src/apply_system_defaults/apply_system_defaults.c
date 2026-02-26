@@ -60,6 +60,7 @@
 #include  "safec_lib_common.h"
 
 #ifdef _ONESTACK_PRODUCT_REQ_
+#include <onestack_init.h>
 #include <devicemode.h>
 #endif
 
@@ -3655,6 +3656,10 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
    }
 
    sysevent_close(global_fd, global_id);
+
+#if defined (_ONESTACK_PRODUCT_REQ_)
+   onestackutils_update_devprops();
+#endif
 
    return(0);
 }
