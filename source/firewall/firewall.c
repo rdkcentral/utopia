@@ -370,7 +370,7 @@ NOT_DEF:
 #endif
 
 #ifdef _ONESTACK_PRODUCT_REQ_
-#include <devicemode.h>
+#include <rdkb_feature_mode_gate.h>
 #endif
 
 #ifdef FEATURE_464XLAT
@@ -2556,7 +2556,7 @@ static int prepare_globals_from_configuration(void)
    isNatEnabled      = atoi(nat_enabled);
 #if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(is_devicemode_business())
+        if(isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
     {
    isNatEnabled      = (isNatEnabled > NAT_STATICIP ? NAT_DISABLE : isNatEnabled);
@@ -2564,7 +2564,7 @@ static int prepare_globals_from_configuration(void)
 #endif
 #if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(!is_devicemode_business())
+        if(!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
     {
    isNatEnabled      = (isNatEnabled == NAT_DISABLE ? NAT_DISABLE : NAT_DHCP);
@@ -2583,7 +2583,7 @@ static int prepare_globals_from_configuration(void)
 
 #if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(is_devicemode_business())
+        if(isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
     {
    /* get true static IP info */   
@@ -2708,7 +2708,7 @@ static int prepare_globals_from_configuration(void)
 #endif
 #if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(!is_devicemode_business())
+        if(!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
     {
     safec_rc = strcpy_s(natip4, sizeof(natip4),current_wan_ipaddr);
