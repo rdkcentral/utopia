@@ -24,7 +24,7 @@ AM_LDFLAGS = -lccsp_common -lsecure_wrapper -lnetfilter_queue -lnfnetlink $(DBUS
 bin_PROGRAMS = firewall nfq_handler
 
 if ONESTACK_PRODUCT_REQ
-AM_LDFLAGS += -ldevicemode -lonestack_syscfg -lonestack_log
+AM_LDFLAGS += -lrdkb_feature_mode_gate
 endif
 
 firewall_SOURCES = firewall_ipv6.c firewall.c firewall_priv.c firewall_interface.c  firewall_ext.c
