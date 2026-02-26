@@ -80,11 +80,14 @@ case "$1" in
    staticroute-restart)
        service_routed radv-restart
        ;;
+   ipv6_prefix_delegation)
+       service_routed radv-restart
+       ;;
 #   ipv6_nameserver|ipv6_dnssl)
 #       service_routed radv-restart
 #       ;;
    ipv6_prefix|ipv6_nameserver)
-if [ "$MODEL_NUM" = "DPC3941B" ] || [ "$MODEL_NUM" = "DPC3939B" ] || [ "$MODEL_NUM" = "CGA4131COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ]; then
+if [ "$MODEL_NUM" = "DPC3941B" ] || [ "$MODEL_NUM" = "DPC3939B" ] || [ "$MODEL_NUM" = "CGA4131COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [ "$MODEL_NUM" = "SG417DBCT" ]; then
        service_routed radv-restart
 fi
        ;;

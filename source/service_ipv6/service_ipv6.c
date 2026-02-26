@@ -53,6 +53,9 @@
 #include "ccsp_memory.h"
 #endif
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 #ifdef _HUB4_PRODUCT_REQ_
 #include "ccsp_dm_api.h"
 #include "ccsp_custom.h"
@@ -257,8 +260,8 @@ struct dhcpv6_tag tag_list[] =
     else if ( val[0] ) out = atoi(val); \
 } \
 
-#ifdef _CBR_PRODUCT_REQ_
-STATIC uint64_t helper_ntoh64(const uint64_t *inputval)
+#if defined( _CBR_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
+STATIC uint64_t helper_ntoh64(const long long unsigned int *inputval)
 {
     uint64_t returnval;
     uint8_t *data = (uint8_t *)&returnval;
@@ -275,7 +278,7 @@ STATIC uint64_t helper_ntoh64(const uint64_t *inputval)
     return returnval;
 }
 
-STATIC uint64_t helper_hton64(const uint64_t *inputval)
+STATIC uint64_t helper_hton64(const long long unsigned int *inputval)
 {
     return (helper_ntoh64(inputval));
 }
@@ -391,10 +394,21 @@ STATIC int get_dhcpv6s_pool_cfg(struct serv_ipv6 *si6, dhcpv6s_pool_cfg_t *cfg)
     DHCPV6S_SYSCFG_GETI(DHCPV6S_NAME, "pool", cfg->index, "", 0, "X_RDKCENTRAL_COM_DNSServersEnabled", cfg->X_RDKCENTRAL_COM_DNSServersEnabled);
 
 #ifdef MULTILAN_FEATURE
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
-    DHCPV6S_SYSCFG_GETS(DHCPV6S_NAME, "pool", cfg->index, "", 0, "IAInterface", iface_name);
-#else
-    DHCPV6S_SYSCFG_GETS(DHCPV6S_NAME, "pool", cfg->index, "", 0, "Interface", iface_name);
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) ||  defined(_ONESTACK_PRODUCT_REQ_)
+      #if defined(_ONESTACK_PRODUCT_REQ_)
+        if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION) == true)
+      #endif
+        {
+            DHCPV6S_SYSCFG_GETS(DHCPV6S_NAME, "pool", cfg->index, "", 0, "IAInterface", iface_name);
+        }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) ||  defined(_ONESTACK_PRODUCT_REQ_)
+      #if defined(_ONESTACK_PRODUCT_REQ_)
+        if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION) == false)
+      #endif
+        {
+	    DHCPV6S_SYSCFG_GETS(DHCPV6S_NAME, "pool", cfg->index, "", 0, "Interface", iface_name);
+        }
 #endif
 #else
     DHCPV6S_SYSCFG_GETS(DHCPV6S_NAME, "pool", cfg->index, "", 0, "IAInterface", cfg->interface);
@@ -449,7 +463,7 @@ STATIC int get_ia_info(struct serv_ipv6 *si6, char *config_file, ia_na_t *iana, 
     
     if(iana == NULL || iapd == NULL)
         return -1;
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) 
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
 	sysevent_get(si6->sefd, si6->setok, COSA_DML_DHCPV6C_PREF_T1_SYSEVENT_NAME, action, sizeof(action));
         errno_t  rc  = -1;
 	if(action[0]!='\0')
@@ -606,7 +620,7 @@ STATIC int get_prefix_info(const char *prefix,  char *value, unsigned int val_le
 STATIC int get_active_lanif(struct serv_ipv6 *si6, unsigned int insts[], unsigned int *num)
 {
     int i = 0;
-#if !defined(MULTILAN_FEATURE) || defined CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+#if !defined(MULTILAN_FEATURE) || defined CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION || defined(_ONESTACK_PRODUCT_REQ_)
     char active_insts[32] = {0};
     char lan_pd_if[128] = {0};
     char *p = NULL;
@@ -628,7 +642,11 @@ STATIC int get_active_lanif(struct serv_ipv6 *si6, unsigned int insts[], unsigne
     unsigned int max_active_if_count = 0;
     int primary_l3_instance = 0;
 
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
     syscfg_get(NULL, "lan_pd_interfaces", lan_pd_if, sizeof(lan_pd_if));
     if (lan_pd_if[0] == '\0') {
         *num = 0;
@@ -648,7 +666,14 @@ STATIC int get_active_lanif(struct serv_ipv6 *si6, unsigned int insts[], unsigne
 
         p = strtok(NULL, " ");
     }
-#else
+    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
+
     /* Get active bridge count from PSM */
     if (!bus_handle) {
         fprintf(stderr, "DBUS not connected, returning \n");
@@ -718,6 +743,7 @@ STATIC int get_active_lanif(struct serv_ipv6 *si6, unsigned int insts[], unsigne
     }
     /* Set active IPv6 instances */
     sysevent_set(si6->sefd, si6->setok, "ipv6_active_inst", active_if_list, 0);
+    }
 #endif
 
 
@@ -879,7 +905,7 @@ STATIC int divide_ipv6_prefix(struct serv_ipv6 *si6)
     p_prefix = sub_prefixes;
 
     memcpy((void *)&tmp_prefix, (void *)prefix, 8); // the first 64 bits of mso prefix value
-#ifdef _CBR_PRODUCT_REQ_
+#if defined (_CBR_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
 	tmp_prefix = helper_ntoh64(&tmp_prefix); // The memcpy is copying in reverse order due to LEndianess
 #endif
 #ifdef MULTILAN_FEATURE
@@ -892,7 +918,7 @@ STATIC int divide_ipv6_prefix(struct serv_ipv6 *si6)
         sub_prefix = tmp_prefix | (i << (delta_bits - bit_boundary));
 #endif
         memset(buf, 0, sizeof(buf));
-#ifdef _CBR_PRODUCT_REQ_	
+#if defined (_CBR_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
 		sub_prefix = helper_hton64(&sub_prefix);// The memcpy is copying in reverse order due to LEndianess
 #endif
         memcpy((void *)buf, (void *)&sub_prefix, 8);
@@ -920,13 +946,13 @@ STATIC int divide_ipv6_prefix(struct serv_ipv6 *si6)
        fprintf(stderr, "inet_pton failed\n");
     }
     memcpy((void *)&tmp_prefix, (void *)prefix, 8); //the first 64 bits of the first sub-prefix
-#ifdef _CBR_PRODUCT_REQ_
+#if defined (_CBR_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
 	tmp_prefix = helper_ntoh64(&tmp_prefix); // The memcpy is copying in reverse order due to LEndianess
 #endif
     for (i = 0; i < enabled_iface_num; i++) {
         //p_prefix->b_used = 1;
         memset(buf, 0, sizeof(buf));
-#ifdef _CBR_PRODUCT_REQ_
+#if defined (_CBR_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
 		tmp_prefix = helper_hton64(&tmp_prefix);// The memcpy is copying in reverse order due to LEndianess
 #endif		
         memcpy((void *)buf, (void *)&tmp_prefix, 8);
@@ -1682,7 +1708,7 @@ STATIC int gen_dibbler_conf(struct serv_ipv6 *si6)
     fprintf(fp, "inactive-mode\n");
 
    /*Run scipt to config route */
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
     fprintf(fp, "script \"/lib/rdk/server-notify.sh\" \n");
 #endif
 
@@ -1778,7 +1804,7 @@ STATIC int gen_dibbler_conf(struct serv_ipv6 *si6)
             /*pd pool*/
             if(get_pd_pool(si6, &pd_pool) == 0) {
                 fprintf(fp, "   pd-class {\n");
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
                 fprintf(fp, "       pd-pool %s /%d\n", pd_pool.start, pd_pool.prefix_length);
 #else
 				fprintf(fp, "       pd-pool %s - %s /%d\n", pd_pool.start, pd_pool.end, pd_pool.prefix_length);
@@ -2079,6 +2105,7 @@ STATIC int dhcpv6s_restart(struct serv_ipv6 *si6)
 
 STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
 {
+     fprintf(stderr, "Entered serv_ipv6_start \n");
     char rtmod[16];
 
     /* state check */
@@ -2098,9 +2125,16 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
     sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "starting", 0);
 
     /* Fix for IPv6 prefix not getting updated in dibbler server conf file on WAN mode  change */    
-#if defined(_CBR2_PRODUCT_REQ_)  
+#if defined(_CBR2_PRODUCT_REQ_)
     sysevent_get(si6->sefd, si6->setok, "ipv6_prefix", si6->mso_prefix, sizeof(si6->mso_prefix));
     sysevent_set(si6->sefd, si6->setok, "ipv6_prefix-divided", "", 0);
+#endif
+#if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
+    {
+	sysevent_get(si6->sefd, si6->setok, "ipv6_prefix_delegation", si6->mso_prefix, sizeof(si6->mso_prefix));
+	sysevent_set(si6->sefd, si6->setok, "ipv6_prefix-divided", "", 0);
+    }
 #endif
     
     /*
@@ -2118,11 +2152,20 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
      *  5) Send RA, start DHCPv6 server
      */
 	/* For CBR product the lan(brlan0) v6 address set is done as part of PandM process*/
-#if !defined(_CBR_PRODUCT_REQ_) && !defined(_BWG_PRODUCT_REQ_)
+#if !defined(_CBR_PRODUCT_REQ_) && !defined(_BWG_PRODUCT_REQ_) && !defined(_ONESTACK_PRODUCT_REQ_)
     if (lan_addr6_set(si6) !=0) {
         fprintf(stderr, "assign IPv6 address for lan interfaces error!\n");
         sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "error", 0);
         return -1;
+    }
+#endif
+#if defined (_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)){
+    if (lan_addr6_set(si6) !=0) {
+        fprintf(stderr, "assign IPv6 address for lan interfaces error!\n");
+        sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "error", 0);
+        return -1;
+    }
     }
 #endif
 	
@@ -2152,6 +2195,7 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
 
 STATIC int serv_ipv6_stop(struct serv_ipv6 *si6)
 {
+     fprintf(stderr, "Entered serv_ipv6_stop \n");
     if (!serv_can_stop(si6->sefd, si6->setok, "service_ipv6"))
         return -1;
 
@@ -2162,7 +2206,7 @@ STATIC int serv_ipv6_stop(struct serv_ipv6 *si6)
         sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "error", 0);
         return -1;
     }
-#if !defined(_CBR_PRODUCT_REQ_) && !defined(_BWG_PRODUCT_REQ_)
+#if !defined(_CBR_PRODUCT_REQ_) && !defined(_BWG_PRODUCT_REQ_) && !defined(_ONESTACK_PRODUCT_REQ_)
     del_addr6_flg = false;
     if (lan_addr6_unset(si6) !=0) {
         fprintf(stderr, "unset IPv6 address for lan interfaces error!\n");
@@ -2171,6 +2215,18 @@ STATIC int serv_ipv6_stop(struct serv_ipv6 *si6)
         return -1;
     }
     del_addr6_flg = true;
+#endif
+#if defined (_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)){
+    del_addr6_flg = false;
+    if (lan_addr6_unset(si6) !=0) {
+        fprintf(stderr, "unset IPv6 address for lan interfaces error!\n");
+        sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "error", 0);
+        del_addr6_flg = true;
+        return -1;
+    }
+    del_addr6_flg = true;
+	}
 #endif
     sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "stopped", 0);
     return 0;

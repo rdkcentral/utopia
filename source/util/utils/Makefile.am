@@ -26,4 +26,6 @@ libutopiautil_la_CPPFLAGS = -I$(top_srcdir)/source/include \
                              $(DBUS_CFLAGS)
 
 libutopiautil_la_LDFLAGS = -lccsp_common $(DBUS_LIBS)
-
+if ONESTACK_PRODUCT_REQ
+libutopiautil_la_LDFLAGS += -ldevicemode -lonestack_syscfg -lonestack_log -lrdkb_feature_mode_gate
+endif
