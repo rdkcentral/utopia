@@ -136,7 +136,7 @@ struct serv_routed {
     bool        wan_ready;
 };
 
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_XB10_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
 #ifdef _BWG_PRODUCT_REQ_
 #define LOG_FILE "/rdklogs/logs/ArmConsolelog.txt.0"
 #else
