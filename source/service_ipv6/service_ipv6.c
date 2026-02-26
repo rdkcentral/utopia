@@ -2275,12 +2275,28 @@ STATIC int serv_ipv6_init(struct serv_ipv6 *si6)
         return -1;
 #endif
     }
-
-    sysevent_get(si6->sefd, si6->setok, "ipv6_prefix", si6->mso_prefix, sizeof(si6->mso_prefix));
-    if (strlen(si6->mso_prefix))
-        si6->wan_ready = true;
+#if defined (_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    {
+	sysevent_get(si6->sefd, si6->setok, "ipv6_prefix_delegation", si6->mso_prefix, sizeof(si6->mso_prefix));
+    } 
     else
+    {
+	sysevent_get(si6->sefd, si6->setok, "ipv6_prefix", si6->mso_prefix, sizeof(si6->mso_prefix));
+    }
+#else
+    sysevent_get(si6->sefd, si6->setok, "ipv6_prefix", si6->mso_prefix, sizeof(si6->mso_prefix));
+#endif 
+    fprintf(stderr, "IPv6 Prefix :%s\n", si6->mso_prefix);
+    if (strlen(si6->mso_prefix))
+    {
+        si6->wan_ready = true;
+    }
+    else
+    {
+	fprintf(stderr, "[%s] -- Init ipv6_prefix retrieval failed\n", PROG_NAME);
         return -1;
+    }
 
     sysevent_get(si6->sefd, si6->setok, "erouter_topology-mode", buf, sizeof(buf));
     switch(atoi(buf)) {
@@ -2363,8 +2379,10 @@ int service_ipv6_main(int argc, char *argv[])
     }
 
     if (serv_ipv6_init(&si6) != 0)
+    {
+	fprintf(stderr, "[%s] -- Service IPV6 Initialization failed\n", PROG_NAME);
         exit(1);
-
+    }
     for (i = 0; i < NELEMS(cmd_ops); i++) {
         if (strcmp(argv[1], cmd_ops[i].cmd) != 0 || !cmd_ops[i].exec)
             continue;
@@ -2379,6 +2397,7 @@ int service_ipv6_main(int argc, char *argv[])
     if (i == NELEMS(cmd_ops))
         fprintf(stderr, "[%s] unknown command: %s\n", PROG_NAME, argv[1]);
 
+    fprintf(stderr, "[%s] -- DHCPv6 start in progress\n", PROG_NAME);
     if (serv_ipv6_term(&si6) != 0)
         exit(1);
 
