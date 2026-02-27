@@ -763,7 +763,7 @@ void do_ipv6_filter_table(FILE *fp){
    if (isFirewallEnabled) {
       // Get the current WAN IPv6 interface (which differs from the IPv4 in case of tunnels)
       char query[10],port[10],tmpQuery[10];
-#ifdef _COSA_FOR_BCI_
+#if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
       char wanIPv6[64];
 #endif
       int rc, ret;
@@ -827,7 +827,7 @@ void do_ipv6_filter_table(FILE *fp){
       // Block all packet whose source is mcast
       fprintf(fp, "-A INPUT -s ff00::/8  -j DROP\n");
      
-#ifdef _COSA_FOR_BCI_ 
+#if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
       if(isWanPingDisableV6 == 1)
       {
              syscfg_get(NULL, "wanIPv6Address", wanIPv6, sizeof(wanIPv6));
