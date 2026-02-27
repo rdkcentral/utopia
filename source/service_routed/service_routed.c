@@ -136,7 +136,7 @@ struct serv_routed {
     bool        wan_ready;
 };
 
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
 #ifdef _BWG_PRODUCT_REQ_
 #define LOG_FILE "/rdklogs/logs/ArmConsolelog.txt.0"
 #else
@@ -2127,7 +2127,7 @@ STATIC int radv_restart(struct serv_routed *sr)
 STATIC int rip_start(struct serv_routed *sr)
 {
     char enable[16];
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
     char ripd_conf_status[16];
 #endif
     if (!serv_can_start(sr->sefd, sr->setok, "rip"))
@@ -2172,7 +2172,7 @@ sleep(45); /*sleep upto update ripd.conf after reboot*/
         sysevent_set(sr->sefd, sr->setok, "rip-status", "error", 0);
         return -1;
     }
-#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
+#if defined (_CBR_PRODUCT_REQ_) || defined (_BWG_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined (_ONESTACK_PRODUCT_REQ_)
 	  int retries=0;
     	  while (retries<20)  {
           memset(ripd_conf_status,0,sizeof(ripd_conf_status));
