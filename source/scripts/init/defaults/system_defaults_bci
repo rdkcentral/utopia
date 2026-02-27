@@ -1351,3 +1351,6 @@ $FwDwld_ImageProcMemPercent=0
 $SelfHealCronEnable=true
 #STAGE Default value
 $StageEnabled=false
+
+#RdkLogger Cron - RFC flag is enabled by default
+$RdkbLogCronEnable=true
