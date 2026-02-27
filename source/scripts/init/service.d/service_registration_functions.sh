@@ -306,7 +306,6 @@ sm_register_one_event() {
    if [ "NULL" = "$SMR_EVENT" ] ; then
       return 0
    fi
-   echo "[DEBUG] sm_rm_event ${SMR_SERVICE} ${SMR_EVENT_NAME}"
    # if this service has already registered for this event, then cancel the previous registration
    # this is probably overkill since we likely already called sm_unregister, but better safe than sorry
    sm_rm_event "${SMR_SERVICE}" "${SMR_EVENT_NAME}"
@@ -445,7 +444,6 @@ sm_register() {
       IFS=';'
       for custom in $SM_CUSTOM_EVENTS ; do
          if [ -n "$custom" ] && [ " " != "$custom" ] ; then
-	    echo "[DHCPV6][DEBUG] Registering custom event: '$custom' for service '$SM_SERVICE'"
             IFS=$SAVEIFS
             sm_register_one_event "$SM_SERVICE" "$custom"
             IFS=';'

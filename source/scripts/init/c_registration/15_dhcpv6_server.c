@@ -74,7 +74,8 @@ const char* SERVICE_CUSTOM_EVENTS_BUSINESS[] = {
                                         "dhcpv6_server-stop|/etc/utopia/service.d/service_dhcpv6_server_bci.sh",
                                         "dhcpv6_server-restart|/etc/utopia/service.d/service_dhcpv6_server_bci.sh",
                                         "ipv6_prefix_delegation|/etc/utopia/service.d/service_dhcpv6_server_bci.sh",
-                                        "dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,NULL
+					"dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        NULL
                                       };
 #else
 const char* SERVICE_CUSTOM_EVENTS[] = { 
