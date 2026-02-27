@@ -47,8 +47,3 @@ nfq_handler_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
 if CORE_NET_LIB_FEATURE_SUPPORT
 AM_LDFLAGS += -lnet
 endif
-
-if ONESTACK_PRODUCT_REQ
-AM_LDFLAGS += -ldevicemode -lrdkb_feature_mode_gate
-endif
-

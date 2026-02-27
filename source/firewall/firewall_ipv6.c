@@ -98,9 +98,6 @@
 #include <net/if.h>
 #endif
 
-#ifdef _ONESTACK_PRODUCT_REQ_
-#include <rdkb_feature_mode_gate.h>
-#endif
 void* bus_handle ;
 int sysevent_fd;
 char sysevent_ip[19];
@@ -865,16 +862,10 @@ void do_ipv6_filter_table(FILE *fp){
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
 
-#if (defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && !defined(_CBR_PRODUCT_REQ_)) || defined(_ONESTACK_PRODUCT_REQ_)
-   #if defined(_ONESTACK_PRODUCT_REQ_)
-   if ( isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION) == true)
-   #endif
-   {
-
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && !defined(_CBR_PRODUCT_REQ_)
       /*Add a simple logic here to make traffic allowed for lan interfaces
        * exclude primary lan*/
       prepare_ipv6_multinet(fp);
-   }
 #endif
     #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) && !defined(_COSA_QCA_ARM_) //wan0 is not applicable for XER5
       /* not allow ping wan0 from brlan0 */
@@ -1726,17 +1717,9 @@ end_of_ipv6_firewall:
       FIREWALL_DEBUG("Exiting prepare_ipv6_firewall \n");
 }
 
-#if (defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && !defined(_CBR_PRODUCT_REQ_)) \
-    || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) && !defined(_CBR_PRODUCT_REQ_)
 int prepare_ipv6_multinet(FILE *fp)
 {    
-#ifdef _ONESTACK_PRODUCT_REQ_
-    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
-    {
-        /* PD feature disabled  */
-        return 0;
-    }
-#endif
     char active_insts[32] = {0};
     char lan_pd_if[128] = {0};
     char *p = NULL;

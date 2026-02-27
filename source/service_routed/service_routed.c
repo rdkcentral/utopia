@@ -1488,28 +1488,17 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
         if ((strncmp(buf,"true",4) == 0) && iresCode == 204)
         {
-#if defined (_COSA_BCM_MIPS_)
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
-    #if defined(_ONESTACK_PRODUCT_REQ_)
-    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
-    #endif
-    {
-            // For CBR platform, the captive portal redirection feature was removed
-            // inWifiCp = 1;
-    }
-#endif
-#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
-    #if defined(_ONESTACK_PRODUCT_REQ_)
-    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
-    #endif
-    {
-            inWifiCp = 1;
-    }
+#if defined (_COSA_BCM_MIPS_) 
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+	    // For CBR platform, the captive portal redirection feature was removed
+	    // inWifiCp = 1;
+#else
+	    inWifiCp = 1;
 #endif
 #else
-            inWifiCp = 1;
+	    inWifiCp = 1;
 #endif
-        }
+	}
 #if defined (_XB6_PROD_REQ_)
         syscfg_get(NULL, "enableRFCaptivePortal", rfCpEnable, sizeof(rfCpEnable));
         if(rfCpEnable != NULL)
