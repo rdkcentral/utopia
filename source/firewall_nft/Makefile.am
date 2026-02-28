@@ -2,7 +2,7 @@
 # If not stated otherwise in this file or this component's Licenses.txt
 # file the following copyright and licenses apply:
 #
-# Copyright 2015 RDK Management
+# Copyright 2025 RDK Management
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,35 +20,18 @@ AM_CFLAGS = -D_GNU_SOURCE
 AM_CFLAGS += -pthread
 AM_CPPFLAGS = -I$(top_srcdir)/source/include -I$(top_srcdir)/source/util/utils $(DBUS_CFLAGS)
 AM_LDFLAGS = -lccsp_common -lsecure_wrapper -lnetfilter_queue -lnfnetlink $(DBUS_LIBS) -pthread -lrt
+bin_PROGRAMS = firewall_nft nfq_handler
 
-if FIREWALL_NFT
-bin_PROGRAMS = firewall_ipt nfq_handler
-else
-bin_PROGRAMS = firewall nfq_handler
-endif
-
-if ONESTACK_PRODUCT_REQ
-AM_LDFLAGS += -lrdkb_feature_mode_gate
-endif
-
-firewall_SOURCES = firewall_ipv6.c firewall.c firewall_priv.c firewall_interface.c  firewall_ext.c
+firewall_nft_SOURCES = firewall_nft.c firewall_ipv6_nft.c firewall_priv_nft.c firewall_interface_nft.c  firewall_ext_nft.c
 if CPC_FIREWALL_ENABLE
-firewall_SOURCES += firewall_lib.c firewall_dsl.c rabid.c
+firewall_nft_SOURCES += firewall_lib.c firewall_dsl.c rabid.c
 AM_LDFLAGS += -lrdkconfig
 endif
-
-if FIREWALL_NFT
-firewall_ipt_SOURCES = $(firewall_SOURCES)
-firewall_ipt_LDADD   = $(firewall_LDADD)
-endif
-
-nfq_handler_SOURCES = raw_socket_send.c nfq_handler.c
-
-firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
+nfq_handler_SOURCES = raw_socket_send.c nfq_handler_nft.c
+firewall_nft_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                  $(top_builddir)/source/sysevent/lib/libsysevent.la \
                  $(top_builddir)/source/ulog/libulog.la \
                  $(top_builddir)/source/util/utils/libutopiautil.la
-
 nfq_handler_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                     $(top_builddir)/source/sysevent/lib/libsysevent.la \
                     $(top_builddir)/source/ulog/libulog.la
