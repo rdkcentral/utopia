@@ -1393,6 +1393,49 @@ static int ApplyPartnersObjectItemsIntoSysevents( char *pcPartnerID )
    return 0;
 }
 
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
+#if defined(_ONESTACK_PRODUCT_REQ_)
+// TODO: Temporary stub
+static bool isFeatureSupportedInCurrentMode(int feature_id)
+{
+    struct stat st;
+    (void)feature_id;
+
+    return (stat("/nvram2/mapt.support", &st) == 0) ? TRUE : FALSE;
+}
+
+#if 0
+// uncomment later when actual check is finalized
+static bool IsMAPTConflictingFeaturesEnabled(void)
+{
+    struct {
+        const char *feature_syscfg;
+        const char *log;
+    } conflicts[] = {
+        { "one_to_one_nat",        "1-to-1 NAT" },
+    };
+    int range = (int)(sizeof(conflicts)/sizeof(conflicts[0]));
+
+    for (int i = 0; i < range; i++)
+    {
+        if ( 0 == IsValuePresentinSyscfgDB((char *)conflicts[i].feature_syscfg) )
+        {
+            APPLY_PRINT("MAP-T blocked: feature %s is already enabled\n", conflicts[i].log);
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+#endif
+
+static bool IsMAPTConflictingFeaturesEnabled(void)
+{
+    return FALSE;
+}
+#endif
+#endif
+
 STATIC void addInSysCfgdDB (char *key, char *value)
 {
    /* There are parameters which needs to be available in syscfg/PSM DBs
@@ -1606,6 +1649,18 @@ STATIC void addInSysCfgdDB (char *key, char *value)
    #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
    if ( 0 == strcmp ( key, "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MAP-T.Enable") )
    {
+#if defined(_ONESTACK_PRODUCT_REQ_)
+       if (!isFeatureSupportedInCurrentMode(0 /* FEATURE_MAPT id */))
+       {
+           APPLY_PRINT("MAP-T enable rejected, unsupported mode\n");
+           return;
+       }
+       else if (IsMAPTConflictingFeaturesEnabled())
+       {
+           APPLY_PRINT("MAP-T enable rejected due to conflicting features\n");
+           return;
+       }
+#endif
        if ( 0 == IsValuePresentinSyscfgDB( "MAPT_Enable" ) )
        {
            set_syscfg_partner_values( value,"MAPT_Enable" );
@@ -1858,6 +1913,19 @@ STATIC void updateSysCfgdDB (char *key, char *value)
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
       if ( 0 == strcmp ( key, "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.MAP-T.Enable" ) )
       {
+#if defined(_ONESTACK_PRODUCT_REQ_)
+          if (!isFeatureSupportedInCurrentMode(0 /* FEATURE_MAPT id */))
+          {
+              APPLY_PRINT("MAP-T enable rejected, unsupported mode\n");
+              return;
+          }
+          else if (IsMAPTConflictingFeaturesEnabled())
+          {
+              APPLY_PRINT("MAP-T enable rejected due to conflicting features\n");
+              return;
+          }
+#endif
+
           set_syscfg_partner_values( value, "MAPT_Enable");
       }
 #endif
