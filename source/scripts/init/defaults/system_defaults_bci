@@ -1212,9 +1212,10 @@ $T2ConfigURL=https://xconf.xcal.tv/loguploader/getT2Settings
 #Defaults for mTLS in T2
 $T2mTLSEnable=true
 
-#Defaults for xMemInsight
+#Defaults for meminsight
 $xMemEnable=false
 $xMemArgs=
+#xMemTrigger=stop
 
 #Enable DNS strict order
 $DNSStrictOrder=false
