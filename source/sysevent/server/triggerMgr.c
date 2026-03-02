@@ -231,6 +231,7 @@ static int free_trigger_t(trigger_t *tr)
 static int free_global_trigger_list(void)
 {
    // Free each of the triggers 
+   pthread_mutex_lock(&global_triggerlist.mutex);
    if (NULL != global_triggerlist.trigger_list) {
       unsigned int i;
       for (i=0; i<global_triggerlist.max_triggers; i++) {
@@ -245,6 +246,7 @@ static int free_global_trigger_list(void)
 
    // Reinitialize
    init_global_trigger_list();
+   pthread_mutex_unlock(&global_triggerlist.mutex);
    return(0);
 }
 
