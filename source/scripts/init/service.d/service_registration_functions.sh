@@ -306,7 +306,6 @@ sm_register_one_event() {
    if [ "NULL" = "$SMR_EVENT" ] ; then
       return 0
    fi
-
    # if this service has already registered for this event, then cancel the previous registration
    # this is probably overkill since we likely already called sm_unregister, but better safe than sorry
    sm_rm_event "${SMR_SERVICE}" "${SMR_EVENT_NAME}"

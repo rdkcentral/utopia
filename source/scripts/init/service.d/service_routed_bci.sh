@@ -80,6 +80,9 @@ case "$1" in
    staticroute-restart)
        service_routed radv-restart
        ;;
+   ipv6_prefix_delegation)
+       service_routed radv-restart
+       ;;
 #   ipv6_nameserver|ipv6_dnssl)
 #       service_routed radv-restart
 #       ;;

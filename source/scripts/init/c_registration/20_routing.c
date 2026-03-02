@@ -40,11 +40,16 @@
 #endif
 #include "srvmgr.h"
 #include "secure_wrapper.h"
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 
 #define SERVICE_NAME "routed"
 #define SERVICE_DEFAULT_HANDLER "/etc/utopia/service.d/service_routed.sh"
-
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+#if defined(_ONESTACK_PRODUCT_REQ_)
+const char** SERVICE_CUSTOM_EVENTS = NULL;
+#endif
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
 const char* SERVICE_CUSTOM_EVENTS[] = { 
                                         "wan-status|/etc/utopia/service.d/service_routed.sh",
                                         "lan-status|/etc/utopia/service.d/service_routed.sh",
@@ -54,6 +59,33 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "staticroute-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
                                         NULL
                                       };
+#elif defined(_ONESTACK_PRODUCT_REQ_)
+const char* SERVICE_CUSTOM_EVENTS_RESIDENTIAL[] = {
+                                        "wan-status|/etc/utopia/service.d/service_routed.sh",
+                                        "lan-status|/etc/utopia/service.d/service_routed.sh",
+                                        "ipv6_nameserver|/etc/utopia/service.d/service_routed.sh",
+                                        "ipv6_prefix|/etc/utopia/service.d/service_routed.sh",
+                                        "ripd-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "zebra-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "staticroute-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        #ifdef WAN_FAILOVER_SUPPORTED
+                                        "routeset-ula|/usr/bin/service_routed|NULL|"TUPLE_FLAG_EVENT,
+                                        "routeunset-ula|/usr/bin/service_routed|NULL|"TUPLE_FLAG_EVENT,
+                                        #endif 
+                                        NULL
+                                      };
+const char* SERVICE_CUSTOM_EVENTS_BUSINESS[] = {
+                                        "wan-status|/etc/utopia/service.d/service_routed_bci.sh",
+                                        "lan-status|/etc/utopia/service.d/service_routed_bci.sh",
+                                        "dhcpv6_option_changed|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "ripd-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "zebra-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "staticroute-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "ipv6_prefix_delegation|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        NULL
+                                      };
+
+
 #else
 const char* SERVICE_CUSTOM_EVENTS[] = { 
                                         "wan-status|/etc/utopia/service.d/service_routed.sh",
@@ -72,7 +104,21 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
 
 #endif
 
+#if defined(_ONESTACK_PRODUCT_REQ_)
+static void init_service_custom_events(void)
+{
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) {
+        SERVICE_CUSTOM_EVENTS = SERVICE_CUSTOM_EVENTS_BUSINESS;
+    } else {
+        SERVICE_CUSTOM_EVENTS = SERVICE_CUSTOM_EVENTS_RESIDENTIAL;
+    }
+}
+#endif
+
 void srv_register(void) {
+#if defined(_ONESTACK_PRODUCT_REQ_)
+    init_service_custom_events();
+#endif
    // not sure is the rm is necessary anymore
    // system("rm -Rf /etc/iproute2/rt_tables");
    DBG_PRINT("20_routing : %s Entry\n", __FUNCTION__);
