@@ -409,6 +409,26 @@ else
    echo "SSH: Forward SSH changed to disabled" >> $Log_file
 fi
 
+#Change devicetype on firmware upgrade
+DEVICETYPE_MIGRATE="$(syscfg get devicetype_migrate)"
+if [ -z "$DEVICETYPE_MIGRATE" ]; then
+    CURRENT_DEVICETYPE="$(syscfg get DeviceType)"
+    echo_t "[utopia][init] Devicetype is $CURRENT_DEVICETYPE"Expand commentComment on line R269Resolved
+    # When DeviceType has never been set in syscfg, CURRENT_DEVICETYPE will be empty.
+    # Explicitly migrate empty/unset or non-PROD DeviceType values to PROD.
+    if [ -z "$CURRENT_DEVICETYPE" ]; then
+        echo_t "[utopia][init] DeviceType is unset or empty, migrating to PROD"
+        syscfg set DeviceType "PROD"
+    elif [ "$CURRENT_DEVICETYPE" != "PROD" ]; then
+        echo_t "[utopia][init] setting DeviceType to PROD"
+        syscfg set DeviceType "PROD"
+    else
+        echo_t "[utopia][init] DeviceType is already PROD, no change needed"
+    fi
+    syscfg set devicetype_migrate "1"
+    syscfg commit
+fi
+
 #IGMP PROXY Disbaling on migration
 IGMP_MIGRATE="`syscfg get igmp_migrate`"
 if [ -z "$IGMP_MIGRATE" ]; then

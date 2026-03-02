@@ -204,6 +204,26 @@ if [ "$SYSCFG_LAN_DOMAIN" == "utopia.net" ]; then
    syscfg commit
 fi
 
+#Change devicetype on firmware upgrade
+DEVICETYPE_MIGRATE="$(syscfg get devicetype_migrate)"
+if [ -z "$DEVICETYPE_MIGRATE" ]; then
+    CURRENT_DEVICETYPE="$(syscfg get DeviceType)"
+    echo_t "[utopia][init] Devicetype is $CURRENT_DEVICETYPE"Expand commentComment on line R269Resolved
+    # When DeviceType has never been set in syscfg, CURRENT_DEVICETYPE will be empty.
+    # Explicitly migrate empty/unset or non-PROD DeviceType values to PROD.
+    if [ -z "$CURRENT_DEVICETYPE" ]; then
+        echo_t "[utopia][init] DeviceType is unset or empty, migrating to PROD"
+        syscfg set DeviceType "PROD"
+    elif [ "$CURRENT_DEVICETYPE" != "PROD" ]; then
+        echo_t "[utopia][init] setting DeviceType to PROD"
+        syscfg set DeviceType "PROD"
+    else
+        echo_t "[utopia][init] DeviceType is already PROD, no change needed"
+    fi
+    syscfg set devicetype_migrate "1"
+    syscfg commit
+fi
+
 #Hard Factory reset from mount-fs.sh
 if [ `cat /data/HFRES_UTOPIA` -eq 1 ]; then
    syscfg set $FACTORY_RESET_KEY $FACTORY_RESET_RGWIFI
