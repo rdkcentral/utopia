@@ -93,6 +93,20 @@ fi
 
 AM_CONDITIONAL(CCSP_PLATFORM_BCM, test "x$CCSP_PLATFORM" = xbcm)
 AM_CONDITIONAL(CCSP_PLATFORM_INTEL_PUMA7, test "x$CCSP_PLATFORM" = xintel_puma7)
+
+# Specify machine type
+AC_ARG_WITH([machine],
+[AC_HELP_STRING([--with-machine=MACHINE],
+                [specify the machine type])],
+[MACHINE=$withval],
+[MACHINE=''])
+if test x"${MACHINE}" != x; then
+  AC_DEFINE_UNQUOTED(MACHINE, "$MACHINE",
+                     [The machine type])
+fi
+
+AM_CONDITIONAL([MACHINE_SCXER10], [test "x$MACHINE" = "xscxer10"])
+
 AM_CONDITIONAL([MULTILAN_FEATURE], [test "$MULTILAN_FEATURE" = "yes"])
 AM_CONDITIONAL([CPC_FIREWALL_ENABLE], [test "x$CPC_FIREWALL_ENABLE" = "xtrue"])
 AM_CONDITIONAL([ONESTACK_PRODUCT_REQ], [test "x$ONESTACK_PRODUCT_REQ" = "xtrue"])

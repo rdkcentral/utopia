@@ -479,6 +479,13 @@ fi
 
 echo_t "[utopia][init] Setting any unset system values to default"
 apply_system_defaults
+
+PARTNER_ID=`syscfg get PartnerID`
+if [ "$PARTNER_ID" = "sky-uk" ] && [ "$MODEL_NUM" = "SCER11BEL" ]; then
+    echo_t "[utopia][init] Partner ID is sky-uk and device is XER10, applying partner defaults for psm"
+    apply_system_defaults_psm &
+fi
+
 changeFilePermissions $SYSCFG_BKUP_FILE 400
 if [ "$ENCRYPT_SYSCFG" = false ] ; then
    echo "[utopia][init] SEC: Syscfg stored in $SYSCFG_BKUP_FILE"
