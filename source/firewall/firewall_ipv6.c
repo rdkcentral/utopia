@@ -97,6 +97,9 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #endif
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 
 void* bus_handle ;
 int sysevent_fd;
@@ -1246,18 +1249,41 @@ v6GPFirewallRuleNext:
       sysevent_get(sysevent_fd, sysevent_token, "previous_ipv6_prefix", prev_prefix, sizeof(prev_prefix));
 #endif
 
-      #ifdef WAN_FAILOVER_SUPPORTED
+#ifdef WAN_FAILOVER_SUPPORTED
       if (0 == checkIfULAEnabled())
       {
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_ula", prefix, sizeof(prefix));
       }  
       else
       {
+#ifdef _ONESTACK_PRODUCT_REQ_
+      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+      {
+	  sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_delegation", prefix, sizeof(prefix));
+      }
+      else
+      {
+	  sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+      }
+#else
+	  sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+#endif
+      }
+
+#else
+#ifdef _ONESTACK_PRODUCT_REQ_
+      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+      {
+         sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_delegation", prefix, sizeof(prefix));
+      }
+      else
+      {
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
       }
-      #else
+#else
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
-      #endif
+#endif
+#endif
 #ifdef FEATURE_MAPE
       if (prev_prefix[0] != '\0' && prefix[0] != '\0' && strcmp(prev_prefix, prefix) != 0)
       {
@@ -1267,8 +1293,14 @@ v6GPFirewallRuleNext:
       if ( '\0' != prefix[0] ) {
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j LOG --log-level %d --log-prefix \"UTOPIA: FW. IPv6 FORWARD anti-spoofing\"\n", prefix, lan_ifname,syslog_level);
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j REJECT --reject-with icmp6-adm-prohibited\n", prefix, lan_ifname);
-#ifdef _COSA_FOR_BCI_
+#if defined (_COSA_FOR_BCI_) || defined (_ONESTACK_PRODUCT_REQ_)
          /* adding forward rule for PD traffic */
+#ifdef _ONESTACK_PRODUCT_REQ_
+      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+      {
+         fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
+      } 
+#else
          fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
          if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
          {
@@ -1280,6 +1312,7 @@ v6GPFirewallRuleNext:
                fprintf(fp, "-A FORWARD -d %s -o %s -j ACCEPT\n", prefix, lan_ifname);
             }
          }
+#endif
 #endif
          FIREWALL_DEBUG("current_wan_ifname is %s default_wan_ifname is %s lan_ifname is %s wan6_ifname %s \n" COMMA current_wan_ifname COMMA default_wan_ifname COMMA lan_ifname COMMA wan6_ifname);
         if (strcmp(current_wan_ifname,default_wan_ifname ) == 0)
@@ -2053,10 +2086,25 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
          memset(prefix,0,sizeof(prefix));
          int i ;
          if ( ULA_IPV6 == type)
+	 {
             sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_ula", prefix, sizeof(prefix));
+	 }
          else
-            sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
-   if (strlen(prefix) != 0 )
+	 {
+#ifdef _ONESTACK_PRODUCT_REQ_
+	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+	     {
+		 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_delegation", prefix, sizeof(prefix));
+	     }
+	     else
+	     {
+		 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+	     }
+#else
+	     sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+#endif
+	 }
+	 if (strlen(prefix) != 0 )
          {
       char *token_pref =NULL;
          token_pref = strtok(prefix,"/");
