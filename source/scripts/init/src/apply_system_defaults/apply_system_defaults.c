@@ -746,7 +746,7 @@ static int getFactoryPartnerId (char *pValue)
 	return -1;
 }
 
-static int validatePartnerId (char *PartnerID)
+static int validatePartnerId (char *PartnerID, size_t partnerIdBufLen)
 {
    int result = 0;
    char* ptr_etc_jsons = NULL;
@@ -766,7 +766,7 @@ static int validatePartnerId (char *PartnerID)
          else
          {
             printf("Partner ID NOT Found\n");
-            sprintf(PartnerID,"%s","unknown");
+            snprintf(PartnerID,partnerIdBufLen,"%s","unknown");
          }
          cJSON_Delete(root_etc_json);
       }
@@ -784,7 +784,7 @@ static int PartnerId_FetchWithRetry(char *PartnerID ) {
         memset(PartnerID, 0, PARTNER_ID_LEN);
 
         if((0 == getFactoryPartnerId(PartnerID)) && (PartnerID[0] != '\0') &&
-            validatePartnerId(PartnerID) && (0 != strcasecmp (PartnerID, "Unknown"))) {
+            validatePartnerId(PartnerID, PARTNER_ID_LEN) && (0 != strcasecmp (PartnerID, "Unknown"))) {
             return 0;
         }
         else {
@@ -795,7 +795,7 @@ static int PartnerId_FetchWithRetry(char *PartnerID ) {
                     strncpy(PartnerID, buf, strlen(buf));
                     PartnerID[strlen(buf)] = '\0';
 
-                    if(validatePartnerId(PartnerID) && (0 != strcasecmp(PartnerID, "Unknown") )) {
+                    if(validatePartnerId(PartnerID, PARTNER_ID_LEN) && (0 != strcasecmp(PartnerID, "Unknown") )) {
                         return 0;
                     }
                 }
@@ -841,7 +841,7 @@ int WritePartnerIDToFile(char* PartnerID) {
 }
 
 void CheckAndHandleInvalidPartnerIDRecoveryProcess(char *PartnerID) {
-    if( '\0' == PartnerID[0] || (0 == validatePartnerId(PartnerID)) || (0 == strcasecmp (PartnerID, "Unknown")) ) {
+    if( '\0' == PartnerID[0] || (0 == validatePartnerId(PartnerID, PARTNER_ID_LEN)) || (0 == strcasecmp (PartnerID, "Unknown")) ) {
         memset(PartnerID, 0, PARTNER_ID_LEN);
 
         APPLY_PRINT("%s - Current PartnerID value is Unknown/Invalid, So retrying to obtain valid PartnerID values. \n", __FUNCTION__);
@@ -909,7 +909,7 @@ static int get_PartnerID (char *PartnerID)
             onestackutils_override_partnerid_and_set_devicemode(PartnerID);
             APPLY_PRINT("%s - onestackutils_override_partnerid_and_set_devicemode completed. PartnerID from HAL: %s\n", __FUNCTION__, PartnerID);
 #endif // _ONESTACK_PRODUCT_REQ_
-            validatePartnerId ( PartnerID );
+            validatePartnerId ( PartnerID, PARTNER_ID_LEN );
         }
         else
         {
@@ -928,7 +928,7 @@ static int get_PartnerID (char *PartnerID)
 
 #if defined (_XB6_PRODUCT_REQ_)
                 sprintf( PartnerID, "%s", "unknown" );
-#elif defined (_RDK_REF_PLATFORM_)
+#elif defined (_RDK_REF_PLATFORM_) || defined (_COSA_QCA_ARM_)
                 sprintf( PartnerID, "%s", "RDKM");
 #elif defined (_SR300_PRODUCT_REQ_) /* Default fall back option for ADA devices SKYH4-4946 */
                 sprintf( PartnerID, "%s", "sky-uk");
@@ -969,7 +969,7 @@ static int get_PartnerID (char *PartnerID)
             APPLY_PRINT("%s - onestackutils_override_partnerid_and_set_devicemode completed. PartnerID: %s\n", __FUNCTION__, PartnerID);
 #endif // _ONESTACK_PRODUCT_REQ_
 
-        validatePartnerId ( PartnerID );
+	validatePartnerId ( PartnerID, PARTNER_ID_LEN );
 #ifndef _ONESTACK_PRODUCT_REQ_
         unlink("/nvram/.partner_ID");
 #endif // _ONESTACK_PRODUCT_REQ_
@@ -2403,6 +2403,7 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
     cJSON   *alwaysParamObjVal = NULL;
     char    *error_ptr         = NULL;
     int     iterator           = 0;
+    char    buf[50]            = {0};
 
 	/*
 	  * Case 1:
@@ -2533,8 +2534,9 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                         if ( paramObjVal != NULL )
                                         {
 						defaultAdminIP = paramObjVal->valuestring; 
+						syscfg_get( NULL, "lan_ipaddr", buf, sizeof( buf ));
 					
-						if (defaultAdminIP != NULL) 
+						if ((defaultAdminIP != NULL) && (strcmp(buf, defaultAdminIP) == 0))
 						{
 							set_syscfg_partner_values(defaultAdminIP,"lan_ipaddr");
 							defaultAdminIP = NULL;
@@ -2548,9 +2550,10 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
 					paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.RDKB_UIBranding.DefaultLocalIPv4SubnetRange"), "ActiveValue");
                                         if ( paramObjVal != NULL )
                                         {
-						subnetRange = paramObjVal->valuestring; 
+						subnetRange = paramObjVal->valuestring;
+						syscfg_get( NULL, "lan_netmask", buf, sizeof( buf ));
 					
-						if (subnetRange != NULL) 
+						if ((subnetRange != NULL) && (strcmp(buf, subnetRange) == 0))
 						{
 							set_syscfg_partner_values(subnetRange,"lan_netmask");
 							subnetRange = NULL;
@@ -2564,8 +2567,9 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                         if ( paramObjVal != NULL )
                                         {
 						minAddress = paramObjVal->valuestring;
+						syscfg_get( NULL, "dhcp_start", buf, sizeof( buf ));
 
-						if (minAddress != NULL)
+						if ((minAddress != NULL) && (strcmp(buf, minAddress) ==0))
 						{
 							set_syscfg_partner_values(minAddress,"dhcp_start");
 							minAddress = NULL;
@@ -2579,8 +2583,9 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                         if ( paramObjVal != NULL )
                                         {
                                                 maxAddress = paramObjVal->valuestring;
+						syscfg_get( NULL, "dhcp_end", buf, sizeof( buf ));
 
-                                                if (maxAddress != NULL)
+                                                if ((maxAddress != NULL) && (strcmp(buf, maxAddress) == 0))
                                                 {
                                                         set_syscfg_partner_values(maxAddress,"dhcp_end");
                                                         maxAddress = NULL;
@@ -3526,7 +3531,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 #if !defined (_XB6_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_) && !defined(_SR300_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_)
 		//Partner ID is null so need to set default partner ID as "comcast"
 		memset( PartnerID, 0, sizeof( PartnerID ) );
-#if defined (_RDK_REF_PLATFORM_)
+#if defined (_RDK_REF_PLATFORM_) || defined (_PLATFORM_IPQ_)
                 sprintf( PartnerID, "%s", "RDKM");
 #else
 		sprintf( PartnerID, "%s", "comcast" );
