@@ -1212,9 +1212,10 @@ $T2ConfigURL=https://xconf.xcal.tv/loguploader/getT2Settings
 #Defaults for mTLS in T2
 $T2mTLSEnable=true
 
-#Defaults for xMemInsight
+#Defaults for meminsight
 $xMemEnable=false
 $xMemArgs=
+#xMemTrigger=stop
 
 #Enable DNS strict order
 $DNSStrictOrder=false
@@ -1346,3 +1347,11 @@ $FwDwld_AvlMem_RsrvThreshold=20
 
 #FwDwld_ImageProcMemPercent Default value
 $FwDwld_ImageProcMemPercent=0
+
+#SelfHeal Cron - RFC flag is enabled by default
+$SelfHealCronEnable=true
+#STAGE Default value
+$StageEnabled=false
+
+#RdkLogger Cron - RFC flag is enabled by default
+$RdkbLogCronEnable=true

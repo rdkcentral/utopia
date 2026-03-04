@@ -232,12 +232,19 @@ case "$1" in
 		    fi
                     sysevent set parcon_nfq_status started
                 fi
-                isAvailablebrlan1=`ifconfig | grep brlan1`
-                if [ -n "$isAvailablebrlan1" ]
-                then
-                    echo_t "LAN HANDLER : Refreshing LAN from handler"
-                    gw_lan_refresh&
+
+                rdkb_feature_check -q XHS > /dev/null 2>&1
+                is_xhs_supported=$?
+
+                if [ $is_xhs_supported -eq 0 ] || [ $is_xhs_supported -eq 127 ]; then
+                    isAvailablebrlan1=`ifconfig | grep brlan1`
+                    if [ -n "$isAvailablebrlan1" ]
+                    then
+                        echo_t "LAN HANDLER : Refreshing LAN from handler"
+                        gw_lan_refresh&
+                    fi
                 fi
+
                	firewall
                 if [ ! -f "$POSTD_START_FILE" ];
                 then
@@ -408,7 +415,14 @@ case "$1" in
         echo_t "lan_handler_async:$lan_handler_asyncValSet"
         sysevent set primary_lan_l2net ${L2INST}
         sysevent set primary_lan_brport ${BRPORT}
-        sysevent set homesecurity_lan_l3net ${HSINST}
+
+        rdkb_feature_check -q XHS > /dev/null 2>&1
+        is_xhs_supported=$?
+
+        if [ $is_xhs_supported -eq 0 ] || [ $is_xhs_supported -eq 127 ]; then
+            sysevent set homesecurity_lan_l3net ${HSINST}
+        fi
+
         sysevent set primary_lan_l3net ${INST}
 	#BRLAN0 ISSUE : Manually invoking lan-start to fix brlan0 failure during intial booting. Root cause for event has to be identified
 	   	if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
