@@ -766,7 +766,7 @@ void do_ipv6_filter_table(FILE *fp){
    if (isFirewallEnabled) {
       // Get the current WAN IPv6 interface (which differs from the IPv4 in case of tunnels)
       char query[10],port[10],tmpQuery[10];
-#if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_COSA_FOR_BCI_)
       char wanIPv6[64];
 #endif
       int rc, ret;
@@ -830,7 +830,7 @@ void do_ipv6_filter_table(FILE *fp){
       // Block all packet whose source is mcast
       fprintf(fp, "-A INPUT -s ff00::/8  -j DROP\n");
      
-#if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_COSA_FOR_BCI_)
       if(isWanPingDisableV6 == 1)
       {
              syscfg_get(NULL, "wanIPv6Address", wanIPv6, sizeof(wanIPv6));
@@ -1299,6 +1299,22 @@ v6GPFirewallRuleNext:
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
          fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
+	 if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
+         {
+            if(isMulticastBlockedV6 || isP2pBlockedV6 || isPingBlockedV6 || isIdentBlockedV6 || isHttpBlockedV6)
+            {
+               fprintf(fp, "-A FORWARD -d %s -o %s -j wan2lan\n", prefix, lan_ifname);
+            }
+            else{
+               fprintf(fp, "-A FORWARD -d %s -o %s -j ACCEPT\n", prefix, lan_ifname);
+            }
+         }
+	 else
+	 {
+	     fprintf(fp, "-A FORWARD -d %s -o %s -j ACCEPT\n", prefix, lan_ifname);
+	     FIREWALL_DEBUG(" firewall_levelv6 is  %s  \n" COMMA firewall_levelv6);
+	 }
+
       } 
 #else
          fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
