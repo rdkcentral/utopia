@@ -267,10 +267,18 @@ CheckAndReCreateDB()
 {
 	NVRAMFullStatus=`df -h $SYSCFG_MOUNT | grep "100%"`
 	if [ -n "$NVRAMFullStatus" ]; then
-		if [ -f "/rdklogger/rdkbLogMonitor.sh" ]
+		rdklogger_cron_enable=`syscfg get RdkbLogCronEnable`
+
+        if [ "$rdklogger_cron_enable" = "true" ]; then
+            LOGMON_SCRIPT="/rdklogger/rdkbLogMonitor_cron.sh"
+        else
+            LOGMON_SCRIPT="/rdklogger/rdkbLogMonitor.sh"
+        fi
+
+		if [ -f "$LOGMON_SCRIPT" ]
 		then
 			  #Remove Old backup files if there	
-			  sh /rdklogger/rdkbLogMonitor.sh "remove_old_logbackup"		 
+			  sh "$LOGMON_SCRIPT" "remove_old_logbackup"		 
 
 		  	  #Re-create syscfg create again
 			  syscfg_create -f $SYSCFG_FILE
