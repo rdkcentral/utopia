@@ -77,6 +77,11 @@
 #define PARTNER_DEFAULT_MIGRATE_PSM  					"/tmp/.apply_partner_defaults_psm"
 #define PARTNER_DEFAULT_MIGRATE_FOR_NEW_PSM_MEMBER  	"/tmp/.apply_partner_defaults_new_psm_member"
 
+#if defined(_ONESTACK_PRODUCT_REQ_)
+#define BUSINESS_MODE_FILE "/nvram/.business-mode"
+#define SETSTACKMODE_INIT_FLAG "/nvram/.setstackmode_intialize"
+#endif
+
 #define PARTNER_ID_LEN 64
 
 #ifndef UNIT_TEST_DOCKER_SUPPORT
@@ -2430,6 +2435,14 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
    		APPLY_PRINT("%s - Deletion of %s file handled in PSM init \n", __FUNCTION__, PARTNER_DEFAULT_APPLY_FILE );
 		//Delete at PSM init
 		//system( "rm -rf /nvram/.apply_partner_defaults" );
+#if defined(_ONESTACK_PRODUCT_REQ_)
+		// Partner defaults being applied (partner change) - need to reconfigure stackmode
+		if (access(SETSTACKMODE_INIT_FLAG, F_OK) == 0)
+		{
+			unlink(SETSTACKMODE_INIT_FLAG);
+			APPLY_PRINT("%s - Deleted %s to force stackmode reconfiguration\n", __FUNCTION__, SETSTACKMODE_INIT_FLAG);
+		}
+#endif
   	}
 
 	if ( access( PARTNER_DEFAULT_MIGRATE_PSM , F_OK ) == 0 )  
@@ -3654,6 +3667,36 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
    {
       APPLY_PRINT("%s - Failed to apply_value_to_sysevent block into sysevent for '%s'\n", __FUNCTION__, PartnerID);
    }
+
+#if defined(_ONESTACK_PRODUCT_REQ_)
+   // Set stackmode based on business-mode marker file
+   if (access(BUSINESS_MODE_FILE, F_OK) == 0)
+   {
+      // Business mode marker file exists, set to business mode
+      if (syscfg_set(NULL, "stackmode", "business") == 0)
+      {
+         syscfg_commit();
+         APPLY_PRINT("%s - Set stackmode to business (marker file present)\n", __FUNCTION__);
+      }
+      else
+      {
+         APPLY_PRINT("%s - Failed to set stackmode to business\n", __FUNCTION__);
+      }
+   }
+   else
+   {
+      // No business mode marker file, set to residential mode
+      if (syscfg_set(NULL, "stackmode", "residential") == 0)
+      {
+         syscfg_commit();
+         APPLY_PRINT("%s - Set stackmode to residential (no marker file)\n", __FUNCTION__);
+      }
+      else
+      {
+         APPLY_PRINT("%s - Failed to set stackmode to residential\n", __FUNCTION__);
+      }
+   }
+#endif
 
    sysevent_close(global_fd, global_id);
 
