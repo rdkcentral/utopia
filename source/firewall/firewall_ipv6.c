@@ -187,6 +187,10 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_PORTSCANPROTECT  "v6_PortScanProtect"
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#define COSA_DML_DHCPV6_CLIENT_IFNAME                 "erouter0"
+#define COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME           "tr_"COSA_DML_DHCPV6_CLIENT_IFNAME"_dhcpv6_client_v6pref"
+#endif
 /*
  ****************************************************************
  *               IPv6 Firewall                                  *
@@ -1259,7 +1263,7 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-	  sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_delegation", prefix, sizeof(prefix));
+	  sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
       }
       else
       {
@@ -1274,7 +1278,7 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-         sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_delegation", prefix, sizeof(prefix));
+         sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
       }
       else
       {
@@ -2110,7 +2114,7 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
 #ifdef _ONESTACK_PRODUCT_REQ_
 	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
 	     {
-		 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_delegation", prefix, sizeof(prefix));
+		 sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
 	     }
 	     else
 	     {

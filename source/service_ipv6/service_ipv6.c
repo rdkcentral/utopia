@@ -2132,7 +2132,7 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
 #if defined(_ONESTACK_PRODUCT_REQ_)
     if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
     {
-	sysevent_get(si6->sefd, si6->setok, "ipv6_prefix_delegation", si6->mso_prefix, sizeof(si6->mso_prefix));
+	sysevent_get(si6->sefd, si6->setok, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, si6->mso_prefix, sizeof(si6->mso_prefix));
 	sysevent_set(si6->sefd, si6->setok, "ipv6_prefix-divided", "", 0);
     }
 #endif
@@ -2278,7 +2278,7 @@ STATIC int serv_ipv6_init(struct serv_ipv6 *si6)
 #if defined (_ONESTACK_PRODUCT_REQ_)
     if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
     {
-	sysevent_get(si6->sefd, si6->setok, "ipv6_prefix_delegation", si6->mso_prefix, sizeof(si6->mso_prefix));
+	sysevent_get(si6->sefd, si6->setok, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, si6->mso_prefix, sizeof(si6->mso_prefix));
     } 
     else
     {
