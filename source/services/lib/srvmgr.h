@@ -35,6 +35,9 @@
 
 #ifndef _SRVMGR_H_
 #define _SRVMGR_H_
+#if defined(_ONESTACK_PRODUCT_REQ_)
+#include "devicemode.h"
+#endif // _ONESTACK_PRODUCT_REQ_
 
 #if defined (_CBR_PRODUCT_REQ_) || defined (_XB6_PRODUCT_REQ_)
 #define CONSOLE_LOG_FILE "/rdklogs/logs/Consolelog.txt.0"
