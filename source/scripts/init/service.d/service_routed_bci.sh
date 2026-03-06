@@ -84,9 +84,16 @@ case "$1" in
 #       service_routed radv-restart
 #       ;;
    ipv6_prefix|ipv6_nameserver)
-if [ "$MODEL_NUM" = "DPC3941B" ] || [ "$MODEL_NUM" = "DPC3939B" ] || [ "$MODEL_NUM" = "CGA4131COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [ "$MODEL_NUM" = "SG417DBCT" ]; then
+   if [ "$MODEL_NUM" = "DPC3941B" ] || [ "$MODEL_NUM" = "DPC3939B" ] || [ "$MODEL_NUM" = "CGA4131COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] ; then
        service_routed radv-restart
-fi
+   else
+       rdkb_feature_check -q IPv6_Delegation > /dev/null 2>&1
+       is_pd_supported=$?
+
+       if [ "$is_pd_supported" -eq 0 ] || [ "$is_pd_supported" -eq 127 ]; then
+           service_routed radv-restart
+       fi
+   fi
        ;;
    dhcpv6_option_changed)
        service_routed radv-restart
