@@ -1282,7 +1282,7 @@ v6GPFirewallRuleNext:
          }
 	 else
 	 {
-             fprintf(fp, "-A FORWARD -d %s -o %s -j ACCEPT\n", prefix, lan_ifname);
+             fprintf(fp, "-A FORWARD -d %s -o %s -j wan2lan\n", prefix, lan_ifname);
              FIREWALL_DEBUG(" firewall_levelv6 is  %s  \n" COMMA firewall_levelv6);
 	 }
 #endif
