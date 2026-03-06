@@ -370,7 +370,7 @@ NOT_DEF:
 #endif
 
 #ifdef _ONESTACK_PRODUCT_REQ_
-#include <devicemode.h>
+#include <rdkb_feature_mode_gate.h>
 #endif
 
 #ifdef FEATURE_464XLAT
@@ -2556,7 +2556,7 @@ static int prepare_globals_from_configuration(void)
    isNatEnabled      = atoi(nat_enabled);
 #if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(is_devicemode_business())
+        if(isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
     {
    isNatEnabled      = (isNatEnabled > NAT_STATICIP ? NAT_DISABLE : isNatEnabled);
@@ -2564,7 +2564,7 @@ static int prepare_globals_from_configuration(void)
 #endif
 #if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(!is_devicemode_business())
+        if(!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
     {
    isNatEnabled      = (isNatEnabled == NAT_DISABLE ? NAT_DISABLE : NAT_DHCP);
@@ -2583,7 +2583,7 @@ static int prepare_globals_from_configuration(void)
 
 #if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(is_devicemode_business())
+        if(isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
     {
    /* get true static IP info */   
@@ -2708,7 +2708,7 @@ static int prepare_globals_from_configuration(void)
 #endif
 #if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    #ifdef _ONESTACK_PRODUCT_REQ_
-        if(!is_devicemode_business())
+        if(!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
     {
     safec_rc = strcpy_s(natip4, sizeof(natip4),current_wan_ipaddr);
@@ -10784,6 +10784,24 @@ static int do_wan2lan(FILE *fp)
 }
 
 /*
+ *  Procedure     : do_block_lan_access_to_wan_ssh
+ *  Purpose       : To block SSH using WAN IP from LAN client
+ *  Parameters    :
+ *    fp             : An open file to write rules to block SSH using WAN IP in LAN client
+ * Return Values  :
+ *    0              : Success
+ */
+#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_)
+static int do_block_lan_access_to_wan_ssh(FILE *fp)
+{
+   FIREWALL_DEBUG("Entering do_block_lan_access_to_wan_ssh\n");
+   fprintf(fp, "-I INPUT 1 -i %s -d %s -p tcp --dport 10022 -j REJECT\n", lan_ifname, current_wan_ipaddr);
+   FIREWALL_DEBUG("Exiting do_block_lan_access_to_wan_ssh\n");
+   return(0);
+}
+#endif
+
+/*
  ==========================================================================
               Ephemeral filter rules
  ==========================================================================
@@ -12537,7 +12555,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    // Allow local loopback traffic 
    fprintf(filter_fp, "-A INPUT -i lo -s 127.0.0.0/8 -j ACCEPT\n");
    if (isWanReady) {
-       #ifdef _COSA_FOR_BCI_ 
+       #if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
        if (1 == isWanPingDisable)
        {
            fprintf(filter_fp, "-A INPUT -i %s -p icmp -m icmp --icmp-type 8 -j DROP\n",current_wan_ifname);
@@ -12925,7 +12943,23 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    }
 
+   /*
+    * Check if LAN to WAN forwarding is enabled
+   */
+   char cEnabled[8] = {0};
+   sysevent_get(sysevent_fd, sysevent_token, "lan_wan_forwarding_enabled", cEnabled, sizeof(cEnabled));
+   if ('\0' != cEnabled[0])
+   {
+       if('\0' == lan_ifname[0])
+           snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
 
+      int iEnabled = atoi(cEnabled);
+       if (0 == iEnabled)
+       {
+           fprintf(filter_fp, "-A lan2wan -i %s -j DROP\n", lan_ifname);
+           FIREWALL_DEBUG("LAN to WAN forwarding disabled, dropping all traffic from LAN to WAN\n");
+       }
+   }
    /***********************
     * set lan to wan subrule by order 
     * *********************/
@@ -13844,6 +13878,10 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_lan2wan(mangle_fp, filter_fp, nat_fp); 
    do_wan2lan(filter_fp);
    do_filter_table_general_rules(filter_fp);
+#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_)
+   if(isWanReady)
+        do_block_lan_access_to_wan_ssh(filter_fp);
+#endif
 #if defined(SPEED_BOOST_SUPPORTED)
 WAN_FAILOVER_SUPPORT_CHECK
    if(isWanServiceReady)
