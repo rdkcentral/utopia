@@ -13879,10 +13879,18 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_wan2lan(filter_fp);
    do_filter_table_general_rules(filter_fp);
 #if defined(_HUB4_PRODUCT_REQ_)
-   FIREWALL_DEBUG("UMASANKAR _HUB4_PRODUCT_REQ_ flag is true and isWanReady is %d\n",isWanReady);
+   FIREWALL_DEBUG("UMASANKAR _HUB4_PRODUCT_REQ_ flag is true\n");
 #else
-   FIREWALL_DEBUG("UMASANKAR _HUB4_PRODUCT_REQ_ flag is false and isWanReady is %d\n",isWanReady);
+   FIREWALL_DEBUG("UMASANKAR _HUB4_PRODUCT_REQ_ flag is false\n");
 #endif
+   if(isWanReady)
+   {
+      FIREWALL_DEBUG("UMASANKAR isWanReady true\n");
+   }
+   else
+   {
+      FIREWALL_DEBUG("UMASANKAR isWanReady false\n");
+   }
 #if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_)
    if(isWanReady)
         do_block_lan_access_to_wan_ssh(filter_fp);
