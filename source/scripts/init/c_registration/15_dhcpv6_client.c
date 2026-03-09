@@ -43,6 +43,7 @@
 
 #define SERVICE_NAME "dhcpv6_client"
 #define SERVICE_DEFAULT_HANDLER "/etc/utopia/service.d/service_dhcpv6_client.sh"
+#define SERVICE_DEFAULT_HANDLER_BCI "/etc/utopia/service.d/service_dhcpv6_client_arm_bci.sh"
 
 #if defined(CORE_NET_LIB)
 const char* SERVICE_CUSTOM_EVENTS[] = {
@@ -72,10 +73,28 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "lan-status|/etc/utopia/service.d/service_dhcpv6_client.sh",
                                         NULL
                                       };
+
+const char* SERVICE_CUSTOM_EVENTS_BCI[] = {
+                                        "current_ipv4_link_state|/etc/utopia/service.d/service_dhcpv6_client_arm_bci.sh",
+                                        "current_wan_ifname|/etc/utopia/service.d/service_dhcpv6_client_arm_bci.sh",
+                                        "lan-status|/etc/utopia/service.d/service_dhcpv6_client_arm_bci.sh",
+                                        NULL
+                                      };
 #endif
 
 void srv_register(void) {
+   #if defined(_ONESTACK_PRODUCT_REQ_)
+   if(is_devicemode_business())
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER_BCI, SERVICE_CUSTOM_EVENTS_BCI);
+   }
+   else
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
+   }
+   #else
    sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
+   #endif // _ONESTACK_PRODUCT_REQ_
 }
 
 #ifdef RDKB_EXTENDER_ENABLED
