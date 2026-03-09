@@ -46,9 +46,9 @@
 
 #define SERVICE_NAME "routed"
 #define SERVICE_DEFAULT_HANDLER "/etc/utopia/service.d/service_routed.sh"
-#define SERVICE_DEFAULT_HANDLER_BCI "/etc/utopia/service.d/service_routed_bci.sh"
 
 #if defined(_ONESTACK_PRODUCT_REQ_)
+#define SERVICE_DEFAULT_HANDLER_BCI "/etc/utopia/service.d/service_routed_bci.sh"
 const char** SERVICE_CUSTOM_EVENTS = NULL;
 #endif
 #if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
