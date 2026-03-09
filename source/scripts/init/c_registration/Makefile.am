@@ -32,6 +32,10 @@ AM_LDFLAGS = $(top_builddir)/source/util/utils/libutopiautil.la \
              
 LDFLAGS += -lsecure_wrapper
 
+if ONESTACK_PRODUCT_REQ
+AM_LDFLAGS += -ldevicemode
+endif
+
 bin_PROGRAMS = \
     02_bridge \
     02_forwarding \
