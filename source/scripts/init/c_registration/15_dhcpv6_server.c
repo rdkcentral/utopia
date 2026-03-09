@@ -41,10 +41,7 @@
 
 const char* SERVICE_NAME            = "dhcpv6_server";
 const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_dhcpv6_server.sh";
-
-#if defined(_ONESTACK_PRODUCT_REQ_)
-const char** SERVICE_CUSTOM_EVENTS = NULL;
-#endif
+const char* SERVICE_DEFAULT_HANDLER_BCI = "/etc/utopia/service.d/service_dhcpv6_server_bci.sh";
 
 #if defined(_CBR_PRODUCT_REQ_) && !defined(_CBR2_PRODUCT_REQ_)
 const char* SERVICE_CUSTOM_EVENTS[] = {
@@ -88,22 +85,19 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                       };
 #endif                                      
                                    
-#if defined(_ONESTACK_PRODUCT_REQ_)
-static void init_service_custom_events(void)
-{
-    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) {
-        SERVICE_CUSTOM_EVENTS = SERVICE_CUSTOM_EVENTS_BUSINESS;
-    } else {
-        SERVICE_CUSTOM_EVENTS = SERVICE_CUSTOM_EVENTS_RESIDENTIAL;
-    }
-}
-#endif
-
 void srv_register(void) {
 #if defined(_ONESTACK_PRODUCT_REQ_)
-    init_service_custom_events();
-#endif
+   if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER_BCI, SERVICE_CUSTOM_EVENTS_BUSINESS);
+   }
+   else
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS_RESIDENTIAL);
+   }
+#else
    sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
+#endif
 }
 
 void srv_unregister(void) {

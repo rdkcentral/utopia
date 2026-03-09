@@ -46,6 +46,8 @@
 
 #define SERVICE_NAME "routed"
 #define SERVICE_DEFAULT_HANDLER "/etc/utopia/service.d/service_routed.sh"
+#define SERVICE_DEFAULT_HANDLER_BCI = "/etc/utopia/service.d/service_routed_bci.sh";
+
 #if defined(_ONESTACK_PRODUCT_REQ_)
 const char** SERVICE_CUSTOM_EVENTS = NULL;
 #endif
@@ -103,27 +105,25 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
 
 #endif
 
-#if defined(_ONESTACK_PRODUCT_REQ_)
-static void init_service_custom_events(void)
-{
-    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) {
-        SERVICE_CUSTOM_EVENTS = SERVICE_CUSTOM_EVENTS_BUSINESS;
-    } else {
-        SERVICE_CUSTOM_EVENTS = SERVICE_CUSTOM_EVENTS_RESIDENTIAL;
-    }
-}
-#endif
-
 void srv_register(void) {
-#if defined(_ONESTACK_PRODUCT_REQ_)
-    init_service_custom_events();
-#endif
+#if defined(_ONESTACK_PRODUCT_REQ)
+   if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) {
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER_BCI, SERVICE_CUSTOM_EVENTS_BUSINESS);
+   }
+   else
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS_RESIDENTIAL);
+   }
+#else
+
    // not sure is the rm is necessary anymore
    // system("rm -Rf /etc/iproute2/rt_tables");
    DBG_PRINT("20_routing : %s Entry\n", __FUNCTION__);
    sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
    v_secure_system("sysevent set rip-status stopped");
    DBG_PRINT("20_routing : %s Exit\n", __FUNCTION__);
+#endif
 }
 
 #ifdef RDKB_EXTENDER_ENABLED
