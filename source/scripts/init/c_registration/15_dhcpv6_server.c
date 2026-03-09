@@ -41,7 +41,6 @@
 
 const char* SERVICE_NAME            = "dhcpv6_server";
 const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_dhcpv6_server.sh";
-const char* SERVICE_DEFAULT_HANDLER_BCI = "/etc/utopia/service.d/service_dhcpv6_server_bci.sh";
 
 #if defined(_CBR_PRODUCT_REQ_) && !defined(_CBR2_PRODUCT_REQ_)
 const char* SERVICE_CUSTOM_EVENTS[] = {
@@ -57,6 +56,7 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         NULL
                                       };
 #elif defined(_ONESTACK_PRODUCT_REQ_)
+const char* SERVICE_DEFAULT_HANDLER_BCI = "/etc/utopia/service.d/service_dhcpv6_server_bci.sh";
 const char* SERVICE_CUSTOM_EVENTS_RESIDENTIAL[] = {
                                         "lan-status|/etc/utopia/service.d/service_dhcpv6_server.sh",
                                         "ipv6_nameserver|/etc/utopia/service.d/service_dhcpv6_server.sh",
