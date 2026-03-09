@@ -2522,22 +2522,44 @@ static int prepare_globals_from_configuration(void)
    isMAPTReady = isMAPTSet();
 
    if(!isMAPTReady) //Dual Stack Line
+   {
+      FIREWALL_DEBUG("UMASANKAR LINE 2526 dual stack line\n");
       isWanReady        = IsValidIPv4Addr(current_wan_ipaddr);
+      if(isWanReady)
+      {
+          FIREWALL_DEBUG("UMASANKAR isWanReady true 2530\n");
+      }
+      else
+      {
+          FIREWALL_DEBUG("UMASANKAR isWanReady false 2534\n");
+      }
+   }
 #if defined(NAT46_KERNEL_SUPPORT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
    else { //MAPT Line
+      FIREWALL_DEBUG("UMASANKAR LINE 2539 MAPT line\n");
       isWanReady        = IsValidIPv4Addr(mapt_ip_address);
+      if(isWanReady)
+      {
+          FIREWALL_DEBUG("UMASANKAR isWanReady true 2543\n");
+      }
+      else
+      {
+          FIREWALL_DEBUG("UMASANKAR isWanReady false 2547\n");
+      }
       safec_rc = strcpy_s(current_wan_ipaddr, sizeof(current_wan_ipaddr),mapt_ip_address);
       ERR_CHK(safec_rc);
    }
 // Check isWanReady flag for IVI Kernel Module. If required, include this changes under IVI_KERNEL_SUPPORT Build flag
 #else // IVI
    isWanReady        = IsValidIPv4Addr(current_wan_ipaddr);
+   FIREWALL_DEBUG("UMASANKAR line 2555\n");
 #endif //NAT46_KERNEL_SUPPORT
 #endif //FEATURE_MAPT
 
 #ifdef _HUB4_PRODUCT_REQ_
 #ifndef FEATURE_MAPT
    isWanReady        = (0 == strcmp("0.0.0.0", current_wan_ipaddr)) ? 0 : 1;
+   FIREWALL_DEBUG("UMASANKAR line 2562\n");
 #endif //FEATURE_MAPT
 #else //_HUB4_PRODUCT_REQ_ ENDS
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -2545,6 +2567,7 @@ static int prepare_globals_from_configuration(void)
 #endif
    {
       isWanReady        = (0 == strcmp("0.0.0.0", current_wan_ipaddr)) ? 0 : 1;
+      FIREWALL_DEBUG("UMASANKAR line 2570\n");
    }
 #endif // NON _HUB4_PRODUCT_REQ_
    //isBridgeMode        = (0 == strcmp("1", bridge_mode)) ? 1 : (0 == strcmp("1", byoi_bridge_mode)) ? 1 : 0;
