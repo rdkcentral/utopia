@@ -12944,16 +12944,18 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    }
 
    /*
-    * Check if LAN to WAN forwarding is enabled
-   */
+    * Check WAN-to-LAN operational mode. When set to "Manageable",
+    * treat WAN-to-LAN forwarding as manageable by blocking LAN-to-WAN
+    * traffic via the lan2wan chain.
+    */
    char cValue[64] = {0};
    sysevent_get(sysevent_fd, sysevent_token, "wan_to_lan_operational_mode",cValue, sizeof(cValue));
    if (0 == strcmp(cValue, "Manageable"))
    {
       if('\0' == lan_ifname[0])
-          snprintf(lan_ifname, sizeof(lan_ifname), "%s", "brlan0");
+          snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
 
-      FIREWALL_DEBUG("WAN to LAN forwarding is manageable, adding rules to drop lan to wan traffic\n");
+      FIREWALL_DEBUG("wan_to_lan_operational_mode is 'Manageable'; adding DROP rule in lan2wan chain to block LAN to WAN traffic on %s\n", lan_ifname);
       fprintf(filter_fp, "-A lan2wan -i %s -j DROP\n", lan_ifname);
    }
    /***********************
