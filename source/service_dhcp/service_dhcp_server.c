@@ -301,7 +301,7 @@ int dnsmasq_server_start()
             {
                 fprintf(g_fArmConsoleLog, "\n%s Inside non XB3 block Box_Type=%s.......\n",__FUNCTION__, Box_Type);
                 syscfg_get(NULL, "XDNS_DNSSecEnable", DNSSEC_FLAG, sizeof(DNSSEC_FLAG));
-                if ((!strncmp(Box_Type, "CGA4332COM", 10) || !strncmp(Box_Type, "CGA4131COM", 10)) && !strncasecmp(l_cXdnsEnable, "1", 1) && !strncasecmp(DNSSEC_FLAG, "1", 1))
+                if ((!strncmp(Box_Type, "CGA4332COM", 10) || !strncmp(Box_Type, "CGA4131COM", 10) || !strncmp(Box_Type, "CGM601TCOM", 10) || !strncmp(Box_Type, "SG417DBCT", 9)) && !strncasecmp(l_cXdnsEnable, "1", 1) && !strncasecmp(DNSSEC_FLAG, "1", 1))
                 {
                     if(!strncmp(l_cXdnsRefacCodeEnable, "1", 1))
                     {
