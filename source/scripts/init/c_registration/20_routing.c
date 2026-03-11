@@ -40,11 +40,18 @@
 #endif
 #include "srvmgr.h"
 #include "secure_wrapper.h"
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 
 #define SERVICE_NAME "routed"
 #define SERVICE_DEFAULT_HANDLER "/etc/utopia/service.d/service_routed.sh"
 
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+#if defined(_ONESTACK_PRODUCT_REQ_)
+#define SERVICE_DEFAULT_HANDLER_BCI "/etc/utopia/service.d/service_routed_bci.sh"
+const char** SERVICE_CUSTOM_EVENTS = NULL;
+#endif
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
 const char* SERVICE_CUSTOM_EVENTS[] = { 
                                         "wan-status|/etc/utopia/service.d/service_routed.sh",
                                         "lan-status|/etc/utopia/service.d/service_routed.sh",
@@ -54,6 +61,32 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "staticroute-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
                                         NULL
                                       };
+#elif defined(_ONESTACK_PRODUCT_REQ_)
+const char* SERVICE_CUSTOM_EVENTS_RESIDENTIAL[] = {
+                                        "wan-status|/etc/utopia/service.d/service_routed.sh",
+                                        "lan-status|/etc/utopia/service.d/service_routed.sh",
+                                        "ipv6_nameserver|/etc/utopia/service.d/service_routed.sh",
+                                        "ipv6_prefix|/etc/utopia/service.d/service_routed.sh",
+                                        "ripd-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "zebra-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "staticroute-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        #ifdef WAN_FAILOVER_SUPPORTED
+                                        "routeset-ula|/usr/bin/service_routed|NULL|"TUPLE_FLAG_EVENT,
+                                        "routeunset-ula|/usr/bin/service_routed|NULL|"TUPLE_FLAG_EVENT,
+                                        #endif 
+                                        NULL
+                                      };
+const char* SERVICE_CUSTOM_EVENTS_BUSINESS[] = {
+                                        "wan-status|/etc/utopia/service.d/service_routed_bci.sh",
+                                        "lan-status|/etc/utopia/service.d/service_routed_bci.sh",
+                                        "dhcpv6_option_changed|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "ripd-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "zebra-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "staticroute-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        NULL
+                                      };
+
+
 #else
 const char* SERVICE_CUSTOM_EVENTS[] = { 
                                         "wan-status|/etc/utopia/service.d/service_routed.sh",
@@ -73,12 +106,24 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
 #endif
 
 void srv_register(void) {
+#if defined(_ONESTACK_PRODUCT_REQ)
+   if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) {
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER_BCI, SERVICE_CUSTOM_EVENTS_BUSINESS);
+   }
+   else
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS_RESIDENTIAL);
+   }
+#else
+
    // not sure is the rm is necessary anymore
    // system("rm -Rf /etc/iproute2/rt_tables");
    DBG_PRINT("20_routing : %s Entry\n", __FUNCTION__);
    sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
    v_secure_system("sysevent set rip-status stopped");
    DBG_PRINT("20_routing : %s Exit\n", __FUNCTION__);
+#endif
 }
 
 #ifdef RDKB_EXTENDER_ENABLED
