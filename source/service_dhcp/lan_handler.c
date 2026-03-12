@@ -37,6 +37,11 @@
 #else
 #define OnboardLog(...)
 #endif
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
+
 #define THIS			"/usr/bin/service_dhcp"
 #define LAN_IF_NAME     "brlan0"
 #define XHS_IF_NAME     "brlan1"
@@ -390,7 +395,12 @@ void bring_lan_up()
 			sysevent_set(g_iSyseventfd, g_tSysevent_token, "primary_lan_l3net", l_cPrimaryLan_L3Net, 0);
 			sysevent_set(g_iSyseventfd, g_tSysevent_token, "primary_lan_l2net", l_cL2Inst, 0);
 			sysevent_set(g_iSyseventfd, g_tSysevent_token, "primary_lan_brport", l_cLan_Brport, 0);
-			sysevent_set(g_iSyseventfd, g_tSysevent_token, "homesecurity_lan_l3net", l_cHomeSecurity_L3net, 0);
+#ifdef _ONESTACK_PRODUCT_REQ_
+                        if(true == isFeatureSupportedInCurrentMode(FEATURE_XHS))
+#endif
+                        {
+                            sysevent_set(g_iSyseventfd, g_tSysevent_token, "homesecurity_lan_l3net", l_cHomeSecurity_L3net, 0);
+                        }
 		}
 	}
 	else
@@ -653,12 +663,16 @@ void ipv4_status(int l3_inst, char *status)
 				}
             		}
 
-			if (is_iface_present(XHS_IF_NAME))
-			{
-				fprintf(g_fArmConsoleLog, "%s interface is present call gw_lan_refresh\n", XHS_IF_NAME);
-                fprintf(g_fArmConsoleLog, "LAN HANDLER : Refreshing LAN from handler\n");
-                system("gw_lan_refresh&");				
-			}
+                        if (is_iface_present(XHS_IF_NAME)
+#ifdef _ONESTACK_PRODUCT_REQ_
+                                && (true == isFeatureSupportedInCurrentMode(FEATURE_XHS))
+#endif
+                           )
+                        {
+                            fprintf(g_fArmConsoleLog, "%s interface is present call gw_lan_refresh\n", XHS_IF_NAME);
+                            fprintf(g_fArmConsoleLog, "LAN HANDLER : Refreshing LAN from handler\n");
+                            system("gw_lan_refresh&");
+                        }
                 system("firewall");
 
                 if (access(POSTD_START_FILE, F_OK) != 0)

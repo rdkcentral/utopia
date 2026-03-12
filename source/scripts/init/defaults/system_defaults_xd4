@@ -1253,9 +1253,10 @@ $T2ConfigURL=https://xconf.xcal.tv/loguploader/getT2Settings
 #Defaults for mTLS in T2
 $T2mTLSEnable=true
 
-#Defaults for xMemInsight
+#Defaults for meminsight
 $xMemEnable=false
 $xMemArgs=
+$xMemTrigger=stop
 
 #RDM Module Default URL
 $CDLModuleUrl=
@@ -1440,3 +1441,8 @@ $LatencyMeasure_TCPReportInterval=15
 $RemoteDebuggerEnabled=false
 $RemoteDebuggerIssueType=NULL
 
+#FwDwld_AvlMem_RsrvThreshold Default value
+$FwDwld_AvlMem_RsrvThreshold=20
+
+#FwDwld_ImageProcMemPercent Default value
+$FwDwld_ImageProcMemPercent=0

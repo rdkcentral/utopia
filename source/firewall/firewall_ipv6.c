@@ -97,6 +97,9 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #endif
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 
 void* bus_handle ;
 int sysevent_fd;
@@ -184,6 +187,10 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_PORTSCANPROTECT  "v6_PortScanProtect"
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#define COSA_DML_DHCPV6_CLIENT_IFNAME                 "erouter0"
+#define COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME           "tr_"COSA_DML_DHCPV6_CLIENT_IFNAME"_dhcpv6_client_v6pref"
+#endif
 /*
  ****************************************************************
  *               IPv6 Firewall                                  *
@@ -763,7 +770,7 @@ void do_ipv6_filter_table(FILE *fp){
    if (isFirewallEnabled) {
       // Get the current WAN IPv6 interface (which differs from the IPv4 in case of tunnels)
       char query[10],port[10],tmpQuery[10];
-#ifdef _COSA_FOR_BCI_
+#if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
       char wanIPv6[64];
 #endif
       int rc, ret;
@@ -827,7 +834,7 @@ void do_ipv6_filter_table(FILE *fp){
       // Block all packet whose source is mcast
       fprintf(fp, "-A INPUT -s ff00::/8  -j DROP\n");
      
-#ifdef _COSA_FOR_BCI_ 
+#if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
       if(isWanPingDisableV6 == 1)
       {
              syscfg_get(NULL, "wanIPv6Address", wanIPv6, sizeof(wanIPv6));
@@ -1240,23 +1247,80 @@ v6GPFirewallRuleNext:
       // Basic RPF check on the egress & ingress traffic
       char prefix[129];
       prefix[0] = 0;
-      #ifdef WAN_FAILOVER_SUPPORTED
+#ifdef FEATURE_MAPE
+      char prev_prefix[MAX_QUERY] = {0};
+
+      sysevent_get(sysevent_fd, sysevent_token, "previous_ipv6_prefix", prev_prefix, sizeof(prev_prefix));
+#endif
+
+#ifdef WAN_FAILOVER_SUPPORTED
       if (0 == checkIfULAEnabled())
       {
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_ula", prefix, sizeof(prefix));
       }  
       else
       {
+#ifdef _ONESTACK_PRODUCT_REQ_
+      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+      {
+	  sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
+      }
+      else
+      {
+	  sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+      }
+#else
+	  sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+#endif
+      }
+
+#else
+#ifdef _ONESTACK_PRODUCT_REQ_
+      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+      {
+         sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
+      }
+      else
+      {
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
       }
-      #else
+#else
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
-      #endif
+#endif
+#endif
+#ifdef FEATURE_MAPE
+      if (prev_prefix[0] != '\0' && prefix[0] != '\0' && strcmp(prev_prefix, prefix) != 0)
+      {
+         fprintf(fp, "-A FORWARD -i brlan0 -o erouter0 -s %s -j REJECT --reject-with icmp6-policy-fail\n", prev_prefix);
+      }
+#endif
       if ( '\0' != prefix[0] ) {
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j LOG --log-level %d --log-prefix \"UTOPIA: FW. IPv6 FORWARD anti-spoofing\"\n", prefix, lan_ifname,syslog_level);
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j REJECT --reject-with icmp6-adm-prohibited\n", prefix, lan_ifname);
-#ifdef _COSA_FOR_BCI_
+#if defined (_COSA_FOR_BCI_) || defined (_ONESTACK_PRODUCT_REQ_)
          /* adding forward rule for PD traffic */
+#ifdef _ONESTACK_PRODUCT_REQ_
+      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+      {
+         fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
+	 if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
+         {
+            if(isMulticastBlockedV6 || isP2pBlockedV6 || isPingBlockedV6 || isIdentBlockedV6 || isHttpBlockedV6)
+            {
+               fprintf(fp, "-A FORWARD -d %s -o %s -j wan2lan\n", prefix, lan_ifname);
+            }
+            else{
+               fprintf(fp, "-A FORWARD -d %s -o %s -j ACCEPT\n", prefix, lan_ifname);
+            }
+         }
+	 else
+	 {
+	     fprintf(fp, "-A FORWARD -d %s -o %s -j ACCEPT\n", prefix, lan_ifname);
+	     FIREWALL_DEBUG(" firewall_levelv6 is  %s  \n" COMMA firewall_levelv6);
+	 }
+
+      } 
+#else
          fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
          if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
          {
@@ -1269,8 +1333,13 @@ v6GPFirewallRuleNext:
             }
          }
 #endif
-         fprintf(fp, "-A FORWARD ! -s %s -i %s -j LOG_FORWARD_DROP\n", prefix, lan_ifname);
-         fprintf(fp, "-A FORWARD -s %s -i %s -j LOG_FORWARD_DROP\n", prefix, wan6_ifname);
+#endif
+         FIREWALL_DEBUG("current_wan_ifname is %s default_wan_ifname is %s lan_ifname is %s wan6_ifname %s \n" COMMA current_wan_ifname COMMA default_wan_ifname COMMA lan_ifname COMMA wan6_ifname);
+        if (strcmp(current_wan_ifname,default_wan_ifname ) == 0)
+        {
+            fprintf(fp, "-A FORWARD ! -s %s -i %s -j LOG_FORWARD_DROP\n", prefix, lan_ifname);
+             fprintf(fp, "-A FORWARD -s %s -i %s -j LOG_FORWARD_DROP\n", prefix, wan6_ifname);
+        }
       }
 
 /* From community: utopia/generic */
@@ -1732,10 +1801,11 @@ static int prepare_ipv6_multinet(FILE *fp)
             */
 
             fprintf(fp, "-A INPUT -i %s -j ACCEPT\n", iface_name);
-            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", iface_name, current_wan_ifname);
-            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", iface_name, ecm_wan_ifname);
-            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", current_wan_ifname, iface_name);
-            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", ecm_wan_ifname, iface_name);
+	    fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", iface_name, isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
+	    fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", iface_name, ecm_wan_ifname);
+            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname, iface_name);
+	    fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", ecm_wan_ifname, iface_name);
+
         }
 
     } while ((p = strtok(NULL, " ")) != NULL);
@@ -2010,6 +2080,9 @@ void do_ipv6_sn_filter(FILE* fp) {
 	prepare_dscp_rules_to_prioritized_clnt(fp);
 	prepare_dscp_rule_for_host_mngt_traffic(fp);
 	prepare_xconf_rules(fp);
+#ifdef FEATURE_MAPE
+	prepare_mape_rules(fp);
+#endif
 #endif
 
 #ifdef _COSA_INTEL_XB3_ARM_
@@ -2033,10 +2106,25 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
          memset(prefix,0,sizeof(prefix));
          int i ;
          if ( ULA_IPV6 == type)
+	 {
             sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_ula", prefix, sizeof(prefix));
+	 }
          else
-            sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
-   if (strlen(prefix) != 0 )
+	 {
+#ifdef _ONESTACK_PRODUCT_REQ_
+	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+	     {
+		 sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
+	     }
+	     else
+	     {
+		 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+	     }
+#else
+	     sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+#endif
+	 }
+	 if (strlen(prefix) != 0 )
          {
       char *token_pref =NULL;
          token_pref = strtok(prefix,"/");
