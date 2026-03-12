@@ -60,6 +60,15 @@
 #include "safec_lib_common.h"
 #include <ctype.h>
 
+static int lmdb_initialized = 0;
+syscfg_lmdb_t *g_lmdb_ctx = NULL;
+
+/* ---- LMDB forward declarations ---- */
+static int ensure_lmdb_open(void);
+static int _lmdb_getall_helper(char *buf, int bufsz);
+static size_t _lmdb_getall2_helper(char *buf, size_t bufsz);
+static int lmdb_set_helper(syscfg_lmdb_t *ctx, const char *key, const char *val);
+
 //#define VERBOSE_DEBUG
 
 /*
@@ -210,6 +219,7 @@ static int _syscfg_getall_defaults(void)
  */
 int syscfg_get (const char *ns, const char *name, char *out_val, int outbufsz)
 {
+    int rc = 0;
     char *val;
     size_t len;
 
@@ -220,6 +230,39 @@ int syscfg_get (const char *ns, const char *name, char *out_val, int outbufsz)
         return -1;
     }
 
+	if (ensure_lmdb_open() == 0) {
+        // Compose key with namespace if needed
+        char key[256];
+        if (ns && ns[0]) {
+            snprintf(key, sizeof(key), "%s.%s", ns, name);
+        } else {
+            snprintf(key, sizeof(key), "%s", name);
+        }
+    
+        rc = syscfg_lmdb_get(g_lmdb_ctx, key, out_val, outbufsz);
+        //printf("syscfg_get: out_val='%s'\n", out_val);
+        if (rc == 0) {
+            ulog_LOG_Info("LMDB syscfg_get: Found key=%s, value=%s\n", key, out_val);
+            return 0;
+        } else if (rc == MDB_NOTFOUND) {
+            ulog_LOG_Info("LMDB syscfg_get: Key not found: %s\n", key);
+            out_val[0] = 0;
+            //return -1; // Not found is not an error for get
+        } else {
+            ulog_LOG_Err("LMDB syscfg_get: LMDB get failed for key=%s, rc=%d\n", key, rc);
+            out_val[0] = 0;
+            //return -1;
+        }
+    }
+    else {
+        ulog_LOG_Err("LMDB syscfg_get: LMDB context not initialized\n");
+        out_val[0] = 0;
+        //return -1;
+    }
+    //return rc;
+
+    ulog_LOG_Info("syscfg_get: Not found in LMDB Falling back to internal hash table for name=%s\n", name);
+    
     if (syscfg_initialized == 0) {
         int rc = syscfg_init_internal();
         if (rc != 0) {
@@ -247,7 +290,7 @@ int syscfg_get (const char *ns, const char *name, char *out_val, int outbufsz)
     else {
         memcpy(out_val, val, len + 1);
     }
-
+    ulog_LOG_Info("syscfg_get: Found key=%s, value=%s\n", name, out_val);
     return 0;
 }
 
@@ -277,6 +320,10 @@ int syscfg_set_ns (const char *ns, const char *name, const char *value)
         return ERR_INVALID_PARAM;
     }
 
+    if (ensure_lmdb_open() == 0) {
+        /* Mirror into LMDB too */
+        (void)lmdb_set_helper(g_lmdb_ctx, name, value);
+    }
     return _syscfg_set(ns, name, value, 0);
 }
 
@@ -353,6 +400,12 @@ int syscfg_getall (char *buf, int bufsz, int *outsz)
         return ERR_INVALID_PARAM;
     }
 
+    if (ensure_lmdb_open() == 0) {
+        *outsz = _lmdb_getall_helper(buf, bufsz);
+        return (*outsz >= 0) ? 0 : -1;
+    }
+    ulog_LOG_Err("syscfg_getall: LMDB context not initialized\n");
+    printf("syscfg_getall: LMDB context not initialized\n");
     *outsz = _syscfg_getall(buf, bufsz);
     return 0;
 }
@@ -370,7 +423,12 @@ int syscfg_getall2 (char *buf, size_t bufsz, size_t *outsz)
     if (bufsz < 5) {
         return ERR_INVALID_PARAM;
     }
-
+    if (ensure_lmdb_open() == 0) {
+        *outsz = _lmdb_getall2_helper(buf, bufsz);
+        return (*outsz >= 0) ? 0 : -1;
+    }
+    ulog_LOG_Err("syscfg_getall2: LMDB context not initialized\n");
+    printf("syscfg_getall2: LMDB context not initialized\n");
     *outsz = _syscfg_getall2(buf, bufsz, 0);
     return 0;
 }
@@ -400,6 +458,21 @@ int syscfg_unset (const char *ns, const char *name)
         return ERR_INVALID_PARAM;
     }
 
+	if (ensure_lmdb_open() == 0) {
+        if (syscfg_lmdb_unset(g_lmdb_ctx, name) != 0) {
+            ulog_LOG_Err("syscfg_unset: LMDB unset failed for key: %s\n", name);
+            printf("syscfg_unset: LMDB unset failed for key: %s\n", name);
+        }
+        else {
+            ulog_LOG_Info("syscfg_unset: LMDB unset succeeded for key: %s\n", name);
+            printf("syscfg_unset: LMDB unset succeeded for key: %s\n", name);
+        }
+    }
+    else {
+        ulog_LOG_Err("syscfg_unset: LMDB context not initialized\n");
+        printf("syscfg_unset: LMDB context not initialized\n");
+        //return -1;
+    }
     return _syscfg_unset(ns, name, 0);
 }
 
@@ -445,13 +518,17 @@ int syscfg_commit (void)
     syscfg_shm_ctx *ctx;
     int rc;
 
+    if (ensure_lmdb_open() == 0) {
+        syscfg_lmdb_commit(g_lmdb_ctx);
+    }
+
     if (syscfg_initialized == 0) {
-        int rc = syscfg_init_internal();
+        rc = syscfg_init_internal();
         if (rc != 0) {
             return rc;
         }
     }
-  
+    
     ctx = syscfg_ctx;
 
     write_lock(ctx);
@@ -534,6 +611,16 @@ int syscfg_create (const char *file, long int max_file_sz)
     // ready for operation
     syscfg_initialized = 1;
 
+    if (ensure_lmdb_open() != 0) {
+        ulog_LOG_Err("Failed to initialize LMDB context\n");
+        printf("Failed to initialize LMDB context\n");
+    }
+    else {
+        ulog_LOG_Info("LMDB initialized successfully\n");
+        printf("LMDB initialized successfully\n");
+    }
+
+    /* Load syscfg data */
     rc = load_from_file(store_info.path);
 
     if (0 != rc) {
@@ -611,6 +698,19 @@ static int syscfg_init_internal (void)
     return 0;
 }
 
+/* Open g_lmdb_ctx once, thread-safe init can be added if needed */
+static int ensure_lmdb_open(void)
+{
+    if (!lmdb_initialized || !g_lmdb_ctx) {
+        int rc = syscfg_lmdb_open(&g_lmdb_ctx, LMDB_PERSIST_DIR, MAPSIZE, 0);
+        if (rc != 0 || !g_lmdb_ctx) {
+            ulog_LOG_Err("Failed to initialize LMDB context");
+            return -1;
+        }
+        lmdb_initialized = 1;
+    }
+    return 0;
+}
 /*
  * Procedure     : syscfg_parse
  * Purpose       : parses one name=value at buffer 
@@ -2031,5 +2131,85 @@ static int commit_to_file (const char *fname)
    	  }
    }
    return 0;
+}
+
+static int _lmdb_getall_helper(char *buf, int bufsz) {
+    int used = 0;
+    int trunc = 0;
+    if (!buf || bufsz <= 0) return -1;
+    if (ensure_lmdb_open() != 0) return -1;
+    char **keys = NULL;
+    int count = 0;
+    int rc = 0;
+    rc = syscfg_lmdb_enum(g_lmdb_ctx, NULL, 0, &keys, &count);
+    if (rc != 0) return -1;
+    for (int i = 0; i < count; ++i) {
+        char val[256];
+        rc = syscfg_lmdb_get(g_lmdb_ctx, keys[i], val, sizeof(val));
+        if (rc == 0) {
+            int space = bufsz - used;
+            if (space > 0) {
+                int n = snprintf(buf + used, (size_t)space, "%s=%s\n", keys[i], val);
+                if (n < 0 || n >= space) {
+                    trunc = 1;
+                    if (bufsz > 0) { buf[bufsz - 1] = '\0'; }
+                } else {
+                    used += n;
+                }
+            } else {
+                trunc = 1;
+            }
+        }
+        free(keys[i]);
+        if (trunc) {
+            for (int j = i + 1; j < count; ++j) free(keys[j]);
+            break;
+        }
+    }
+    free(keys);
+    return used;
+}
+
+static size_t _lmdb_getall2_helper(char *buf, size_t bufsz) {
+    size_t used = 0;
+    if (!buf || bufsz == 0) return 0;
+    if (ensure_lmdb_open() != 0) return 0;
+    char **keys = NULL;
+    int count = 0;
+    int rc = 0;
+    rc = syscfg_lmdb_enum(g_lmdb_ctx, NULL, 0, &keys, &count);
+    if (rc != 0) return 0;
+    for (int i = 0; i < count; ++i) {
+        char val[256];
+        rc = syscfg_lmdb_get(g_lmdb_ctx, keys[i], val, sizeof(val));
+        if (rc == 0) {
+            size_t space = (used < bufsz) ? (bufsz - used) : 0;
+            if (space == 0) { free(keys[i]); break; }
+            size_t n = (size_t)snprintf(buf + used, space, "%s=%s\n", keys[i], val);
+            if (n >= space) { free(keys[i]); break; }
+            used += n;
+        }
+        free(keys[i]);
+    }
+    free(keys);
+    return used;
+}
+
+static int lmdb_set_helper(syscfg_lmdb_t *ctx, const char *key, const char *val) {
+    if (!ctx || !key || !val) return EINVAL;
+    // Optionally check if key exists and unset first
+    char tmp[256];
+    int rc = syscfg_lmdb_get(ctx, key, tmp, sizeof(tmp));
+    if (rc == 0) {
+        syscfg_lmdb_unset(ctx, key);
+    }
+    int rc2 = syscfg_lmdb_set(ctx, key, val);
+    if (rc2 != 0) {
+        printf("LMDB set failed for key: %s\n", key);
+    }
+    else {
+        printf("LMDB set succeeded for key: %s\n", key);
+    }
+    return rc2;
 }
 

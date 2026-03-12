@@ -84,6 +84,12 @@
 #define SYSCFG_SHM_VERSION_MAJOR 0
 #define SYSCFG_SHM_VERSION_MINOR 1
 
+#include "syscfg_lmdb.h"
+#define LMDB_PERSIST_DIR "/nvram/syscfg_lmdb"
+#define MAPSIZE (8u * 1024u * 1024u)
+// LMDB context for syscfg_lmdb
+extern syscfg_lmdb_t *g_lmdb_ctx;
+
 typedef enum {
     STORE_FILE,
     STORE_MTD_DEVICE
@@ -447,3 +453,4 @@ static inline int commit_lock (syscfg_shm_ctx *ctx);
 static inline int commit_unlock (syscfg_shm_ctx *ctx);
 
 #endif // _SYSCFG_LIB_H_
+
