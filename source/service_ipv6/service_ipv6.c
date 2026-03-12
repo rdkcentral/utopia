@@ -2248,6 +2248,10 @@ STATIC int serv_ipv6_init(struct serv_ipv6 *si6)
     char* pCfg = CCSP_MSG_BUS_CFG;
 #endif
 
+#if defined (_ONESTACK_PRODUCT_REQ_)
+    char current_wan_interface[64] = {0};
+    char sysevent_name[128] = {0};
+#endif
     memset(si6, 0, sizeof(struct serv_ipv6));
 
     if ((si6->sefd = sysevent_open(SE_SERV, SE_SERVER_WELL_KNOWN_PORT, 
@@ -2278,7 +2282,9 @@ STATIC int serv_ipv6_init(struct serv_ipv6 *si6)
 #if defined (_ONESTACK_PRODUCT_REQ_)
     if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
     {
-	sysevent_get(si6->sefd, si6->setok, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, si6->mso_prefix, sizeof(si6->mso_prefix));
+	sysevent_get(si6->sefd, si6->setok, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
+	snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
+	sysevent_get(si6->sefd, si6->setok, sysevent_name, si6->mso_prefix, sizeof(si6->mso_prefix));
     } 
     else
     {

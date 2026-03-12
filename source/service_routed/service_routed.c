@@ -1776,10 +1776,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     fprintf(fp, "interface %s\n", lan_if);
     fprintf(fp, "   ip irdp multicast\n");
 
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     } //for (i = 0; i < enabled_iface_num; i++)
     }
-#endif
 
 #if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
 #ifdef _ONESTACK_PRODUCT_REQ_
