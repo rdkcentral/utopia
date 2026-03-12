@@ -171,7 +171,7 @@ service_start ()
       SELFHEAL_ENABLE=$(syscfg get selfheal_enable)
       if [ "$SELFHEAL_CRON_ENABLE" = "true" ] && [ "$SELFHEAL_ENABLE" = "true" ]; then
 	      echo_t "SelfHeal Cron is enabled"
-         if [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "HUB4" ] && [ "$BOX_TYPE" != "SR213" ]; then
+         if [ "$BOX_TYPE" != "WNXL11BWL" ] || [ "$BOX_TYPE" != "HUB4" ] || [ "$BOX_TYPE" != "SR213" ]; then
             # Monitor selfheal_aggressive.sh based on syscfg value
             AGGRESSIVE_INTERVAL=$(syscfg get AggressiveInterval)
             if [ -z "$AGGRESSIVE_INTERVAL" ]; then
