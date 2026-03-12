@@ -59,6 +59,9 @@
 #include <sys/stat.h>
 #endif
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 #include "util.h"
 #include <telemetry_busmessage_sender.h>
 #include "sysevent/sysevent.h"
@@ -425,8 +428,11 @@ STATIC int get_active_lanif(int sefd, token_t setok, unsigned int *insts, unsign
     char *p = NULL;
     int i = 0;
 
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
-
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
     char lan_pd_if[128] = {0};
     char if_name[16] = {0};
     char buf[64] = {0};
@@ -449,8 +455,13 @@ STATIC int get_active_lanif(int sefd, token_t setok, unsigned int *insts, unsign
 
         p = strtok(NULL, " ");
     }
-
-#else
+    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
 
     /* service_ipv6 sets active IPv6 interfaces instances. */
     sysevent_get(sefd, setok, "ipv6_active_inst", active_insts, sizeof(active_insts));
@@ -459,14 +470,14 @@ STATIC int get_active_lanif(int sefd, token_t setok, unsigned int *insts, unsign
         insts[i++] = atoi(p);
         p = strtok(NULL, " ");
     }
-
+    }
 #endif
     *num = i;
 
     return *num;
 }
 #else
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
 STATIC int get_active_lanif(int sefd, token_t setok, unsigned int *insts, unsigned int *num)
 {
     char active_insts[32] = {0};
@@ -505,7 +516,11 @@ STATIC int get_active_lanif(int sefd, token_t setok, unsigned int *insts, unsign
 
 STATIC int route_set(struct serv_routed *sr)
 {
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(MULTILAN_FEATURE)
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(MULTILAN_FEATURE) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
     unsigned int l2_insts[4] = {0};
     unsigned int enabled_iface_num = 0;
     char evt_name[64] = {0};
@@ -559,6 +574,7 @@ STATIC int route_set(struct serv_routed *sr)
                         "ip -6 rule add iif %s table erouter",
                         lan_if, lan_if, lan_if, lan_if);
 #endif
+    }
     }
 #endif
 
@@ -657,7 +673,11 @@ STATIC int route_unset(struct serv_routed *sr)
 #ifdef CORE_NET_LIB
     libnet_status status;
 #endif
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(MULTILAN_FEATURE)
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(MULTILAN_FEATURE) || defined(_ONESTACK_PRODUCT_REQ_)
+#ifdef _ONESTACK_PRODUCT_REQ_
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+    {
     unsigned int l2_insts[4] = {0};
     unsigned int enabled_iface_num = 0;
     char evt_name[64] = {0};
@@ -689,7 +709,8 @@ STATIC int route_unset(struct serv_routed *sr)
 #endif
     }
 
-#elif !defined(WAN_MANAGER_UNIFICATION_ENABLED) //Default route is configured WanManager.
+    }
+#elif !defined(WAN_MANAGER_UNIFICATION_ENABLED)
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
 #ifdef CORE_NET_LIB
     status = rule_delete("-6 iif brlan0 table erouter");
@@ -901,7 +922,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         "!log stdout\n"
         "log file /var/tmp/zebra.log errors\n"
         "table 255\n";
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     int i = 0;
     unsigned int l2_insts[4] = {0};
     unsigned int enabled_iface_num = 0;
@@ -1000,15 +1021,27 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif
 
     syscfg_get(NULL, "ra_interval", ra_interval, sizeof(ra_interval));
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+
+#ifdef WAN_FAILOVER_SUPPORTED
+    char last_broadcasted_prefix[64] = {0};
+#endif
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
     sysevent_get(sefd, setok, "previous_ipv6_prefix", orig_prefix, sizeof(orig_prefix));
     sysevent_get(sefd, setok, "ipv6_prefix_prdtime", preferred_lft, sizeof(preferred_lft));
     sysevent_get(sefd, setok, "ipv6_prefix_vldtime", valid_lft, sizeof(valid_lft));
-#else
-
+    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
     #ifdef WAN_FAILOVER_SUPPORTED
 
-    char last_broadcasted_prefix[64] ;
     memset(last_broadcasted_prefix,0,sizeof(last_broadcasted_prefix));
     if (gIpv6AddrAssignment == ULA_IPV6)
     {
@@ -1119,6 +1152,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     sysevent_get(sefd, setok, "ipv6_prefix_vldtime", valid_lft, sizeof(valid_lft));
 #endif
     syscfg_get(NULL, "lan_ifname", lan_if, sizeof(lan_if));
+    }
 #endif
     if (atoi(preferred_lft) <= 0)
         snprintf(preferred_lft, sizeof(preferred_lft), "300");
@@ -1131,7 +1165,24 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     sysevent_get(sefd, setok, "wan-status", wan_st, sizeof(wan_st));
     syscfg_get(NULL, "last_erouter_mode", rtmod, sizeof(rtmod));
 
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined (_ONESTACK_PRODUCT_REQ_)
+    int multilan_enabled = 0;
+    int pd_enabled = 0;
+
+#if defined(MULTILAN_FEATURE)
+    multilan_enabled = 1;
+#endif
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+    pd_enabled = 1;
+#endif
+
+    #ifdef _ONESTACK_PRODUCT_REQ_
+        pd_enabled = isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION);
+    #endif
+
+    if (pd_enabled || multilan_enabled)
+    {
     get_active_lanif(sefd, setok, l2_insts, &enabled_iface_num);
     for (i = 0; i < enabled_iface_num; i++)
     {
@@ -1437,17 +1488,17 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
         if ((strncmp(buf,"true",4) == 0) && iresCode == 204)
         {
-#if defined (_COSA_BCM_MIPS_)
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
-            // For CBR platform, the captive portal redirection feature was removed
-            // inWifiCp = 1;
+#if defined (_COSA_BCM_MIPS_) 
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+	    // For CBR platform, the captive portal redirection feature was removed
+	    // inWifiCp = 1;
 #else
-            inWifiCp = 1;
+	    inWifiCp = 1;
 #endif
 #else
-            inWifiCp = 1;
+	    inWifiCp = 1;
 #endif
-        }
+	}
 #if defined (_XB6_PROD_REQ_)
         syscfg_get(NULL, "enableRFCaptivePortal", rfCpEnable, sizeof(rfCpEnable));
         if(rfCpEnable != NULL)
@@ -1557,16 +1608,32 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     	}
 #endif
         /* static IPv6 DNS */
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION          
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
             snprintf(rec, sizeof(rec), "dhcpv6spool%d0::optionnumber", i);
             syscfg_get(NULL, rec, val, sizeof(val));
-#else
+    }
+#endif
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
         syscfg_get(NULL, "dhcpv6spool00::optionnumber", val, sizeof(val));
+    }
 #endif
         nopt = atoi(val);
         for (j = 0; j < nopt; j++) {
-#ifdef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION              
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    #if defined(_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    #endif
+    {
              memset(name_servs, 0, sizeof(name_servs));
+    }
 #endif
             snprintf(rec, sizeof(rec), "dhcpv6spool0option%d::bEnabled", j); /*RDKB-12965 & CID:-34147*/
             syscfg_get(NULL, rec, val, sizeof(val));
@@ -1709,11 +1776,16 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     fprintf(fp, "interface %s\n", lan_if);
     fprintf(fp, "   ip irdp multicast\n");
 
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     } //for (i = 0; i < enabled_iface_num; i++)
+    }
 #endif
 
-#ifndef CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION
+#if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+#ifdef _ONESTACK_PRODUCT_REQ_
+if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
+{
 char cmd[100];
 char out[100];
 char interface_name[32] = {0};
@@ -1923,6 +1995,7 @@ if(!strncmp(out,"true",strlen(out)))
 	fprintf(fp, "   ip irdp multicast\n");
 	}
 	memset(out,0,sizeof(out));
+}
 }
 }
 #endif
