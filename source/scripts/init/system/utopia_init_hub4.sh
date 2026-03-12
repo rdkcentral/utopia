@@ -717,5 +717,12 @@ if [ "$FACTORY_RESET_REASON" = "true" ];then
     rm -f /nvram/pcs-now-priomac.dat.md5
 fi
 
+#dropbear.socket start
+if [ -f /etc/utopia/dropbear_start.sh ]; then
+       sh /etc/utopia/dropbear_start.sh &
+else
+       echo "[utopia][init] dropbear.socket start script is not found"
+fi
+
 echo "[utopia][init] completed creating utopia_inited flag"
 touch /tmp/utopia_inited

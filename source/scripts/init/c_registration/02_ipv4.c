@@ -38,6 +38,7 @@
 
 const char* SERVICE_NAME            = "ipv4";
 const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_ipv4.sh";
+const char* SERVICE_DEFAULT_HANDLER_BCI = "/etc/utopia/service.d/service_ipv4_bci.sh";
 /*
  * 3) Custom Events
  *    If the service should receive events other than start stop restart, then
@@ -103,10 +104,33 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
     "ipv4-resync_tsip|/etc/utopia/service.d/service_ipv4.sh|NULL|"TUPLE_FLAG_EVENT,
     "ipv4-resync_tsip_asn|/etc/utopia/service.d/service_ipv4.sh|NULL|"TUPLE_FLAG_EVENT,
     NULL };
+
+const char* SERVICE_CUSTOM_EVENTS_BCI[] = {
+    "ipv4-resyncAll|/etc/utopia/service.d/service_ipv4_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+    "ipv4-resync|/etc/utopia/service.d/service_ipv4_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+    "ipv4-down|/etc/utopia/service.d/service_ipv4_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+    "ipv4-up|/etc/utopia/service.d/service_ipv4_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+    "ipv4-set_dyn_config|/etc/utopia/service.d/service_ipv4_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+    "ipv4-sync_tsip_all|/etc/utopia/service.d/service_ipv4_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+    "ipv4-stop_tsip_all|/etc/utopia/service.d/service_ipv4_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+    "ipv4-resync_tsip|/etc/utopia/service.d/service_ipv4_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+    "ipv4-resync_tsip_asn|/etc/utopia/service.d/service_ipv4_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+    NULL };
 #endif
 
 void srv_register(void) {
+   #if defined(_ONESTACK_PRODUCT_REQ_)
+   if(is_devicemode_business())
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER_BCI, SERVICE_CUSTOM_EVENTS_BCI);
+   }
+   else
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
+   }
+   #else
    sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
+   #endif //_ONESTACK_PRODUCT_REQ_
 }
 
 void srv_unregister(void) {
