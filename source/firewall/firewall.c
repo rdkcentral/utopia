@@ -12950,12 +12950,12 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
     */
    char cValue[64] = {0};
    sysevent_get(sysevent_fd, sysevent_token, "wan_to_lan_operational_mode",cValue, sizeof(cValue));
-   if (0 == strcmp(cValue, "Manageable"))
+   if (0 == strcasecmp(cValue, "Manageable"))
    {
       if('\0' == lan_ifname[0])
           snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
 
-      FIREWALL_DEBUG("wan_to_lan_operational_mode is 'Manageable'; adding DROP rule in lan2wan chain to block LAN to WAN traffic on %s\n", lan_ifname);
+      FIREWALL_DEBUG("wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic on %s\n" COMMA lan_ifname);
       fprintf(filter_fp, "-A lan2wan -i %s -j DROP\n", lan_ifname);
    }
    /***********************
