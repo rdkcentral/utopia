@@ -12944,21 +12944,19 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    }
 
    /*
-    * Check if LAN to WAN forwarding is enabled
-   */
-   char cEnabled[8] = {0};
-   sysevent_get(sysevent_fd, sysevent_token, "lan_wan_forwarding_enabled", cEnabled, sizeof(cEnabled));
-   if ('\0' != cEnabled[0])
+    * Check WAN-to-LAN operational mode. When set to "Manageable",
+    * treat WAN-to-LAN forwarding as manageable by blocking LAN-to-WAN
+    * traffic via the lan2wan chain.
+    */
+   char cValue[64] = {0};
+   sysevent_get(sysevent_fd, sysevent_token, "wan_to_lan_operational_mode",cValue, sizeof(cValue));
+   if (0 == strcasecmp(cValue, "Manageable"))
    {
-       if('\0' == lan_ifname[0])
-           snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
+      if('\0' == lan_ifname[0])
+          snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
 
-      int iEnabled = atoi(cEnabled);
-       if (0 == iEnabled)
-       {
-           fprintf(filter_fp, "-A lan2wan -i %s -j DROP\n", lan_ifname);
-           FIREWALL_DEBUG("LAN to WAN forwarding disabled, dropping all traffic from LAN to WAN\n");
-       }
+      FIREWALL_DEBUG("wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic on %s\n" COMMA lan_ifname);
+      fprintf(filter_fp, "-A lan2wan -i %s -j DROP\n", lan_ifname);
    }
    /***********************
     * set lan to wan subrule by order 
@@ -14004,6 +14002,10 @@ WAN_FAILOVER_SUPPORT_CHECk_END
          }
          fprintf(filter_fp, "-I FORWARD -o %s -m state --state INVALID -j DROP\n",current_wan_ifname);
    #endif
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I INPUT -p udp --dport 5060 -j ACCEPT\n");
+   fprintf(filter_fp, "-I INPUT -p udp --dport 10000:20000 -j ACCEPT\n");
+#endif
    fprintf(raw_fp, "COMMIT\n");
    fprintf(mangle_fp, "COMMIT\n");
    fprintf(nat_fp, "COMMIT\n");
