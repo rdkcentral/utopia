@@ -1511,6 +1511,15 @@ do_extra_pools () {
 			echo "${PREFIX}""dhcp-option=${IFNAME},6,$WAN_DHCP_NS" >> $LOCAL_DHCP_CONF
 		fi
     done
+
+    #Add the dhcp range for brlan1 and brlan2 for traffic separation in dnsmasq.conf file.
+    echo "${PREFIX}interface=brlan1" >> $LOCAL_DHCP_CONF
+    echo "${PREFIX}""dhcp-range=set:2,192.168.25.2,192.168.25.253,255.255.255.0,7d" >> $LOCAL_DHCP_CONF
+    logger "DHCP_SERVER. [BRLAN1] ${PREFIX}""dhcp-range=set:$i,${m_DHCP_START_ADDR},${m_DHCP_END_ADDR},$m_LAN_SUBNET,${m_DHCP_LEASE_TIME}"
+
+    echo "${PREFIX}interface=brlan2" >> $LOCAL_DHCP_CONF
+    echo "${PREFIX}""dhcp-range=set:2,192.168.26.2,192.168.26.253,255.255.255.0,7d" >> $LOCAL_DHCP_CONF
+    logger "DHCP_SERVER. [BRLAN2] ${PREFIX}""dhcp-range=set:$i,${m_DHCP_START_ADDR},${m_DHCP_END_ADDR},$m_LAN_SUBNET,${m_DHCP_LEASE_TIME}"
 }
 
 #-----------------------------------------------------------------
