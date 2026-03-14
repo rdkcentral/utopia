@@ -36,2113 +36,316 @@
 /* _GNU_SOURCE is needed for strchrnul() and program_invocation_short_name */
 
 //#define _GNU_SOURCE
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/user.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/mman.h>
-#ifdef SC_SYSV_SEM
-#include <sys/sem.h>
-#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
-#include <semaphore.h>
-#include <pthread.h>
+#include <ctype.h>
+
 #include <ulog/ulog.h>
 #include "syscfg_lib.h"   // internal interface
 #include "syscfg.h"       // external interface used by users
 #include "safec_lib_common.h"
-#include <ctype.h>
 
 static int lmdb_initialized = 0;
 syscfg_lmdb_t *g_lmdb_ctx = NULL;
 
 /* ---- LMDB forward declarations ---- */
 static int ensure_lmdb_open(void);
-static int _lmdb_getall_helper(char *buf, int bufsz);
-static size_t _lmdb_getall2_helper(char *buf, size_t bufsz);
 static int lmdb_set_helper(syscfg_lmdb_t *ctx, const char *key, const char *val);
+static void syscfg_lmdb_check_close(void);
 
-//#define VERBOSE_DEBUG
+/* Helpers to enumerate LMDB into buffers */
+static int   _lmdb_getall_helper(char *buf, int bufsz);
+static size_t _lmdb_getall2_helper(char *buf, size_t bufsz);
 
-/*
- * Global data structures
- */
-static syscfg_shm_ctx *syscfg_ctx = NULL;
-static int syscfg_initialized = 0;
-
-static char name_p[MAX_NAME_LEN+1];                      // internal temp name buffer
-
-static int syscfg_init_internal (void);
-
-static int load_from_file (const char *fname);
-static int commit_to_file (const char *fname);
-
-#define DEFAULT_FILE "/etc/utopia/system_defaults"
-
-typedef struct {
-    char key[MAX_NAME_LEN];
-    char value[MAX_NAME_LEN];
-} ConfigEntry;
-
-typedef struct ConfigNode {
-    ConfigEntry entry;
-    struct ConfigNode *next;
-} ConfigNode;
-
-typedef struct {
-    const char *name;
-    unsigned int len;
-} KeyEntry;
-
-void _syscfg_find_corrupted_keys();
-
-ConfigNode **syscfg_default_ht = NULL;
-
-static char *trim(char *in)
+/* Compose key with optional namespace: ns.name or just name */
+static inline void compose_ns_key(const char *ns, const char *name, char *out, size_t outsz)
 {
-    while (isspace((unsigned char)*in)) in++;
-    char *end = in + strlen(in) - 1;
-    while (end > in && isspace((unsigned char)*end)) *end-- = '\0';
-    return in;
-}
-
-static int parse_line(char *in, char **name, char **value) {
-    char *tok = strchr(in, '=');
-    if (!tok) return -1;
-    *tok = '\0';
-    *name = in;
-    *value = tok + 1;
-    return 0;
-}
-
-static unsigned int hash_index (const char *str)
-{
-    unsigned int hash = 5381 % SYSCFG_SZ;
-    int c;
-
-    while ((c = *str++)) {
-        hash = ((hash << 5) + hash) + c;
-    }
-
-    return hash % SYSCFG_SZ;
-}
-
-static int _syscfg_add_default_entry(const char *key, const char *value)
-{
-    unsigned int index = hash_index(key);
-    ConfigNode *new_node = malloc(sizeof(ConfigNode));
-    if (!new_node) {
-        ulog_LOG_Err("Memory allocation failed");
-        return ERR_MEM_ALLOC;
-    }
-
-    strncpy(new_node->entry.key, key, MAX_NAME_LEN - 1);
-    new_node->entry.key[MAX_NAME_LEN - 1] = '\0';
-    strncpy(new_node->entry.value, value, MAX_NAME_LEN - 1);
-    new_node->entry.value[MAX_NAME_LEN - 1] = '\0';
-    new_node->next = syscfg_default_ht[index];
-    syscfg_default_ht[index] = new_node;
-
-    return 0;
-}
-
-static int _syscfg_getall_defaults(void)
-{
-   char buf[1024];
-   char *line;
-   char *name;
-   char *value;
-   FILE *fp = NULL;
-
-   fp = fopen (DEFAULT_FILE, "r");
-   if (fp == NULL)
-   {
-      ulog_LOG_Err("[utopia] no system default file (%s) found\n", DEFAULT_FILE);
-      return -1;
-   }
-
-   size_t size = SYSCFG_SZ * sizeof(ConfigNode *);
-   syscfg_default_ht = (ConfigNode **)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-   if (syscfg_default_ht == MAP_FAILED)
-   {
-       perror("mmap failed");
-       syscfg_default_ht = NULL;
-       fclose (fp);
-       return -1;
-   }
-
-   while (fgets (buf, sizeof(buf), fp) != NULL)
-   {
-      line = trim (buf);
-
-      if (line[0] == '$')
-      {
-          int offset = (line[1] == '$') ? 2 : 1;
-          if (parse_line(line + offset, &name, &value) == 0)
-          {
-              _syscfg_add_default_entry(trim(name), trim(value));
-          }
-          else
-          {
-              ulog_LOG_Err("[utopia] [error] set_syscfg_defaults failed to parse line (%s)\n", line);
-          }
-      }
-   }
-   fclose (fp);
-   return 0;
-}
-
-
-/******************************************************************************
- *                External syscfg library access apis
- *****************************************************************************/
-
-/*
- * Procedure     : syscfg_get
- * Purpose       : Retrieve an entry from syscfg
- * Parameters    :   
- *   ns  -  namespace string (optional)
- *   name  - name string, entry to add
- *   out_val  - buffer to store output value string
- *   outbufsz  - output buffer size
- * Return Values :
- *    0 - success
- *    ERR_xxx - various errors codes dependening on the failure
- */
-int syscfg_get (const char *ns, const char *name, char *out_val, int outbufsz)
-{
-    int rc = 0;
-    char *val;
-    size_t len;
-
-    if (NULL == name || NULL == out_val) {
-        if (out_val != NULL) {
-            out_val[0] = 0;
-        }
-        return -1;
-    }
-
-	if (ensure_lmdb_open() == 0) {
-        // Compose key with namespace if needed
-        char key[256];
-        if (ns && ns[0]) {
-            snprintf(key, sizeof(key), "%s.%s", ns, name);
-        } else {
-            snprintf(key, sizeof(key), "%s", name);
-        }
-    
-        rc = syscfg_lmdb_get(g_lmdb_ctx, key, out_val, outbufsz);
-        //printf("syscfg_get: out_val='%s'\n", out_val);
-        if (rc == 0) {
-            ulog_LOG_Info("LMDB syscfg_get: Found key=%s, value=%s\n", key, out_val);
-            return 0;
-        } else if (rc == MDB_NOTFOUND) {
-            ulog_LOG_Info("LMDB syscfg_get: Key not found: %s\n", key);
-            out_val[0] = 0;
-            //return -1; // Not found is not an error for get
-        } else {
-            ulog_LOG_Err("LMDB syscfg_get: LMDB get failed for key=%s, rc=%d\n", key, rc);
-            out_val[0] = 0;
-            //return -1;
-        }
-    }
-    else {
-        ulog_LOG_Err("LMDB syscfg_get: LMDB context not initialized\n");
-        out_val[0] = 0;
-        //return -1;
-    }
-    //return rc;
-
-    ulog_LOG_Info("syscfg_get: Not found in LMDB Falling back to internal hash table for name=%s\n", name);
-    
-    if (syscfg_initialized == 0) {
-        int rc = syscfg_init_internal();
-        if (rc != 0) {
-            out_val[0] = 0;
-            return rc;
-        }
-    }
-
-    val = _syscfg_get(ns, name);
-
-    if (val == NULL) {
-        out_val[0] = 0;
-        return -1;
-    }
-
-    len = strlen(val);
-
-    if (len >= outbufsz) {
-        memcpy(out_val, val, outbufsz - 1);
-        out_val[outbufsz - 1] = 0;
-#if defined (VERBOSE_DEBUG)
-        fprintf(stderr, "syscfg_get: %s outbufsz too small (%d < %d) (%s: lr %p)\n", name, outbufsz, (int) len + 1, program_invocation_short_name, __builtin_extract_return_addr (__builtin_return_address (0)));
-#endif
-    }
-    else {
-        memcpy(out_val, val, len + 1);
-    }
-    ulog_LOG_Info("syscfg_get: Found key=%s, value=%s\n", name, out_val);
-    return 0;
-}
-
-/*
- * Procedure     : syscfg_set
- * Purpose       : Adds an entry to syscfg
- * Parameters    :   
- *   ns  -  namespace string (optional)
- *   name  - name string, entry to add
- *   value  - value string to associate with name
- * Return Values :
- *    0 - success
- *    ERR_xxx - various errors codes dependening on the failure
- * Notes         :
- *    Only changes syscfg hash table, persistent store contents
- *    not changed until 'commit' operation
- */
-int syscfg_set_ns (const char *ns, const char *name, const char *value)
-{
-    if (syscfg_initialized == 0) {
-        int rc = syscfg_init_internal();
-        if (rc != 0) {
-            return rc;
-        }
-    }
-    if (NULL == name || NULL == value) {
-        return ERR_INVALID_PARAM;
-    }
-
-    if (ensure_lmdb_open() == 0) {
-        /* Mirror into LMDB too */
-        (void)lmdb_set_helper(g_lmdb_ctx, name, value);
-    }
-    return _syscfg_set(ns, name, value, 0);
-}
-
-int syscfg_set_ns_commit (const char *ns, const char *name, const char *value)
-{
-    int result = syscfg_set_ns (ns, name, value);
-    if (result == 0)
-        result = syscfg_commit();
-    return result;
-}
-
-int syscfg_set_ns_u (const char *ns, const char *name, unsigned long value)
-{
-    char buf[sizeof(long)*3];
-    sprintf (buf, "%lu", value);
-    return syscfg_set_ns (ns, name, buf);
-}
-
-int syscfg_set_ns_u_commit (const char *ns, const char *name, unsigned long value)
-{
-    int result = syscfg_set_ns_u (ns, name, value);
-    if (result == 0)
-        result = syscfg_commit();
-    return result;
-}
-
-int syscfg_set_nns (const char *name, const char *value)
-{
-    return syscfg_set_ns (NULL, name, value);
-}
-
-int syscfg_set_nns_commit (const char *name, const char *value)
-{
-    return syscfg_set_ns_commit (NULL, name, value);
-}
-
-int syscfg_set_nns_u (const char *name, unsigned long value)
-{
-    return syscfg_set_ns_u (NULL, name, value);
-}
-
-int syscfg_set_nns_u_commit (const char *name, unsigned long value)
-{
-    return syscfg_set_ns_u_commit (NULL, name, value);
-}
-
-/*
- * Procedure     : syscfg_getall
- * Purpose       : Retrieve all entries from syscfg
- * Parameters    :   
- *   buf  -  output buffer to store syscfg entries
- *   bufsz  - size of output buffer
- *   outsz  - number of bytes return into given buffer
- * Return Values :
- *    0       - on success
- *    ERR_xxx - various errors codes dependening on the failure
- * Notes         :
- *    useful for clients to dump the whole syscfg data
- */
-int syscfg_getall (char *buf, int bufsz, int *outsz)
-{
-    if (syscfg_initialized == 0) {
-        int rc = syscfg_init_internal();
-        if (rc != 0) {
-            return rc;
-        }
-    }
-    if (NULL == buf) {
-        return ERR_INVALID_PARAM;
-    }
-
-    /* smallest possible result is 'a','=','b','\0' */
-    if (bufsz < 4) {
-        return ERR_INVALID_PARAM;
-    }
-
-    if (ensure_lmdb_open() == 0) {
-        *outsz = _lmdb_getall_helper(buf, bufsz);
-        return (*outsz >= 0) ? 0 : -1;
-    }
-    ulog_LOG_Err("syscfg_getall: LMDB context not initialized\n");
-    printf("syscfg_getall: LMDB context not initialized\n");
-    *outsz = _syscfg_getall(buf, bufsz);
-    return 0;
-}
-
-int syscfg_getall2 (char *buf, size_t bufsz, size_t *outsz)
-{
-    if (syscfg_initialized == 0) {
-        int rc = syscfg_init_internal();
-        if (rc != 0) {
-            return rc;
-        }
-    }
-
-    /* smallest possible result is 'a','=','b','\n','\0' */
-    if (bufsz < 5) {
-        return ERR_INVALID_PARAM;
-    }
-    if (ensure_lmdb_open() == 0) {
-        *outsz = _lmdb_getall2_helper(buf, bufsz);
-        return (*outsz >= 0) ? 0 : -1;
-    }
-    ulog_LOG_Err("syscfg_getall2: LMDB context not initialized\n");
-    printf("syscfg_getall2: LMDB context not initialized\n");
-    *outsz = _syscfg_getall2(buf, bufsz, 0);
-    return 0;
-}
-
-/*
- * Procedure     : syscfg_unset
- * Purpose       : Remove an entry from syscfg
- * Parameters    :   
- *   ns  -  namespace string (optional)
- *   name  - name string, entry to remove
- * Return Values :
- *    0 - success
- *    ERR_xxx - various errors codes dependening on the failure
- * Notes         :
- *    Only changes syscfg hash table, persistent store contents
- *    not changed until 'commit' operation
- */
-int syscfg_unset (const char *ns, const char *name)
-{
-    if (syscfg_initialized == 0) {
-        int rc = syscfg_init_internal();
-        if (rc != 0) {
-            return rc;
-        }
-    }
-    if (NULL == name) {
-        return ERR_INVALID_PARAM;
-    }
-
-	if (ensure_lmdb_open() == 0) {
-        if (syscfg_lmdb_unset(g_lmdb_ctx, name) != 0) {
-            ulog_LOG_Err("syscfg_unset: LMDB unset failed for key: %s\n", name);
-            printf("syscfg_unset: LMDB unset failed for key: %s\n", name);
-        }
-        else {
-            ulog_LOG_Info("syscfg_unset: LMDB unset succeeded for key: %s\n", name);
-            printf("syscfg_unset: LMDB unset succeeded for key: %s\n", name);
-        }
-    }
-    else {
-        ulog_LOG_Err("syscfg_unset: LMDB context not initialized\n");
-        printf("syscfg_unset: LMDB context not initialized\n");
-        //return -1;
-    }
-    return _syscfg_unset(ns, name, 0);
-}
-
-/*
- * Procedure     : syscfg_getsz
- * Purpose       : Get current & maximum peristent storage size 
- *                 of syscfg content
- * Parameters    : 
- *                 used_sz - return buffer of used size
- *                 max_sz - return buffer of max size
- * Return Values :
- *    0 - success
- *    ERR_xxx - various errors codes dependening on the failure
- */
-int syscfg_getsz (long int *used_sz, long int *max_sz)
-{
-    if (syscfg_initialized == 0) {
-        int rc = syscfg_init_internal();
-        if (rc != 0) {
-            return rc;
-        }
-    }
-
-    return _syscfg_getsz(used_sz, max_sz);
-}
-
-/*
- * Procedure     : syscfg_commit
- * Purpose       : commits current stats of syscfg hash table data
- *                 to persistent store
- * Parameters    :   
- *   None
- * Return Values :
- *    0 - success
- *    ERR_IO_xxx - various IO errors dependening on the failure
- * Notes         :
- *    WARNING: will overwrite persistent store
- *    Persistent store location specified during syscfg_create() is cached 
- *    in syscfg shared memory and used as the target for commit
- */
-int syscfg_commit (void)
-{
-    syscfg_shm_ctx *ctx;
-    int rc;
-
-    if (ensure_lmdb_open() == 0) {
-        syscfg_lmdb_commit(g_lmdb_ctx);
-    }
-
-    if (syscfg_initialized == 0) {
-        rc = syscfg_init_internal();
-        if (rc != 0) {
-            return rc;
-        }
-    }
-    
-    ctx = syscfg_ctx;
-
-    write_lock(ctx);
-    commit_lock(ctx);
-
-    rc = commit_to_file(ctx->cb.store_path);
-
-    commit_unlock(ctx);
-    write_unlock(ctx);
-    
-    #if !defined (_ARRIS_XB6_PRODUCT_REQ_)
-        ulog(ULOG_SYSTEM, UL_SYSCFG, "commit to store");
-    #endif
-    return rc;
-}
-
-/*
- * Procedure     : syscfg_destroy
- * Purpose       : Destroy syscfg shared memory context
- * Parameters    :   
- *   None
- * Return Values :
- *    0              - success
- *    ERR_INVALID_PARAM - invalid arguments
- *    ERR_IO_FAILURE - syscfg file unavailable
- * Notes         :
- *   syscfg destroy should happen only during system shutdown.
- *   *NEVER* call this API in any other scenario!!
- */
-void syscfg_destroy (void)
-{
-    if (syscfg_initialized == 0) {
-        int rc = syscfg_init_internal();
-        if (rc != 0) {
-            return;
-        }
-    }
-
-    if (syscfg_initialized) {
-        _syscfg_destroy();
-        syscfg_initialized = 0;
+    if (ns && ns[0]) {
+        (void)snprintf(out, outsz, "%s.%s", ns, name);
+    } else {
+        (void)snprintf(out, outsz, "%s", name);
     }
 }
-static int _syscfg_getall_defaults(void);
-/*
- * Procedure     : syscfg_create
- * Purpose       : SYSCFG initialization from persistent storage
- * Parameters    :   
- *   file - filesystem 'file' where syscfg is stored
- * Return Values :
- *    0              - success
- *    ERR_INVALID_PARAM - invalid arguments
- *    ERR_IO_FAILURE - syscfg file unavailable
- * Notes         :
- */
-int syscfg_create (const char *file, long int max_file_sz)
-{
-    if (file == NULL) {
-        return ERR_INVALID_PARAM;
-    }
-    ulog_LOG_Info("Enter in function %s \n", __FUNCTION__);
 
-    store_info_t store_info;
-    int rc, shmid = -1;
-
-    store_info.type = STORE_FILE;
-    strncpy(store_info.path, file, sizeof(store_info.path)-1);
-    store_info.path[sizeof(store_info.path)-1] = '\0';
-    store_info.max_size = (max_file_sz > 0) ? max_file_sz : DEFAULT_MAX_FILE_SZ;
-    store_info.hdr_size = 0;
-
-    ulog_LOG_Info("creating shared memory with store type %d, path %s, size %ld, hdr size %d \n", store_info.type, store_info.path, store_info.max_size, store_info.hdr_size);
-
-    syscfg_ctx = (syscfg_shm_ctx *) syscfg_shm_create(&store_info, &shmid);
-    if (NULL == syscfg_ctx) {
-        ulog_LOG_Err("Error creating shared memory");
-        return ERR_SHM_CREATE;
-    }
-
-    // ready for operation
-    syscfg_initialized = 1;
-
-    if (ensure_lmdb_open() != 0) {
-        ulog_LOG_Err("Failed to initialize LMDB context\n");
-        printf("Failed to initialize LMDB context\n");
-    }
-    else {
-        ulog_LOG_Info("LMDB initialized successfully\n");
-        printf("LMDB initialized successfully\n");
-    }
-
-    /* Load syscfg data */
-    rc = load_from_file(store_info.path);
-
-    if (0 != rc) {
-        ulog_LOG_Err("Error loading from store");
-    }
-    /* Getting all system defaults & validate with current configurations */
-    _syscfg_find_corrupted_keys();
-
-    shmdt(syscfg_ctx);
-
-    return 0;
-}
-
-int syscfg_reload(const char *file) {
-    int rc = 0;
-
-    if (NULL == file)
-        return ERR_INVALID_PARAM;
-
-    ulog_LOG_Info("Enter in function %s \n", __FUNCTION__);
-
-    rc = load_from_file(file);
-    if (0 != rc)
-        ulog_LOG_Err("Error reloading config file %s", file);
-
-    return rc;
-}
-
-int syscfg_commit_lock() {
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-    return commit_lock(ctx);
-}
-
-int syscfg_commit_unlock() {
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-    return commit_unlock(ctx);
-}
-
-/******************************************************************************
- *                Internal utility routines
- *****************************************************************************/
-
-/*
- * Procedure     : syscfg_init_internal
- * Purpose       : Initialization to attach current process to syscfg
- *                 shared memory based context
- * Parameters    :   
- * Return Values :
- *    0              - success
- *    ERR_INVALID_PARAM - invalid arguments
- *    ERR_IO_FAILURE - syscfg file unavailable
- * Notes         :
- */
-static int syscfg_init_internal (void)
-{
-    syscfg_shm_ctx *ctx;
-    int rc;
-
-    if (syscfg_initialized) {
-        return 0;
-    }
-
-    ulog_init();
-
-    ctx = NULL;
-    rc = syscfg_shm_init(&ctx);
-    if (rc || NULL == ctx) {
-	ulog_LOG_Dbg("Error initializing shared memory\n");
-        return rc;
-    }
-
-    syscfg_ctx = ctx;
-    syscfg_initialized = 1;
-
-    return 0;
-}
-
-/* Open g_lmdb_ctx once, thread-safe init can be added if needed */
+/* Open g_lmdb_ctx once */
 static int ensure_lmdb_open(void)
 {
     if (!lmdb_initialized || !g_lmdb_ctx) {
         int rc = syscfg_lmdb_open(&g_lmdb_ctx, LMDB_PERSIST_DIR, MAPSIZE, 0);
         if (rc != 0 || !g_lmdb_ctx) {
-            ulog_LOG_Err("Failed to initialize LMDB context");
+            ulog_LOG_Err("syscfg_lmdb_open failed (rc=%d)\n", rc);
             return -1;
         }
         lmdb_initialized = 1;
     }
     return 0;
 }
+
+static void syscfg_lmdb_check_close(void)
+{
+    // Cleanup LMDB context
+    if (g_lmdb_ctx) {
+        syscfg_lmdb_close(g_lmdb_ctx);
+        g_lmdb_ctx = NULL;
+    }
+    lmdb_initialized = 0;
+}
+
+/* ----------------------------------------------------------------
+ * External syscfg library access APIs (LMDB-only)
+ * ---------------------------------------------------------------- */
+
 /*
- * Procedure     : syscfg_parse
- * Purpose       : parses one name=value at buffer 
- * Parameters    :   
- *   str   - input buffer
- *   name  - pointer to mem location of name
- *   value - pointer to mem location of value
- * Return Values :
- *    buf - points to the terminating char past the 'value' string
- *    name - malloc'd buffer with 'name' string
- *    value - malloc'd buffer with 'value' string
- * Notes         :
- *   caller need to free 'name' & 'value' 
+ * Procedure : syscfg_get
+ * Purpose   : Retrieve an entry from LMDB
+ * Return    : 0 on success, -1 if not found or on error
  */
-static char *syscfg_parse (const char *str, char **name, char **value)
+int syscfg_get(const char *ns, const char *name, char *out_val, int outbufsz)
 {
-    char *n = NULL;
-    char *p = NULL;
-    int len = 0;
-
-    if (NULL == str || NULL == name || NULL == value) {
-        return NULL;
-    }
-
-    *name = *value = NULL;
-
-    if ((n = strchr(str,'='))) {
-        len = n - str;
-        *name = malloc(len+1);
-        if (*name) {
-            memcpy(*name, str, len);
-            (*name)[len] = '\0';
-            n++;
-            p = strchrnul(n,'\0');
-            if (p) {
-                len = p - n;
-                *value = malloc(len+1);
-                if (*value) {
-                    memcpy(*value, n, len);
-                    (*value)[len] = '\0';
-                    return p;
-                }
-            }
-        }
-    }
-
-    if (*name) {
-        free(*name);
-        *name = NULL;
-    }
-    return NULL;
-}
-
-// dbj2 hash: hash * 33 + str[i]
-static unsigned int hash (const char *str)
-{
-    unsigned int hash = 5381 % SYSCFG_HASH_TABLE_SZ;
-    int c;
-
-    while ((c = *str++)) {
-        hash = ((hash << 5) + hash) + c; 
-    }
-
-    return hash % SYSCFG_HASH_TABLE_SZ;
-}
-
-/******************************************************************************
- *                Internal lock apis
- *****************************************************************************/
-
-#ifdef SC_POSIX_SEM
-
-static int lock_init (syscfg_shm_ctx *ctx)
-{
-    shm_cb *cb = &(ctx->cb);
-
-    int err;
-
-    pthread_mutexattr_t mattr;
-
-    pthread_mutexattr_init(&mattr);
-
-    // set up the atributes for a robust mutex
-    err = pthread_mutexattr_setprotocol(&mattr, PTHREAD_PRIO_INHERIT);
-    if (err) {
-        ulog_errorf(ULOG_SYSTEM, UL_SYSCFG, "pthread_mutexattr_setprotocol error %d: %s\n",
-            err, strerror(err));
-        return ERR_SEMAPHORE_INIT;
-    }
-    err = pthread_mutexattr_setrobust(&mattr, PTHREAD_MUTEX_ROBUST);
-    if (err) {
-        ulog_errorf(ULOG_SYSTEM, UL_SYSCFG, "pthread_mutexattr_setrobust error %d: %s\n",
-            err, strerror(err));
-        return ERR_SEMAPHORE_INIT;
-    }
-
-    // Build the mutexes using the above attributes
-    err = pthread_mutex_init(&cb->write_lock, &mattr);
-    if (err) {
-        ulog_errorf(ULOG_SYSTEM, UL_SYSCFG, "pthread_mutex_init in write_lock error %d: %s\n", err, strerror(err));
-        return ERR_SEMAPHORE_INIT;
-    }
-
-    err = pthread_mutex_init(&cb->read_lock, &mattr);
-    if (err) {
-        ulog_errorf(ULOG_SYSTEM, UL_SYSCFG, "pthread_mutex_init in read_lock error %d: %s\n", err, strerror(err));
-        return ERR_SEMAPHORE_INIT;
-    }
-
-    err = pthread_mutex_init(&cb->commit_lock, &mattr);
-    if (err) {
-        ulog_errorf(ULOG_SYSTEM, UL_SYSCFG, "pthread_mutex_init in commit_lock error %d: %s\n", err, strerror(err));
-        return ERR_SEMAPHORE_INIT;
-    }
-
-    return 0;
-}
-
-static inline int read_lock (syscfg_shm_ctx *ctx)
-{
-    int err = pthread_mutex_lock(&ctx->cb.read_lock);
-
-    if (err == 0) {
-        //ulog(ULOG_SYSTEM, UL_SYSCFG, "Process %d locked read mutex\n", (int) getpid());
-    } else if (err == EOWNERDEAD) {
-        FILE *consolefp = NULL;
-        if((consolefp = fopen (LOG_FILE, "a+") )) {
-                fprintf(consolefp, "SYSCFG_ERROR:Process %d got EOWNERDEAD for read mutex\n", (int) getpid());
-                fclose(consolefp);
-        }
-       ulog_errorf(ULOG_SYSTEM, UL_SYSCFG, "Process %d got EOWNERDEAD for read mutex\n", (int) getpid());
-        err = pthread_mutex_consistent(&ctx->cb.read_lock);
-        //ulog(ULOG_SYSTEM, UL_SYSCFG, "Process %d locked read mutex\n", (int) getpid());
-
-    }
-
-    return err;
-}
-
-static inline int read_unlock (syscfg_shm_ctx *ctx)
-{
-    return pthread_mutex_unlock(&ctx->cb.read_lock);
-}
-
-static inline int write_lock (syscfg_shm_ctx *ctx)
-{
-    int err = pthread_mutex_lock(&ctx->cb.write_lock);
-
-    if (err == 0) {
-        //ulog(ULOG_SYSTEM, UL_SYSCFG, "Process %d locked write mutex\n", (int) getpid());
-    } else if (err == EOWNERDEAD) {
-        FILE *consolefp = NULL;
-        if((consolefp = fopen (LOG_FILE, "a+") )) {
-                fprintf(consolefp, "SYSCFG_ERROR:Process %d got EOWNERDEAD for write mutex\n", (int) getpid());
-                fclose(consolefp);
-        }
-       ulog_errorf(ULOG_SYSTEM, UL_SYSCFG, "Process %d got EOWNERDEAD for write mutex\n", (int) getpid());
-       err = pthread_mutex_consistent(&ctx->cb.write_lock);
-        //ulog(ULOG_SYSTEM, UL_SYSCFG, "Process %d locked write mutex\n", (int) getpid());
-    }
-
-    return err;
-}
-
-static inline int write_unlock (syscfg_shm_ctx *ctx)
-{
-    return pthread_mutex_unlock(&ctx->cb.write_lock);
-}
-
-static inline int commit_lock (syscfg_shm_ctx *ctx)
-{
-    int err = pthread_mutex_lock(&ctx->cb.commit_lock);
-
-    if (err == 0) {
-        //ulog(ULOG_SYSTEM, UL_SYSCFG,"Process %d locked commit mutex\n", (int) getpid());
-    } else if (err == EOWNERDEAD) {
-        FILE *consolefp = NULL;
-        if((consolefp = fopen (LOG_FILE, "a+") )) {
-                fprintf(consolefp, "SYSCFG_ERROR:Process %d got EOWNERDEAD for commit mutex\n", (int) getpid());
-                fclose(consolefp);
-        }
-        ulog_errorf(ULOG_SYSTEM, UL_SYSCFG,"Process %d got EOWNERDEAD for commit mutex\n", (int) getpid());
-        err = pthread_mutex_consistent(&ctx->cb.commit_lock);
-        //ulog(ULOG_SYSTEM, UL_SYSCFG,"Process %d locked commit mutex\n", (int) getpid());
-    }
-
-    return err;
-}
-
-static inline int commit_unlock (syscfg_shm_ctx *ctx)
-{
-    return pthread_mutex_unlock(&ctx->cb.commit_lock);
-}
-
-static int lock_destroy (syscfg_shm_ctx *ctx)
-{
-    pthread_mutex_destroy(&ctx->cb.read_lock);
-    pthread_mutex_destroy(&ctx->cb.write_lock);
-    pthread_mutex_destroy(&ctx->cb.commit_lock);
-
-    return 0;
-}
-
-#elif SC_SYSV_SEM
-
-union semun {
-    int val;                           // value for SETVAL
-    struct semid_ds *buf;              // buffer for IPC_STAT & IPC_SET
-    unsigned short int *array;         // array for GETALL & SETALL
-    struct seminfo *__buf;             // buffer for IPC_INFO
-};
-
-// sem array lock relations,
-//    0 - read lock
-//    1 - write lock
-//    2 - commit lock
-
-enum {
-    READ_SEM_NUM,
-    WRITE_SEM_NUM,
-    COMMIT_SEM_NUM
-};
-
-static int lock_init (syscfg_shm_ctx *ctx)
-{
-    int semid;
-
-    key_t key= ftok(SYSCFG_SHM_FILE, SYSCFG_SHM_PROJID);
-    if (-1 == (semid = semget(key, 3, 0600 | IPC_CREAT | IPC_EXCL))) {
+    if (name == NULL || out_val == NULL || outbufsz <= 0) {
+        if (out_val) out_val[0] = '\0';
         return -1;
     }
 
-    union semun semval;
-    semval.val = 1;
-
-    if (-1 == semctl(semid, READ_SEM_NUM, SETVAL, semval)) {
+    if (ensure_lmdb_open() != 0) {
+        out_val[0] = '\0';
         return -1;
     }
-    if (-1 == semctl(semid, WRITE_SEM_NUM, SETVAL, semval)) {
-        return -1;
+
+    char key[256];
+    compose_ns_key(ns, name, key, sizeof(key));
+
+    int rc = syscfg_lmdb_get(g_lmdb_ctx, key, out_val, outbufsz);
+    if (rc == 0) {
+        ulog_LOG_Info("syscfg_get: key=%s value=%s\n", key, out_val);
+		syscfg_lmdb_check_close();
+        return 0;
     }
-    if (-1 == semctl(semid, COMMIT_SEM_NUM, SETVAL, semval)) {
-        return -1;
-    }
-    ctx->cb.semid = semid;
 
-    return 0;
-}
-
-static int lock_sysv_sem (int semid, int sem_num)
-{
-    struct sembuf sops;
-
-    memset(&sops, 0, sizeof(struct sembuf));
-
-    sops.sem_num = sem_num;
-    sops.sem_op = -1; // decr by 1
-    sops.sem_flg = 0; // wait till lock is acquired 
-
-    if (-1 == semop(semid, &sops, 1)) {
-        ulog_error(ULOG_SYSTEM, UL_SYSCFG, "locking. semop failed");
-        return -1;
-    }
-    return 0;
-}
-
-static int unlock_sysv_sem (int semid, int sem_num)
-{
-    struct sembuf sops;
-
-    memset(&sops, 0, sizeof(struct sembuf));
-
-    sops.sem_num = sem_num;
-    sops.sem_op = 1; // incr by 1
-    sops.sem_flg = 0; // wait till lock is acquired 
-
-    if (-1 == semop(semid, &sops, 1)) {
-        ulog_error(ULOG_SYSTEM, UL_SYSCFG, "unlocking. semop failed");
-        return -1;
-    }
-    return 0;
-}
-
-static inline int read_lock (syscfg_shm_ctx *ctx)
-{
-    return lock_sysv_sem((ctx)->cb.semid, READ_SEM_NUM);
-}
-
-static inline int read_unlock (syscfg_shm_ctx *ctx)
-{
-    return unlock_sysv_sem((ctx)->cb.semid, READ_SEM_NUM);
-}
-
-static inline int write_lock (syscfg_shm_ctx *ctx)
-{
-    return lock_sysv_sem((ctx)->cb.semid, WRITE_SEM_NUM);
-}
-
-static inline int write_unlock (syscfg_shm_ctx *ctx)
-{
-    return unlock_sysv_sem((ctx)->cb.semid, WRITE_SEM_NUM);
-}
-
-static inline int commit_lock (syscfg_shm_ctx *ctx)
-{
-    return lock_sysv_sem((ctx)->cb.semid, COMMIT_SEM_NUM);
-}
-
-static inline int commit_unlock (syscfg_shm_ctx *ctx)
-{
-    return unlock_sysv_sem((ctx)->cb.semid, COMMIT_SEM_NUM);
-}
-
-static int lock_destroy (syscfg_shm_ctx *ctx)
-{
-    if (-1 == semctl(ctx->cb.semid, 0, IPC_RMID)) {
-        ulog_error(ULOG_SYSTEM, UL_SYSCFG, "system lock destroy failed");
-        return -1;
-    }
-    ctx->cb.semid = -1;
-    return 0;
-}
-
-#endif
-
-static int rw_lock (syscfg_shm_ctx *ctx)
-{
-    int rc = read_lock(ctx);
-    if (0 == rc) {
-        rc = write_lock(ctx);
-        if (0 == rc) {
-            return 0; // all success
-        } else {
-            // write lock failed, rollback read lock
-            read_unlock(ctx);
-        }
-    }
+    ulog_LOG_Err("syscfg_get: LMDB get failed for key=%s rc=%d\n", key, rc);
+    out_val[0] = '\0';
+	syscfg_lmdb_check_close();
     return -1;
 }
 
-static int rw_unlock (syscfg_shm_ctx *ctx)
-{
-    read_unlock(ctx);
-    write_unlock(ctx);
-    return 0;
-}
-
-
-/******************************************************************************
- *                Internal syscfg library access apis
- *****************************************************************************/
-
-static int make_ht_entry (const char *name, int namelen, const char *value, shmoff_t *out_offset)
-{
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-    char *p_entry_name, *p_entry_value;
-    int valuelen = strlen(value);
-    int rc = 0;
-
-    int size = namelen + 1 +
-               valuelen + 1 +
-               sizeof(ht_entry);
-
-    rc = shm_malloc(ctx, size, out_offset);
-    if (0 != rc) {
-        return rc;
-    }
-
-    shmoff_t ht_entry_offset = *out_offset;
-    if (ht_entry_offset) {
-        ht_entry *entry = HT_ENTRY(ctx,ht_entry_offset);
-        entry->name_sz = namelen + 1;
-        entry->value_sz = valuelen + 1;
-        entry->next = 0;
-        p_entry_name = HT_ENTRY_NAME(ctx,ht_entry_offset);
-        memset(p_entry_name, 0, namelen + 1);
-        memcpy(p_entry_name, name, namelen + 1);
-        p_entry_value = HT_ENTRY_VALUE(ctx,ht_entry_offset);
-        memset(p_entry_value, 0, valuelen + 1);
-        memcpy(p_entry_value, value, valuelen + 1);
-    }
-
-    return rc;
-}
-
-static void _syscfg_destroy (void)
-{
-    
-    syscfg_shm_destroy(syscfg_ctx);
-    syscfg_ctx = NULL;
-}
-
-static char* _syscfg_get (const char *ns, const char *name)
-{
-    int index;
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-
-    rw_lock(ctx);
-
-    if (ns) {
-        snprintf(name_p, sizeof(name_p), "%s" NS_SEP "%s", ns, name);
-    } else {
-        snprintf(name_p, sizeof(name_p), "%s", name);
-    }
-
-    index = hash(name_p);
-
-    shmoff_t entryoffset = ctx->ht[index];
-
-    while (entryoffset && strcmp(HT_ENTRY_NAME(ctx,entryoffset), name_p)) {
-        entryoffset = HT_ENTRY_NEXT(ctx,entryoffset);
-    }
-
-    rw_unlock(ctx);
-
-    if (entryoffset) {
-        return HT_ENTRY_VALUE(ctx,entryoffset);
-    }
-
-    return NULL;
-}
-
 /*
- *  Description:
- *     Check current used storage if set can be saved to persistent store
- *     Incr the used count accordingly
- *  Returns
- *         1 - if syscfg storage has enough free space to store the tuple
- *             incr current used storage (in bytes)
- *         0 - otherwise, not enough storage
- *  Note
- *         Since this routine manipulated ctx object, it should be protected
- *         
+ * Procedure : syscfg_set_ns
+ * Purpose   : Set a value in LMDB
+ * Return    : 0 on success, non-zero on error
  */
-static int check_decr_store_sz (syscfg_shm_ctx *ctx, int namelen, const char *value)
+int syscfg_set_ns(const char *ns, const char *name, const char *value)
 {
-    shm_cb *cb = &(ctx->cb);
-    int entry_sz = 0;
-
-    // Size is calculated as "sizeof(name) + sizeof('=') + sizeof(value) + sizeof('\n')
-    // note: name here includes namespace and NS_SEP string
-
-    entry_sz = namelen;
-    entry_sz += (value) ? strlen(value) : 0;
-    entry_sz += 2;
-
-    if ((cb->used_store_size + entry_sz) > cb->max_store_size) {
-        // not enough storage space
-        return 0;
-    } else {
-        // we have room, go ahead and decr
-        cb->used_store_size += entry_sz;
-        return 1;
+    if (name == NULL || value == NULL) {
+        return ERR_INVALID_PARAM;
     }
-}
-
-static void incr_store_sz (syscfg_shm_ctx *ctx, int namelen, const char *value)
-{
-    shm_cb *cb = &(ctx->cb);
-    int entry_sz = 0;
-
-    // Size is calculated as "sizeof(name) + sizeof('=') + sizeof(value) + sizeof('\n')
-    // note: name here includes namespace and NS_SEP string
-
-    entry_sz = namelen;
-    entry_sz += (value) ? strlen(value) : 0;
-    entry_sz += 2;
-
-    // we have room, go ahead and decr
-    cb->used_store_size -= entry_sz;
-}
-
-static int _syscfg_getsz (long int *used_sz, long int *max_sz)
-{
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-    shm_cb *cb = &(ctx->cb);
-
-    write_lock(ctx);
-    if (used_sz) {
-        *used_sz = cb->used_store_size;
-    }
-    if (max_sz) {
-        *max_sz = cb->max_store_size;
-    }
-    write_unlock(ctx);
-
-    return 0;
-}
-
-
-/*
- * replace value by unsetting existing entry and setting new entry
- * reason being we might need a new shm_malloc item of different size
- * TODO-OPTIMIZE: do this only if new value doesn't fit current mm_item
- *
- * nolock - indicates if write lock already acquired by caller, hence it need
- *          not be locked (actually shd not be, bcoz it will cause a deadlock)
- */
-static int _syscfg_set (const char *ns, const char *name, const char *value, int nolock)
-{
-    int index, rc = 0;
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-    size_t namelen;
-
-    if (!nolock) {
-        rw_lock(ctx);
-    }
-
-    if (ns) {
-        namelen = snprintf(name_p, sizeof(name_p), "%s" NS_SEP "%s", ns, name);
-    } else {
-        namelen = snprintf(name_p, sizeof(name_p), "%s", name);
-    }
-
-    if (namelen >= sizeof(name_p))
-        namelen = sizeof(name_p) - 1;
-
-    index = hash(name_p);
-
-    if (0 == ctx->ht[index]) {
-        if (0 == check_decr_store_sz(ctx, namelen, value)) {
-            if (!nolock) {
-                rw_unlock(ctx);
-            }
-            return ERR_NO_SPACE;
-        }
-        shmoff_t ht_offset;
-        rc = make_ht_entry(name_p, namelen, value, &ht_offset);
-        if (0 == rc) {
-            ctx->ht[index] = ht_offset;
-        } else {
-            incr_store_sz(ctx, namelen, value);
-        }
-        if (!nolock) {
-            rw_unlock(ctx);
-        }
-        return rc;
-    }
-
-    // handle collision
-    shmoff_t entryoffset, prev_offset;
-
-    entryoffset = prev_offset = ctx->ht[index];
-    while (strcmp(HT_ENTRY_NAME(ctx,entryoffset), name_p) && HT_ENTRY_NEXT(ctx, entryoffset)) {
-        entryoffset = HT_ENTRY_NEXT(ctx,entryoffset);
-    }
-
-    if (0 == strcmp(HT_ENTRY_NAME(ctx,entryoffset), name_p)) {
-        /*
-         * recursion, explicitly set to no-lock as write lock is already acquired
-         */
-        _syscfg_unset(ns, name, 1);
-        rc = _syscfg_set(ns, name, value, 1);
-    } else { 
-        // new entry, attach it to end of linked list
-        if (0 == check_decr_store_sz(ctx, namelen, value)) {
-            if (!nolock) {
-                rw_unlock(ctx);
-            }
-            return ERR_NO_SPACE;
-        }
-        shmoff_t ht_offset;
-        rc = make_ht_entry(name_p, namelen, value, &ht_offset);
-        if (0 == rc) {
-            HT_ENTRY_NEXT(ctx,entryoffset) = ht_offset;
-        } else {
-            incr_store_sz(ctx, namelen, value);
-        }
-    }
-
-    if (!nolock) {
-        rw_unlock(ctx);
-    }
-    return rc;
-}
-
-/*
- * locked - indicates if write lock already acquired by caller, hence it need
- *          not be locked (actually shd not be, bcoz it will cause a deadlock)
- */
-static int _syscfg_unset (const char *ns, const char *name, int nolock)
-{
-    int index;
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-    size_t namelen;
-
-    if (!nolock) {
-        rw_lock(ctx);
-    }
-
-    if (ns) {
-        namelen = snprintf(name_p, sizeof(name_p), "%s" NS_SEP "%s", ns, name);
-    } else {
-        namelen = snprintf(name_p, sizeof(name_p), "%s", name);
-    }
-
-    if (namelen >= sizeof(name_p))
-        namelen = sizeof(name_p) - 1;
-
-    index = hash(name_p);
-
-    if (0 == ctx->ht[index]) {
-        // doesn't exist, nothing to do
-        if (!nolock) {
-            rw_unlock(ctx);
-        }
-        return 0;
-    }
-
-    shmoff_t entryoffset = ctx->ht[index];
-    shmoff_t prev = 0;
-
-    while (entryoffset && strcmp(HT_ENTRY_NAME(ctx,entryoffset), name_p)) {
-        prev = entryoffset;
-        entryoffset = HT_ENTRY_NEXT(ctx,entryoffset);
-    }
-    if (0 == entryoffset) {
-        // doesn't exist, nothing to do
-        if (!nolock) {
-            rw_unlock(ctx);
-        }
-        return 0;
-    }
-    incr_store_sz(ctx, namelen, HT_ENTRY_VALUE(ctx,entryoffset));
-    if (prev) {
-        HT_ENTRY_NEXT(ctx,prev) = HT_ENTRY_NEXT(ctx,entryoffset);
-    } else {
-        ctx->ht[index] = HT_ENTRY_NEXT(ctx,entryoffset);
-    }
-    shm_free(ctx, entryoffset);
-
-    if (!nolock) {
-        rw_unlock(ctx);
-    }
-    return 0;
-}
-
-static int _syscfg_getall (char *buf, int bufsz)
-{
-    int i;
-    unsigned int len = bufsz;
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-    shmoff_t entry;
-
-    buf[0] = 0;
-
-    rw_lock(ctx);
-
-    for (i = 0; i < SYSCFG_HASH_TABLE_SZ; i++) {
-        entry = ctx->ht[i];
-        // check if space left for 'name' '=' 'value' + null char
-        while (entry && len >= (HT_ENTRY_NAMESZ(ctx,entry) + HT_ENTRY_VALUESZ(ctx,entry))) {
-            /*CID 73563 : Calling Risky Function*/
-            len -= snprintf(buf + (bufsz - len),len,
-                           "%s=%s", HT_ENTRY_NAME(ctx,entry), HT_ENTRY_VALUE(ctx,entry)) + 1;
-            entry = HT_ENTRY_NEXT(ctx,entry);
-        }
-    }
-
-    rw_unlock(ctx);
-
-    return (bufsz - len);   /* size does not include final nul terminator */
-}
-
-static size_t _syscfg_getall2 (char *buf, size_t bufsz, int nolock)
-{
-    int i;
-    size_t len = bufsz;
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-    shmoff_t entry;
-
-    buf[0] = 0;
-
-    if (!nolock) {
-        rw_lock(ctx);
-    }
-
-    for (i = 0; i < SYSCFG_HASH_TABLE_SZ; i++) {
-        entry = ctx->ht[i];
-        while (entry) {
-            unsigned int name_sz = HT_ENTRY_NAMESZ(ctx,entry);
-            unsigned int value_sz = HT_ENTRY_VALUESZ(ctx,entry);
-            if (len > (name_sz + value_sz + 1)) {
-                memcpy(buf, HT_ENTRY_NAME(ctx,entry), name_sz + value_sz - 1);
-                buf[name_sz - 1] = '=';
-                buf[name_sz + value_sz - 1] = '\n';
-                buf[name_sz + value_sz] = 0;
-                buf += name_sz + value_sz;
-                len -= name_sz + value_sz;
-            }
-            entry = HT_ENTRY_NEXT(ctx,entry);
-        }
-    }
-
-    if (!nolock) {
-        rw_unlock(ctx);
-    }
-
-    return (bufsz - len);   /* size does not include final nul terminator */
-}
-
-static int _syscfg_find_in_defaults (const char *name)
-{
-    unsigned int index = hash_index(name);
-    if (index)
-    {
-        ConfigNode *new_node = syscfg_default_ht[index];
-
-        if ( new_node && (strcmp(new_node->entry.key, name) == 0))
-        {
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-static void _syscfg_default_ht_destroy(void)
-{
-    if (!syscfg_default_ht)
-    {
-        return;
-    }
-
-    for (size_t i = 0; i < SYSCFG_SZ; ++i)
-    {
-        ConfigNode *n = syscfg_default_ht[i];
-        while (n)
-        {
-            ConfigNode *next = n->next;
-            free(n);
-            n = next;
-        }
-        syscfg_default_ht[i] = NULL;
-    }
-
-    size_t size = SYSCFG_SZ * sizeof(ConfigNode *);
-    if (munmap(syscfg_default_ht, size) == -1)
-    {
-        perror("munmap syscfg_default_ht");
-    }
-    syscfg_default_ht = NULL;
-}
-
-void _syscfg_find_corrupted_keys()
-{
-    int key_count = 0;
-    unsigned int max_key_len = 0;
-
-    if (_syscfg_getall_defaults() < 0)
-    {
-        printf("_syscfg_getall_defaults failed!\n");
-    }
-
-    size_t keys_size = SYSCFG_SZ * sizeof(KeyEntry);
-    KeyEntry *keys = (KeyEntry *)mmap(NULL, keys_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-    if (keys == MAP_FAILED)
-    {
-        perror("mmap failed");
-        _syscfg_default_ht_destroy();
-        return;
-    }
-
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-    rw_lock(ctx);
-
-    /* find max string length */
-    for (int i = 0; i < SYSCFG_HASH_TABLE_SZ; i++) {
-        for (shmoff_t entry = ctx->ht[i]; entry; entry = HT_ENTRY_NEXT(ctx, entry)) {
-            const char *key = HT_ENTRY_NAME(ctx, entry);
-            unsigned int len = strlen(key);
-            keys[key_count].name = key;
-            keys[key_count].len = len;
-            if (len > max_key_len)
-                max_key_len = len;
-            key_count++;
-        }
-    }
-
-    for (int i = 0; i < key_count; i++)
-    {
-        const char *query = keys[i].name;
-        unsigned int query_len = keys[i].len;
-        unsigned int longest_len = 0;
-        const char *longest_super = NULL;
-
-        for (int j = 0; j < key_count; j++) {
-            if (i == j || keys[j].len < query_len) continue;
-
-            if (strstr(keys[j].name, query) &&
-                    (strcmp(keys[j].name + strlen(keys[j].name) - strlen(query), query) == 0))
-            {
-                if (keys[j].len > longest_len)
-                {
-                    longest_len = keys[j].len;
-                    longest_super = keys[j].name;
-                    if (longest_len == max_key_len) break;
-                }
-            }
-        }
-
-        if (longest_super) {
-            if (!_syscfg_find_in_defaults(query))
-                printf("[utopia] - [%s] May be a corrupted key of [%s]\n", query, longest_super);
-        }
-    }
-
-    _syscfg_default_ht_destroy();
-
-    if (munmap(keys, keys_size) == -1)
-    {
-        perror("munmap failed");
-    }
-
-    rw_unlock(ctx);
-}
-
-/******************************************************************************
- *          shared-memory create, initialize and attach/detach APIs
- *****************************************************************************/
-
-
-static void shm_mm_init (syscfg_shm_ctx *ctx);
-
-/*
- * initialize control block
- */
-/* CID 68025: Big parameter passed by value */
-static int shm_cb_init (syscfg_shm_ctx *ctx, int shmid, store_info_t *store_info)
-{
-    shm_cb *cb = &(ctx->cb);
-
-    memset(cb, 0, sizeof(shm_cb));
-
-    cb->magic = SYSCFG_SHM_MAGIC;
-    cb->version = (SYSCFG_SHM_VERSION_MAJOR << 4) | (SYSCFG_SHM_VERSION_MINOR);
-    cb->size = SYSCFG_SHM_SIZE;
-    cb->shmid = shmid;
-    cb->store_type = store_info->type;
-    /* CID 135644 : BUFFER_SIZE_WARNING */
-    strncpy(cb->store_path, store_info->path, sizeof(cb->store_path)-1);
-    cb->store_path[sizeof(cb->store_path)-1] = '\0';
-    cb->max_store_size = store_info->max_size;
-    cb->used_store_size = store_info->hdr_size;
-
-    int rc = lock_init(ctx);
-    if (rc) {
-        ulog_error(ULOG_SYSTEM, UL_SYSCFG, "Error creating system locks");
-    }
-
-    return rc;
-}
-
-static int syscfg_shm_init (syscfg_shm_ctx **out_ctx)
-{
-    int rc, shmid;
-    struct stat sbuf;
-
-    if (-1 == (rc = stat(SYSCFG_SHM_FILE, &sbuf))) {
-        ulog_error(ULOG_SYSTEM, UL_SYSCFG, "Shared memory file not found");
-        return ERR_SHM_NO_FILE;
-    }
-
-    syscfg_shm_ctx *ctx = (syscfg_shm_ctx *) syscfg_shm_attach(&shmid);
-    if (NULL == ctx) {
-        return ERR_SHM_ATTACH;
-    }
-
-    if (ctx->cb.magic != SYSCFG_SHM_MAGIC) {
-        ulog_error(ULOG_SYSTEM, UL_SYSCFG, "Magic check failed. Invalid shared memory context");
-        return ERR_SHM_ATTACH;
-    }
-
-    *out_ctx = ctx;
-    return 0;
-}
-
-/* CID 63267:Big parameter passed by value */
-static void *syscfg_shm_create (store_info_t *store_info, int *out_shmid)
-{
-    int shmid;
-    key_t key;
-    struct stat sbuf;
-
- 
-    /*CID: 135594 Time of check time of use*/
-    // precreate file 
-    FILE *fp = fopen(SYSCFG_SHM_FILE, "w");
-    if (NULL == fp) {
-        return NULL;
-    }
-
-    if (-1 != fstat(fileno(fp), &sbuf)) {
-        void *p_shm = syscfg_shm_attach(&shmid);
-        if (p_shm) {
-            ulog_error(ULOG_SYSTEM, UL_SYSCFG, "Old shm instance still present. destroy it before creating new one");
-	    fclose(fp);
-            return NULL;
-        } else {
-            ulog_error(ULOG_SYSTEM, UL_SYSCFG, "WARN: Unexpected shared memory file during creation"); 
-        }
-    }
-    fputs("creating", fp);
-    fclose(fp);
-
-    // get unique key using file path and proj id
-    if (-1 == (key= ftok(SYSCFG_SHM_FILE, SYSCFG_SHM_PROJID))) {
-        return NULL;
-    }
-
-    if (-1 == (shmid = shmget(key, SYSCFG_SHM_SIZE, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR))) {
-        ulog_error(ULOG_SYSTEM, UL_SYSCFG, "shared memory creation failed"); 
-        return NULL;
-    }
-
-    // attach to shm to initialize syscfg structures
-    syscfg_shm_ctx *ctx = shmat(shmid, NULL, 0);
-    if (NULL == ctx) {
-        return NULL;
-    }
-
-    int rc = shm_cb_init(ctx, shmid, store_info);
-    if (rc) {
-        ulog_error(ULOG_SYSTEM, UL_SYSCFG, "shared memory control block init failed"); 
-    }
-
-    shm_mm_init(ctx);
-
-    fp = fopen(SYSCFG_SHM_FILE, "w");
-    if (fp) {
-        fprintf(fp, "%d", shmid);
-        fclose(fp);
-    }
-
-    *out_shmid = shmid;
-
-    syscfg_ctx = ctx;
-    syscfg_initialized = 1;
-
-    return ctx;
-}
-
-static int syscfg_shm_getid (void)
-{
-    key_t key;
-
-    // get unique key using file path and proj id
-    key = ftok(SYSCFG_SHM_FILE, SYSCFG_SHM_PROJID);
-    if (-1 == key) {
-        printf("Error: couldn't get shm key from file name %s and proj id %d\n",
-               SYSCFG_SHM_FILE, SYSCFG_SHM_PROJID);
-        return -1;
-    }
-    
-    int shmid = shmget(key, 0, 0);
-    if (-1 == shmid) {
-        return -1;
-    }
-
-    return shmid;
-}
-
-static void *syscfg_shm_attach (int *shmid)
-{
-    void *shm_p;
-
-    if (-1 == (*shmid = syscfg_shm_getid())) {
-        return NULL;
-    }
-    if ((void *) -1 == (shm_p = shmat(*shmid, NULL, 0))) {
-        return NULL;
-    }
-    return shm_p;
-}
-
-// mark shared memory for deletion
-// CHECK: shd we wait on all read, write & commit to open?
-// most probably not as those procs would've attached to
-// shm (and hence will be still valid). Also if we wait, it might take
-// a long time as those other operations might take a while
-// UI should warn the user (html, cli, etc) that this is a dangerous 
-// operation to do and might take some time (please wait blah blah ...)
-// CHECK: when shd we call sem_destroy for all our semaphores?
-//
-static void syscfg_shm_destroy (syscfg_shm_ctx *ctx)
-{
-    if (NULL == ctx) {
-        return;
-    }
-
-    lock_destroy(ctx);
-
-    struct shmid_ds buf;
-
-    int rc = shmctl(ctx->cb.shmid, IPC_RMID, &buf);
-    if (-1 == rc) {
-    }
-    shmdt(ctx);
-
-    unlink(SYSCFG_SHM_FILE);
-}
-
-/******************************************************************************
- *                shared-memory memory management APIs
- *****************************************************************************/
-
-    /*
-     * data block has 3 offsets of interest
-     *   db_start - data block start points to beginning of shm context's data block
-     *              it never changes
-     *   db_end   - data block end points to end of shm context's data block.
-     *              it rarely changes, only when shm is resized or remapped 
-     *              for need of more space
-     *   db_cur   - data block current points to an offset between start and end
-     *              that is current used. this actively changes as new elements are
-     *              allocated from datablock. it always monetonically increased and never
-     *              decrease. Initially db_cur points to beginning of data block (db_start)
-     *
-     *   db_start  -->  |------------|
-     *                  |xxxxxxxxxxxx| 
-     *                  |xxxxxxxxxxxx| 
-     *                  |xxxxxxxxxxxx| 
-     *                  |xxxxxxxxxxxx| 
-     *                  |xxxxxxxxxxxx| 
-     *   db_cur    -->  |------------|
-     *                  |000000000000| 
-     *                  |000000000000| 
-     *                  |000000000000| 
-     *                  |000000000000| 
-     *   db_end    -->  |------------|
-     */
-
-static void shm_mm_init (syscfg_shm_ctx *ctx)
-{
-    int shm_metadata_sz = sizeof(shm_cb) +
-                          sizeof(shm_mm) +
-                          (sizeof(shmoff_t) * SYSCFG_HASH_TABLE_SZ);
-    shm_mm *mm = &(ctx->mm);
-
-    mm->db_size = ctx->cb.size - shm_metadata_sz;
-    mm->db_start = shm_metadata_sz;
-    mm->db_end = mm->db_start + mm->db_size;
-    mm->db_cur = mm->db_start;
-
-
-    shm_free_table *ft = mm->ft;
-
-#define MIN_ITEM_SZ 32
-#define MAX_ITEM_SZ 2048
-
-    // free list for 32 byte entries
-    ft[0].size = MIN_ITEM_SZ; 
-    ft[0].mf = 8; 
-    ft[0].head = 0; 
-
-    // free list for 64 byte entries
-    ft[1].size = 64; 
-    ft[1].mf = 4; 
-    ft[1].head = 0; 
-
-    // free list for 128 byte entries
-    ft[2].size = 128; 
-    ft[2].mf = 2; 
-    ft[2].head = 0; 
-
-    // free list for 256 byte entries
-    ft[3].size = 256; 
-    ft[3].mf = 2; 
-    ft[3].head = 0; 
-
-    // free list for 512 byte entries
-    ft[4].size = 512; 
-    ft[4].mf = 1; 
-    ft[4].head = 0; 
-
-    // free list for 1024 byte entries
-    ft[5].size = 1024; 
-    ft[5].mf = 1; 
-    ft[5].head = 0; 
-
-    // free list for 2048 byte entries
-    ft[6].size = MAX_ITEM_SZ; 
-    ft[6].mf = 1; 
-    ft[6].head = 0; 
-}
-
-static int shm_malloc (syscfg_shm_ctx *ctx, int size, shmoff_t *out_offset)
-{
-    int i;
-    shmoff_t item;
-
-    // shm_mm *mm = &(ctx->mm);
-    // shm_free_table *ft = mm->ft;
-    shm_free_table *ft = ctx->mm.ft;
-
-    for(i=0; i < NUM_BUCKETS; i++) {
-        if (ft[i].size > (size + MM_OVERHEAD)) {
-            if (ft[i].head) {
-                item = ft[i].head;
-                ft[i].head = MM_ITEM_NEXT(ctx, item);
-                MM_ITEM_NEXT(ctx, item) = 0;
-                *out_offset = (item + MM_OVERHEAD);
-                return 0;
-            } else {
-                int ct = make_mm_items(ctx, &ft[i]);
-                if (0 == ct) {
-                    ulog_error(ULOG_SYSTEM, UL_SYSCFG, "Error: shm_malloc failed, insufficient space?");
-                    return ERR_MEM_ALLOC;
-                } else {
-                    // now that we've more items, call us again
-                    return shm_malloc(ctx, size, out_offset);
-                }
-            }
-        }
-    }
-    
-    ulog_error(ULOG_SYSTEM, UL_SYSCFG, "Error: shm_malloc failed, size too big?");
-    return ERR_ENTRY_TOO_BIG;
-}
-
-/*
- * offset is past mm_overhead
- * clear mm_item's data portion before putting back to free list
- */
-static void shm_free (syscfg_shm_ctx *ctx, shmoff_t offset)
-{
-    shmoff_t old_head, mmoffset;
-    mm_item *item;
-
-    shm_free_table *ft = ctx->mm.ft;
-
-    mmoffset = (offset - MM_OVERHEAD);
-    
-    item = MM_ITEM(ctx,mmoffset);
-
-    memset(((char *) item + MM_OVERHEAD), 0, item->size - MM_OVERHEAD);
-
-    int i;
-    for(i=0; i < NUM_BUCKETS; i++) {
-        if (ft[i].size == MM_ITEM_SIZE(ctx, mmoffset)) {
-            old_head = ft[i].head;
-            ft[i].head = mmoffset;
-            MM_ITEM_NEXT(ctx,mmoffset) = old_head;
-        }
-    }
-}
-
-/*
- * returns number of mm_items made
- * 0 on error, > 0 on success
- * Note, argument "ft" should be treated as one shm_free_table entry, NOT as ft array
- */
-static int make_mm_items (syscfg_shm_ctx *ctx, shm_free_table *ft)
-{
-    int ct;
-    shmoff_t item;
-
-    if (ft->size < MIN_ITEM_SZ || ft->size > MAX_ITEM_SZ) { 
-        // WARNING: bad shm mm bucket 
-        return 0;
-    }
-    if (ft->head) {
-        // item already available
-        // WARNING: why do you want more items?
-        return 0;
-    }
-
-    for(ct=0; (ct < ft->mf) && ((ctx->mm.db_cur + ft->size) < ctx->mm.db_end); ct++) {
-        item = ctx->mm.db_cur;
-        MM_ITEM_SIZE(ctx, item) = ft->size;
-        MM_ITEM_NEXT(ctx, item) = ft->head;
-        ctx->mm.db_cur += ft->size;
-        ft->head = item;
-    }
-
-    return ct;
-}
-
-/*
- * Advisory read and write lock
- * Note: fd should be opened with RDWR mode
- */
-static void _syscfg_file_lock (int fd)
-{
-    struct flock fl;
-
-    memset(&fl, 0, sizeof(fl));
-
-    fl.l_type = F_WRLCK;
-    fl.l_whence = SEEK_SET;
-    fl.l_start = 0;
-    fl.l_len = 0; // whole file, even if it grows
-    /* CID 70977: Unchecked return value from library */
-    if (fcntl(fd, F_SETLKW, &fl) == -1)
-    {
-	close(fd);
-	return;
-    }
-    fl.l_type = F_RDLCK;
-    fl.l_whence = SEEK_SET;
-    fl.l_start = 0;
-    fl.l_len = 0; // whole file, even if it grows
-    if (fcntl(fd, F_SETLKW, &fl) == -1) {
-        close(fd);
-    }
-}
-
-/*
- * Unlock read and write 
- * Note: fd should be opened with RDWR mode
- */
-static void _syscfg_file_unlock (int fd)
-{
-    struct flock fl;
-
-    memset(&fl, 0, sizeof(fl));
-
-    fl.l_type = F_UNLCK;
-    fl.l_whence = SEEK_SET;
-    fl.l_start = 0;
-    fl.l_len = 0; // whole file, even if it grows
-    /* CID 63229: Unchecked return value from library */
-     if (fcntl(fd, F_SETLKW, &fl) == -1)
-     {
-         close(fd);
-     }
-}
-
-static int load_from_file (const char *fname)
-{
-    char *inbuf = NULL;
-    char *name = NULL, *value = NULL;
-
-    FILE *fd = fopen(fname, "r");
-    if (NULL == fd) {
-        return ERR_IO_FILE_OPEN;
-    }
-    inbuf = malloc(SYSCFG_SZ);
-    if (NULL == inbuf) {
-        fclose(fd); /*RDKB-7135, CID-33110, free unused resources before exit*/
-        return ERR_MEM_ALLOC;
-    }
-
-    memset(inbuf, 0, SYSCFG_SZ);
-    while (fgets(inbuf, SYSCFG_SZ, fd) != NULL)
-    {
-        // Remove trailing newline, if any
-        inbuf[strcspn(inbuf, "\r\n")] = '\0';
-        syscfg_parse(inbuf, &name, &value);
-        if (name && value) {
-            if (name[0] != '\0')
-                syscfg_set(NULL, name, value);
-            free(name);
-            name = NULL;
-            free(value);
-            value = NULL;
-        }
-        memset(inbuf, 0, SYSCFG_SZ);
-    }
-
-    free(inbuf);
-    fclose(fd);
-
-    return 0;
-}
-
-/* Taking backup of file */
-static int backup_file (const char *bkupFile, const char *localFile)
-{
-   int fd_from = open(localFile, O_RDONLY);
-   int rc=0;
-  if(fd_from < 0)
-  {
-    ulog_error(ULOG_SYSTEM, UL_SYSCFG,"opening localfile failed during db backup");
-    return -1;
-  }
-  struct stat Stat;
-  if(fstat(fd_from, &Stat)<0)
-  {
-    ulog_error(ULOG_SYSTEM, UL_SYSCFG, "fstat call failed during db backup");
-
-    close(fd_from);
-    return -1;
-  }
-  void *mem = mmap(NULL, Stat.st_size, PROT_READ, MAP_SHARED, fd_from, 0);
-  if(mem == MAP_FAILED)
-  {
-    	ulog_error(ULOG_SYSTEM, UL_SYSCFG, "mmap failed during db backup");
-        close(fd_from);
-        return -1;
-  }
-
-  int fd_to = open(bkupFile, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
-  if(fd_to < 0)
-  {
-    	ulog_error(ULOG_SYSTEM, UL_SYSCFG, "creat sys call failed during db backup");
-	rc = munmap(mem,Stat.st_size);
-	if ( rc != 0 ){
-		
-    		ulog_error(ULOG_SYSTEM, UL_SYSCFG, "munmap failed");
-	}
-        close(fd_from);
-        return -1;
-  }
-  ssize_t nwritten = write(fd_to, mem, Stat.st_size);
-  if (msync(mem, Stat.st_size, MS_SYNC)) {
-      ulog_error(ULOG_SYSTEM, UL_SYSCFG, "msync call failed during db backup");
-      fprintf(stderr, "%s msync FAILED, errno:%d\n", __func__, errno);
-  }
-
-  if(nwritten < Stat.st_size)
-  {
-    	ulog_error(ULOG_SYSTEM, UL_SYSCFG, "write system call failed during db backup");
-
-	rc = munmap(mem,Stat.st_size);
-        if ( rc != 0 ){
-
-                ulog_error(ULOG_SYSTEM, UL_SYSCFG, "munmap failed");
-        }
-
-	close(fd_from);
-        close(fd_to);
-        return -1;
-  }
-
-  rc = munmap(mem,Stat.st_size);
-  if ( rc != 0 ){
-       ulog_error(ULOG_SYSTEM, UL_SYSCFG, "munmap failed");
-  }
-
-  if(close(fd_to) < 0) {
-        fd_to = -1;
-    	ulog_error(ULOG_SYSTEM, UL_SYSCFG, "closing file descriptor failed during db backup");
-
-  	close(fd_from);
-        return -1;
-  }
-  close(fd_from);
-
-  /* Success! */
-  return 0;
-}
-
-/*
- * Notes
- *    syscfg space is locked by the caller (for write & commit)
- */
-static int commit_to_file (const char *fname)
-{
-    int fd;
-    int i, ct;
-    char buf[2*MAX_ITEM_SZ];
-    int ret=0;
-    syscfg_shm_ctx *ctx = syscfg_ctx;
-
-    fd = open(fname, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
-    if (-1 == fd) {
-        return ERR_IO_FILE_OPEN;
-    }
-    _syscfg_file_lock(fd);
-
-    shmoff_t entry;
-    off_t file_offset = 0;
-
-    for (i = 0; i < SYSCFG_HASH_TABLE_SZ; i++) {
-        entry = ctx->ht[i];
-        while (entry) {
-            memset(buf, 0, sizeof(buf));
-            ct = snprintf(buf, sizeof(buf), "%s=%s\n",
-                          HT_ENTRY_NAME(ctx,entry), HT_ENTRY_VALUE(ctx,entry));
-            if (ct > 0) {
-                ssize_t written = write(fd, buf, ct);
-                if (written < 0) {
-                    ret = ERR_IO_FILE_WRITE;
-                    goto end;
-                }
-                file_offset += written;
-            }
-            entry = HT_ENTRY_NEXT(ctx, entry);
-        }
-    }
-    ftruncate(fd, file_offset);
-
-    end:
-        _syscfg_file_unlock(fd);
-        close(fd);
-
-   ret = access(SYSCFG_BKUP_FILE, F_OK);
-   if ( ret == 0 ) { 
-   	ret=backup_file(SYSCFG_BKUP_FILE,fname);
-   	if (ret == -1)
-   	{
-    		ulog_error(ULOG_SYSTEM, UL_SYSCFG, "Backing up of syscfg failed");
-		// retrying again to take db back up
-		ret=0;
-        	ret=backup_file(SYSCFG_BKUP_FILE,fname);
-		if ( ret == -1){
-			ulog_error(ULOG_SYSTEM, UL_SYSCFG, "Retry of backing up syscfg also failed");
-	        	return ret;
-		}
-   	}
-   }
-
-   ret = access(SYSCFG_NEW_FILE, F_OK);
-   if ( ret == 0 ) {
- 	  ret=backup_file(SYSCFG_NEW_FILE,fname);
-	  if (ret == -1)
-   	  {
-    		ulog_error(ULOG_SYSTEM, UL_SYSCFG, "Backing up of syscfg failed");
-		// retrying again to take db back up
-		ret=0;
-        	ret=backup_file(SYSCFG_NEW_FILE,fname);
-		if ( ret == -1){
-			ulog_error(ULOG_SYSTEM, UL_SYSCFG, "Retry of backing up syscfg also failed");
-	        	return ret;
-	        }
-   	  }
-   }
-   return 0;
-}
-
-static int _lmdb_getall_helper(char *buf, int bufsz) {
-    int used = 0;
-    int trunc = 0;
-    if (!buf || bufsz <= 0) return -1;
     if (ensure_lmdb_open() != 0) return -1;
+
+    char key[256];
+    compose_ns_key(ns, name, key, sizeof(key));
+
+    /* Use helper (unset-if-exists then set) to mimic legacy behavior */
+    return lmdb_set_helper(g_lmdb_ctx, key, value);
+}
+
+int syscfg_set_ns_commit(const char *ns, const char *name, const char *value)
+{
+    int rc = syscfg_set_ns(ns, name, value);
+    if (rc == 0) rc = syscfg_commit();
+    return rc;
+}
+
+int syscfg_set_ns_u(const char *ns, const char *name, unsigned long value)
+{
+    char buf[sizeof(unsigned long) * 3 + 2];
+    (void)snprintf(buf, sizeof(buf), "%lu", value);
+    return syscfg_set_ns(ns, name, buf);
+}
+
+int syscfg_set_ns_u_commit(const char *ns, const char *name, unsigned long value)
+{
+    int rc = syscfg_set_ns_u(ns, name, value);
+    if (rc == 0) rc = syscfg_commit();
+    return rc;
+}
+
+int syscfg_set_nns(const char *name, const char *value)
+{
+    return syscfg_set_ns(NULL, name, value);
+}
+
+int syscfg_set_nns_commit(const char *name, const char *value)
+{
+    return syscfg_set_ns_commit(NULL, name, value);
+}
+
+int syscfg_set_nns_u(const char *name, unsigned long value)
+{
+    return syscfg_set_ns_u(NULL, name, value);
+}
+
+int syscfg_set_nns_u_commit(const char *name, unsigned long value)
+{
+    return syscfg_set_ns_u_commit(NULL, name, value);
+}
+
+/*
+ * Procedure : syscfg_unset
+ * Purpose   : Remove key from LMDB
+ * Return    : 0 on success, non-zero otherwise
+ */
+int syscfg_unset(const char *ns, const char *name)
+{
+    if (name == NULL) return ERR_INVALID_PARAM;
+    if (ensure_lmdb_open() != 0) return -1;
+
+    char key[256];
+    compose_ns_key(ns, name, key, sizeof(key));
+    int rc = syscfg_lmdb_unset(g_lmdb_ctx, key);
+    if (rc == 0) {
+        ulog_LOG_Info("syscfg_unset: unset key=%s\n", key);
+    } else {
+        ulog_LOG_Err("syscfg_unset: failed for key=%s rc=%d\n", key, rc);
+    }
+	syscfg_lmdb_check_close();
+    return rc;
+}
+
+/*
+ * Procedure : syscfg_getall
+ * Notes     : returns entries as "key=value\n" ... (nul-terminated)
+ */
+int syscfg_getall(char *buf, int bufsz, int *outsz)
+{
+    if (!buf || bufsz < 4 || !outsz) return ERR_INVALID_PARAM;
+
+    int used = _lmdb_getall_helper(buf, bufsz);
+    *outsz = (used >= 0) ? used : 0;
+    return (used >= 0) ? 0 : -1;
+}
+
+/*
+ * Procedure : syscfg_getall2
+ * Notes     : same as getall but size_t
+ */
+int syscfg_getall2(char *buf, size_t bufsz, size_t *outsz)
+{
+    if (!buf || bufsz < 5 || !outsz) return ERR_INVALID_PARAM;
+
+    size_t used = _lmdb_getall2_helper(buf, bufsz);
+    *outsz = used;
+    return 0;
+}
+
+/*
+ * Procedure : syscfg_getsz
+ * Purpose   : Return approximate "used" size in bytes as sum of "key=value\n".
+ *             max_sz is not applicable for LMDB, so set to 0.
+ */
+int syscfg_getsz(long int *used_sz, long int *max_sz)
+{
+    if (ensure_lmdb_open() != 0) return -1;
+
+    long int used = 0;
     char **keys = NULL;
     int count = 0;
-    int rc = 0;
-    rc = syscfg_lmdb_enum(g_lmdb_ctx, NULL, 0, &keys, &count);
-    if (rc != 0) return -1;
+
+    if (syscfg_lmdb_enum(g_lmdb_ctx, NULL, 0, &keys, &count) != 0) {
+        if (used_sz) *used_sz = 0;
+        if (max_sz)  *max_sz  = 0;
+		syscfg_lmdb_check_close();
+        return -1;
+    }
+
+    for (int i = 0; i < count; ++i) {
+        char val[256];
+        if (syscfg_lmdb_get(g_lmdb_ctx, keys[i], val, sizeof(val)) == 0) {
+            used += (long int)(strlen(keys[i]) + 1 /* '=' */ + strlen(val) + 1 /* '\n' */);
+        }
+        free(keys[i]);
+    }
+    free(keys);
+
+    if (used_sz) *used_sz = used;
+    if (max_sz)  *max_sz  = 0;
+	syscfg_lmdb_check_close();
+    return 0;
+}
+
+/*
+ * Procedure : syscfg_commit
+ * Purpose   : LMDB commit/flush (if backend requires)
+ */
+int syscfg_commit(void)
+{
+    return 0;
+}
+
+/*
+ * Procedure : syscfg_destroy
+ */
+void syscfg_destroy(void)
+{
+    // Cleanup LMDB context
+    if (g_lmdb_ctx) {
+        syscfg_lmdb_close(g_lmdb_ctx);
+        g_lmdb_ctx = NULL;
+    }
+    lmdb_initialized = 0;
+}
+
+/*
+ * Procedure : syscfg_create
+ * Purpose   : Initialize LMDB context; file/max_file_sz parameters are ignored.
+ */
+int syscfg_create(const char *file, long int max_file_sz)
+{
+    (void)file;
+    (void)max_file_sz;
+    ulog_LOG_Info("syscfg_create: LMDB-only mode (ignoring file/max size)\n");
+    return 0;
+}
+
+/*
+ * Procedure : syscfg_reload
+ * Purpose   : No-op for LMDB-only backend
+ */
+int syscfg_reload(const char *file)
+{
+    (void)file;
+    return 0;
+}
+
+/*
+ * Procedure : commit_lock / commit_unlock
+ * Purpose   : No-ops kept for ABI compatibility with former shared-memory design
+ */
+int syscfg_commit_lock(void)   { return 0; }
+int syscfg_commit_unlock(void) { return 0; }
+
+/* ----------------------------------------------------------------
+ * LMDB helpers
+ * ---------------------------------------------------------------- */
+
+static int _lmdb_getall_helper(char *buf, int bufsz)
+{
+    int used = 0;
+    int trunc = 0;
+
+    if (!buf || bufsz <= 0) return -1;
+    if (ensure_lmdb_open() != 0) return -1;
+
+    char **keys = NULL;
+    int count = 0;
+    int rc = syscfg_lmdb_enum(g_lmdb_ctx, NULL, 0, &keys, &count);
+	if (rc != 0) {
+		syscfg_lmdb_check_close();
+		return -1;
+	}
+
     for (int i = 0; i < count; ++i) {
         char val[256];
         rc = syscfg_lmdb_get(g_lmdb_ctx, keys[i], val, sizeof(val));
@@ -2152,7 +355,7 @@ static int _lmdb_getall_helper(char *buf, int bufsz) {
                 int n = snprintf(buf + used, (size_t)space, "%s=%s\n", keys[i], val);
                 if (n < 0 || n >= space) {
                     trunc = 1;
-                    if (bufsz > 0) { buf[bufsz - 1] = '\0'; }
+                    buf[bufsz - 1] = '\0';
                 } else {
                     used += n;
                 }
@@ -2167,18 +370,25 @@ static int _lmdb_getall_helper(char *buf, int bufsz) {
         }
     }
     free(keys);
+	syscfg_lmdb_check_close();
     return used;
 }
 
-static size_t _lmdb_getall2_helper(char *buf, size_t bufsz) {
+static size_t _lmdb_getall2_helper(char *buf, size_t bufsz)
+{
     size_t used = 0;
+
     if (!buf || bufsz == 0) return 0;
     if (ensure_lmdb_open() != 0) return 0;
+
     char **keys = NULL;
     int count = 0;
-    int rc = 0;
-    rc = syscfg_lmdb_enum(g_lmdb_ctx, NULL, 0, &keys, &count);
-    if (rc != 0) return 0;
+    int rc = syscfg_lmdb_enum(g_lmdb_ctx, NULL, 0, &keys, &count);
+    if (rc != 0) {
+		syscfg_lmdb_check_close();
+		return 0;
+	}
+
     for (int i = 0; i < count; ++i) {
         char val[256];
         rc = syscfg_lmdb_get(g_lmdb_ctx, keys[i], val, sizeof(val));
@@ -2192,24 +402,27 @@ static size_t _lmdb_getall2_helper(char *buf, size_t bufsz) {
         free(keys[i]);
     }
     free(keys);
+	syscfg_lmdb_check_close();
     return used;
 }
 
-static int lmdb_set_helper(syscfg_lmdb_t *ctx, const char *key, const char *val) {
+static int lmdb_set_helper(syscfg_lmdb_t *ctx, const char *key, const char *val)
+{
     if (!ctx || !key || !val) return EINVAL;
-    // Optionally check if key exists and unset first
+
+    /* Optionally unset existing key to preserve legacy semantics */
     char tmp[256];
     int rc = syscfg_lmdb_get(ctx, key, tmp, sizeof(tmp));
     if (rc == 0) {
-        syscfg_lmdb_unset(ctx, key);
+        (void)syscfg_lmdb_unset(ctx, key);
     }
+
     int rc2 = syscfg_lmdb_set(ctx, key, val);
     if (rc2 != 0) {
-        printf("LMDB set failed for key: %s\n", key);
+        ulog_LOG_Err("LMDB set failed for key=%s rc=%d\n", key, rc2);
+    } else {
+        ulog_LOG_Info("LMDB set succeeded for key=%s\n", key);
     }
-    else {
-        printf("LMDB set succeeded for key: %s\n", key);
-    }
+	syscfg_lmdb_check_close();
     return rc2;
 }
-
