@@ -1400,8 +1400,11 @@ v6GPFirewallRuleNext:
          if('\0' == lan_ifname[0])
             snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
 
+         if ('\0' == wan6_ifname[0])
+            snprintf(wan6_ifname, sizeof(wan6_ifname), "erouter0");
+
          FIREWALL_DEBUG("IPv6:wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic on %s\n" COMMA lan_ifname);
-         fprintf(fp, "-A lan2wan -i %s -j DROP\n", lan_ifname);
+         fprintf(fp, "-A lan2wan -i %s -o %s -j DROP\n", lan_ifname, wan6_ifname);
       }
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
 #if defined(IVI_KERNEL_SUPPORT)

@@ -12955,8 +12955,11 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       if('\0' == lan_ifname[0])
           snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
 
+      if('\0' == current_wan_ifname[0])
+          snprintf(current_wan_ifname, sizeof(current_wan_ifname), "erouter0");
+
       FIREWALL_DEBUG("wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic on %s\n" COMMA lan_ifname);
-      fprintf(filter_fp, "-A lan2wan -i %s -j DROP\n", lan_ifname);
+      fprintf(filter_fp, "-A lan2wan -i %s -o %s -j DROP\n", lan_ifname, current_wan_ifname);
    }
    /***********************
     * set lan to wan subrule by order 
