@@ -12939,14 +12939,25 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
     * traffic via the lan2wan chain.
     */
    char cValue[64] = {0};
+   const char *pWanOutputIfname = NULL;
    sysevent_get(sysevent_fd, sysevent_token, "wan_to_lan_operational_mode",cValue, sizeof(cValue));
    if (0 == strcasecmp(cValue, "Manageable"))
    {
       if('\0' == lan_ifname[0])
           snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
 
-      FIREWALL_DEBUG("wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic on %s\n" COMMA lan_ifname);
-      fprintf(filter_fp, "-A lan2wan -i %s -j DROP\n", lan_ifname);
+      /* When MAP-E is not ready, ensure current_wan_ifname has a sane default. In MAP-E mode,
+       * the WAN egress interface is the MAP-E tunnel interface instead.
+       */
+      if(!isMAPEReady && '\0' == current_wan_ifname[0])
+          snprintf(current_wan_ifname, sizeof(current_wan_ifname), "erouter0");
+
+      /* Align the DROP rule's output interface with the forwarding path:
+       * use the MAP-E tunnel interface when MAP-E is ready, otherwise use current_wan_ifname.
+       */
+      pWanOutputIfname = isMAPEReady ? MAPE_TUNNEL_INTERFACE : current_wan_ifname;
+      FIREWALL_DEBUG("wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic from %s to %s\n" COMMA lan_ifname COMMA pWanOutputIfname);
+      fprintf(filter_fp, "-A lan2wan -i %s -o %s -j DROP\n", lan_ifname, pWanOutputIfname);
    }
    /***********************
     * set lan to wan subrule by order 

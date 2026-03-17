@@ -1392,6 +1392,7 @@ v6GPFirewallRuleNext:
 
       fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", lan_ifname, lan_ifname);
       fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", lan_ifname, wan6_ifname);
+
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
 #if defined(IVI_KERNEL_SUPPORT)
       fprintf(fp, "-I FORWARD -i %s -o %s -j lan2wan\n", ETH_MESH_BRIDGE, wan6_ifname);
@@ -1778,6 +1779,24 @@ v6GPFirewallRuleNext:
     fprintf(fp, "-I lan2wan -j lan2wan_misc_ipv6\n");
 #endif
 
+    /*
+     * Check WAN-to-LAN operational mode. When set to "Manageable",
+     * treat LAN-to-WAN forwarding as manageable by blocking LAN-to-WAN
+     * traffic via the lan2wan chain.
+     */
+    char cValue[64] = {0};
+    sysevent_get(sysevent_fd, sysevent_token, "wan_to_lan_operational_mode",cValue, sizeof(cValue));
+    if (0 == strcasecmp(cValue, "Manageable"))
+    {
+       if('\0' == lan_ifname[0])
+          snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
+
+       if('\0' == wan6_ifname[0])
+          snprintf(wan6_ifname, sizeof(wan6_ifname), "erouter0");
+
+       FIREWALL_DEBUG("IPv6:wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic from %s to %s\n" COMMA lan_ifname COMMA wan6_ifname);
+       fprintf(fp, "-I lan2wan -i %s -o %s -j DROP\n", lan_ifname, wan6_ifname);
+    }
 end_of_ipv6_firewall:
 
       FIREWALL_DEBUG("Exiting prepare_ipv6_firewall \n");
