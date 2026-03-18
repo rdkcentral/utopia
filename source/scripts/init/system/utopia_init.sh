@@ -390,7 +390,7 @@ fi
    fi
 
    if [ "$FACTORY_RESET_REASON" = "true" ];then
-	# Remove on factory reset, prioratized schedule pcs.bin and pcs.bin.md5
+	# Remove on factory reset, prioritized schedule pcs-now-priomac.dat and pcs-now-priomac.dat.md5
 	rm -f /nvram/pcs-now-priomac.dat
 	rm -f /nvram/pcs-now-priomac.dat.md5
    fi
