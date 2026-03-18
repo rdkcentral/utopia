@@ -38,5 +38,5 @@ service_ipv6_LDFLAGS = -lnet
 endif
 
 if ONESTACK_PRODUCT_REQ
-AM_LDFLAGS += -lrdkb_feature_mode_gate  -ltelemetry_msgsender
+service_ipv6_LDADD += -lrdkb_feature_mode_gate -ltelemetry_msgsender
 endif
