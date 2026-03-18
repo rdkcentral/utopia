@@ -187,10 +187,9 @@ service_start ()
             RESOURCE_MONITOR_INTERVAL=15
          fi
          echo "*/$RESOURCE_MONITOR_INTERVAL * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
-	  	   
-        # Monitor self_heal_connectivity_test.sh based on syscfg value 
+
          echo "*/10 * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE 
-	      echo_t "Selfheal cron jobs are started"
+	     echo_t "Selfheal cron jobs are started"
    
       else
 	      echo_t "Selfheal cron is disabled"
