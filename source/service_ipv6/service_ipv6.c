@@ -55,6 +55,7 @@
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <rdkb_feature_mode_gate.h>
+#include <telemetry_busmessage_sender.h>
 #endif
 #ifdef _HUB4_PRODUCT_REQ_
 #include "ccsp_dm_api.h"
@@ -2138,6 +2139,12 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
     {
 	t2_event_d("Ipv6PrefixDelegation_Supported", 1);
 	sysevent_get(si6->sefd, si6->setok, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
+	/* If current_wan_ifname is not set yet, fall back to the default DHCPv6 client interface */
+	if (current_wan_interface[0] == '\0') 
+	{
+	    strncpy(current_wan_interface, COSA_DML_DHCPV6_CLIENT_IFNAME, sizeof(current_wan_interface) - 1);
+	    current_wan_interface[sizeof(current_wan_interface) - 1] = '\0';
+	}
         snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
         sysevent_get(si6->sefd, si6->setok, sysevent_name, si6->mso_prefix, sizeof(si6->mso_prefix));
 	sysevent_set(si6->sefd, si6->setok, "ipv6_prefix-divided", "", 0);
@@ -2294,6 +2301,11 @@ STATIC int serv_ipv6_init(struct serv_ipv6 *si6)
     if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
     {
 	sysevent_get(si6->sefd, si6->setok, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
+	if (current_wan_interface[0] == '\0') 
+	{
+	    strncpy(current_wan_interface, COSA_DML_DHCPV6_CLIENT_IFNAME, sizeof(current_wan_interface) - 1);
+	    current_wan_interface[sizeof(current_wan_interface) - 1] = '\0';
+	}
 	snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
 	sysevent_get(si6->sefd, si6->setok, sysevent_name, si6->mso_prefix, sizeof(si6->mso_prefix));
     } 

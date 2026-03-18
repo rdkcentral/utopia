@@ -92,11 +92,9 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "wan-status|/etc/utopia/service.d/service_routed.sh",
                                         "lan-status|/etc/utopia/service.d/service_routed.sh",
                                         "ipv6_nameserver|/etc/utopia/service.d/service_routed.sh",
-					B
                                         "ipv6_prefix|/etc/utopia/service.d/service_routed.sh",
                                         "ripd-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
                                         "zebra-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
-					B
                                         "staticroute-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
                                         #ifdef WAN_FAILOVER_SUPPORTED
                                         "routeset-ula|/usr/bin/service_routed|NULL|"TUPLE_FLAG_EVENT,
@@ -108,7 +106,7 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
 #endif
 
 void srv_register(void) {
-#if defined(_ONESTACK_PRODUCT_REQ)
+#if defined(_ONESTACK_PRODUCT_REQ_)
    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
    {
       sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER_BCI, SERVICE_CUSTOM_EVENTS_BUSINESS);
