@@ -1301,8 +1301,9 @@ v6GPFirewallRuleNext:
          /* adding forward rule for PD traffic */
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+#endif
       {
-         fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
+        fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
 	 if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
          {
             if(isMulticastBlockedV6 || isP2pBlockedV6 || isPingBlockedV6 || isIdentBlockedV6 || isHttpBlockedV6)
@@ -1314,28 +1315,13 @@ v6GPFirewallRuleNext:
             }
          }
 	 else
-	 {
-	     fprintf(fp, "-A FORWARD -d %s -o %s -j ACCEPT\n", prefix, lan_ifname);
-	     FIREWALL_DEBUG(" firewall_levelv6 is  %s  \n" COMMA firewall_levelv6);
+	 {  
+            fprintf(fp, "-A FORWARD -d %s -o %s -j wan2lan\n", prefix, lan_ifname);
 	 }
-
       } 
-#else
-         fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
-         if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
-         {
-            if(isMulticastBlockedV6 || isP2pBlockedV6 || isPingBlockedV6 || isIdentBlockedV6 || isHttpBlockedV6)
-            {
-               fprintf(fp, "-A FORWARD -d %s -o %s -j wan2lan\n", prefix, lan_ifname);
-            }
-            else{
-               fprintf(fp, "-A FORWARD -d %s -o %s -j ACCEPT\n", prefix, lan_ifname);
-            }
-         }
 #endif
-#endif
-         FIREWALL_DEBUG("current_wan_ifname is %s default_wan_ifname is %s lan_ifname is %s wan6_ifname %s \n" COMMA current_wan_ifname COMMA default_wan_ifname COMMA lan_ifname COMMA wan6_ifname);
-        if (strcmp(current_wan_ifname,default_wan_ifname ) == 0)
+      FIREWALL_DEBUG("current_wan_ifname is %s default_wan_ifname is %s lan_ifname is %s wan6_ifname %s \n" COMMA current_wan_ifname COMMA default_wan_ifname COMMA lan_ifname COMMA wan6_ifname);
+      if (strcmp(current_wan_ifname,default_wan_ifname ) == 0)
         {
             fprintf(fp, "-A FORWARD ! -s %s -i %s -j LOG_FORWARD_DROP\n", prefix, lan_ifname);
              fprintf(fp, "-A FORWARD -s %s -i %s -j LOG_FORWARD_DROP\n", prefix, wan6_ifname);
@@ -1558,7 +1544,14 @@ v6GPFirewallRuleNext:
       fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 147 -m limit --limit 100/sec -j ACCEPT\n");
 
       // Traffic WAN to LAN
-
+#if defined (_ONESTACK_PRODUCT_REQ_) 
+      #if defined(_ONESTACK_PRODUCT_REQ_)
+      if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+      #endif
+      {
+         fprintf(fp, "-A wan2lan -m state --state ESTABLISHED -j ACCEPT\n");
+      }
+#endif
       fprintf(fp, "-A wan2lan -m state --state INVALID -j LOG_FORWARD_DROP\n");
 
       fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", wan6_ifname, lan_ifname);
