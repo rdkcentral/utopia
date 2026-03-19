@@ -389,9 +389,9 @@ fi
       rm -f /nvram/pcs.bin.md5
    fi
 
-      # Remove on factory reset, prioritized schedule pcs-now-priomac.dat and pcs-now-priomac.dat.md5
-      rm -f /nvram/pcs-now-priomac.dat
-      rm -f /nvram/pcs-now-priomac.dat.md5
+   # Remove on factory reset, prioritized QoS schedule pcs-now-priomac.dat and pcs-now-priomac.dat.md5
+   rm -f /nvram/pcs-now-priomac.dat
+   rm -f /nvram/pcs-now-priomac.dat.md5
 
     if [ -f "$HOTSPOT_BLOB" ];then
       rm -f "$HOTSPOT_BLOB"
