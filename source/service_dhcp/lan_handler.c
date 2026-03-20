@@ -397,10 +397,17 @@ void bring_lan_up()
 			sysevent_set(g_iSyseventfd, g_tSysevent_token, "primary_lan_brport", l_cLan_Brport, 0);
 #ifdef _ONESTACK_PRODUCT_REQ_
                         if(true == isFeatureSupportedInCurrentMode(FEATURE_XHS))
-#endif
                         {
                             sysevent_set(g_iSyseventfd, g_tSysevent_token, "homesecurity_lan_l3net", l_cHomeSecurity_L3net, 0);
+                            t2_event_d("SYS_INFO_XHS_Enabled", 1);
                         }
+                        else
+                        {
+                            t2_event_d("SYS_INFO_XHS_NotSupported", 1);
+                        }
+#else
+                        sysevent_set(g_iSyseventfd, g_tSysevent_token, "homesecurity_lan_l3net", l_cHomeSecurity_L3net, 0);
+#endif
 		}
 	}
 	else
