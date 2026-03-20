@@ -421,6 +421,9 @@ case "$1" in
 
         if [ $is_xhs_supported -eq 0 ] || [ $is_xhs_supported -eq 127 ]; then
             sysevent set homesecurity_lan_l3net ${HSINST}
+            t2CountNotify "SYS_INFO_XHS_Enabled"
+        else
+            t2CountNotify "SYS_INFO_XHS_NotSupported"
         fi
 
         sysevent set primary_lan_l3net ${INST}
