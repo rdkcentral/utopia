@@ -10791,7 +10791,7 @@ static int do_wan2lan(FILE *fp)
  * Return Values  :
  *    0              : Success
  */
-#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
 static int do_block_lan_access_to_wan_ssh(FILE *fp)
 {
    FIREWALL_DEBUG("Entering do_block_lan_access_to_wan_ssh\n");
@@ -12944,21 +12944,30 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    }
 
    /*
-    * Check if LAN to WAN forwarding is enabled
-   */
-   char cEnabled[8] = {0};
-   sysevent_get(sysevent_fd, sysevent_token, "lan_wan_forwarding_enabled", cEnabled, sizeof(cEnabled));
-   if ('\0' != cEnabled[0])
+    * Check WAN-to-LAN operational mode. When set to "Manageable",
+    * treat WAN-to-LAN forwarding as manageable by blocking LAN-to-WAN
+    * traffic via the lan2wan chain.
+    */
+   char cValue[64] = {0};
+   const char *pWanOutputIfname = NULL;
+   sysevent_get(sysevent_fd, sysevent_token, "wan_to_lan_operational_mode",cValue, sizeof(cValue));
+   if (0 == strcasecmp(cValue, "Manageable"))
    {
-       if('\0' == lan_ifname[0])
-           snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
+      if('\0' == lan_ifname[0])
+          snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
 
-      int iEnabled = atoi(cEnabled);
-       if (0 == iEnabled)
-       {
-           fprintf(filter_fp, "-A lan2wan -i %s -j DROP\n", lan_ifname);
-           FIREWALL_DEBUG("LAN to WAN forwarding disabled, dropping all traffic from LAN to WAN\n");
-       }
+      /* When MAP-E is not ready, ensure current_wan_ifname has a sane default. In MAP-E mode,
+       * the WAN egress interface is the MAP-E tunnel interface instead.
+       */
+      if(!isMAPEReady && '\0' == current_wan_ifname[0])
+          snprintf(current_wan_ifname, sizeof(current_wan_ifname), "erouter0");
+
+      /* Align the DROP rule's output interface with the forwarding path:
+       * use the MAP-E tunnel interface when MAP-E is ready, otherwise use current_wan_ifname.
+       */
+      pWanOutputIfname = isMAPEReady ? MAPE_TUNNEL_INTERFACE : current_wan_ifname;
+      FIREWALL_DEBUG("wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic from %s to %s\n" COMMA lan_ifname COMMA pWanOutputIfname);
+      fprintf(filter_fp, "-A lan2wan -i %s -o %s -j DROP\n", lan_ifname, pWanOutputIfname);
    }
    /***********************
     * set lan to wan subrule by order 
@@ -13878,7 +13887,7 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_lan2wan(mangle_fp, filter_fp, nat_fp); 
    do_wan2lan(filter_fp);
    do_filter_table_general_rules(filter_fp);
-#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
    if(isWanReady)
         do_block_lan_access_to_wan_ssh(filter_fp);
 #endif
@@ -14004,6 +14013,10 @@ WAN_FAILOVER_SUPPORT_CHECk_END
          }
          fprintf(filter_fp, "-I FORWARD -o %s -m state --state INVALID -j DROP\n",current_wan_ifname);
    #endif
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I INPUT -p udp --dport 5060 -j ACCEPT\n");
+   fprintf(filter_fp, "-I INPUT -p udp --dport 10000:20000 -j ACCEPT\n");
+#endif
    fprintf(raw_fp, "COMMIT\n");
    fprintf(mangle_fp, "COMMIT\n");
    fprintf(nat_fp, "COMMIT\n");

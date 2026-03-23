@@ -171,13 +171,15 @@ service_start ()
       SELFHEAL_ENABLE=$(syscfg get selfheal_enable)
       if [ "$SELFHEAL_CRON_ENABLE" = "true" ] && [ "$SELFHEAL_ENABLE" = "true" ]; then
 	      echo_t "SelfHeal Cron is enabled"
-         # Monitor selfheal_aggressive.sh based on syscfg value
-         AGGRESSIVE_INTERVAL=$(syscfg get AggressiveInterval)
-         if [ -z "$AGGRESSIVE_INTERVAL" ]; then
-            AGGRESSIVE_INTERVAL=5
+         if [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "HUB4" ] && [ "$BOX_TYPE" != "SR213" ]; then
+            # Monitor selfheal_aggressive.sh based on syscfg value
+            AGGRESSIVE_INTERVAL=$(syscfg get AggressiveInterval)
+            if [ -z "$AGGRESSIVE_INTERVAL" ]; then
+               AGGRESSIVE_INTERVAL=5
+            fi
+            #Write cron rule
+            echo "*/$AGGRESSIVE_INTERVAL * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
          fi
-         #Write cron rule
-         echo "*/$AGGRESSIVE_INTERVAL * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
 	  
 	      # Monitor resource_monitor.sh based on syscfg value 
          RESOURCE_MONITOR_INTERVAL=$(syscfg get resource_monitor_interval)
@@ -185,14 +187,9 @@ service_start ()
             RESOURCE_MONITOR_INTERVAL=15
          fi
          echo "*/$RESOURCE_MONITOR_INTERVAL * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
-	  	   
-        # Monitor self_heal_connectivity_test.sh based on syscfg value 
-         SELFHEAL_PING_INTERVAL=$(syscfg get ConnTest_PingInterval)
-         if [ -z "$SELFHEAL_PING_INTERVAL" ]; then
-            SELFHEAL_PING_INTERVAL=60
-         fi
-         echo "*/$SELFHEAL_PING_INTERVAL * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE 
-	      echo_t "Selfheal cron jobs are started"
+
+         echo "*/10 * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE 
+	     echo_t "Selfheal cron jobs are started"
    
       else
 	      echo_t "Selfheal cron is disabled"
