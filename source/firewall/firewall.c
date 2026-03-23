@@ -1314,9 +1314,23 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
             fprintf(nat_fp, "-A %s -p udp -m connlimit --connlimit-upto %d --connlimit-daddr -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
             fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
 #else
-            fprintf(nat_fp, "-A %s -p tcp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
-            fprintf(nat_fp, "-A %s -p udp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
-            fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+            if(i == a-1)
+            {
+               fprintf(nat_fp, "-A %s -p tcp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+               fprintf(nat_fp, "-A %s -p udp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+            }
+            else if(i > a-4)
+            {
+               fprintf(nat_fp, "-A %s -p tcp -m conntrack --ctstate NEW -m hashlimit --hashlimit-name mapt_tcp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 45/second --hashlimit-burst 60 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, i, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+               fprintf(nat_fp, "-A %s -p udp -m conntrack --ctstate NEW -m hashlimit --hashlimit-name mapt_udp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 100/second --hashlimit-burst 100 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, i, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+            }
+            else
+            {
+               fprintf(nat_fp, "-A %s -p tcp -m conntrack --ctstate NEW -m hashlimit --hashlimit-name mapt_tcp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 30/second --hashlimit-burst 60 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, i, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+               fprintf(nat_fp, "-A %s -p udp -m conntrack --ctstate NEW -m hashlimit --hashlimit-name mapt_udp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 60/second --hashlimit-burst 100 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, i, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+            }
+
+               fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
 #endif //_HUB4_PRODUCT_REQ_NO_DPORT_
 #endif //IVI_KERNEL_SUPPORT
             FIREWALL_DEBUG("MAPT Rule: Port range is initialPortValue=%u, finalPortValue=%u \n" COMMA initialPortValue COMMA finalPortValue);
