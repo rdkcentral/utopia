@@ -1561,7 +1561,7 @@ v6GPFirewallRuleNext:
       #if defined (_ONESTACK_PRODUCT_REQ_) 
       if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-         fprintf(fp, "-A wan2lan -m state --state ESTABLISHED -j ACCEPT\n");
+         fprintf(fp, "-A wan2lan -m state --state ESTABLISHED,RELATED -j ACCEPT\n");
       }
       #endif
       fprintf(fp, "-A wan2lan -m state --state INVALID -j LOG_FORWARD_DROP\n");
