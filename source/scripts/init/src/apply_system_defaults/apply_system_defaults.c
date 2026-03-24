@@ -571,6 +571,7 @@ static int set_defaults(void)
 #endif // _ONESTACK_PRODUCT_REQ_
 
    APPLY_PRINT("%s: defaultsFile: %s\n", __FUNCTION__, defaultsFile);
+   t2_event_s("SystemDefaultsFile_split", defaultsFile);
 #if ! defined (ALWAYS_CONVERT)
    check_version(defaultsFile);
 #endif
