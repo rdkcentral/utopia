@@ -3550,7 +3550,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 
-   char deviceMode[8] = {0};
+   char deviceMode[16] = {0};
 
    if ((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0'))
    {
