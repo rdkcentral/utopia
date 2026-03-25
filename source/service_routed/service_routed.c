@@ -154,6 +154,22 @@ struct serv_routed {
    }\
 }\
 
+#include <time.h>
+#define LOG_FILE_ROUTED "/tmp/service_routed.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE_ROUTED , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #define RIPD_CONF_PAM_UPDATE "/tmp/pam_ripd_config_completed"
 STATIC int IsFileExists(char *file_name)
 {
@@ -2073,12 +2089,13 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 #endif 
 STATIC int radv_start(struct serv_routed *sr)
 {
-
+    APPLY_PRINT("%s: Entering\n", __FUNCTION__);
 #ifdef RDKB_EXTENDER_ENABLED
     int deviceMode = GetDeviceNetworkMode();
     if ( DEVICE_MODE_EXTENDER == deviceMode )
     {
         fprintf(logfptr, "Device is EXT mode , no need of running zebra for radv\n");
+        APPLY_PRINT("%s: Device is in EXT mode, Exiting\n", __FUNCTION__);
         return -1;
     }
 #endif
@@ -2114,6 +2131,7 @@ STATIC int radv_start(struct serv_routed *sr)
 
     if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
+        APPLY_PRINT("%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
     }
 #endif
@@ -2125,6 +2143,7 @@ STATIC int radv_start(struct serv_routed *sr)
         result = getLanIpv6Info(&ipv6_enable, &ula_enable);
         if(result != 0) {
             fprintf(logfptr, "getLanIpv6Info failed");
+            APPLY_PRINT("getLanIpv6Info failed\n");
             return -1;
         }
         if(ipv6_enable == 0) {
@@ -2146,6 +2165,7 @@ STATIC int radv_start(struct serv_routed *sr)
 
     if (gen_zebra_conf(sr->sefd, sr->setok) != 0) {
         fprintf(logfptr, "%s: fail to save zebra config\n", __FUNCTION__);
+        APPLY_PRINT("%s: fail to save zebra config\n", __FUNCTION__);
         return -1;
     }
 
@@ -2171,10 +2191,14 @@ STATIC int radv_start(struct serv_routed *sr)
     syscfg_get(NULL, "dhcpv6s00::serverenable", dhcpv6Enable , sizeof(dhcpv6Enable));
     bool bEnabled = (strncmp(dhcpv6Enable,"1",1)==0?true:false);
 
+    APPLY_PRINT(" %s : Starting zebra Process\n", __FUNCTION__);
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
+    APPLY_PRINT(" %s : DHCPv6 is %s. Starting zebra Process\n", __FUNCTION__, (bEnabled?"Enabled":"Disabled"));
 #else
+    APPLY_PRINT(" %s : Else : Starting zebra Process\n", __FUNCTION__);
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
+    APPLY_PRINT(" %s : zebra Process Started\n", __FUNCTION__);
 #endif
 
     return 0;
