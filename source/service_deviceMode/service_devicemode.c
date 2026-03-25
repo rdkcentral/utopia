@@ -451,6 +451,12 @@ int service_start(int mode)
             
            // int res = sysevent_get(sysevent_fd, sysevent_token, "lan-status", lanStartVal, sizeof(lanStartVal));
             APPLY_PRINT("%s: lan-status value: %s\n", __FUNCTION__, lanStartVal);
+	    APPLY_PRINT("%s, zebra is getting started when device switching to router mode \n", __FUNCTION__);
+                if (0 != sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0)) {
+                    APPLY_PRINT("zebra restart event: sysevent_set failed\n");
+                } else {
+                    APPLY_PRINT("zebra restart event: sysevent_set succeeded\n");
+                }
             /*if(res == 0)
             {
                 APPLY_PRINT("%s: lan-status value: %s\n", __FUNCTION__, lanStartVal);
