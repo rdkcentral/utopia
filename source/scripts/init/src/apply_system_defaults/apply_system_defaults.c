@@ -3466,6 +3466,18 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
    }
 
 #ifndef _ONESTACK_PRODUCT_REQ_
+   char deviceMode[8] = {0};
+
+   if ((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0'))
+   {
+      APPLY_PRINT("Devicemode is: %s\n", deviceMode);
+   }
+   else
+   {
+      APPLY_PRINT("Failed to fetch devicemode from syscfg\n");
+   }
+   t2_event_s("OneStack_DeviceMode_split", deviceMode);
+
    set_defaults();
 
    
