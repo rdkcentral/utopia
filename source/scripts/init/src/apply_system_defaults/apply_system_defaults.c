@@ -3466,18 +3466,6 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
    }
 
 #ifndef _ONESTACK_PRODUCT_REQ_
-   char deviceMode[8] = {0};
-
-   if ((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0'))
-   {
-      APPLY_PRINT("Devicemode is: %s\n", deviceMode);
-   }
-   else
-   {
-      APPLY_PRINT("Failed to fetch devicemode from syscfg\n");
-   }
-   t2_event_s("OneStack_DeviceMode_split", deviceMode);
-
    set_defaults();
 
    
@@ -3561,6 +3549,19 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
   }
 
 #ifdef _ONESTACK_PRODUCT_REQ_
+
+   char deviceMode[8] = {0};
+
+   if ((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0'))
+   {
+      APPLY_PRINT("Devicemode is: %s\n", deviceMode);
+   }
+   else
+   {
+      APPLY_PRINT("Failed to fetch devicemode from syscfg\n");
+   }
+   t2_event_s("OneStack_DeviceMode_split", deviceMode);
+
    // For OneStack products, set_defaults() must be called after get_PartnerID() to ensure the partner ID and device mode are correctly configured
    set_defaults();
 
