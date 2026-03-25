@@ -41,6 +41,22 @@
 #include "errno.h"
 #include "util.h"
 
+#include <time.h>
+#define LOG_FILE_ROUTED "/rdklogs/logs/Consolelog.txt.0"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE_ROUTED , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #ifdef UNIT_TEST_DOCKER_SUPPORT
 #define STATIC
     extern FILE* fopen_mock(const char* filename, const char* mode);
@@ -472,6 +488,10 @@ int service_dhcp_main(int argc, char *argv[])
         {
              dhcp_server_stop();
         }
+        APPLY_PRINT("%s: Checking lan-status \n", __FUNCTION__);
+        char store[24] = {0};
+        sysevent_get(sysevent_fd, sysevent_token, "lan-status", store, sizeof(store));
+        CcspTraceWarning(("%s : lan-status is %s\n", __func__, store));
         else if (!strncmp(argv[1], "lan-status", 10))
 	{
 		//If lan-status is called with lan_not_restart then 
@@ -496,8 +516,10 @@ int service_dhcp_main(int argc, char *argv[])
 		dhcp_server_start(NULL);
     	}
 	#endif
+    APPLY_PRINT("%s: Restart LAN \n", __FUNCTION__);
 	else if (!strncmp(argv[1], "lan-restart", 11))
 	{
+        APPLY_PRINT("%s: call lan_restart \n", __FUNCTION__);
 		lan_restart();
 	}
         else if ((!strncmp(argv[1], "ipv4_4-status", 13)) ||
@@ -576,16 +598,20 @@ int service_dhcp_main(int argc, char *argv[])
     }
     else if (!strncmp(argv[1], "lan-stop", 8))
     {
+        APPLY_PRINT("%s: Stopping LAN \n", __FUNCTION__);
         lan_stop();
     }
+    APPLY_PRINT("%s: Flushing ipv6 address of LAN \n", __FUNCTION__);
 	else if (!strncmp(argv[1], "lan-start", 9))
 	{
+        APPLY_PRINT("%s: Starting LAN \n", __FUNCTION__);
 		sysevent_get(g_iSyseventfd, g_tSysevent_token, 
 					 "primary_lan_l3net", l_cL3Inst, 
 					 sizeof(l_cL3Inst));	
 
 		l_iL3Inst = atoi(l_cL3Inst);
 		fprintf(g_fArmConsoleLog, "Calling ipv4_up with L3 Instance:%d\n", l_iL3Inst);
+        APPLY_PRINT("%s: Calling ipv4_up with L3 Instance\n", __FUNCTION__);
 		sysevent_set(g_iSyseventfd, g_tSysevent_token, "ipv4-up", l_cL3Inst, 0);
 	}
 	//service_ipv4.sh related
@@ -619,6 +645,7 @@ int service_dhcp_main(int argc, char *argv[])
                      sizeof(syslog_status_buf));
         if(!strncmp(syslog_status_buf, "started", 7))
         {
+            APPLY_PRINT("%s: Syslog is started, requesting restart\n", __FUNCTION__);
             syslog_restart_request();
         }
     }

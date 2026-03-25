@@ -38,6 +38,22 @@
 #define OnboardLog(...)
 #endif
 
+#include <time.h>
+#define LOG_FILE_ROUTED "/rdklogs/logs/Consolelog.txt.0"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE_ROUTED , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <rdkb_feature_mode_gate.h>
 #endif
@@ -804,6 +820,7 @@ void ipv4_status(int l3_inst, char *status)
 
 void lan_restart()
 {
+    APPLY_PRINT("Inside %s\n",__FUNCTION__);
     fprintf(g_fArmConsoleLog, "Inside %s\n",__FUNCTION__);
 
 	char l_cLanIpAddr[16] = {0}, l_cLanNetMask[16] = {0};
@@ -822,12 +839,14 @@ void lan_restart()
     char buf[128] = {0};
 #endif
 	syscfg_get(NULL, "lan_ipaddr", l_cLanIpAddr, sizeof(l_cLanIpAddr));
+    APPLY_PRINT("lan_ipaddr from syscfg is %s\n", l_cLanIpAddr);
 
 	syscfg_get(NULL, "lan_netmask", l_cLanNetMask, sizeof(l_cLanNetMask));
-
+    APPLY_PRINT("lan_netmask from syscfg is %s\n", l_cLanNetMask);
 	sysevent_get(g_iSyseventfd, g_tSysevent_token, "primary_lan_l3net", 
 				 l_cLanInst, sizeof(l_cLanInst));
 
+                 
 	l_iLanInst = atoi(l_cLanInst);
 
 	snprintf(l_cPsm_Parameter, sizeof(l_cPsm_Parameter), 
@@ -931,17 +950,21 @@ void lan_restart()
     else
     {
         sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan_ipaddr_v6", 
-            l_cLan_IpAddrv6, sizeof(l_cLan_IpAddrv6));    
+            l_cLan_IpAddrv6, sizeof(l_cLan_IpAddrv6));
+        APPLY_PRINT("%s : lan_ipaddr_v6 sysevent value is %s\n", __FUNCTION__, l_cLan_IpAddrv6);
     }
 #else
     sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan_ipaddr_v6", 
-                         l_cLan_IpAddrv6, sizeof(l_cLan_IpAddrv6));   
+                         l_cLan_IpAddrv6, sizeof(l_cLan_IpAddrv6));
+    APPLY_PRINT("%s : lan_ipaddr_v6 sysevent value is %s\n", __FUNCTION__, l_cLan_IpAddrv6);
 #endif
     sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan_prefix_v6", 
                  l_cLan_PrefixV6, sizeof(l_cLan_PrefixV6));
+    APPLY_PRINT("%s : lan_prefix_v6 sysevent value is %s\n", __FUNCTION__, l_cLan_PrefixV6);
 
     sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan_restarted", 
                  l_cLanRestarted, sizeof(l_cLanRestarted));
+    APPLY_PRINT("%s : lan_restarted sysevent value is %s\n", __FUNCTION__, l_cLanRestarted);
 
     if ((strncmp(l_cLan_IpAddrv6_prev, l_cLan_IpAddrv6, 64)) && 
 		(0 != l_cLan_IpAddrv6[0]))
@@ -967,6 +990,7 @@ void lan_restart()
 
 void lan_stop()
 {
+    APPLY_PRINT("Inside %s\n",__FUNCTION__);
     fprintf(g_fArmConsoleLog, "Inside %s\n",__FUNCTION__);
 
     char l_cL3Inst[8] = {0}, l_cLan_IpAddrv6_prev[64] = {0}, l_cLan_PrefixV6[32] = {0}, l_cLanIfName[16] = {0}, l_cSysevent_Cmd[255] = {0};
@@ -975,15 +999,17 @@ void lan_stop()
     sysevent_get(g_iSyseventfd, g_tSysevent_token,
                 "primary_lan_l3net", l_cL3Inst,
                  sizeof(l_cL3Inst));
-
+    APPLY_PRINT("%s : primary_lan_l3net sysevent value is %s\n", __FUNCTION__, l_cL3Inst);
     l_iL3Inst = atoi(l_cL3Inst);
 
     sprintf(l_cSysevent_Cmd, "ipv4_%d-ifname", l_iL3Inst);
     sysevent_get(g_iSyseventfd, g_tSysevent_token, l_cSysevent_Cmd,
                  l_cLanIfName, sizeof(l_cLanIfName));
+    APPLY_PRINT("%s : LAN Interface name is %s\n", __FUNCTION__, l_cLanIfName);
 
     sysevent_set(g_iSyseventfd, g_tSysevent_token, "ipv4-down", l_cL3Inst, 0);
     fprintf(g_fArmConsoleLog, "Calling ipv4_down with L3 Instance:%d\n", l_iL3Inst);
+    APPLY_PRINT("%s : Calling ipv4_down with L3 Instance:%d\n", __FUNCTION__, l_iL3Inst);
 
     snprintf(l_cSysevent_Cmd, sizeof(l_cSysevent_Cmd),"/proc/sys/net/ipv6/conf/%s/disable_ipv6", l_cLanIfName);
     write_kernel_param(l_cSysevent_Cmd, "1");
@@ -993,6 +1019,7 @@ void lan_stop()
 
     sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan_prefix_v6",
                  l_cLan_PrefixV6, sizeof(l_cLan_PrefixV6));
+    APPLY_PRINT("%s : lan_prefix_v6 sysevent value is %s\n", __FUNCTION__, l_cLan_PrefixV6);
 
     snprintf(l_cSysevent_Cmd, sizeof(l_cSysevent_Cmd),"ip -6 addr flush dev %s", l_cLanIfName);
     executeCmd(l_cSysevent_Cmd);
@@ -1000,6 +1027,7 @@ void lan_stop()
     /*we need to restart necessary application when lan restart
       monitor will start dibbler*/
     snprintf(l_cSysevent_Cmd, sizeof(l_cSysevent_Cmd),"dibbler-server stop");
+    APPLY_PRINT("%s : Executing command: %s\n", __FUNCTION__, l_cSysevent_Cmd);
     executeCmd(l_cSysevent_Cmd);
 
     //bridge mode enabled then remove all ethbackhaul interfaces
