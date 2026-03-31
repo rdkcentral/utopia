@@ -83,7 +83,7 @@ const char* SERVICE_CUSTOM_EVENTS_BCI[] = {
 #endif
 
 void srv_register(void) {
-   #if defined(_ONESTACK_PRODUCT_REQ_)
+   #if defined(_ONESTACK_PRODUCT_REQ_) && ! defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
    if(is_devicemode_business())
    {
       sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER_BCI, SERVICE_CUSTOM_EVENTS_BCI);

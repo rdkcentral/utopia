@@ -100,7 +100,7 @@ const char* const service_ipv6_component_id = "ccsp.ipv6";
 #define PSM_VALUE_GET_INS(name, pIns, ppInsArry) PsmGetNextLevelInstances(bus_handle, CCSP_SUBSYS, name, pIns, ppInsArry)
 #endif
 
-#if !defined(_CBR_PRODUCT_REQ_) && !defined(_BWG_PRODUCT_REQ_)
+#if (!defined(_CBR_PRODUCT_REQ_) && !defined(_BWG_PRODUCT_REQ_)) || defined (_ONESTACK_PRODUCT_REQ_)
 bool del_addr6_flg = true;
 #endif
 

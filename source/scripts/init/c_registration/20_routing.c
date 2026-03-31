@@ -47,11 +47,11 @@
 #define SERVICE_NAME "routed"
 #define SERVICE_DEFAULT_HANDLER "/etc/utopia/service.d/service_routed.sh"
 
-#if defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_) && !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
 #define SERVICE_DEFAULT_HANDLER_BCI "/etc/utopia/service.d/service_routed_bci.sh"
 const char** SERVICE_CUSTOM_EVENTS = NULL;
 #endif
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) 
 const char* SERVICE_CUSTOM_EVENTS[] = { 
                                         "wan-status|/etc/utopia/service.d/service_routed.sh",
                                         "lan-status|/etc/utopia/service.d/service_routed.sh",
@@ -106,7 +106,7 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
 #endif
 
 void srv_register(void) {
-#if defined(_ONESTACK_PRODUCT_REQ_)
+#if defined(_ONESTACK_PRODUCT_REQ_) && !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
    {
       sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER_BCI, SERVICE_CUSTOM_EVENTS_BUSINESS);
