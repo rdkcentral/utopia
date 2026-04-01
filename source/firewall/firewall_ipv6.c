@@ -189,7 +189,6 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 #define COSA_DML_DHCPV6_CLIENT_IFNAME                 "erouter0"
-#define COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME           "tr_"COSA_DML_DHCPV6_CLIENT_IFNAME"_dhcpv6_client_v6pref"
 #endif
 /*
  ****************************************************************
@@ -495,6 +494,10 @@ void do_ipv6_filter_table(FILE *fp){
    FILE *f = NULL;
    char request[256], response[256], cm_ipv6addr[40];
    unsigned int a[16] = {0};
+#endif
+#if defined (_ONESTACK_PRODUCT_REQ_)
+    char current_wan_interface[64] = {0};
+    char sysevent_name[128] = {0};
 #endif
 	
    fprintf(fp, "*filter\n");
@@ -1263,7 +1266,15 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-	  sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
+	 sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
+        /* If current_wan_ifname is not set yet, fall back to the default DHCPv6 client interface */
+        if (current_wan_interface[0] == '\0')
+        {
+            strncpy(current_wan_interface, COSA_DML_DHCPV6_CLIENT_IFNAME, sizeof(current_wan_interface) - 1);
+            current_wan_interface[sizeof(current_wan_interface) - 1] = '\0';
+        }
+        snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
+	sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
       }
       else
       {
@@ -1278,7 +1289,16 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-         sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
+	  sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
+        /* If current_wan_ifname is not set yet, fall back to the default DHCPv6 client interface */
+        if (current_wan_interface[0] == '\0')
+        {
+            strncpy(current_wan_interface, COSA_DML_DHCPV6_CLIENT_IFNAME, sizeof(current_wan_interface) - 1);
+            current_wan_interface[sizeof(current_wan_interface) - 1] = '\0';
+        }
+        snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
+        sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
+
       }
       else
       {
@@ -2134,6 +2154,10 @@ typedef enum{
 void applyRoutingRules(FILE* fp,ipv6_type type)
 {
        FIREWALL_DEBUG("Entering applyRoutingRules, ipv6_type is %d \n" COMMA type);
+#if defined (_ONESTACK_PRODUCT_REQ_)
+    char current_wan_interface[64] = {0};
+    char sysevent_name[128] = {0};
+#endif
          char prefix[64] ;
          memset(prefix,0,sizeof(prefix));
          int i ;
@@ -2143,18 +2167,26 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
 	 }
          else
 	 {
-#ifdef _ONESTACK_PRODUCT_REQ_
+         #ifdef _ONESTACK_PRODUCT_REQ_
 	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
 	     {
-		 sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
+		 sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
+		 /* If current_wan_ifname is not set yet, fall back to the default DHCPv6 client interface */
+		 if (current_wan_interface[0] == '\0')
+		 {
+		     strncpy(current_wan_interface, COSA_DML_DHCPV6_CLIENT_IFNAME, sizeof(current_wan_interface) - 1);
+		     current_wan_interface[sizeof(current_wan_interface) - 1] = '\0';
+		 }
+		 snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
+		 sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
 	     }
 	     else
 	     {
 		 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
 	     }
-#else
+         #else
 	     sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
-#endif
+         #endif
 	 }
 	 if (strlen(prefix) != 0 )
          {
