@@ -12017,6 +12017,12 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
        do_lan2wan_helpers(raw_fp);
    }
 #endif
+
+#if defined (_PLATFORM_BANANAPI_R4_)
+       isRawTableUsed = 1;
+       fprintf(raw_fp, "-A OUTPUT -p udp --dport 69 -j CT --helper tftp\n");
+#endif
+
    /*
     * mangle
     */
