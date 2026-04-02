@@ -1745,9 +1745,14 @@ v6GPFirewallRuleNext:
         fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 4500  -j ACCEPT\n");
     }
     char sites_enabled[MAX_QUERY];
+	char services_enabled[MAX_QUERY];
     sites_enabled[0] = '\0';
+	services_enabled[0] = '\0';
     syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
-    if (sites_enabled[0] != '\0' && sites_enabled[0] == '0') // managed site list enabled
+	syscfg_get(NULL, "managedservices_enabled", services_enabled, sizeof(services_enabled));
+	// Skip SSL blocking if either managed sites or managed services is enabled
+    if ((sites_enabled[0] != '\0' && sites_enabled[0] == '0') &&
+		(services_enabled[0] != '\0' && services_enabled[0] == '0'))
     {
         queryv6[0] = '\0';
 
