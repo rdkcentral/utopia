@@ -1074,7 +1074,8 @@ $PeriodicFWCheck_Enable=false
 
 #Minimum memory threshold value
 $MinMemoryThreshold_Value=10
-
+#Target uptime to run memory compaction
+$MemCompactionDelaySecs=900
 #ipv6 pd
 $lan_pd_interfaces=brlan0
 @erouter_topology-mode=1

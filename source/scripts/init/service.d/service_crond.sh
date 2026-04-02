@@ -187,14 +187,9 @@ service_start ()
             RESOURCE_MONITOR_INTERVAL=15
          fi
          echo "*/$RESOURCE_MONITOR_INTERVAL * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
-	  	   
-        # Monitor self_heal_connectivity_test.sh based on syscfg value 
-         SELFHEAL_PING_INTERVAL=$(syscfg get ConnTest_PingInterval)
-         if [ -z "$SELFHEAL_PING_INTERVAL" ]; then
-            SELFHEAL_PING_INTERVAL=60
-         fi
-         echo "*/$SELFHEAL_PING_INTERVAL * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE 
-	      echo_t "Selfheal cron jobs are started"
+
+         echo "*/10 * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE 
+	     echo_t "Selfheal cron jobs are started"
    
       else
 	      echo_t "Selfheal cron is disabled"
