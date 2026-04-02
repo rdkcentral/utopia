@@ -60,6 +60,7 @@
 #include  "safec_lib_common.h"
 
 #ifdef _ONESTACK_PRODUCT_REQ_
+#include <onestack_init.h>
 #include <devicemode.h>
 #endif
 
@@ -570,6 +571,7 @@ static int set_defaults(void)
 #endif // _ONESTACK_PRODUCT_REQ_
 
    APPLY_PRINT("%s: defaultsFile: %s\n", __FUNCTION__, defaultsFile);
+   t2_event_s("SystemDefaultsFile_split", defaultsFile);
 #if ! defined (ALWAYS_CONVERT)
    check_version(defaultsFile);
 #endif
@@ -3547,6 +3549,19 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
   }
 
 #ifdef _ONESTACK_PRODUCT_REQ_
+
+   char deviceMode[16] = {0};
+
+   if ((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0'))
+   {
+      APPLY_PRINT("Devicemode is: %s\n", deviceMode);
+   }
+   else
+   {
+      APPLY_PRINT("Failed to fetch devicemode from syscfg\n");
+   }
+   t2_event_s("OneStack_DeviceMode_split", deviceMode);
+
    // For OneStack products, set_defaults() must be called after get_PartnerID() to ensure the partner ID and device mode are correctly configured
    set_defaults();
 
@@ -3655,6 +3670,10 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
    }
 
    sysevent_close(global_fd, global_id);
+
+#if defined (_ONESTACK_PRODUCT_REQ_)
+   onestackutils_update_devprops();
+#endif
 
    return(0);
 }

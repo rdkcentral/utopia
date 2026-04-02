@@ -369,6 +369,10 @@ NOT_DEF:
 
 #endif
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
+
 #ifdef FEATURE_464XLAT
 #define XLAT_IF "xlat"
 #define XLAT_IP "192.0.0.1"
@@ -2550,11 +2554,22 @@ static int prepare_globals_from_configuration(void)
    isDmzEnabled      = (0 == strcmp("1", dmz_enabled)) ? 1 : 0;
    /* nat_enabled(0): disable  (1) DHCP (2)StaticIP (others) disable */
    isNatEnabled      = atoi(nat_enabled);
-   #ifdef CISCO_CONFIG_TRUE_STATIC_IP
-   isNatEnabled      = (isNatEnabled > NAT_STATICIP ? NAT_DISABLE : isNatEnabled);
-   #else
-   isNatEnabled      = (isNatEnabled == NAT_DISABLE ? NAT_DISABLE : NAT_DHCP);
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
+    {
+   isNatEnabled      = (isNatEnabled > NAT_STATICIP ? NAT_DISABLE : isNatEnabled);
+    }
+#endif
+#if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
+   #endif
+    {
+   isNatEnabled      = (isNatEnabled == NAT_DISABLE ? NAT_DISABLE : NAT_DHCP);
+    }
+#endif
    isLogEnabled      = (log_leveli > 1) ? 1 : 0;
    isLogSecurityEnabled = (isLogEnabled && log_leveli > 1) ? 1 : 0;
 #if 0
@@ -2566,7 +2581,11 @@ static int prepare_globals_from_configuration(void)
    isLogOutgoingEnabled = 0;
    isCmDiagEnabled   = (0 == strcmp("1", cmdiag_enabled)) ? 1 : 0;
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
+   #endif
+    {
    /* get true static IP info */   
    sysevent_get(sysevent_fd, sysevent_token, "wan_staticip-status", wan_staticip_status, sizeof(wan_staticip_status));
    isWanStaticIPReady = (0 == strcmp("started", wan_staticip_status)) ? 1 : 0; 
@@ -2685,11 +2704,17 @@ static int prepare_globals_from_configuration(void)
    memset(firewall_true_static_ip_enable, 0, sizeof(firewall_true_static_ip_enable));
    syscfg_get(NULL, "firewall_true_static_ip_enable", firewall_true_static_ip_enable,sizeof(firewall_true_static_ip_enable));
    isFWTS_enable = (0 == strcmp("1", firewall_true_static_ip_enable) ? 1 : 0);
-	   
-#else
+    }	   
+#endif
+#if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
+   #endif
+    {
     safec_rc = strcpy_s(natip4, sizeof(natip4),current_wan_ipaddr);
     ERR_CHK(safec_rc);
-    isNatReady = isWanReady; 
+    isNatReady = isWanReady;
+    }
 #endif
 
 
@@ -10759,6 +10784,24 @@ static int do_wan2lan(FILE *fp)
 }
 
 /*
+ *  Procedure     : do_block_lan_access_to_wan_ssh
+ *  Purpose       : To block SSH using WAN IP from LAN client
+ *  Parameters    :
+ *    fp             : An open file to write rules to block SSH using WAN IP in LAN client
+ * Return Values  :
+ *    0              : Success
+ */
+#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
+static int do_block_lan_access_to_wan_ssh(FILE *fp)
+{
+   FIREWALL_DEBUG("Entering do_block_lan_access_to_wan_ssh\n");
+   fprintf(fp, "-I INPUT 1 -i %s -d %s -p tcp --dport 10022 -j REJECT\n", lan_ifname, current_wan_ipaddr);
+   FIREWALL_DEBUG("Exiting do_block_lan_access_to_wan_ssh\n");
+   return(0);
+}
+#endif
+
+/*
  ==========================================================================
               Ephemeral filter rules
  ==========================================================================
@@ -11974,6 +12017,12 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
        do_lan2wan_helpers(raw_fp);
    }
 #endif
+
+#if defined (_PLATFORM_BANANAPI_R4_)
+       isRawTableUsed = 1;
+       fprintf(raw_fp, "-A OUTPUT -p udp --dport 69 -j CT --helper tftp\n");
+#endif
+
    /*
     * mangle
     */
@@ -12512,7 +12561,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    // Allow local loopback traffic 
    fprintf(filter_fp, "-A INPUT -i lo -s 127.0.0.0/8 -j ACCEPT\n");
    if (isWanReady) {
-       #ifdef _COSA_FOR_BCI_ 
+       #if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
        if (1 == isWanPingDisable)
        {
            fprintf(filter_fp, "-A INPUT -i %s -p icmp -m icmp --icmp-type 8 -j DROP\n",current_wan_ifname);
@@ -12900,7 +12949,32 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    }
 
+   /*
+    * Check WAN-to-LAN operational mode. When set to "Manageable",
+    * treat WAN-to-LAN forwarding as manageable by blocking LAN-to-WAN
+    * traffic via the lan2wan chain.
+    */
+   char cValue[64] = {0};
+   const char *pWanOutputIfname = NULL;
+   sysevent_get(sysevent_fd, sysevent_token, "wan_to_lan_operational_mode",cValue, sizeof(cValue));
+   if (0 == strcasecmp(cValue, "Manageable"))
+   {
+      if('\0' == lan_ifname[0])
+          snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
 
+      /* When MAP-E is not ready, ensure current_wan_ifname has a sane default. In MAP-E mode,
+       * the WAN egress interface is the MAP-E tunnel interface instead.
+       */
+      if(!isMAPEReady && '\0' == current_wan_ifname[0])
+          snprintf(current_wan_ifname, sizeof(current_wan_ifname), "erouter0");
+
+      /* Align the DROP rule's output interface with the forwarding path:
+       * use the MAP-E tunnel interface when MAP-E is ready, otherwise use current_wan_ifname.
+       */
+      pWanOutputIfname = isMAPEReady ? MAPE_TUNNEL_INTERFACE : current_wan_ifname;
+      FIREWALL_DEBUG("wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic from %s to %s\n" COMMA lan_ifname COMMA pWanOutputIfname);
+      fprintf(filter_fp, "-A lan2wan -i %s -o %s -j DROP\n", lan_ifname, pWanOutputIfname);
+   }
    /***********************
     * set lan to wan subrule by order 
     * *********************/
@@ -13819,6 +13893,10 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_lan2wan(mangle_fp, filter_fp, nat_fp); 
    do_wan2lan(filter_fp);
    do_filter_table_general_rules(filter_fp);
+#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
+   if(isWanReady)
+        do_block_lan_access_to_wan_ssh(filter_fp);
+#endif
 #if defined(SPEED_BOOST_SUPPORTED)
 WAN_FAILOVER_SUPPORT_CHECK
    if(isWanServiceReady)
@@ -13941,6 +14019,10 @@ WAN_FAILOVER_SUPPORT_CHECk_END
          }
          fprintf(filter_fp, "-I FORWARD -o %s -m state --state INVALID -j DROP\n",current_wan_ifname);
    #endif
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I INPUT -p udp --dport 5060 -j ACCEPT\n");
+   fprintf(filter_fp, "-I INPUT -p udp --dport 10000:20000 -j ACCEPT\n");
+#endif
    fprintf(raw_fp, "COMMIT\n");
    fprintf(mangle_fp, "COMMIT\n");
    fprintf(nat_fp, "COMMIT\n");

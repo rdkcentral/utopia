@@ -262,6 +262,26 @@ if [ "$SYSCFG_LAN_DOMAIN" == "utopia.net" ]; then
    syscfg commit
 fi
 
+#Change devicetype on firmware upgrade
+DEVICETYPE_MIGRATE="$(syscfg get devicetype_migrate)"
+if [ -z "$DEVICETYPE_MIGRATE" ]; then
+    CURRENT_DEVICETYPE="$(syscfg get DeviceType)"
+    echo_t "[utopia][init] Devicetype is $CURRENT_DEVICETYPE"
+    # When DeviceType has never been set in syscfg, CURRENT_DEVICETYPE will be empty.
+    # Explicitly migrate empty/unset or non-PROD DeviceType values to PROD.
+    if [ -z "$CURRENT_DEVICETYPE" ]; then
+        echo_t "[utopia][init] DeviceType is unset or empty, migrating to PROD"
+        syscfg set DeviceType "PROD"
+    elif [ "$CURRENT_DEVICETYPE" != "PROD" ]; then
+        echo_t "[utopia][init] setting DeviceType to PROD"
+        syscfg set DeviceType "PROD"
+    else
+        echo_t "[utopia][init] DeviceType is already PROD, no change needed"
+    fi
+    syscfg set devicetype_migrate "1"
+    syscfg commit
+fi
+
 if [ -f $SYSCFG_OLDBKUP_FILE ];then
 	rm -rf $SYSCFG_OLDBKUP_FILE
 fi
@@ -369,6 +389,12 @@ fi
       rm -f /nvram/pcs.bin.md5
    fi
 
+   if [ -f /nvram/pcs-now-priomac.dat ] || [ -f /nvram/pcs-now-priomac.dat.md5 ]; then
+   # Remove on factory reset, prioritized QoS schedule pcs-now-priomac.dat and pcs-now-priomac.dat.md5
+     rm -f /nvram/pcs-now-priomac.dat
+     rm -f /nvram/pcs-now-priomac.dat.md5
+   fi
+   
     if [ -f "$HOTSPOT_BLOB" ];then
       rm -f "$HOTSPOT_BLOB"
    fi
@@ -479,6 +505,13 @@ fi
 
 echo_t "[utopia][init] Setting any unset system values to default"
 apply_system_defaults
+
+PARTNER_ID=`syscfg get PartnerID`
+if [ "$PARTNER_ID" = "sky-uk" ] && [ "$MODEL_NUM" = "SCER11BEL" ]; then
+    echo_t "[utopia][init] Partner ID is sky-uk and device is XER10, applying partner defaults for psm"
+    apply_system_defaults_psm &
+fi
+
 changeFilePermissions $SYSCFG_BKUP_FILE 400
 if [ "$ENCRYPT_SYSCFG" = false ] ; then
    echo "[utopia][init] SEC: Syscfg stored in $SYSCFG_BKUP_FILE"

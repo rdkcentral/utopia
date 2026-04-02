@@ -1074,7 +1074,8 @@ $PeriodicFWCheck_Enable=false
 
 #Minimum memory threshold value
 $MinMemoryThreshold_Value=10
-
+#Target uptime to run memory compaction
+$MemCompactionDelaySecs=900
 #ipv6 pd
 $lan_pd_interfaces=brlan0
 @erouter_topology-mode=1
@@ -1212,9 +1213,10 @@ $T2ConfigURL=https://xconf.xcal.tv/loguploader/getT2Settings
 #Defaults for mTLS in T2
 $T2mTLSEnable=true
 
-#Defaults for xMemInsight
+#Defaults for meminsight
 $xMemEnable=false
 $xMemArgs=
+#xMemTrigger=stop
 
 #Enable DNS strict order
 $DNSStrictOrder=false
@@ -1347,5 +1349,10 @@ $FwDwld_AvlMem_RsrvThreshold=20
 #FwDwld_ImageProcMemPercent Default value
 $FwDwld_ImageProcMemPercent=0
 
+#SelfHeal Cron - RFC flag is enabled by default
+$SelfHealCronEnable=true
 #STAGE Default value
 $StageEnabled=false
+
+#RdkLogger Cron - RFC flag is enabled by default
+$RdkbLogCronEnable=true
