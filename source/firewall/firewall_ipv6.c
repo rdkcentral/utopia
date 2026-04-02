@@ -187,9 +187,6 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_PORTSCANPROTECT  "v6_PortScanProtect"
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
 
-#ifdef _ONESTACK_PRODUCT_REQ_
-#define COSA_DML_DHCPV6_CLIENT_IFNAME                 "erouter0"
-#endif
 /*
  ****************************************************************
  *               IPv6 Firewall                                  *
@@ -1267,21 +1264,15 @@ v6GPFirewallRuleNext:
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
 	 sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
-        /* If current_wan_ifname is not set yet, fall back to the default DHCPv6 client interface */
-        if (current_wan_interface[0] == '\0')
-        {
-            strncpy(current_wan_interface, COSA_DML_DHCPV6_CLIENT_IFNAME, sizeof(current_wan_interface) - 1);
-            current_wan_interface[sizeof(current_wan_interface) - 1] = '\0';
-        }
-        snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
-	sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
+         snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
+	 sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
       }
       else
       {
-	  sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+	 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
       }
 #else
-	  sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+	 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
 #endif
       }
 
@@ -1289,15 +1280,9 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-	  sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
-        /* If current_wan_ifname is not set yet, fall back to the default DHCPv6 client interface */
-        if (current_wan_interface[0] == '\0')
-        {
-            strncpy(current_wan_interface, COSA_DML_DHCPV6_CLIENT_IFNAME, sizeof(current_wan_interface) - 1);
-            current_wan_interface[sizeof(current_wan_interface) - 1] = '\0';
-        }
-        snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
-        sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
+	 sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
+         snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
+         sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
 
       }
       else
@@ -1320,7 +1305,7 @@ v6GPFirewallRuleNext:
 #if defined (_COSA_FOR_BCI_) || defined (_ONESTACK_PRODUCT_REQ_)
          /* adding forward rule for PD traffic */
 #ifdef _ONESTACK_PRODUCT_REQ_
-      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION) && (strlen(current_wan_interface) != 0))
       {
          fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
 	 if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
@@ -2168,15 +2153,9 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
          else
 	 {
          #ifdef _ONESTACK_PRODUCT_REQ_
-	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
 	     {
 		 sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
-		 /* If current_wan_ifname is not set yet, fall back to the default DHCPv6 client interface */
-		 if (current_wan_interface[0] == '\0')
-		 {
-		     strncpy(current_wan_interface, COSA_DML_DHCPV6_CLIENT_IFNAME, sizeof(current_wan_interface) - 1);
-		     current_wan_interface[sizeof(current_wan_interface) - 1] = '\0';
-		 }
 		 snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
 		 sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
 	     }
@@ -2188,7 +2167,14 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
 	     sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
          #endif
 	 }
-	 if (strlen(prefix) != 0 )
+	 /* Add firewall rules only if prefix is not NULL and current_wan_ifname is not NULL*/
+         #ifdef _ONESTACK_PRODUCT_REQ_
+	 if ((strlen(prefix) != 0) &&
+	     (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION) ||
+	      (strlen(current_wan_interface) != 0)))
+         #else
+	 if (strlen(prefix) != 0)
+         #endif
          {
       char *token_pref =NULL;
          token_pref = strtok(prefix,"/");
