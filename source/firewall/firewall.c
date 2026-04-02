@@ -10124,9 +10124,13 @@ static int do_lan2wan_misc(FILE *filter_fp)
             fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 1723  -j ACCEPT\n");
         }
         char sites_enabled[MAX_QUERY];
+		char services_enabled[MAX_QUERY];
         sites_enabled[0] = '\0';
+		services_enabled[0] = '\0';
         syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
-        if (sites_enabled[0] != '\0' && sites_enabled[0] == '0') // managed site list enabled
+		syscfg_get(NULL, "managedservices_enabled", services_enabled, sizeof(services_enabled));
+        if ((sites_enabled[0] != '\0' && sites_enabled[0] == '0') &&
+			(services_enabled[0] != '\0' && services_enabled[0] == '0')) // managed site/services list enabled
         {
             syscfg_get("blockssl", "result", query, sizeof(query));
             if (strcmp(query,"DROP") == 0) {
