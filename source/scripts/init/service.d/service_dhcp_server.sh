@@ -139,7 +139,7 @@ dnsmasq_server_start ()
                         fi
                 fi
          else
-                $SERVER -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
+                $SERVER -P 1232 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
          fi
 
 }
