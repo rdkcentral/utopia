@@ -10129,8 +10129,34 @@ static int do_lan2wan_misc(FILE *filter_fp)
 		services_enabled[0] = '\0';
         syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
 		syscfg_get(NULL, "managedservices_enabled", services_enabled, sizeof(services_enabled));
+		// Check if managed services has port 443 configured
+        int ms_has_port_443 = 0;
+        if (services_enabled[0] != '\0' && services_enabled[0] != '0') {
+            char ms_count_str[MAX_QUERY];
+            int ms_count = 0;
+            syscfg_get(NULL, "ManagedServiceBlockCount", ms_count_str, sizeof(ms_count_str));
+            if (ms_count_str[0] != '\0') ms_count = atoi(ms_count_str);
+            for (int i = 1; i <= ms_count && !ms_has_port_443; i++) {
+                char ns[MAX_QUERY], start_port[16], end_port[16];
+                snprintf(query, sizeof(query), "ManagedServiceBlock_%d", i);
+                syscfg_get(NULL, query, ns, sizeof(ns));
+                if (ns[0] == '\0') continue;
+                syscfg_get(ns, "start_port", start_port, sizeof(start_port));
+                syscfg_get(ns, "end_port", end_port, sizeof(end_port));
+                int sp = atoi(start_port);
+                int ep = atoi(end_port);
+				FIREWALL_DEBUG("sp:%d, ep:%d\n", sp, ep);
+                if (sp <= 443 && ep >= 443) {
+                    ms_has_port_443 = 1;
+                }
+            }
+        }
+		FIREWALL_DEBUG("ms_has_port_443:%d\n", ms_has_port_443);
+		// Skip SSL blocking if:
+        // 1. managed sites is enabled, OR
+        // 2. managed services is enabled AND has port 443 configured.
         if ((sites_enabled[0] != '\0' && sites_enabled[0] == '0') &&
-			(services_enabled[0] != '\0' && services_enabled[0] == '0')) // managed site/services list enabled
+			!(services_enabled[0] != '\0' && services_enabled[0] != '0' && ms_has_port_443))
         {
             syscfg_get("blockssl", "result", query, sizeof(query));
             if (strcmp(query,"DROP") == 0) {
