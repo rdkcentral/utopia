@@ -10146,13 +10146,12 @@ static int do_lan2wan_misc(FILE *filter_fp)
                 syscfg_get(ns, "end_port", end_port, sizeof(end_port));
                 int sp = atoi(start_port);
                 int ep = atoi(end_port);
-				FIREWALL_DEBUG("%s, sp:%d, ep:%d\n" COMMA __FUNCTION__ COMMA sp COMMA ep);
                 if (sp <= 443 && ep >= 443) {
                     ms_has_port_443 = 1;
+					break;
                 }
             }
         }
-		FIREWALL_DEBUG("%s: ms_has_port_443:%d\n" COMMA __FUNCTION__ COMMA ms_has_port_443);
 		// Skip SSL blocking if:
         // 1. managed sites is enabled, OR
         // 2. managed services is enabled AND has port 443 configured.
