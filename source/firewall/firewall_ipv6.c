@@ -1750,9 +1750,36 @@ v6GPFirewallRuleNext:
 	services_enabled[0] = '\0';
     syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
 	syscfg_get(NULL, "managedservices_enabled", services_enabled, sizeof(services_enabled));
-	// Skip SSL blocking if either managed sites or managed services is enabled
+	// Check if managed services has port 443 configured
+    int ms_has_port_443 = 0;
+    if (services_enabled[0] != '\0' && services_enabled[0] != '0') {
+        char ms_count_str[MAX_QUERY];
+        char query_tmp[MAX_QUERY];
+        int ms_count = 0;
+        syscfg_get(NULL, "ManagedServiceBlockCount", ms_count_str, sizeof(ms_count_str));
+        if (ms_count_str[0] != '\0') ms_count = atoi(ms_count_str);
+        for (int i = 1; i <= ms_count && !ms_has_port_443; i++) {
+            char ns[MAX_QUERY], start_port[16], end_port[16];
+            snprintf(query_tmp, sizeof(query_tmp), "ManagedServiceBlock_%d", i);
+            syscfg_get(NULL, query_tmp, ns, sizeof(ns));
+            if (ns[0] == '\0') continue;
+            syscfg_get(ns, "start_port", start_port, sizeof(start_port));
+            syscfg_get(ns, "end_port", end_port, sizeof(end_port));
+            int sp = atoi(start_port);
+            int ep = atoi(end_port);
+			FIREWALL_DEBUG("%s sp:%d, ep:%d\n" COMMA sp COMMA ep);
+            if (sp <= 443 && ep >= 443) {
+                ms_has_port_443 = 1;
+            }
+        }
+    }
+
+	FIREWALL_DEBUG("%sms_has_port_443:%d\n" COMMA __FUNCTION__ COMMA ms_has_port_443);
+    // Skip SSL blocking if:
+    // 1. managed sites is enabled, OR
+    // 2. managed services is enabled AND has port 443 configured
     if ((sites_enabled[0] != '\0' && sites_enabled[0] == '0') &&
-		(services_enabled[0] != '\0' && services_enabled[0] == '0'))
+		!(services_enabled[0] != '\0' && services_enabled[0] != '0' && ms_has_port_443))
     {
         queryv6[0] = '\0';
 
