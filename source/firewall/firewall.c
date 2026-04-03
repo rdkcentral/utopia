@@ -10133,13 +10133,14 @@ static int do_lan2wan_misc(FILE *filter_fp)
         int ms_has_port_443 = 0;
         if (services_enabled[0] != '\0' && services_enabled[0] != '0') {
             char ms_count_str[MAX_QUERY];
+			char ms_namespace_key[MAX_QUERY];
             int ms_count = 0;
             syscfg_get(NULL, "ManagedServiceBlockCount", ms_count_str, sizeof(ms_count_str));
             if (ms_count_str[0] != '\0') ms_count = atoi(ms_count_str);
             for (int i = 1; i <= ms_count && !ms_has_port_443; i++) {
                 char ns[MAX_QUERY], start_port[16], end_port[16];
-                snprintf(query, sizeof(query), "ManagedServiceBlock_%d", i);
-                syscfg_get(NULL, query, ns, sizeof(ns));
+                snprintf(ms_namespace_key, sizeof(ms_namespace_key), "ManagedServiceBlock_%d", i);
+                syscfg_get(NULL, ms_namespace_key, ns, sizeof(ns));
                 if (ns[0] == '\0') continue;
                 syscfg_get(ns, "start_port", start_port, sizeof(start_port));
                 syscfg_get(ns, "end_port", end_port, sizeof(end_port));
