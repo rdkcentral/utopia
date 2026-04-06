@@ -740,8 +740,6 @@ int rfstatus;
  * For simplicity purposes we cap the number of syscfg entries within a
  * specific namespace. This cap is controlled by MAX_SYSCFG_ENTRIES
  */
-#define MAX_PORT 65535
-
 #define MAX_NAMESPACE 64
 
 #define MAX_SRC_IP_TABLE_ROW    10   /*RDKB-7145, CID-33123, defining max size for src_ip[MAX_SRC_IP_TABLE_ENTRY][]*/
@@ -9129,14 +9127,6 @@ static int do_parcon_device_cloud_mgmt(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
-static int validate_port(char* port_num)
-{
-   int port = atoi(port_num);
-   if ( port <= 0 || port > MAX_PORT )
-      return -1;
-
-   return 0;
-}
 /*
  * add parental control managed service(ports) rules
  */
