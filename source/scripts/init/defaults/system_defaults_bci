@@ -1313,7 +1313,7 @@ $DscpEnabledList_2=
 $DscpSleepInterval_2=0
 
 #Direct Download Enable default value
-$SWDLDirectEnable=false
+$SWDLDirectEnable=true
 
 #DeviceType default value
 $DeviceType=PROD
