@@ -1246,3 +1246,23 @@ void  proxy_dns(FILE *nat_fp,int family);
 */
 void get_iface_ipaddr_ula(const char* ifname,char* ipaddr, int max_ip_size);
 #endif
+
+#define MAX_PORT 65535
+
+/**
+* @brief Validate if a port number string is valid.
+*
+* @param[in] port_num - Pointer to the port number string.
+*
+* @return The status of the operation.
+* @retval 0 if port is valid (1-65535).
+* @retval -1 if port is invalid.
+*
+*/
+static inline int validate_port(const char* port_num)
+{
+   int port = atoi(port_num);
+   if (port <= 0 || port > MAX_PORT)
+      return -1;
+   return 0;
+}
