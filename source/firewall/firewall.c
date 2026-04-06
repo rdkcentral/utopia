@@ -10136,7 +10136,14 @@ static int do_lan2wan_misc(FILE *filter_fp)
 			char ms_namespace_key[MAX_QUERY];
             int ms_count = 0;
             syscfg_get(NULL, "ManagedServiceBlockCount", ms_count_str, sizeof(ms_count_str));
-            if (ms_count_str[0] != '\0') ms_count = atoi(ms_count_str);
+            if (ms_count_str[0] != '\0') {
+                ms_count = atoi(ms_count_str);
+            }
+            if (ms_count < 0) {
+                ms_count = 0;
+            } else if (ms_count > MAX_SYSCFG_ENTRIES) {
+                ms_count = MAX_SYSCFG_ENTRIES;
+            }
             for (int i = 1; i <= ms_count && !ms_has_port_443; i++) {
                 char ns[MAX_QUERY], start_port[16], end_port[16];
                 snprintf(ms_namespace_key, sizeof(ms_namespace_key), "ManagedServiceBlock_%d", i);
