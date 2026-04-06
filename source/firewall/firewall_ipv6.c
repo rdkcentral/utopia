@@ -1757,7 +1757,14 @@ v6GPFirewallRuleNext:
         char query_tmp[MAX_QUERY];
         int ms_count = 0;
         syscfg_get(NULL, "ManagedServiceBlockCount", ms_count_str, sizeof(ms_count_str));
-        if (ms_count_str[0] != '\0') ms_count = atoi(ms_count_str);
+        if (ms_count_str[0] != '\0') {
+            ms_count = atoi(ms_count_str);
+        }
+        if (ms_count < 0) {
+            ms_count = 0;
+        } else if (ms_count > MAX_SYSCFG_ENTRIES) {
+            ms_count = MAX_SYSCFG_ENTRIES;
+        }
         for (int i = 1; i <= ms_count && !ms_has_port_443; i++) {
             char ns[MAX_QUERY], start_port[16], end_port[16];
             snprintf(query_tmp, sizeof(query_tmp), "ManagedServiceBlock_%d", i);
