@@ -10150,12 +10150,19 @@ static int do_lan2wan_misc(FILE *filter_fp)
                 syscfg_get(NULL, ms_namespace_key, ns, sizeof(ns));
                 if (ns[0] == '\0') continue;
                 syscfg_get(ns, "start_port", start_port, sizeof(start_port));
+                if (start_port[0] == '\0' || 0 != validate_port(start_port)) {
+                    continue;
+                }
+                // Get and validate end_port
                 syscfg_get(ns, "end_port", end_port, sizeof(end_port));
+                if (end_port[0] == '\0' || 0 != validate_port(end_port)) {
+                    continue;
+                }
+                // Check if port 443 is within range
                 int sp = atoi(start_port);
                 int ep = atoi(end_port);
                 if (sp <= 443 && ep >= 443) {
                     ms_has_port_443 = 1;
-					break;
                 }
             }
         }
