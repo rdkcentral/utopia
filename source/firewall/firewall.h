@@ -1266,5 +1266,3 @@ static inline int validate_port(const char* port_num)
       return -1;
    return 0;
 }
-#endif /* __FIREWALL_H__ */
-
