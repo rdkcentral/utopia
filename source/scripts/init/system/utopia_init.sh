@@ -59,7 +59,7 @@ MAINT_END="/nvram/.FirmwareUpgradeEndTime"
 
 echo_t "*******************************************************************"
 echo_t "*                                                                  "
-echo_t "[utopia][init] P-UNIT status"
+echo_t "[utopia][init] jothi P-UNIT status"
 cat /proc/P-UNIT/status
 echo_t "*                                                                  "
 echo_t "*******************************************************************"
@@ -856,7 +856,7 @@ fi
 #set ntp status as unsynchronized on bootup
 syscfg set ntp_status 2
 
-echo_t "[utopia][init] setting Multicast MAC before any switch configs"
+echo_t "$(date '+%Y-%m-%d %H:%M:%S')[utopia][init] jothi setting Multicast MAC before any switch configs"
 $UTOPIA_PATH/service_multinet_exec set_multicast_mac &
 
 if [ "$MODEL_NUM" = "DPC3939B" ] || [ "$MODEL_NUM" = "DPC3941B" ]; then
@@ -888,3 +888,7 @@ fi
 if [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$MODEL_NUM" = "SCXF11BFL" ]; then
        /etc/reset_reason_log.sh &
 fi
+
+echo_t "$(date '+%Y-%m-%d %H:%M:%S')[utopia][init] completed creating utopia_inited flag"
+touch /tmp/utopia_inited
+
