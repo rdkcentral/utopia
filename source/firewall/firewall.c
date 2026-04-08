@@ -12020,6 +12020,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
 #if defined (_PLATFORM_BANANAPI_R4_)
        isRawTableUsed = 1;
+       fprintf(raw_fp, "-F\n");
        fprintf(raw_fp, "-A OUTPUT -p udp --dport 69 -j CT --helper tftp\n");
 #endif
 
