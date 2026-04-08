@@ -10113,63 +10113,89 @@ static int do_lan2wan_misc(FILE *filter_fp)
         else if (strcmp(query,"ACCEPT") == 0) {
             fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 1723  -j ACCEPT\n");
         }
-        char sites_enabled[MAX_QUERY];
-		char services_enabled[MAX_QUERY];
-        sites_enabled[0] = '\0';
-		services_enabled[0] = '\0';
+        // Check if managed sites/services affect SSL blocking on port 443
+        int ms_has_tcp_443 = 0;
+        int ms_has_udp_443 = 0;
+        char sites_enabled[MAX_QUERY] = {0};
+        char services_enabled[MAX_QUERY] = {0};
+
         syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
-		syscfg_get(NULL, "managedservices_enabled", services_enabled, sizeof(services_enabled));
-		// Check if managed services has port 443 configured
-        int ms_has_port_443 = 0;
-        if (services_enabled[0] != '\0' && services_enabled[0] != '0') {
-            char ms_count_str[MAX_QUERY];
-			char ms_namespace_key[MAX_QUERY];
-            int ms_count = 0;
-            syscfg_get(NULL, "ManagedServiceBlockCount", ms_count_str, sizeof(ms_count_str));
-            if (ms_count_str[0] != '\0') {
-                ms_count = atoi(ms_count_str);
-            }
-            if (ms_count < 0) {
-                ms_count = 0;
-            } else if (ms_count > MAX_SYSCFG_ENTRIES) {
-                ms_count = MAX_SYSCFG_ENTRIES;
-            }
-            for (int i = 1; i <= ms_count && !ms_has_port_443; i++) {
-                char ns[MAX_QUERY], start_port[16], end_port[16];
-                snprintf(ms_namespace_key, sizeof(ms_namespace_key), "ManagedServiceBlock_%d", i);
-                syscfg_get(NULL, ms_namespace_key, ns, sizeof(ns));
-                if (ns[0] == '\0') continue;
-                syscfg_get(ns, "start_port", start_port, sizeof(start_port));
-                if (start_port[0] == '\0' || 0 != validate_port(start_port)) {
-                    continue;
-                }
-                // Get and validate end_port
-                syscfg_get(ns, "end_port", end_port, sizeof(end_port));
-                if (end_port[0] == '\0' || 0 != validate_port(end_port)) {
-                    continue;
-                }
-                // Check if port 443 is within range
-                int sp = atoi(start_port);
-                int ep = atoi(end_port);
-                if (sp <= 443 && ep >= 443) {
-                    ms_has_port_443 = 1;
+        
+        // If managed sites is enabled, skip SSL blocking entirely
+        if (sites_enabled[0] != '\0' && sites_enabled[0] != '0') {
+            ms_has_tcp_443 = 1;
+            ms_has_udp_443 = 1;
+        } else {
+            // Check managed services for port 443
+            syscfg_get(NULL, "managedservices_enabled", services_enabled, sizeof(services_enabled));
+            if (services_enabled[0] != '\0' && services_enabled[0] != '0') {
+                char ms_count_str[MAX_QUERY] = {0};
+                syscfg_get(NULL, "ManagedServiceBlockCount", ms_count_str, sizeof(ms_count_str));
+                if (ms_count_str[0] != '\0') {
+					ms_count = atoi(ms_count_str);
+				}
+				if (ms_count < 0) {
+					ms_count = 0;
+				} else if (ms_count > MAX_SYSCFG_ENTRIES) {
+					ms_count = MAX_SYSCFG_ENTRIES;
+				}
+                for (int i = 1; i <= ms_count && !(ms_has_tcp_443 && ms_has_udp_443); i++) {
+                    char ns[MAX_QUERY], prot[10];
+                    char ms_namespace_key[MAX_QUERY];
+
+                    snprintf(ms_namespace_key, sizeof(ms_namespace_key), "ManagedServiceBlock_%d", i);
+                    syscfg_get(NULL, ms_namespace_key, ns, sizeof(ns));
+                    if (ns[0] == '\0') continue;
+
+                    // Get protocol to check if we can skip this entry
+                    syscfg_get(ns, "proto", prot, sizeof(prot));
+
+                    // Skip if this protocol is already covered (tcp only and tcp flag set, or udp only and udp flag set)
+                    if ((strncasecmp("tcp", prot, 3) == 0 && ms_has_tcp_443) ||
+                        (strncasecmp("udp", prot, 3) == 0 && ms_has_udp_443)) {
+                        continue;
+                    }
+
+                    // Check port range
+                    char start_port[16], end_port[16];
+					// Get and validate start_port
+                    syscfg_get(ns, "start_port", start_port, sizeof(start_port));
+					if (start_port[0] == '\0' || 0 != validate_port(start_port)) {
+						continue;
+					}
+					// Get and validate end_port
+					syscfg_get(ns, "end_port", end_port, sizeof(end_port));
+					if (end_port[0] == '\0' || 0 != validate_port(end_port)) {
+						continue;
+					}
+
+                    int sp = atoi(start_port);
+                    int ep = atoi(end_port);
+                    if (sp > 443 || ep < 443) continue;  // Port 443 not in range
+
+                    // Set flags based on protocol
+                    if (prot[0] == '\0' || strncasecmp("both", prot, 4) == 0) {
+                        ms_has_tcp_443 = ms_has_udp_443 = 1;
+                        break;
+                    } else if (strncasecmp("tcp", prot, 3) == 0) {
+                        ms_has_tcp_443 = 1;
+                    } else if (strncasecmp("udp", prot, 3) == 0) {
+                        ms_has_udp_443 = 1;
+                    }
                 }
             }
         }
-		// Skip SSL blocking if:
-        // 1. managed sites is enabled, OR
-        // 2. managed services is enabled AND has port 443 configured.
-        if ((sites_enabled[0] != '\0' && sites_enabled[0] == '0') &&
-			!(services_enabled[0] != '\0' && services_enabled[0] != '0' && ms_has_port_443))
-        {
+
+        // Emit SSL blocking rules for protocols not covered by managed services
+        if (!(ms_has_tcp_443 && ms_has_udp_443)) {
             syscfg_get("blockssl", "result", query, sizeof(query));
-            if (strcmp(query,"DROP") == 0) {
-                fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j DROP\n");
-                fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j DROP\n");
-            }
-            else if(strcmp(query,"ACCEPT") == 0) {
-                fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j ACCEPT\n");
-                fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j ACCEPT\n");
+            if (strcmp(query, "DROP") == 0 || strcmp(query, "ACCEPT") == 0) {
+                if (!ms_has_udp_443) {
+                    fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j %s\n", query);
+                }
+                if (!ms_has_tcp_443) {
+                    fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j %s\n", query);
+                }
             }
         }
     }
