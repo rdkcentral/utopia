@@ -10130,6 +10130,7 @@ static int do_lan2wan_misc(FILE *filter_fp)
             syscfg_get(NULL, "managedservices_enabled", services_enabled, sizeof(services_enabled));
             if (services_enabled[0] != '\0' && services_enabled[0] != '0') {
                 char ms_count_str[MAX_QUERY] = {0};
+				int ms_count = 0;
                 syscfg_get(NULL, "ManagedServiceBlockCount", ms_count_str, sizeof(ms_count_str));
                 if (ms_count_str[0] != '\0') {
 					ms_count = atoi(ms_count_str);
