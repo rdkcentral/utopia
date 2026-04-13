@@ -488,12 +488,14 @@ int service_dhcp_main(int argc, char *argv[])
         {
              dhcp_server_stop();
         }
-        APPLY_PRINT("%s: Checking lan-status \n", __FUNCTION__);
-        char store[24] = {0};
-        sysevent_get(sysevent_fd, sysevent_token, "lan-status", store, sizeof(store));
-        CcspTraceWarning(("%s : lan-status is %s\n", __func__, store));
+        
         else if (!strncmp(argv[1], "lan-status", 10))
 	{
+		APPLY_PRINT("%s: Checking lan-status \n", __FUNCTION__);
+        char store[24] = {0};
+	    sysevent_get(g_iSyseventfd, g_tSysevent_token,
+                         "lan-status", store, sizeof(store));
+        CcspTraceWarning(("%s : lan-status is %s\n", __FUNCTION__, store));
 		//If lan-status is called with lan_not_restart then 
 		//the same is used in further function calls
 		if (4 == argc)
@@ -516,7 +518,7 @@ int service_dhcp_main(int argc, char *argv[])
 		dhcp_server_start(NULL);
     	}
 	#endif
-    APPLY_PRINT("%s: Restart LAN \n", __FUNCTION__);
+
 	else if (!strncmp(argv[1], "lan-restart", 11))
 	{
         APPLY_PRINT("%s: call lan_restart \n", __FUNCTION__);
@@ -601,7 +603,6 @@ int service_dhcp_main(int argc, char *argv[])
         APPLY_PRINT("%s: Stopping LAN \n", __FUNCTION__);
         lan_stop();
     }
-    APPLY_PRINT("%s: Flushing ipv6 address of LAN \n", __FUNCTION__);
 	else if (!strncmp(argv[1], "lan-start", 9))
 	{
         APPLY_PRINT("%s: Starting LAN \n", __FUNCTION__);
