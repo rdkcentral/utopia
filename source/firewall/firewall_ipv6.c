@@ -187,6 +187,12 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_PORTSCANPROTECT  "v6_PortScanProtect"
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
 
+#if defined (_ONESTACK_PRODUCT_REQ_)
+char g_ipv6_delegation_prefix_event[128] = "ipv6_prefix";
+#define IPV6_DELEGATION_PREFIX g_ipv6_delegation_prefix_event
+#else
+#define IPV6_DELEGATION_PREFIX "ipv6_prefix"
+#endif
 /*
  ****************************************************************
  *               IPv6 Firewall                                  *
@@ -267,7 +273,20 @@ int prepare_ipv6_firewall(const char *fw_file)
 		goto clean_up_files;
 	}
         
-       
+    #if defined (_ONESTACK_PRODUCT_REQ_)
+	char current_wan_interface[64] = {0};
+	if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+	{
+	    sysevent_get(sysevent_fd, sysevent_token,"current_wan_ifname",
+		    current_wan_interface, sizeof(current_wan_interface));
+            if (current_wan_interface[0] != '\0')
+	    {
+	        snprintf(g_ipv6_delegation_prefix_event, sizeof(g_ipv6_delegation_prefix_event),
+		    "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
+	    }
+	}
+   #endif
+
    #ifdef RDKB_EXTENDER_ENABLED  
 
    if (isExtProfile() == 0)
@@ -491,10 +510,6 @@ void do_ipv6_filter_table(FILE *fp){
    FILE *f = NULL;
    char request[256], response[256], cm_ipv6addr[40];
    unsigned int a[16] = {0};
-#endif
-#if defined (_ONESTACK_PRODUCT_REQ_)
-    char current_wan_interface[64] = {0};
-    char sysevent_name[128] = {0};
 #endif
 	
    fprintf(fp, "*filter\n");
@@ -1263,9 +1278,7 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-	 sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
-         snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
-	 sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
+	 sysevent_get(sysevent_fd, sysevent_token, IPV6_DELEGATION_PREFIX, prefix, sizeof(prefix));
       }
       else
       {
@@ -1280,10 +1293,7 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-	 sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
-         snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
-         sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
-
+	 sysevent_get(sysevent_fd, sysevent_token, IPV6_DELEGATION_PREFIX, prefix, sizeof(prefix));
       }
       else
       {
@@ -2139,10 +2149,6 @@ typedef enum{
 void applyRoutingRules(FILE* fp,ipv6_type type)
 {
        FIREWALL_DEBUG("Entering applyRoutingRules, ipv6_type is %d \n" COMMA type);
-#if defined (_ONESTACK_PRODUCT_REQ_)
-    char current_wan_interface[64] = {0};
-    char sysevent_name[128] = {0};
-#endif
          char prefix[64] ;
          memset(prefix,0,sizeof(prefix));
          int i ;
@@ -2155,16 +2161,7 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
          #ifdef _ONESTACK_PRODUCT_REQ_
 	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
 	     {
-		 sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_interface, sizeof(current_wan_interface));
-		 if (current_wan_interface[0] != '\0')
-		 {
-		     snprintf(sysevent_name, sizeof(sysevent_name), "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
-		     sysevent_get(sysevent_fd, sysevent_token, sysevent_name, prefix, sizeof(prefix));
-		 }
-		 else
-		 {
-		     sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
-		 }
+		 sysevent_get(sysevent_fd, sysevent_token, IPV6_DELEGATION_PREFIX, prefix, sizeof(prefix));
 	     }
 	     else
 	     {
@@ -2174,17 +2171,9 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
 	     sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
          #endif
 	 }
-	 /* Add firewall rules only if prefix is non-empty and, when IPv6 delegation is enabled, current_wan_interface is also non-empty */
-         #ifdef _ONESTACK_PRODUCT_REQ_
-	 if ((strlen(prefix) != 0) &&
-	     (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION) ||
-	      (ULA_IPV6 == type) ||
-	      (strlen(current_wan_interface) != 0)))
-         #else
 	 if (strlen(prefix) != 0)
-         #endif
          {
-      char *token_pref =NULL;
+		 char *token_pref =NULL;
          token_pref = strtok(prefix,"/");
                   for(i = 0; i < mesh_wan_ipv6_num; i++)
                   {
