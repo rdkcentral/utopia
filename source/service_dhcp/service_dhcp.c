@@ -495,7 +495,7 @@ int service_dhcp_main(int argc, char *argv[])
         char store[24] = {0};
 	    sysevent_get(g_iSyseventfd, g_tSysevent_token,
                          "lan-status", store, sizeof(store));
-        CcspTraceWarning(("%s : lan-status is %s\n", __FUNCTION__, store));
+        APPLY_PRINT("%s : lan-status is %s\n", __FUNCTION__, store);
 		//If lan-status is called with lan_not_restart then 
 		//the same is used in further function calls
 		if (4 == argc)
