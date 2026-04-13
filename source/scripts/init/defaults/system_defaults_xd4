@@ -1108,6 +1108,8 @@ $logbackup_interval=30
 
 #Minimum memory threshold value
 $MinMemoryThreshold_Value=10
+#Target uptime to run memory compaction
+$MemCompactionDelaySecs=900
 # X_Comcast_com_ParentalControl managed devices
 $HTTP_Server_IP=127.0.0.1
 $HTTPS_Server_IP=127.0.0.1
