@@ -47,7 +47,7 @@ const char* SERVICE_CUSTOM_EVENTS[] = {"wan-start|/etc/utopia/service.d/service_
 const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_bridge_tchcbr.sh";
 const char* SERVICE_CUSTOM_EVENTS[] = { NULL };   //has to be commented due to NOT hit for Commscope platform then also added by patches 
 #elif defined (_COSA_BCM_ARM_)  && ! defined (_PLATFORM_IPQ_) && ! defined (_PLATFORM_RASPBERRYPI_) && ! defined(_PLATFORM_BANANAPI_R4_)
-const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_bridge_tchxb6.sh";
+const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_bridge_xf10.sh";
 #if defined(DOCSIS_EXTENDED_MTU_SUPPORT)
 const char* SERVICE_CUSTOM_EVENTS[] = {"wan-start|/etc/utopia/service.d/service_bridge_tchxb6.sh|NULL|" TUPLE_FLAG_EVENT, NULL};
 #else
