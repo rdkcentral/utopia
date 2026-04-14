@@ -1513,4 +1513,4 @@ $RdkbLogCronEnable=true
 $MemTrace_Enable=0
 $MemTrace_Interval=300
 $MemTrace_RSSThreshold=2048
-MemTrace_InitialSnapshotUptime=900
+$MemTrace_InitialSnapshotUptime=900
