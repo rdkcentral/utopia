@@ -322,6 +322,13 @@ service_start ()
 			echo_t "This Device WAN TYPE is not DOCSIS, Needed DOCSIS type Device for WANLinkHeal"
 		fi
 
+        MEMSWAP_ENABLE=`syscfg get MemorySwapEnable`
+        if [ "$MEMSWAP_ENABLE" = "true" ]; then
+            MEMSWAP_INTERVAL=`syscfg get MemorySwapStatsIntervalMinutes`
+            if [ -n "$MEMSWAP_INTERVAL" ] && [ "$MEMSWAP_INTERVAL" -gt 0 ]; then
+                echo "*/$MEMSWAP_INTERVAL * * * * /usr/ccsp/tad/memswap_stats.sh" >> $CRONTAB_FILE
+            fi
+        fi
    fi
  
 
