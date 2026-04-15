@@ -38,7 +38,15 @@
 #define OnboardLog(...)
 #endif
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+#include <time.h>
+>>>>>>> df73d87 (Checking lan start event)
 #define LOG_FILE_ROUTED "/tmp/lan_handler.txt"
+=======
+#define LOG_FILE_ROUTED "/rdklogs/logs/lan_handler.txt"
+>>>>>>> 49895a5 (Checking lan start event)
 #define APPLY_PRINT(fmt ...) {\
 FILE *logfp = fopen(LOG_FILE_ROUTED , "a+");\
 if (logfp){\
@@ -76,6 +84,7 @@ extern token_t g_tSysevent_token;
 extern int executeCmd(char *);
 extern FILE* g_fArmConsoleLog; //Global file pointer declaration
 
+APPLY_PRINT("Entering into the lan_handler C file \n");
 void get_dateanduptime(char *buffer, int *uptime)
 {
     struct 	timeval  tv;
