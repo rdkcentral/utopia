@@ -48,7 +48,6 @@
 #define SERVICE_DEFAULT_HANDLER "/etc/utopia/service.d/service_routed.sh"
 
 #if defined(_ONESTACK_PRODUCT_REQ_)
-#define SERVICE_DEFAULT_HANDLER_BCI "/etc/utopia/service.d/service_routed_bci.sh"
 const char** SERVICE_CUSTOM_EVENTS = NULL;
 #endif
 #if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
@@ -77,12 +76,12 @@ const char* SERVICE_CUSTOM_EVENTS_RESIDENTIAL[] = {
                                         NULL
                                       };
 const char* SERVICE_CUSTOM_EVENTS_BUSINESS[] = {
-                                        "wan-status|/etc/utopia/service.d/service_routed_bci.sh",
-                                        "lan-status|/etc/utopia/service.d/service_routed_bci.sh",
-                                        "dhcpv6_option_changed|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
-                                        "ripd-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
-                                        "zebra-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
-                                        "staticroute-restart|/etc/utopia/service.d/service_routed_bci.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "wan-status|/etc/utopia/service.d/service_routed.sh",
+                                        "lan-status|/etc/utopia/service.d/service_routed.sh",
+                                        "dhcpv6_option_changed|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "ripd-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "zebra-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        "staticroute-restart|/etc/utopia/service.d/service_routed.sh|NULL|"TUPLE_FLAG_EVENT,
                                         NULL
                                       };
 
@@ -109,7 +108,7 @@ void srv_register(void) {
 #if defined(_ONESTACK_PRODUCT_REQ_)
    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
    {
-      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER_BCI, SERVICE_CUSTOM_EVENTS_BUSINESS);
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS_BUSINESS);
    }
    else
    {
