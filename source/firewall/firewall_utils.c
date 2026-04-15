@@ -2,7 +2,7 @@
  * If not stated otherwise in this file or this component's Licenses.txt file the
  * following copyright and licenses apply:
  *
- * Copyright 2015 RDK Management
+ * Copyright 2025 RDK Management
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,8 +44,6 @@ int validate_port(const char* port_num)
  * Rules are skipped per protocol if managed services already covers that
  * protocol on port 443.
  *
- * This function is shared by both IPv4 (firewall.c) and IPv6 (firewall_ipv6.c)
- * to avoid code duplication.
  *
  * @param[in] fp         - Pointer to the FILE stream for writing firewall rules.
  * @param[in] chain_name - The iptables chain name (e.g., "lan2wan_misc" or "lan2wan_misc_ipv6").
@@ -68,11 +66,16 @@ void do_ssl_blocking_rules(FILE *fp, const char *chain_name)
         syscfg_get(NULL, "managedservices_enabled", services_enabled, sizeof(services_enabled));
         if (services_enabled[0] != '\0' && services_enabled[0] != '0') {
             char ms_count_str[MAX_QUERY] = {0};
+            int ms_count = 0;
             syscfg_get(NULL, "ManagedServiceBlockCount", ms_count_str, sizeof(ms_count_str));
-            int ms_count = atoi(ms_count_str);
-            if (ms_count > MAX_SYSCFG_ENTRIES)
+            if (ms_count_str[0] != '\0') {
+                ms_count = atoi(ms_count_str);
+            }
+            if (ms_count < 0) {
+                ms_count = 0;
+            } else if (ms_count > MAX_SYSCFG_ENTRIES) {
                 ms_count = MAX_SYSCFG_ENTRIES;
-
+            }
             for (int i = 1; i <= ms_count && !(ms_has_tcp_443 && ms_has_udp_443); i++) {
                 char ns[MAX_QUERY], prot[10];
                 char ms_namespace_key[MAX_QUERY];
@@ -94,14 +97,17 @@ void do_ssl_blocking_rules(FILE *fp, const char *chain_name)
                 /* Check port range */
                 char start_port[16], end_port[16];
                 syscfg_get(ns, "start_port", start_port, sizeof(start_port));
-                syscfg_get(ns, "end_port", end_port, sizeof(end_port));
-                if (validate_port(start_port) != 0 || validate_port(end_port) != 0)
+                if (start_port[0] == '\0' || validate_port(start_port) != 0) {
                     continue;
+                }
+                syscfg_get(ns, "end_port", end_port, sizeof(end_port));
+                if (end_port[0] == '\0' || validate_port(end_port) != 0) {
+                    continue;
+                }
 
                 int sp = atoi(start_port);
                 int ep = atoi(end_port);
-                if (sp > 443 || ep < 443)
-                    continue;  /* Port 443 not in range */
+                if (sp > 443 || ep < 443) continue;  /* Port 443 not in range */
 
                 /* Set flags based on protocol */
                 if (prot[0] == '\0' || strncasecmp("both", prot, 4) == 0) {

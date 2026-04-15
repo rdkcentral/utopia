@@ -1268,9 +1268,6 @@ int validate_port(const char* port_num);
 * and emits appropriate SSL blocking (DROP/ACCEPT) rules for port 443.
 * Rules are skipped per protocol if managed services covers that protocol on port 443.
 *
-* This function is shared by both IPv4 (firewall.c) and IPv6 (firewall_ipv6.c)
-* to avoid code duplication.
-*
 * @param[in] fp         - Pointer to the FILE stream for writing firewall rules.
 * @param[in] chain_name - The iptables chain name (e.g., "lan2wan_misc" or "lan2wan_misc_ipv6").
 *
