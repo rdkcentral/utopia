@@ -47,7 +47,7 @@ log() {
     local timestamp
     local log_file
     timestamp=$(date +'%Y-%m-%d %H:%M:%S')
-    log_file="/tmp/service_routed_$(date +'%Y-%m-%d').log"
+    log_file="/tmp/service_routed.log"
     echo "$timestamp [$level] $message" | tee -a "$log_file"
 }
 

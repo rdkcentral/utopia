@@ -41,6 +41,16 @@
 #source /etc/utopia/service.d/service_lan/lan_hooks.sh
 #source /etc/utopia/service.d/brcm_ethernet_helper.sh
 
+log() {
+    local level="$1"; shift
+    local message="$*"
+    local timestamp
+    local log_file
+    timestamp=$(date +'%Y-%m-%d %H:%M:%S')
+    log_file="/tmp/lan_handler.log"
+    echo "$timestamp [$level] $message" | tee -a "$log_file"
+}
+
 source /etc/utopia/service.d/ut_plat.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source /lib/rdk/t2Shared_api.sh
@@ -52,6 +62,7 @@ SERVICE_MULTINET_PATH="/etc/utopia/service.d/service_multinet"
 THIS=/etc/utopia/service.d/lan_handler.sh
 SERVICE_NAME="lan_handler"
 
+log INFO "Script started"
 POSTD_START_FILE="/tmp/.postd_started"
 
 RPI_SPECIFIC=$BOX_TYPE
@@ -125,6 +136,7 @@ find_active_brg_instances(){
 
 #service_init
 echo_t "RDKB_SYSTEM_BOOT_UP_LOG : lan_handler called with $1 $2"
+log INFO "lan_handler called with $1 $2"
 if [ "$1" = "lan-stop" ] && [ "$2" = "NULL" ] ; then
     t2CountNotify "RF_ERROR_LAN_stop"
 fi
@@ -132,17 +144,24 @@ fi
 
 case "$1" in
    ${SERVICE_NAME}-start)
+      log INFO "Received ${SERVICE_NAME}-start event"
+      log INFO "Starting LAN handler service"
       service_start
       ;;
    ${SERVICE_NAME}-stop)
+      log INFO "Received ${SERVICE_NAME}-stop event"
+      log INFO "Stopping LAN handler service"
       service_stop
       ;;
    ${SERVICE_NAME}-restart)
+      log INFO "Received ${SERVICE_NAME}-restart event"
       echo "service_init : setting lan-restarting to 1"
+      log INFO "Restarting LAN handler service"
       sysevent set lan-restarting 1
       service_stop
       service_start
       echo "service_init : setting lan-restarting to 0"
+      log INFO "LAN handler service restarting to 0"
       sysevent set lan-restarting 0
       ;;
    erouter_mode-updated)
@@ -154,6 +173,7 @@ case "$1" in
       if [ "0" == "$SYSCFG_bridge_mode" ]; then
       if [ "0" != "$SYSCFG_last_erouter_mode" ] && [ 1x = "${SYSEVENT_ipv4_4_status_configured}"x ]; then
           echo_t "lan_handler.sh: erouter_mode-updated, restart lan"
+          log INFO "erouter_mode-updated, restart lan"
           LAN_INST=`sysevent get primary_lan_l3net`
           LAN_IFNAME=`sysevent get ipv4_${LAN_INST}-ifname`
           sysevent set ipv4-down $LAN_INST
@@ -343,6 +363,7 @@ case "$1" in
 
    pnm-status | bring-lan)
 	if [ -e "/usr/bin/print_uptime" ]; then
+            log INFO "Received event, printing uptime for Lan_init_start"
             /usr/bin/print_uptime "Lan_init_start"
         fi
         uptime=$(cut -d. -f1 /proc/uptime)
@@ -360,11 +381,14 @@ case "$1" in
                 	COUNTER=1
 			while [ $COUNTER -lt 10 ]; do
 				echo_t "RDKB_SYSTEM_BOOT_UP_LOG : INST returned null , retrying $COUNTER"
+                log INFO "INST returned null , retrying $COUNTER"
 				INST=`psmcli get dmsb.MultiLAN.PrimaryLAN_l3net`
 				echo_t "THE INSTANCE=$INST"
+                log INFO "THE INSTANCE=$INST"
 				sleep 1
 				if [ x != x$INST ]; then
 					echo_t "BREAK THE INSTANCE=$INST"
+                    log INFO "BREAK THE INSTANCE=$INST"
 		   			break
 				fi
 			        COUNTER=`expr $COUNTER + 1`
@@ -372,6 +396,7 @@ case "$1" in
 			done
 		else
 			echo_t "RDKB_SYSTEM_BOOT_UP_LOG : INST rerurned null, retrying"
+            log INFO "else case : INST rerurned null, retrying"
 			INST=`psmcli get dmsb.MultiLAN.PrimaryLAN_l3net`
 		fi
 
