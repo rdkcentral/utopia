@@ -7476,6 +7476,13 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
 			lan_netmask[ 32 ],
 			ciptableOprationCode = 'D';
 
+
+
+#ifdef NFT_ENABLE
+        char nft_enable[8] = {0};
+        syscfg_get( NULL, "nft_enable", nft_enable, sizeof( nft_enable ) );
+#endif
+
 	if ( 0 > se_fd ) 
 	{
 	   return ERR_SYSEVENT_CONN;
@@ -7592,35 +7599,100 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
 	{
 		
 		WAN_FAILOVER_SUPPORT_CHECK
-		if ( isNatReady ) 
+		if ( isNatReady )
 		{
+#ifdef NFT_ENABLE
+			if (atoi(nft_enable) == 0)
+			{
+				v_secure_system("iptables -t nat -%c prerouting_fromwan -p tcp -m tcp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
+				   ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+			}
+			else
+			{
+				v_secure_system("nft %c rule ip nat prerouting_fromwan ip saddr %s ip daddr %s tcp dport %s counter dnat to %s:%s",
+					ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+			}
+#else
 			v_secure_system("iptables -t nat -%c prerouting_fromwan -p tcp -m tcp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
-				ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+			   ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+#endif
+
 		}
 
 		if ( !isNatRedirectionBlocked ) 
 		{
 			if (0 == strcmp("none", fromip)) 
 			{
-				v_secure_system("iptables -t nat -%c prerouting_fromlan -p tcp -m tcp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
-					ciptableOprationCode,lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
-
-				if ( isNatReady )
+#ifdef NFT_ENABLE
+				if (atoi(nft_enable) == 0)
 				{
 					v_secure_system("iptables -t nat -%c prerouting_fromlan -p tcp -m tcp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
-						ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+					   ciptableOprationCode,lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
 				}
+				else
+				{
+					v_secure_system("nft %c rule ip nat prerouting_fromlan ip saddr %s ip daddr %s tcp dport %s counter dnat to %s:%s",
+					   ciptableOprationCode,lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
+				}
+#else
+				v_secure_system("iptables -t nat -%c prerouting_fromlan -p tcp -m tcp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
+				   ciptableOprationCode,lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
+#endif
+				if ( isNatReady )
+				{
+#ifdef NFT_ENABLE
+					if (atoi(nft_enable) == 0)
+					{
+						v_secure_system("iptables -t nat -%c prerouting_fromlan -p tcp -m tcp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
+							ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+					}
+					else
+					{
+						v_secure_system("nft %c rule ip nat prerouting_fromlan ip saddr %s ip daddr %s tcp dport %s counter dnat to %s:%s",
+							ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+					}
+#else
+					v_secure_system("iptables -t nat -%c prerouting_fromlan -p tcp -m tcp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
+						ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+#endif
+				}
+#ifdef NFT_ENABLE
+				if (atoi(nft_enable) == 0)
+				{
+					v_secure_system("iptables -t nat -%c postrouting_tolan -s %s.0/%s -p tcp -m tcp -d %s --dport %s -j SNAT --to-source %s",
+							ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
+				}
+				else
+				{
+					v_secure_system("nft %c rule ip nat postrouting_tolan ip saddr %s.0/%s ip daddr %s tcp dport %s counter snat to %s",
+							ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
+				}
+#else
+				v_secure_system("iptables -t nat -%c postrouting_tolan -s %s.0/%s -p tcp -m tcp -d %s --dport %s -j SNAT --to-source %s",
+						ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
+#endif
 
-				v_secure_system("iptables -t nat -%c postrouting_tolan -s %s.0/%s -p tcp -m tcp -d %s --dport %s -j SNAT --to-source %s", 
-					ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
 			}
 		}
 
 		/*  it will applicable during router mode */
 		if( 0 == isBridgeMode )
 		{
-			v_secure_system("iptables -t filter -%c wan2lan_forwarding_accept -p tcp -m tcp -s %s -d %s --dport %s -j xlog_accept_wan2lan",
-				ciptableOprationCode,external_ip, toip, dport);
+#ifdef NFT_ENABLE
+                    if (atoi(nft_enable) == 0)
+                    {
+                        v_secure_system("iptables -t filter -%c wan2lan_forwarding_accept -p tcp -m tcp -s %s -d %s --dport %s -j xlog_accept_wan2lan",
+			    ciptableOprationCode,external_ip, toip, dport);
+		    }
+                    else
+                    {
+                        v_secure_system("nft %c rule ip filter wan2lan_forwarding_accept ip saddr %s ip daddr %s tcp dport %s counter jump xlog_accept_wan2la",
+                            ciptableOprationCode,external_ip, toip, dport);
+                    }
+#else
+                    v_secure_system("iptables -t filter -%c wan2lan_forwarding_accept -p tcp -m tcp -s %s -d %s --dport %s -j xlog_accept_wan2lan",
+                        ciptableOprationCode,external_ip, toip, dport);
+#endif
 		}
 		WAN_FAILOVER_SUPPORT_CHECk_END
 	}
@@ -7628,40 +7700,103 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
      if ( ( ( BOTH_TCP_UDP == pmap->protocol ) || ( UDP == pmap->protocol ) ) && \
 		  ( !( isBridgeMode && Utopia_privateIpCheck( pmap->internal_host ) ) )
 		)
-	 {
-		
-		WAN_FAILOVER_SUPPORT_CHECK
-		if (isNatReady) 
-		{
-           v_secure_system("iptables -t nat -%c prerouting_fromwan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
+     {
+        WAN_FAILOVER_SUPPORT_CHECK
+	if (isNatReady)
+        {
+#ifdef NFT_ENABLE
+             if (atoi(nft_enable) == 0)
+             {
+                v_secure_system("iptables -t nat -%c prerouting_fromwan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
                    ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
-        }
+             }
+             else
+             {
+                 v_secure_system("nft %c rule ip nat prerouting_fromwan ip saddr %s ip daddr %s udp dport %s counter dnat to %s:%s",
+	            ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+             }
+#else
+             v_secure_system("iptables -t nat -%c prerouting_fromwan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
+                ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+#endif
+         }
 
-        if ( !isNatRedirectionBlocked ) 
-		{
-           if (0 == strcmp("none", fromip)) 
-		   {
-              v_secure_system("iptables -t nat -%c prerouting_fromlan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
-                ciptableOprationCode,lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
+        if ( !isNatRedirectionBlocked )
+        {
+             if (0 == strcmp("none", fromip))
+             {
+#ifdef NFT_ENABLE
+               if (atoi(nft_enable) == 0)
+               {
+                   v_secure_system("iptables -t nat -%c prerouting_fromlan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
+                      ciptableOprationCode,lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
+               }
+               else
+               {
+                   v_secure_system("nft %c rule ip nat prerouting_fromlan ip saddr %s ip daddr %s udp dport %s counter dnat to %s:%s",
+		      ciptableOprationCode,lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
+               }
+#else
+               v_secure_system("iptables -t nat -%c prerouting_fromlan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
+                  ciptableOprationCode,lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
+#endif
 
-              if ( isNatReady ) 
-			  {
-                 v_secure_system("iptables -t nat -%c prerouting_fromlan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
-                   ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
-              }
-
-              v_secure_system("iptables -t nat -%c postrouting_tolan -s %s.0/%s -p udp -m udp -d %s --dport %s -j SNAT --to-source %s", 
+               if ( isNatReady )
+               {
+#ifdef NFT_ENABLE
+	          if (atoi(nft_enable) == 0)
+		  {
+                      v_secure_system("iptables -t nat -%c prerouting_fromlan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
+                         ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+		  }
+		  else
+		  {
+                      v_secure_system("nft %c rule ip nat prerouting_fromlan ip saddr %s ip daddr %s udp dport %s counter dnat to %s:%s",
+		          ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+		  }
+#else
+		  v_secure_system("iptables -t nat -%c prerouting_fromlan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
+		     ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
+#endif
+               }
+#ifdef NFT_ENABLE
+               if (atoi(nft_enable) == 0)
+               {
+                  v_secure_system("iptables -t nat -%c postrouting_tolan -s %s.0/%s -p udp -m udp -d %s --dport %s -j SNAT --to-source %s",
                       ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
-           }
+               }
+               else
+               {
+                   v_secure_system("nft %c rule ip nat postrouting_tolan ip saddr %s.0/%s ip daddr %s udp dport %s counter snat to %s",
+	              ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
+               }
+#else
+               v_secure_system("iptables -t nat -%c postrouting_tolan -s %s.0/%s -p udp -m udp -d %s --dport %s -j SNAT --to-source %s",
+                   ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
+#endif
+             }
         }
 
-		/*  it will applicable during router mode */
-		if( 0 == isBridgeMode )
-		{
-		v_secure_system("iptables -t filter -%c wan2lan_forwarding_accept -p udp -m udp -s %s -d %s --dport %s -j xlog_accept_wan2lan",
-						ciptableOprationCode,external_ip, toip, dport);
-		}
-		WAN_FAILOVER_SUPPORT_CHECk_END
+	/*  it will applicable during router mode */
+	if( 0 == isBridgeMode )
+	{
+#ifdef NFT_ENABLE
+            if (atoi(nft_enable) == 0)
+            {
+                  v_secure_system("iptables -t filter -%c wan2lan_forwarding_accept -p udp -m udp -s %s -d %s --dport %s -j xlog_accept_wan2lan",
+                      ciptableOprationCode,external_ip, toip, dport);
+            }
+            else
+            {
+                  v_secure_system("nft %c rule ip filter wan2lan_forwarding_accept ip saddr %s ip daddr %s udp dport %s counter jump xlog_accept_wan2la",
+                      ciptableOprationCode,external_ip, toip, dport);
+            }
+#else
+            v_secure_system("iptables -t filter -%c wan2lan_forwarding_accept -p udp -m udp -s %s -d %s --dport %s -j xlog_accept_wan2lan",
+                ciptableOprationCode,external_ip, toip, dport);
+#endif
+	}
+	WAN_FAILOVER_SUPPORT_CHECk_END
      }
  
   return SUCCESS;
