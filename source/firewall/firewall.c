@@ -12333,6 +12333,12 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #if defined(_PLATFORM_BANANAPI_R4_)
    fprintf(filter_fp, "-I OUTPUT -o %s -p tcp --sport 49153 -j ACCEPT\n",get_current_wan_ifname());
 #endif
+   char tr69_enabled[20];
+   memset(tr69_enabled, 0, sizeof(tr69_enabled));
+   syscfg_get(NULL, "EnableTR69Binary", tr69_enabled, sizeof(tr69_enabled));
+   if (!isComcastImage &&((tr69_enabled[0] == '\0') || (strcasecmp(tr69_enabled, "true") == 0))) {
+       fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 7547 -j ACCEPT\n",get_current_wan_ifname());
+   }
 #ifdef CONFIG_CISCO_FEATURE_CISCOCONNECT
    fprintf(filter_fp, ":%s - [0:0]\n", "pp_disabled");
    if(isGuestNetworkEnabled) {
