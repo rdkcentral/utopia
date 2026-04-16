@@ -95,7 +95,7 @@ void do_ssl_blocking_rules(FILE *fp, const char *chain_name)
                 }
 
                 /* Check port range */
-                char start_port[16], end_port[16];
+                char start_port[16] = {0}, end_port[16] = {0};
                 syscfg_get(ns, "start_port", start_port, sizeof(start_port));
                 if (start_port[0] == '\0' || validate_port(start_port) != 0) {
                     continue;
