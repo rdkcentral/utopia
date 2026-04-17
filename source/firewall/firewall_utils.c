@@ -77,16 +77,17 @@ void do_ssl_blocking_rules(FILE *fp, const char *chain_name)
                 ms_count = MAX_SYSCFG_ENTRIES;
             }
             for (int i = 1; i <= ms_count && !(ms_has_tcp_443 && ms_has_udp_443); i++) {
-                char ns[MAX_QUERY], prot[10];
-                char ms_namespace_key[MAX_QUERY];
+                char ns[MAX_QUERY] = {0}, prot[10] = {0};
+                char ms_namespace_key[MAX_QUERY] = {0};
 
                 snprintf(ms_namespace_key, sizeof(ms_namespace_key), "ManagedServiceBlock_%d", i);
-                syscfg_get(NULL, ms_namespace_key, ns, sizeof(ns));
-                if (ns[0] == '\0')
+                if (syscfg_get(NULL, ms_namespace_key, ns, sizeof(ns)) != 0 || ns[0] == '\0')
                     continue;
 
                 /* Get protocol to check if we can skip this entry */
-                syscfg_get(ns, "proto", prot, sizeof(prot));
+                if (syscfg_get(ns, "proto", prot, sizeof(prot)) != 0) {
+                    prot[0] = '\0';
+                }
 
                 /* Skip if this protocol is already covered */
                 if ((strncasecmp("tcp", prot, 3) == 0 && ms_has_tcp_443) ||
