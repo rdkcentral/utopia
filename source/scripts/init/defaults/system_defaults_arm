@@ -939,6 +939,7 @@ $Adv_AdvSecOTMRFCEnable=1
 $Adv_AdvSecUserSpaceRFCEnable=0
 $Adv_WifiDataCollectionRFCEnable=0
 $Adv_LevlRFCEnable=0
+$Adv_AdvSecNetworkIntelligenceRFCEnable=0
 $Adv_AdvSecAgentRFCEnable=1
 $Adv_AdvSecSafeBrowsingRFCEnable=1
 $Adv_AdvSecCujoTelemetryWiFiFPRFCEnable=0
@@ -946,6 +947,8 @@ $Adv_AdvSecCujoTracerRFCEnable=0
 $Adv_AdvSecCujoTelemetryRFCEnable=0
 $Adv_SATERFCEnable=0
 $Adv_TCPTrackerFilterDevicesRFCEnable=0
+$Adv_DoHBlockingRFCEnable=0
+$Adv_DNSECHBlockingRFCEnable=0
 $Adv_RaptrRFCEnable=1
 
 #Firewall log settings
