@@ -326,7 +326,7 @@ service_start ()
         if [ "$MEMSWAP_ENABLE" = "true" ]; then
             MEMSWAP_INTERVAL=`syscfg get MemorySwapStatsIntervalMinutes`
             if [ -n "$MEMSWAP_INTERVAL" ] && [ "$MEMSWAP_INTERVAL" -gt 0 ]; then
-                echo "*/$MEMSWAP_INTERVAL * * * * /usr/ccsp/tad/memswap_stats.sh" >> $CRONTAB_FILE
+                echo "*/$MEMSWAP_INTERVAL * * * * /usr/ccsp/tad/zram_stats.sh" >> $CRONTAB_FILE
             fi
         fi
    fi
