@@ -1356,3 +1356,11 @@ $StageEnabled=false
 
 #RdkLogger Cron - RFC flag is enabled by default
 $RdkbLogCronEnable=true
+
+#Memory swap defaults
+$MemorySwapEnable=true
+$MemorySwapDiskSizeMB=300
+$MemorySwapStatsIntervalMinutes=30
+$MemorySwapTunablesSwappiness=200
+$MemorySwapTunablesWatermarkScaleFactor=80
+$MemorySwapTunablesPageCluster=0
