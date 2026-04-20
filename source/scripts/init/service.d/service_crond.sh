@@ -326,13 +326,33 @@ service_start ()
         if [ "$MEMSWAP_ENABLE" = "true" ]; then
             MEMSWAP_INTERVAL=`syscfg get MemorySwapStatsIntervalMinutes`
             if [ -n "$MEMSWAP_INTERVAL" ] && [ "$MEMSWAP_INTERVAL" -gt 0 ]; then
-                echo "*/$MEMSWAP_INTERVAL * * * * /usr/ccsp/tad/zram_stats.sh" >> $CRONTAB_FILE
+                case "$MEMSWAP_INTERVAL" in
+                    10|12|15|20|30)
+                        # Run every MEMSWAP_INTERVAL minutes
+                        cron_minute="*/$MEMSWAP_INTERVAL"
+                        cron_hour="*"
+                        ;;
+                    60)
+                        # Run every hour at minute 0
+                        cron_minute="0"
+                        cron_hour="*"
+                        ;;
+                    120)
+                        # Run every 2 hours at minute 0
+                        cron_minute="0"
+                        cron_hour="*/2"
+                        ;;
+                    *)
+                        echo_t "Invalid MemorySwapStatsIntervalMinutes value: $MEMSWAP_INTERVAL. Please set it to one of the following values: 10, 12, 15, 20, 30, 60, or 120."
+                        ;;
+                esac
+
+                if [ -n "$cron_minute" ] && [ -n "$cron_hour" ]; then
+                    echo "$cron_minute $cron_hour * * * /usr/ccsp/tad/zram_stats.sh" >> $CRONTAB_FILE
+                fi
             fi
         fi
    fi
- 
-
-
  
    # start the cron daemon
    # echo "[utopia][registration] Starting cron daemon"
