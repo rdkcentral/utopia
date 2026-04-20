@@ -1432,7 +1432,7 @@ $GatewayRestoreAttemptCount=0
 $RemDeviceDetectionTimeout=60
 
 #Direct Download Enable default value
-$SWDLDirectEnable=false
+$SWDLDirectEnable=true
 
 #Latency Measure factory default values
 $LatencyMeasure_IPv4Enable=false
