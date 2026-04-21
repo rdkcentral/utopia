@@ -38,7 +38,6 @@
 #define OnboardLog(...)
 #endif
 
-#include <time.h>
 #define LOG_FILE_ROUTED "/tmp/lan_handler.txt"
 #define APPLY_PRINT(fmt ...) {\
 FILE *logfp = fopen(LOG_FILE_ROUTED , "a+");\
