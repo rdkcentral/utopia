@@ -74,6 +74,7 @@
 
 #define CALCULATE_CRC32_TABLE_ENTRY(X) (((X) & 1) ? (POLYNOMIAL^ ((X) >> 1)) : ((X) >> 1))
 
+#define BUFLEN_10 10
 /*
  * utapi.c - 
  */
@@ -4273,7 +4274,7 @@ static int s_getiap (UtopiaContext *ctx, int index, iap_entry_t *iap)
                 app[j].proto = s_StrToEnum(g_ProtocolMap, buf);
 
                 Utopia_GetIndexed2(ctx, UtopiaValue_IAP_BlockPortRange, index, i+1, buf, sizeof(buf));
-                char sport[10], eport[10];
+                char sport[BUFLEN_10 + 1], eport[BUFLEN_10 + 1];
                 if (2 == (sscanf(buf, "%10s %10s", sport, eport))) {
                     app[j].port.start = atoi(sport);
                     app[j].port.end = atoi(eport);

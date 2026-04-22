@@ -457,6 +457,7 @@ char cellular_ifname[32];
 #define IS_EMPTY_STRING(s) ((s == NULL) || (*s == '\0'))
 
 #define BUFLEN_8 8
+#define BUFLEN_20 20
 #define BUFLEN_32 32
 #define BUFLEN_64 64
 #define RET_OK 0
@@ -1824,6 +1825,7 @@ static int substitute(char *in_str, char *out_str, const int size, char *from, c
  *                       $ACCEPT $DROP $REJECT and 
  *   QoS classes $HIGH, $MEDIUM, $NORMAL, $LOW
  */
+#define TOKEN_MAX_LEN 50
 char *make_substitutions(char *in_str, char *out_str, const int size)
 {
     char *in_str_p = in_str;
@@ -1832,7 +1834,7 @@ char *make_substitutions(char *in_str, char *out_str, const int size)
     char *out_str_end = out_str + size;
    // FIREWALL_DEBUG("Entering *make_substitutions\n");         
     while (in_str_p < in_str_end && out_str_p < out_str_end) {
-       char token[50];
+       char token[TOKEN_MAX_LEN + 1];
        if ('$' == *in_str_p) {
           sscanf(in_str_p, "%50s", token); 
           in_str_p += strlen(token);
@@ -1905,7 +1907,7 @@ static char *match_keyword(FILE *fp, char *keyword, char delim, char *line, int 
        * handle space differently
        */
       if (' ' == delim) {
-         char local_name[50];
+         char local_name[TOKEN_MAX_LEN + 1];
          local_name[0] = '\0';
          sscanf(line, "%50s ", local_name); 
          next = line + strlen(local_name);
@@ -9824,8 +9826,8 @@ static int prepare_host_detect(FILE * fp)
       char buf[1024];
       if (NULL != kh_fp) { 
          while (NULL != fgets(buf, sizeof(buf), kh_fp)) {
-            char ip[20];
-            char mac[20];
+            char ip[BUFLEN_20 + 1];
+            char mac[BUFLEN_20 + 1];
             sscanf(buf, "%20s %20s", ip, mac);
            fprintf(fp, "-A host_detect -i %s -s %s -j RETURN\n", lan_ifname, ip);
          }
