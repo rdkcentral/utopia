@@ -36,6 +36,8 @@
 
 # setting all ebtables rules here.
 
+source /etc/device.properties
+
 do_block_lan_to_wanip() {
     lan_if=$1
     wan_if=$2
@@ -70,7 +72,9 @@ do_block_lan_to_wanip() {
 #
 block_lan_to_wanip_all() {
     lan_ifs=`syscfg get lan_ethernet_physical_ifnames`
+if [ "$VOICE_SUPPORTED" != "false" ]; then
     wan_ifs=`syscfg get emta_wan_ifname`
+fi
     wan_ifs="$wan_ifs `syscfg get ecm_wan_ifname`"
     wan_ifs="$wan_ifs `syscfg get wan_physical_ifname`"
 

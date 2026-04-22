@@ -48,7 +48,7 @@ WAN_INTERFACE=$(getWanInterfaceName)
 DEFAULT_WAN_INTERFACE="erouter0"
 LANIPV6Support=`sysevent get LANIPv6GUASupport`
 DEVICETYPE=$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Identity.DeviceType | grep value | cut -d ":" -f 3 | tr -d ' ' | tr -s ' ' | tr '[:lower:]' '[:upper:]')
-if [ $DEVICETYPE = "TEST" ] && [ $USE_DYNAMICKEYING = "TRUE" ]; then
+if [ "$DEVICETYPE" = "TEST" ] && [ "$USE_DYNAMICKEYING" = "TRUE" ]; then
     USE_DEVKEYS="-f authorized_keys_dev"
     echo_t "[utopia]: dropbear using dev authorization keys"
 else
@@ -56,7 +56,7 @@ else
     echo_t "[utopia]: dropbear using prod authorization keys"
 fi
 
-if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" = "SR213" ] ||  [ "$BOX_TYPE" == "SCER11BEL" ]; then
+if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" = "SR213" ] ||  [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ]; then
    CMINTERFACE=$WAN_INTERFACE
 elif ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ]); then
 	CMINTERFACE=$WAN_INTERFACE
@@ -92,7 +92,7 @@ fi
 get_listen_params() {
     LISTEN_PARAMS=""
     #Get IPv4 address of wan0
-    if ([ "$WAN_INTERFACE" =  "$DEFAULT_WAN_INTERFACE" ] && [ "$BOX_TYPE" != "VNTXER5" ] && [ "$BOX_TYPE" != "SCER11BEL" ]) ; then
+    if ([ "$WAN_INTERFACE" =  "$DEFAULT_WAN_INTERFACE" ] && [ "$BOX_TYPE" != "VNTXER5" ] && [ "$BOX_TYPE" != "SCER11BEL" ] && [ "$BOX_TYPE" != "SCXF11BFL" ]) ; then
         if [ "$WAN0_IS_DUMMY" = "true" ]; then
 	        CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
 		#Get IPv6 address of wan0
@@ -145,7 +145,7 @@ do_start() {
       #chmod 755 $DIR_NAME
    #fi
 
-    if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ]) ;then
+    if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]) ;then
     	get_listen_params
 	CMINTERFACE=$WAN_INTERFACE
     fi
@@ -195,7 +195,7 @@ do_start() {
                 commandString="$commandString -p [$CM_IPV6]:22"
 	    fi
         fi
-    elif ([ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" = "true" ]) ; then
+    elif [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" = "true" ]; then
         # In IPv6 only case (MAP-T), and if IPv6 GUA on LAN enabled case, use brlan0 interface to get v6 global address.
         CM_IPV6=`ip -6 addr show dev brlan0 scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
         if [ ! -z "$CM_IPV6" ]; then
@@ -206,6 +206,19 @@ do_start() {
         CM_IPV4=`ip -4 addr show dev $CMINTERFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
         if [ ! -z "$CM_IPV4" ]; then
              commandString="$commandString -p [$CM_IPV4]:22"
+        fi
+    elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
+	    CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+        if [ ! -z $CM_IP ]; then
+	        commandString="$commandString -p [$CM_IP]:22"
+	    fi
+        CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+	    if [ ! -z $CM_IPv6 ]; then
+            commandString="$commandString -p [$CM_IPv6]:22"
+	    fi
+	    CM_IPv4=`ip -4 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+	    if [ ! -z $CM_IPv4 ]; then
+            commandString="$commandString -p [$CM_IPv4]:22"
         fi
     else
         CM_IP=""
@@ -236,7 +249,7 @@ do_start() {
    getConfigFile $DROPBEAR_PARAMS_1
    getConfigFile $DROPBEAR_PARAMS_2
 
-   if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ]) ;then
+   if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]) ;then
        dropbear -E -s -b /etc/sshbanner.txt -a -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 $LISTEN_PARAMS -P $PID_FILE $USE_DEVKEYS 2>>$CONSOLEFILE
     if [ -z "$LISTEN_PARAMS" ] ; then
         echo_t "[utopia]: dropbear was not started for erouter0 interface with valid params."
@@ -254,10 +267,10 @@ do_start() {
       echo_t "utopia: dropbear could not be started on erouter0 IPv6 interface."
     fi
    else
-       if  ([ "$MANUFACTURE" = "Technicolor" ] || [ "$MODEL_NUM" = "SG417DBCT" ]) ; then
-	  echo dropbear -E -s -K 60 -b /etc/sshbanner.txt ${commandString} -r ${DROPBEAR_PARAMS_1} -r ${DROPBEAR_PARAMS_2} -a -P ${PID_FILE}
+       if  ([ "$MANUFACTURE" = "Technicolor" ] || [ "$MODEL_NUM" = "SG417DBCT" ] || [ "$BOX_TYPE" = "WNXL11BWL" ]) ; then
+	      echo_t "dropbear -E -s -K 60 -b /etc/sshbanner.txt ${commandString} -r ${DROPBEAR_PARAMS_1} -r ${DROPBEAR_PARAMS_2} -a -P ${PID_FILE}"
           dropbear -E -s -b /etc/sshbanner.txt $commandString -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -a -P $PID_FILE -K 60 $USE_DEVKEYS 2>>$CONSOLEFILE
-       elif ([ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" = "true" ]) ; then
+       elif [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" = "true" ]; then
               dropbear -E -s -b /etc/sshbanner.txt $commandString -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -a -P $PID_FILE -K 60 $USE_DEVKEYS 2>>$CONSOLEFILE
        else
 	      dropbear -E -s -b /etc/sshbanner.txt -a -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -p [$CM_IP]:22 -P $PID_FILE $USE_DEVKEYS 2>>$CONSOLEFILE
@@ -302,7 +315,7 @@ service_start() {
     echo_t "[utopia] starting ${SERVICE_NAME} service"
 	ulog ${SERVICE_NAME} status "starting ${SERVICE_NAME} service"
 
-   if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ]) ;then
+   if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]) ;then
 	   CMINTERFACE=$WAN_INTERFACE
       ifconfig $CMINTERFACE | grep Global
       ret=$?
@@ -341,7 +354,7 @@ service_start() {
    fi
    #Disable monitoring dropbear as we don't have a seperate dropbear process running always
    #dropbear process would be running on demand basis
-   if [ "$BOX_TYPE" != "HUB4" ] && [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "SR213" ] &&  [ "$BOX_TYPE" != "SCER11BEL" ]; then
+   if [ "$BOX_TYPE" != "HUB4" ] && [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "SR213" ] &&  [ "$BOX_TYPE" != "SCER11BEL" ] && [ "$BOX_TYPE" != "SCXF11BFL" ]; then
 
                 $PMON setproc ssh dropbear $PID_FILE "/etc/utopia/service.d/service_sshd.sh sshd-restart"
     fi

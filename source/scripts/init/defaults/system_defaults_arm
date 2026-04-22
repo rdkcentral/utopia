@@ -944,6 +944,8 @@ $Adv_AdvSecSafeBrowsingRFCEnable=1
 $Adv_AdvSecCujoTelemetryWiFiFPRFCEnable=0
 $Adv_AdvSecCujoTracerRFCEnable=0
 $Adv_AdvSecCujoTelemetryRFCEnable=0
+$Adv_SATERFCEnable=0
+$Adv_TCPTrackerFilterDevicesRFCEnable=0
 $Adv_RaptrRFCEnable=1
 
 #Firewall log settings
@@ -1119,6 +1121,10 @@ $logbackup_interval=30
 
 #Minimum memory threshold value
 $MinMemoryThreshold_Value=10
+
+#Target uptime to run memory compaction
+$MemCompactionDelaySecs=900
+
 # X_Comcast_com_ParentalControl managed devices
 $HTTP_Server_IP=127.0.0.1
 $HTTPS_Server_IP=127.0.0.1
@@ -1264,9 +1270,10 @@ $T2ConfigURL=https://xconf.xcal.tv/loguploader/getT2Settings
 #Defaults for mTLS in T2
 $T2mTLSEnable=true
 
-#Defaults for xMemInsight
+#Defaults for meminsight
 $xMemEnable=false
 $xMemArgs=
+$xMemTrigger=stop
 
 #RDM Module Default URL
 $CDLModuleUrl=
@@ -1429,6 +1436,8 @@ $DscpSleepInterval_2=0
 #Ccsp CMagent Docsis linkdown timeout default value is 900sec
 $DocsisLinkDownTimeOut=900
 
+#Ccsp Ethagent EWAN linkdown timeout default value is 900sec
+$EWanLinkDownTimeout=900
 #LLDEnable default value is false
 $LldEnable=false
 
@@ -1445,7 +1454,7 @@ $RemDeviceDetectionTimeout=60
 $FailoverEnable=-1
 
 #Direct Download Enable default value
-$SWDLDirectEnable=false
+$SWDLDirectEnable=true
 
 #Latency Measure factory default values
 $LatencyMeasure_IPv4Enable=false
@@ -1487,3 +1496,16 @@ $RemoteDebuggerIssueType=NULL
 #Wifi Personalization Support Default value
 $WiFiPersonalizationSupport=true
 
+#FwDwld_AvlMem_RsrvThreshold Default value
+$FwDwld_AvlMem_RsrvThreshold=20
+
+#FwDwld_ImageProcMemPercent Default value
+$FwDwld_ImageProcMemPercent=0
+
+#SelfHeal Cron - RFC flag is enabled by default
+$SelfHealCronEnable=true
+#STAGE Default value
+$StageEnabled=false
+
+#RdkLogger Cron - RFC flag is enabled by default
+$RdkbLogCronEnable=true

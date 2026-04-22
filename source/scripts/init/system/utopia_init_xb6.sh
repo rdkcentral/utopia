@@ -409,6 +409,26 @@ else
    echo "SSH: Forward SSH changed to disabled" >> $Log_file
 fi
 
+#Change devicetype on firmware upgrade
+DEVICETYPE_MIGRATE="$(syscfg get devicetype_migrate)"
+if [ -z "$DEVICETYPE_MIGRATE" ]; then
+    CURRENT_DEVICETYPE="$(syscfg get DeviceType)"
+    echo_t "[utopia][init] Devicetype is $CURRENT_DEVICETYPE"Expand commentComment on line R269Resolved
+    # When DeviceType has never been set in syscfg, CURRENT_DEVICETYPE will be empty.
+    # Explicitly migrate empty/unset or non-PROD DeviceType values to PROD.
+    if [ -z "$CURRENT_DEVICETYPE" ]; then
+        echo_t "[utopia][init] DeviceType is unset or empty, migrating to PROD"
+        syscfg set DeviceType "PROD"
+    elif [ "$CURRENT_DEVICETYPE" != "PROD" ]; then
+        echo_t "[utopia][init] setting DeviceType to PROD"
+        syscfg set DeviceType "PROD"
+    else
+        echo_t "[utopia][init] DeviceType is already PROD, no change needed"
+    fi
+    syscfg set devicetype_migrate "1"
+    syscfg commit
+fi
+
 #IGMP PROXY Disbaling on migration
 IGMP_MIGRATE="`syscfg get igmp_migrate`"
 if [ -z "$IGMP_MIGRATE" ]; then
@@ -771,7 +791,7 @@ if [ "$FACTORY_RESET_REASON" = "true" ]; then
    fi
    syscfg set X_RDKCENTRAL-COM_LastRebootReason "factory-reset"
    syscfg set X_RDKCENTRAL-COM_LastRebootCounter "1"
-   if [ "$MODEL_NUM" = "CGM4331COM" ] || [ "$MODEL_NUM" = "CGM4981COM" ] || [ "${MODEL_NUM}" = "CGM601TCOM" ] || [ "${MODEL_NUM}" = "SG417DBCT" ] ||  [ "$MODEL_NUM" = "CGM4140COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [  "$MODEL_NUM" = "TG4482A" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ]; then
+   if [ "$MODEL_NUM" = "CGM4331COM" ] || [ "$MODEL_NUM" = "CGM4981COM" ] || [ "${MODEL_NUM}" = "CGM601TCOM" ] || [ "${MODEL_NUM}" = "SG417DBCT" ] || [ "${MODEL_NUM}" = "CWA438TCOM" ] ||  [ "$MODEL_NUM" = "CGM4140COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [  "$MODEL_NUM" = "TG4482A" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ]; then
    # Enable AUTOWAN by default for XB7, change is made here so that it will take effect only after FR
       syscfg set selected_wan_mode "0"
    fi
@@ -783,7 +803,7 @@ if [ "$FACTORY_RESET_REASON" = "true" ]; then
        #syscfg set X_RDKCENTRAL-COM_LastRebootReason "WPS-Factory-Reset"
        #syscfg set X_RDKCENTRAL-COM_LastRebootCounter "1"
        rm -f /nvram/WPS_Factory_Reset
-   elif ([ "${MODEL_NUM}" = "CGM601TCOM" ] || [ "${MODEL_NUM}" = "SG417DBCT" ] || [ "${MODEL_NUM}" = "CVA601ZCOM" ]) && [ -f /nvram/.image_upgrade_and_FR_done ]; then
+   elif ([ "${MODEL_NUM}" = "CGM601TCOM" ] || [ "${MODEL_NUM}" = "SG417DBCT" ] || [ "${MODEL_NUM}" = "CWA438TCOM" ] || [ "${MODEL_NUM}" = "CVA601ZCOM" ]) && [ -f /nvram/.image_upgrade_and_FR_done ]; then
        echo "[utopia][init] Detected last reboot reason as FirmwareDownloadAndFactoryReset"
        if [ -e "/usr/bin/onboarding_log" ]; then
           /usr/bin/onboarding_log "[utopia][init] Detected last reboot reason as FirmwareDownloadAndFactoryReset"

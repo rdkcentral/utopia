@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -62,35 +62,31 @@
 #define MAC_ADDRESS_LEN	6
 #define IF_NAME_LEN	16
 
-/************************************************************
-* Function: PAL_get_if_IpAddress
+/**
+* @brief Get the IP address of a network interface.
 *
-*  Parameters: 
-*	   ifName:		   IN. the interface name. 
-* 
-*	   IpAddress:   INOUT. the ipaddress of the interface 
-* 
-*  Description:
-*	  This function get the ipaddress of the interface ifName.  
+* This function retrieves the IPv4 address of the specified network interface.
 *
-*  Return Values: INT32
-*	   0 if successful else error code.
-************************************************************/
+* @param[in] ifName - The interface name.
+* @param[in,out] IpAddress - Buffer to store the IP address of the interface.
+*
+* @return The status of the operation.
+* @retval 0 if successful.
+* @retval -1 if error code.
+*/
 INT32 PAL_get_if_IpAddress(IN const CHAR *ifName, INOUT CHAR IpAddress[IP_ADDRESS_LEN]);
-/************************************************************
-* Function: PAL_get_if_MacAddress
+
+/**
+* @brief Get the MAC address of a network interface.
 *
-*  Parameters: 
-*	   ifName:		   IN. the interface name. 
-* 
-*	   IpAddress:   INOUT. the mac of the interface 
-* 
-*  Description:
-*	  This function get the mac of the interface ifName.  
+* This function retrieves the hardware (MAC) address of the specified network interface.
 *
-*  Return Values: INT32
-*	   0 if successful else error code.
-************************************************************/
+* @param[in] ifName - The interface name.
+* @param[in,out] MacAddress - Buffer to store the MAC address of the interface.
+*
+* @return The status of the operation.
+* @retval 0 if successful.
+* @retval -1 if error code.
+*/
 INT32 PAL_get_if_MacAddress(IN const CHAR *ifName, INOUT CHAR MacAddress[MAC_ADDRESS_LEN]);
 #endif/*PAL_KERNEL_H*/
-

@@ -54,7 +54,7 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
     "erouter_mode-updated|/etc/utopia/service.d/lan_handler.sh|NULL|"TUPLE_FLAG_EVENT,
     NULL };
 #elif defined(CORE_NET_LIB) && \
-        ((defined(_XB6_PRODUCT_REQ_) && !defined (_XB8_PRODUCT_REQ_)) || \
+        ((defined(_XB6_PRODUCT_REQ_) && !defined (_XB8_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_) ) || \
          (defined(_CBR_PRODUCT_REQ_) && !defined(_CBR2_PRODUCT_REQ_)))
 const char* SERVICE_CUSTOM_EVENTS[] = {
     "pnm-status|/usr/bin/service_dhcp",

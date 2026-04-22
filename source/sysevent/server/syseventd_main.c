@@ -1221,36 +1221,36 @@ int main (int argc, char **argv)
    */
    FILE *fp = fopen(SE_SERVER_PID_FILE, "r");
    if (NULL != fp) {
-      int old_pid;
-      /* CID 60917:Unchecked return value from library */
-      if((ret = fscanf(fp, "%d", &old_pid)) <= 0 )
-      {
-	  printf("read error of %s\n",SE_SERVER_PID_FILE);
-      }
-      fclose(fp);
+       int old_pid;
+       /* CID 60917:Unchecked return value from library */
+       if((ret = fscanf(fp, "%d", &old_pid)) <= 0 )
+       {
+           printf("read error of %s\n",SE_SERVER_PID_FILE);
+       }
+       fclose(fp);
 
-      // see if the process is still alive
-      char filename[500];
-      snprintf(filename, sizeof(filename), "/proc/%d/cmdline", old_pid);
-      fp = fopen(filename, "r");
-      if (NULL == fp) {
-         printf("We are dead but have an old pid file. Cleaning up\n");
-         unlink(SE_SERVER_PID_FILE);
-      } else {
-         char cmdline[500];
-         if ((ret = fscanf(fp, "%s", cmdline)) <= 0)
-	 {
-	    printf("read error of %s\n",filename);
-	 }
-         fclose(fp);
-         if (NULL == strstr(cmdline, argv[0])) {
-            printf("Our pid has been taken over. We are dead. Cleaning up\n");
-            unlink(SE_SERVER_PID_FILE);
-         } else {
-            printf("We are alive and well. Ignoring start command\n");
-            return(0);
-         }
-      }
+       // see if the process is still alive
+       char filename[500];
+       snprintf(filename, sizeof(filename), "/proc/%d/cmdline", old_pid);
+       fp = fopen(filename, "r");
+       if (NULL == fp) {
+           printf("We are dead but have an old pid file. Cleaning up\n");
+           unlink(SE_SERVER_PID_FILE);
+       } else {
+           char cmdline[500];
+           if ((ret = fscanf(fp, "%499s", cmdline)) <= 0)
+           {
+               printf("read error of %s\n",filename);
+           }
+           fclose(fp);
+           if (NULL == strstr(cmdline, argv[0])) {
+               printf("Our pid has been taken over. We are dead. Cleaning up\n");
+               unlink(SE_SERVER_PID_FILE);
+           } else {
+               printf("We are alive and well. Ignoring start command\n");
+               return(0);
+           }
+       }
    }
 
 
@@ -1360,7 +1360,12 @@ int main (int argc, char **argv)
    // start the sanity thread
    pthread_t sanity_thread_id;
    pthread_attr_setstacksize(&thread_attr, SANITY_THREAD_STACK_SIZE);
-   pthread_create(&sanity_thread_id, &thread_attr, sanity_thread_main, (void *)NULL);
+   if (0 != pthread_create(&sanity_thread_id, &thread_attr, sanity_thread_main, (void *)NULL))
+   {
+       SE_INC_LOG(ERROR,
+               printf("Unable to create sanity thread. (%d) %s. ", errno, strerror(errno));
+               )
+   }
 
    // all that this main thread does is listen on a well known port for 
    // clients to register. And when they do, set them up in the clients

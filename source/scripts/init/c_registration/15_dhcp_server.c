@@ -57,7 +57,7 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         NULL 
                                       };
 #elif defined(CORE_NET_LIB) && \
-        ((defined(_XB6_PRODUCT_REQ_) && !defined (_XB8_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_)) || (defined(_WNXL11BWL_PRODUCT_REQ_)) || \
+        ((defined(_XB6_PRODUCT_REQ_) && !defined (_XB8_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_)) && !defined(_SCXF11BFL_PRODUCT_REQ_) || (defined(_WNXL11BWL_PRODUCT_REQ_)) || \
          (defined(_CBR_PRODUCT_REQ_) && !defined(_CBR2_PRODUCT_REQ_)))
 const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "syslog-status|/usr/bin/service_dhcp",
@@ -85,11 +85,7 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
 
 void srv_register(void) {
    sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
-
-   //dnsmasq selfheal mechanism is in Aggresive Selfheal for DHCP Manager
-   #if !defined (FEATURE_RDKB_DHCP_MANAGER)
    v_secure_system("/etc/utopia/service.d/pmon.sh register dhcp_server");   
-   #endif
 }
 
 #ifdef RDKB_EXTENDER_ENABLED
@@ -153,10 +149,7 @@ void stop_service()
 
 void srv_unregister(void) {
 
-   //dnsmasq selfheal mechanism is in Aggresive Selfheal for DHCP Manager
-   #if !defined (FEATURE_RDKB_DHCP_MANAGER)
    v_secure_system("/etc/utopia/service.d/pmon.sh unregister dhcp_server");
-   #endif
 
    #ifdef RDKB_EXTENDER_ENABLED
    stop_service();

@@ -232,12 +232,19 @@ case "$1" in
 		    fi
                     sysevent set parcon_nfq_status started
                 fi
-                isAvailablebrlan1=`ifconfig | grep brlan1`
-                if [ -n "$isAvailablebrlan1" ]
-                then
-                    echo_t "LAN HANDLER : Refreshing LAN from handler"
-                    gw_lan_refresh&
+
+                rdkb_feature_check -q XHS > /dev/null 2>&1
+                is_xhs_supported=$?
+
+                if [ $is_xhs_supported -eq 0 ] || [ $is_xhs_supported -eq 127 ]; then
+                    isAvailablebrlan1=`ifconfig | grep brlan1`
+                    if [ -n "$isAvailablebrlan1" ]
+                    then
+                        echo_t "LAN HANDLER : Refreshing LAN from handler"
+                        gw_lan_refresh&
+                    fi
                 fi
+
                	firewall
                 if [ ! -f "$POSTD_START_FILE" ];
                 then
@@ -386,12 +393,40 @@ case "$1" in
 	fi
    	if [ x != x$INST ]; then
 		echo_t "SO FAR SO GOOD ALL IS WELL SENDING L3 NET EVENT"
-                async="`sysevent async ipv4_${INST}-status $THIS`"
-                sysevent set lan_handler_async "$async"
-                sysevent set primary_lan_l2net ${L2INST}
-                sysevent set primary_lan_brport ${BRPORT}
-                sysevent set homesecurity_lan_l3net ${HSINST}
-                sysevent set primary_lan_l3net ${INST}
+
+        echo_t "Running: sysevent async ipv4_${INST}-status $THIS"
+        async="$(sysevent async ipv4_${INST}-status $THIS 2>&1)"
+        ret=$?
+        echo_t "sysevent async return value: $ret"
+        echo_t "async value: '$async'"
+
+        if [ $ret -ne 0 ] || [ -z "$async" ]; then
+            echo_t "Retrying sysevent async ipv4_${INST}-status $THIS"
+            async="$(sysevent async ipv4_${INST}-status $THIS 2>&1)"
+            ret=$?
+            echo_t "sysevent async retry return value: $ret"
+            echo_t "async retry value: '$async'"
+            if [ $ret -ne 0 ] || [ -z "$async" ]; then
+                echo_t "ERROR: sysevent async ipv4_${INST}-status $THIS failed again"
+            fi
+        fi
+        sysevent set lan_handler_async "$async"
+        lan_handler_asyncValSet=`sysevent get lan_handler_async`
+        echo_t "lan_handler_async:$lan_handler_asyncValSet"
+        sysevent set primary_lan_l2net ${L2INST}
+        sysevent set primary_lan_brport ${BRPORT}
+
+        rdkb_feature_check -q XHS > /dev/null 2>&1
+        is_xhs_supported=$?
+
+        if [ $is_xhs_supported -eq 0 ] || [ $is_xhs_supported -eq 127 ]; then
+            sysevent set homesecurity_lan_l3net ${HSINST}
+            t2CountNotify "SYS_INFO_XHS_Enabled"
+        else
+            t2CountNotify "SYS_INFO_XHS_NotSupported"
+        fi
+
+        sysevent set primary_lan_l3net ${INST}
 	#BRLAN0 ISSUE : Manually invoking lan-start to fix brlan0 failure during intial booting. Root cause for event has to be identified
 	   	if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
         		        sleep 2
@@ -502,7 +537,7 @@ case "$1" in
    ;;
 
    lan-start)
-        if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "SCER11BEL" ]; then
+        if [ "$RPI_SPECIFIC" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]; then
              L3Net=`sysevent get primary_lan_l3net`
              if [ -z "$L3Net" ]; then
                  echo_t "RDKB_SYSTEM_BOOT_UP_LOG : L3Net is null"

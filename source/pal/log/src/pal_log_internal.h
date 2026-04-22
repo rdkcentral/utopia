@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -72,7 +72,7 @@
 
 #include "pal_log.h"
 
-#define IN 
+#define IN
 #define OUT
 
 /***************************************************************************
@@ -216,25 +216,85 @@ typedef struct socket_info_s{
     packet_handle_func_t packet_handle_func;
 }socket_info_t;
 
+/**
+* @brief Initialize a local Unix domain UDP socket.
+*
+* Creates UDP socket and binds it to the specified Unix domain socket path.
+*
+* @param[in] socket_addr_path_this_end - The Unix domain socket path to bind to.
+* @param[out] unix_socket - Pointer to store the created socket file descriptor.
+*
+* @return The status of the operation.
+* @retval 0 if successful.
+* @retval -1 if error (socket creation, path assignment, or bind failure).
+*/
 extern INT32 PAL_log_init_local_unix_udp_socket(IN CHAR* socket_addr_path_this_end,
                                                 OUT INT32* unix_socket);
 
 
+/**
+* @brief Initialize a Unix domain socket address structure for communication.
+*
+* This function prepares a sock address structure with the specified Unix domain socket path for sending
+* messages to another local endpoint.
+*
+* @param[in] socket_addr_path_other_end - The Unix domain socket path of the destination.
+* @param[out] socket_addr_other_end - Pointer to the sockaddr_un structure to initialize.
+*
+* @return The status of the operation.
+* @retval 0 if successful.
+* @retval -1 if error (path assignment failure).
+*/
 extern INT32 PAL_log_init_local_unix_udp_socket_to_addr(IN CHAR *socket_addr_path_other_end,
                                                           OUT struct sockaddr_un *socket_addr_other_end);
 
 
+/**
+* @brief Initialize an Internet domain UDP socket.
+*
+* This function creates UDP datagram socket and binds it to the specified port on all interfaces.
+*
+* @param[in] port - The UDP port number to bind to.
+* @param[out] udp_socket - Pointer to store the created socket file descriptor.
+*
+* @return The status of the operation.
+* @retval 0 if successful.
+* @retval -1 if error (socket creation or bind failure).
+*/
 extern INT32 PAL_log_init_inet_udp_socket(IN UINT16 port,
                                          OUT INT32* udp_socket);
 
 
+/**
+* @brief Initialize an Internet domain socket address structure for communication.
+*
+* This function prepares a sock address structure with the specified IP address and port
+* for sending messages to a remote endpoint.
+*
+* @param[in] socket_ip_addr_other_end - The IP address of the destination.
+* @param[in] port - The UDP port number of the destination.
+* @param[out] socket_addr_other_end - Pointer to the sockaddr_in structure to initialize.
+*
+* @return The status of the operation.
+* @retval 0 if successful.
+*/
 extern INT32 PAL_log_init_inet_udp_socket_to_addr(IN ULONG socket_ip_addr_other_end,/*network order*/
                                                    IN UINT16 port,
                                                    OUT struct sockaddr_in *socket_addr_other_end);
 
 
+
+/**
+* @brief Receive and process packets from multiple sockets.
+*
+* This function monitor multiple sockets and dispatches received packets to their respective handler functions.
+*
+* @param[in] socket_info_array - Array of socket info structures containing socket descriptors and handlers.
+* @param[in] socket_count - Number of sockets in the array.
+*
+* @return None.
+*/
 extern VOID PAL_log_recv_and_process_packets(IN socket_info_t *socket_info_array, IN INT32 socket_count);
 
 
 #endif/*#ifndef LOG_INTERNAL_H*/
-
