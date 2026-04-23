@@ -75,6 +75,8 @@
 #define CALCULATE_CRC32_TABLE_ENTRY(X) (((X) & 1) ? (POLYNOMIAL^ ((X) >> 1)) : ((X) >> 1))
 
 #define BUFLEN_10 10
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
 /*
  * utapi.c - 
  */
