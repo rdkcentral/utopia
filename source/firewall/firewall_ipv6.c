@@ -188,10 +188,7 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
 
 #if defined (_ONESTACK_PRODUCT_REQ_)
-char g_ipv6_delegation_prefix_event[128] = "ipv6_prefix";
-#define IPV6_DELEGATION_PREFIX g_ipv6_delegation_prefix_event
-#else
-#define IPV6_DELEGATION_PREFIX "ipv6_prefix"
+char ipv6_delegation_prefix[129] ={0};
 #endif
 /*
  ****************************************************************
@@ -274,16 +271,11 @@ int prepare_ipv6_firewall(const char *fw_file)
 	}
         
     #if defined (_ONESTACK_PRODUCT_REQ_)
-	char current_wan_interface[64] = {0};
+	 char sysEventName[256] ={0};
 	if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
 	{
-	    sysevent_get(sysevent_fd, sysevent_token,"current_wan_ifname",
-		    current_wan_interface, sizeof(current_wan_interface));
-            if (current_wan_interface[0] != '\0')
-	    {
-	        snprintf(g_ipv6_delegation_prefix_event, sizeof(g_ipv6_delegation_prefix_event),
-		    "tr_%s_dhcpv6_client_v6pref", current_wan_interface);
-	    }
+	    snprintf(sysEventName, sizeof(sysEventName), "tr_%s_dhcpv6_client_v6pref", current_wan_ifname);
+	    sysevent_get(sysevent_fd, sysevent_token, sysEventName, ipv6_delegation_prefix, sizeof(ipv6_delegation_prefix));
 	}
    #endif
 
@@ -1278,7 +1270,7 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-	 sysevent_get(sysevent_fd, sysevent_token, IPV6_DELEGATION_PREFIX, prefix, sizeof(prefix));
+	 strncpy(prefix, ipv6_delegation_prefix, sizeof(prefix) - 1);
       }
       else
       {
@@ -1293,7 +1285,7 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-	 sysevent_get(sysevent_fd, sysevent_token, IPV6_DELEGATION_PREFIX, prefix, sizeof(prefix));
+	 strncpy(prefix, ipv6_delegation_prefix, sizeof(prefix) - 1);
       }
       else
       {
@@ -2161,7 +2153,7 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
          #ifdef _ONESTACK_PRODUCT_REQ_
 	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
 	     {
-		 sysevent_get(sysevent_fd, sysevent_token, IPV6_DELEGATION_PREFIX, prefix, sizeof(prefix));
+	         strncpy(prefix, ipv6_delegation_prefix, sizeof(prefix) - 1);
 	     }
 	     else
 	     {
