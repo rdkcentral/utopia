@@ -188,7 +188,7 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
 
 #if defined (_ONESTACK_PRODUCT_REQ_)
-char ipv6_delegation_prefix[129] ={0};
+static char ipv6_delegation_prefix[129] ={0};
 #endif
 /*
  ****************************************************************
@@ -1270,7 +1270,7 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-	 strncpy(prefix, ipv6_delegation_prefix, sizeof(prefix) - 1);
+	  snprintf(prefix, sizeof(prefix), "%s", ipv6_delegation_prefix);
       }
       else
       {
@@ -1285,7 +1285,7 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-	 strncpy(prefix, ipv6_delegation_prefix, sizeof(prefix) - 1);
+	  snprintf(prefix, sizeof(prefix), "%s", ipv6_delegation_prefix);
       }
       else
       {
@@ -2153,7 +2153,7 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
          #ifdef _ONESTACK_PRODUCT_REQ_
 	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
 	     {
-	         strncpy(prefix, ipv6_delegation_prefix, sizeof(prefix) - 1);
+		 snprintf(prefix, sizeof(prefix), "%s", ipv6_delegation_prefix);
 	     }
 	     else
 	     {
