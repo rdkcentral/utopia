@@ -38,29 +38,6 @@
 #define OnboardLog(...)
 #endif
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-#include <time.h>
->>>>>>> df73d87 (Checking lan start event)
-#define LOG_FILE_ROUTED "/tmp/lan_handler.txt"
-=======
-#define LOG_FILE_ROUTED "/rdklogs/logs/lan_handler.txt"
->>>>>>> 49895a5 (Checking lan start event)
-#define APPLY_PRINT(fmt ...) {\
-FILE *logfp = fopen(LOG_FILE_ROUTED , "a+");\
-if (logfp){\
-time_t s = time(NULL);\
-struct tm* current_time = localtime(&s);\
-fprintf(logfp, "[%02d:%02d:%02d] ",\
-current_time->tm_hour,\
-current_time->tm_min,\
-current_time->tm_sec);\
-fprintf(logfp, fmt);\
-fclose(logfp);\
-}\
-}\
-
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <rdkb_feature_mode_gate.h>
 #endif
@@ -84,7 +61,6 @@ extern token_t g_tSysevent_token;
 extern int executeCmd(char *);
 extern FILE* g_fArmConsoleLog; //Global file pointer declaration
 
-APPLY_PRINT("Entering into the lan_handler C file \n");
 void get_dateanduptime(char *buffer, int *uptime)
 {
     struct 	timeval  tv;
@@ -292,7 +268,6 @@ void find_active_brg_instances()
 
 void bring_lan_up()
 {
-    APPLY_PRINT("Inside %s\n",__FUNCTION__);
     fprintf(g_fArmConsoleLog, "Inside %s\n",__FUNCTION__);
 
 	char l_cAsyncId[16] = {0}, l_cPsm_Parameter[255] = {0};
@@ -315,58 +290,48 @@ void bring_lan_up()
 	if (0 == l_cAsyncId[0])
 	{
 		//L3 Instance
-        APPLY_PRINT("Getting Primary LAN L3Net instance from PSM\n");
 		snprintf(l_cPsm_Parameter, sizeof(l_cPsm_Parameter), "dmsb.MultiLAN.PrimaryLAN_l3net");
 	    l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
     	if (CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
 	    {    
     	    fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L3INST returned null, retrying\n");
-            APPLY_PRINT("L3INST returned null, retrying\n");
 	        l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
     	    if(CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
         	{
-                APPLY_PRINT("L3INST returned null even after retry, no more retries\n");
 	            fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L3INST returned null even after retry, no more retries\n");
     	    }
         	else
 	        {
     	        strncpy(l_cPrimaryLan_L3Net, l_cpPsm_Get, sizeof(l_cPrimaryLan_L3Net));
-                APPLY_PRINT("L3INST is:%s\n", l_cPrimaryLan_L3Net);
         	    fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L3INST is:%s\n", l_cPrimaryLan_L3Net);
 	        }
     	}    
 	    else 
     	{    
 	        strncpy(l_cPrimaryLan_L3Net, l_cpPsm_Get, sizeof(l_cPrimaryLan_L3Net));
-            APPLY_PRINT("L3INST is:%s\n", l_cPrimaryLan_L3Net);
     	    fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L3INST is:%s\n", l_cPrimaryLan_L3Net);
 		}
 
 		// L2 Instance
 		snprintf(l_cPsm_Parameter, sizeof(l_cPsm_Parameter), "dmsb.MultiLAN.PrimaryLAN_l2net");
-        APPLY_PRINT("Getting Primary LAN L2Net instance from PSM\n");
 		l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
         if (CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
         {
-            APPLY_PRINT("L2INST returned null, retrying\n");
             fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L2INST returned null, retrying\n");
             l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
             if(CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
             {
-                APPLY_PRINT("L2INST returned null even after retry, no more retries\n");
                 fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L2INST returned null even after retry, no more retries\n");
             }
             else
             {
                 strncpy(l_cL2Inst, l_cpPsm_Get, sizeof(l_cL2Inst));
-                APPLY_PRINT("L2INST is:%s\n", l_cL2Inst);
                 fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L2INST is:%s\n", l_cL2Inst);
             }
         }
         else
         {
             strncpy(l_cL2Inst, l_cpPsm_Get, sizeof(l_cL2Inst));
-            APPLY_PRINT("L2INST is:%s\n", l_cL2Inst);
             fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L2INST is:%s\n", l_cL2Inst);
         }		
 
@@ -375,25 +340,21 @@ void bring_lan_up()
 		l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
         if (CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
         {
-            APPLY_PRINT("BRPORT returned null, retrying\n");
             fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : BRPORT returned null, retrying\n");
             l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
             if(CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
             {
-                APPLY_PRINT("BRPORT returned null even after retry, no more retries\n");
                 fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : BRPORT returned null even after retry, no more retries\n");
             } 
             else
             {
                 strncpy(l_cLan_Brport, l_cpPsm_Get, sizeof(l_cLan_Brport));
-                APPLY_PRINT("BRPORT is:%s\n", l_cLan_Brport);
                 fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : BRPORT is:%s\n", l_cLan_Brport);
             }
         }
         else
         {
             strncpy(l_cLan_Brport, l_cpPsm_Get, sizeof(l_cLan_Brport));
-            APPLY_PRINT("BRPORT is:%s\n", l_cLan_Brport);
             fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : BRPORT is:%s\n", l_cLan_Brport);
         }
 
@@ -402,7 +363,6 @@ void bring_lan_up()
         l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
         if (CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
         {
-            APPLY_PRINT("HSINST returned null, retrying\n");
             fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : HSINST returned null, retrying\n");
             l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
             if(CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
@@ -412,31 +372,26 @@ void bring_lan_up()
             else
             {
                 strncpy(l_cHomeSecurity_L3net, l_cpPsm_Get, sizeof(l_cHomeSecurity_L3net));
-                APPLY_PRINT("HSINST is:%s\n", l_cHomeSecurity_L3net);
                 fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : HSINST is:%s\n", l_cHomeSecurity_L3net);
             }
         }
         else
         {
             strncpy(l_cHomeSecurity_L3net, l_cpPsm_Get, sizeof(l_cHomeSecurity_L3net));
-            APPLY_PRINT("HSINST is:%s\n", l_cHomeSecurity_L3net);
             fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : HSINST is:%s\n", l_cHomeSecurity_L3net);
         }
 		
 
 		if (0 != l_cPrimaryLan_L3Net[0])
 		{
-            APPLY_PRINT("Setting sysevent callback for primary LAN interface\n");
 			snprintf(l_cEvent_Name, sizeof(l_cEvent_Name), "ipv4_%s-status", l_cPrimaryLan_L3Net);
 			sysevent_setcallback(g_iSyseventfd, g_tSysevent_token, ACTION_FLAG_NONE,
                              	 l_cEvent_Name, THIS, 1, l_cParam, &l_sAsyncID);
             fprintf(g_fArmConsoleLog, "setting sysevent callback for %s\n",l_cEvent_Name);
 
 			snprintf(l_cAsyncId, sizeof(l_cAsyncId), "%d %d", l_sAsyncID.action_id, l_sAsyncID.trigger_id);
-            APPLY_PRINT("Setting lan_handler_async sysevent to %s\n", l_cAsyncId);
 			sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan_handler_async", l_cAsyncId, 0);
 
-            APPLY_PRINT("Bringing up LAN interface\n");
 			sysevent_set(g_iSyseventfd, g_tSysevent_token, "primary_lan_l3net", l_cPrimaryLan_L3Net, 0);
 			sysevent_set(g_iSyseventfd, g_tSysevent_token, "primary_lan_l2net", l_cL2Inst, 0);
 			sysevent_set(g_iSyseventfd, g_tSysevent_token, "primary_lan_brport", l_cLan_Brport, 0);
@@ -471,7 +426,6 @@ void bring_lan_up()
 
 void ipv4_status(int l3_inst, char *status)
 {
-    APPLY_PRINT("Inside %s called with arg l3_inst %d and status %s\n",__FUNCTION__,l3_inst,status);
     fprintf(g_fArmConsoleLog, "Inside %s called with arg l3_inst %d and status %s\n",__FUNCTION__,l3_inst,status);
 
 	char l_cSysevent_Cmd[255] = {0}, l_cLanIfName[16] = {0};
@@ -850,7 +804,6 @@ void ipv4_status(int l3_inst, char *status)
 
 void lan_restart()
 {
-    APPLY_PRINT("Inside %s\n",__FUNCTION__);
     fprintf(g_fArmConsoleLog, "Inside %s\n",__FUNCTION__);
 
 	char l_cLanIpAddr[16] = {0}, l_cLanNetMask[16] = {0};
@@ -869,17 +822,14 @@ void lan_restart()
     char buf[128] = {0};
 #endif
 	syscfg_get(NULL, "lan_ipaddr", l_cLanIpAddr, sizeof(l_cLanIpAddr));
-    APPLY_PRINT("lan_ipaddr from syscfg is %s\n", l_cLanIpAddr);
 
 	syscfg_get(NULL, "lan_netmask", l_cLanNetMask, sizeof(l_cLanNetMask));
-    APPLY_PRINT("lan_netmask from syscfg is %s\n", l_cLanNetMask);
+
 	sysevent_get(g_iSyseventfd, g_tSysevent_token, "primary_lan_l3net", 
 				 l_cLanInst, sizeof(l_cLanInst));
 
-                 
 	l_iLanInst = atoi(l_cLanInst);
 
-    APPLY_PRINT("Primary LAN instance is %d\n", l_iLanInst);
 	snprintf(l_cPsm_Parameter, sizeof(l_cPsm_Parameter), 
 			"%s.%s.%s", IPV4_NV_PREFIX, l_cLanInst, IPV4_NV_IP);
 
@@ -887,14 +837,11 @@ void lan_restart()
    	if (CCSP_SUCCESS == l_iRetVal || l_cpPsm_Get != NULL)
 	{
 	    /*CID 135444 : BUFFER_SIZE_WARNING */
-        APPLY_PRINT(" First PSM value for %s is %s\n", l_cPsm_Parameter, l_cpPsm_Get);
             strncpy(l_cPsmGetLanIp, l_cpPsm_Get, sizeof(l_cPsmGetLanIp)-1);
 	    l_cPsmGetLanIp[sizeof(l_cPsmGetLanIp)-1] = '\0';
 	}
 	else
 	{
-        APPLY_PRINT("Error:%d while getting:%s or value is empty\n", 
-                l_iRetVal, l_cPsm_Parameter);
 		fprintf(g_fArmConsoleLog, "Error:%d while getting:%s or value is empty\n", 
                 l_iRetVal, l_cPsm_Parameter);
 	}
@@ -906,14 +853,11 @@ void lan_restart()
    	if (CCSP_SUCCESS == l_iRetVal || l_cpPsm_Get != NULL)
 	{
         /* CID 163349 : BUFFER_SIZE */
-        APPLY_PRINT("PSM value for %s is %s\n", l_cPsm_Parameter, l_cpPsm_Get);
         strncpy(l_cPsmGetLanSubNet, l_cpPsm_Get, sizeof(l_cPsmGetLanSubNet)-1);
 	l_cPsmGetLanSubNet[sizeof(l_cPsmGetLanSubNet)-1] = '\0';
 	}
 	else
 	{
-        APPLY_PRINT("Error:%d while getting:%s or value is empty\n", 
-                l_iRetVal, l_cPsm_Parameter);
 		fprintf(g_fArmConsoleLog, "Error:%d while getting:%s or value is empty\n", 
                 l_iRetVal, l_cPsm_Parameter);
 	}
@@ -921,7 +865,6 @@ void lan_restart()
 	if ((strncmp(l_cLanIpAddr, l_cPsmGetLanIp, sizeof(l_cLanIpAddr))) ||
 		(strncmp(l_cLanNetMask, l_cPsmGetLanSubNet, sizeof(l_cLanNetMask))))
 	{
-        APPLY_PRINT("LAN IP or Subnet mask is different from PSM values, updating PSM values\n");
 		snprintf(l_cPsm_Parameter, sizeof(l_cPsm_Parameter), 
 				"%s.%s.%s", IPV4_NV_PREFIX, l_cLanInst, IPV4_NV_IP);
 
@@ -988,21 +931,17 @@ void lan_restart()
     else
     {
         sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan_ipaddr_v6", 
-            l_cLan_IpAddrv6, sizeof(l_cLan_IpAddrv6));
-        APPLY_PRINT("%s : lan_ipaddr_v6 sysevent value is %s\n", __FUNCTION__, l_cLan_IpAddrv6);
+            l_cLan_IpAddrv6, sizeof(l_cLan_IpAddrv6));    
     }
 #else
     sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan_ipaddr_v6", 
-                         l_cLan_IpAddrv6, sizeof(l_cLan_IpAddrv6));
-    APPLY_PRINT("%s : lan_ipaddr_v6 sysevent value is %s\n", __FUNCTION__, l_cLan_IpAddrv6);
+                         l_cLan_IpAddrv6, sizeof(l_cLan_IpAddrv6));   
 #endif
     sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan_prefix_v6", 
                  l_cLan_PrefixV6, sizeof(l_cLan_PrefixV6));
-    APPLY_PRINT("%s : lan_prefix_v6 sysevent value is %s\n", __FUNCTION__, l_cLan_PrefixV6);
 
     sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan_restarted", 
                  l_cLanRestarted, sizeof(l_cLanRestarted));
-    APPLY_PRINT("%s : lan_restarted sysevent value is %s\n", __FUNCTION__, l_cLanRestarted);
 
     if ((strncmp(l_cLan_IpAddrv6_prev, l_cLan_IpAddrv6, 64)) && 
 		(0 != l_cLan_IpAddrv6[0]))
@@ -1028,7 +967,6 @@ void lan_restart()
 
 void lan_stop()
 {
-    APPLY_PRINT("Inside %s\n",__FUNCTION__);
     fprintf(g_fArmConsoleLog, "Inside %s\n",__FUNCTION__);
 
     char l_cL3Inst[8] = {0}, l_cLan_IpAddrv6_prev[64] = {0}, l_cLan_PrefixV6[32] = {0}, l_cLanIfName[16] = {0}, l_cSysevent_Cmd[255] = {0};
@@ -1037,17 +975,15 @@ void lan_stop()
     sysevent_get(g_iSyseventfd, g_tSysevent_token,
                 "primary_lan_l3net", l_cL3Inst,
                  sizeof(l_cL3Inst));
-    APPLY_PRINT("%s : primary_lan_l3net sysevent value is %s\n", __FUNCTION__, l_cL3Inst);
+
     l_iL3Inst = atoi(l_cL3Inst);
 
     sprintf(l_cSysevent_Cmd, "ipv4_%d-ifname", l_iL3Inst);
     sysevent_get(g_iSyseventfd, g_tSysevent_token, l_cSysevent_Cmd,
                  l_cLanIfName, sizeof(l_cLanIfName));
-    APPLY_PRINT("%s : LAN Interface name is %s\n", __FUNCTION__, l_cLanIfName);
 
     sysevent_set(g_iSyseventfd, g_tSysevent_token, "ipv4-down", l_cL3Inst, 0);
     fprintf(g_fArmConsoleLog, "Calling ipv4_down with L3 Instance:%d\n", l_iL3Inst);
-    APPLY_PRINT("%s : Calling ipv4_down with L3 Instance:%d\n", __FUNCTION__, l_iL3Inst);
 
     snprintf(l_cSysevent_Cmd, sizeof(l_cSysevent_Cmd),"/proc/sys/net/ipv6/conf/%s/disable_ipv6", l_cLanIfName);
     write_kernel_param(l_cSysevent_Cmd, "1");
@@ -1057,7 +993,6 @@ void lan_stop()
 
     sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan_prefix_v6",
                  l_cLan_PrefixV6, sizeof(l_cLan_PrefixV6));
-    APPLY_PRINT("%s : lan_prefix_v6 sysevent value is %s\n", __FUNCTION__, l_cLan_PrefixV6);
 
     snprintf(l_cSysevent_Cmd, sizeof(l_cSysevent_Cmd),"ip -6 addr flush dev %s", l_cLanIfName);
     executeCmd(l_cSysevent_Cmd);
@@ -1065,7 +1000,6 @@ void lan_stop()
     /*we need to restart necessary application when lan restart
       monitor will start dibbler*/
     snprintf(l_cSysevent_Cmd, sizeof(l_cSysevent_Cmd),"dibbler-server stop");
-    APPLY_PRINT("%s : Executing command: %s\n", __FUNCTION__, l_cSysevent_Cmd);
     executeCmd(l_cSysevent_Cmd);
 
     //bridge mode enabled then remove all ethbackhaul interfaces
@@ -1074,43 +1008,34 @@ void lan_stop()
 
 void erouter_mode_updated()
 {
-    APPLY_PRINT("Inside %s\n",__FUNCTION__);
     fprintf(g_fArmConsoleLog, "Inside %s\n",__FUNCTION__);
 
     char l_clast_erouter_mode[8], l_cbridge_mode[16], l_ipv4_4_status_configured[8], l_cL3Inst[8] = {0},  l_cLanIfName[16] = {0}, l_cSysevent_Cmd[255] = {0};
     int l_iL3Inst;
 
-    APPLY_PRINT("%s : Fetching last_erouter_mode, bridge_mode and ipv4_4_status_configured\n", __FUNCTION__);
     syscfg_get(NULL, "last_erouter_mode", l_clast_erouter_mode, sizeof(l_clast_erouter_mode));
 
-    APPLY_PRINT("%s : last_erouter_mode is %s\n", __FUNCTION__, l_clast_erouter_mode);
     syscfg_get(NULL, "bridge_mode", l_cbridge_mode, sizeof(l_cbridge_mode));
 
-    APPLY_PRINT("%s : bridge_mode is %s\n", __FUNCTION__, l_cbridge_mode);
     sysevent_get(g_iSyseventfd, g_tSysevent_token, "ipv4_4_status_configured",
                  l_ipv4_4_status_configured, sizeof(l_ipv4_4_status_configured));
 
     if (!strncmp(l_cbridge_mode, "0", 1))
     {
-        APPLY_PRINT("%s : Checking conditions for calling ipv4_down and ipv4_up\n", __FUNCTION__);
         if ((strncmp(l_clast_erouter_mode, "0", 1)) && (!strncmp(l_ipv4_4_status_configured, "1", 1)))
         {
-            APPLY_PRINT("%s : Conditions met for calling ipv4_down and ipv4_up\n", __FUNCTION__);
             sysevent_get(g_iSyseventfd, g_tSysevent_token,
                         "primary_lan_l3net", l_cL3Inst, sizeof(l_cL3Inst));
             l_iL3Inst = atoi(l_cL3Inst);
 
             sprintf(l_cSysevent_Cmd, "ipv4_%d-ifname", l_iL3Inst);
-            APPLY_PRINT("%s : Fetching LAN interface name using sysevent get with cmd %s\n", __FUNCTION__, l_cSysevent_Cmd);
             sysevent_get(g_iSyseventfd, g_tSysevent_token, l_cSysevent_Cmd,
                         l_cLanIfName, sizeof(l_cLanIfName));
 
             sysevent_set(g_iSyseventfd, g_tSysevent_token, "ipv4-down", l_cL3Inst, 0);
-            APPLY_PRINT("%s : Calling ipv4_down with L3 instance:%d\n", __FUNCTION__, l_iL3Inst);
             fprintf(g_fArmConsoleLog, "Calling ipv4_down with L3 Instance:%d\n", l_iL3Inst);
 
             sysevent_set(g_iSyseventfd, g_tSysevent_token, "ipv4-up", l_cL3Inst, 0);
-            APPLY_PRINT("%s : Calling ipv4_up with L3 instance:%d\n", __FUNCTION__, l_iL3Inst);
             fprintf(g_fArmConsoleLog, "Calling ipv4_up with L3 Instance:%d\n", l_iL3Inst);
         }
     }
@@ -1118,7 +1043,6 @@ void erouter_mode_updated()
 
 void ipv4_resync(char *lan_inst)
 {
-    APPLY_PRINT("Inside %s called with arg lan_inst %s\n",__FUNCTION__,lan_inst);
     fprintf(g_fArmConsoleLog, "Inside %s called with arg lan_inst %s\n",__FUNCTION__,lan_inst);
 
     char l_cLanInst[8] = {0}, l_cPsm_Parameter[255] = {0},l_cSysevent_Cmd[255] = {0}, l_cPsmGetLanIp[16] = {0}, l_cPsmGetLanSubNet[16] = {0}, ap_addr_out[32] = {0};
