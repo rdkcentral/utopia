@@ -33,6 +33,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #######################################################################
+log() {
+    local level="$1"; shift
+    local message="$*"
+    local timestamp
+    local log_file
+    timestamp=$(date +'%Y-%m-%d %H:%M:%S')
+    log_file="/tmp/service_lan.log"
+    echo "$timestamp [$level] $message" | tee -a "$log_file"
+}
 
 source /etc/utopia/service.d/interface_functions.sh
 source /etc/utopia/service.d/ulog_functions.sh
@@ -44,6 +53,9 @@ source /etc/utopia/service.d/event_handler_functions.sh
 source /lib/rdk/t2Shared_api.sh
 
 SERVICE_NAME="lan"
+
+log INFO "Script started."
+echo_t "service_lan: Script started."
 
 subnet() {
     if [ "$2" ]; then
@@ -664,26 +676,43 @@ service_start ()
 {
 #   echo "lan service start called" > /dev/console
 #song:   register_docsis_handler
+   log INFO "Starting LAN service"
+   echo_t "service_lan: Starting LAN service"
    wait_till_end_state ${SERVICE_NAME}
 
    CcspHome_Security=`sysevent get HomeSecuritySupport`
    STATUS=`sysevent get ${SERVICE_NAME}-status`
+   echo_t "Current LAN service status: $STATUS"
+   log INFO "Current LAN service status: $STATUS"
    if [ "started" != "$STATUS" ] ; then
       sysevent set ${SERVICE_NAME}-errinfo
       sysevent set ${SERVICE_NAME}-status starting
+      log INFO "LAN service status set to starting"
+      echo_t "service_lan: LAN service status set to starting"
+
+      log INFO "LAN interfaces: $LAN_IFNAMES"
+      echo_t "service_lan: LAN interfaces: $LAN_IFNAMES"
       if [ -n "$LAN_IFNAMES" ]; then
+         log INFO "Bringing up LAN with bridge"
+         echo_t "service_lan : Bringing up LAN with bridge"
          do_start
       else
+         log INFO "Bringing up LAN without bridge"
+         echo_t "service_lan : Bringing up LAN without bridge"
          do_start_no_bridge
       fi
       ERR=$?
       if [ "$ERR" -ne "0" ] ; then
+         log ERROR "Unable to bringup lan, error code: $ERR"
+         echo_t "service_lan : Unable to bringup lan, error code: $ERR"
          check_err $? "Unable to bringup lan"
       elif [ "" = "$SYSCFG_lan_dhcp_client" -o "0" = "$SYSCFG_lan_dhcp_client" ] ; then
+         log INFO "LAN service started successfully, setting status to started"
          sysevent set ${SERVICE_NAME}-errinfo
          sysevent set ${SERVICE_NAME}-status started
 #song:         add_docsis_bridge
          echo_t "service_lan : Triggering RDKB_FIREWALL_RESTART"
+         log INFO "Triggering RDKB_FIREWALL_RESTART"
 	 t2CountNotify "SYS_SH_RDKB_FIREWALL_RESTART"
          sysevent set firewall-restart
       fi
@@ -715,25 +744,44 @@ service_start ()
 #--------------------------------------------------------------
 service_stop ()
 {
+   log INFO "Stopping LAN service"
+   echo_t "service_lan: Stopping LAN service"
    wait_till_end_state ${SERVICE_NAME}
 
-   STATUS=`sysevent get ${SERVICE_NAME}-status` 
+   STATUS=`sysevent get ${SERVICE_NAME}-status`
+   echo_t "Current LAN service status: $STATUS" 
+   log INFO "Current LAN service status: $STATUS"
    if [ "stopped" != "$STATUS" ] ; then
       sysevent set ${SERVICE_NAME}-errinfo
       sysevent set ${SERVICE_NAME}-status stopping
+      log INFO "LAN service status set to stopping"
+      echo_t "service_lan: LAN service status set to stopping"
+
+       log INFO "LAN interfaces: $LAN_IFNAMES"
+       echo_t "service_lan: LAN interfaces: $LAN_IFNAMES"
       if [ -n "$LAN_IFNAMES" ]; then
          do_stop
+         log INFO "Bringing down LAN with bridge"
+         echo_t "service_lan: Bringing down LAN with bridge"
       else
          do_stop_no_bridge
+         log INFO "Bringing down LAN without bridge"
+         echo_t "service_lan: Bringing down LAN without bridge"
       fi
       ERR=$?
       if [ "$ERR" -ne "0" ] ; then
          check_err $ERR "Unable to teardown lan"
+         log ERROR "Unable to teardown lan, error code: $ERR"
+         echo_t "service_lan: Unable to teardown lan, error code: $ERR"
       elif [ "" = "$SYSCFG_lan_dhcp_client" -o "0" = "$SYSCFG_lan_dhcp_client" ] ; then
+         log INFO "LAN service stopped successfully, setting status to stopped"
+         echo_t "service_lan: LAN service stopped successfully, setting status to stopped"
          sysevent set ${SERVICE_NAME}-errinfo
          sysevent set ${SERVICE_NAME}-status stopped
       fi
 	  #unregister wecb_master from pmon to let this script to bring it up when lan restart.
+     log INFO "Unregistering wecb_master from pmon"
+     echo_t "service_lan : Unregistering web_master from pmon"
 	  /etc/utopia/service.d/pmon.sh unregister wecb_master 
 	  #rongwei added
 #	  killall wecb_master 2>/dev/null

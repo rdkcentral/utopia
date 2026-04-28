@@ -53,6 +53,22 @@
 #include "ccsp_memory.h"
 #endif
 
+#include <time.h>
+#define LOG_FILE_ROUTED "/tmp/utopia_service_ipv6.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE_ROUTED , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <rdkb_feature_mode_gate.h>
 #include <telemetry_busmessage_sender.h>
@@ -1297,6 +1313,7 @@ STATIC void update_mtu(void){
  */
 STATIC int lan_addr6_set(struct serv_ipv6 *si6)
 {
+    APPLY_PRINT("%s: Entering function\n", __FUNCTION__);
     unsigned int l2_insts[MAX_LAN_IF_NUM] = {0};
 #if defined(MULTILAN_FEATURE)
     unsigned int primary_l2_instance = 0;
@@ -1328,6 +1345,7 @@ STATIC int lan_addr6_set(struct serv_ipv6 *si6)
      */
     if (divide_ipv6_prefix(si6) != 0) {
         fprintf(stderr, "divide the operator-delegated prefix to sub-prefix error.\n");
+        APPLY_PRINT("%s: divide the operator-delegated prefix to sub-prefix error.\n", __FUNCTION__);
         sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "error", 0);
         return -1;
     }
@@ -1335,6 +1353,7 @@ STATIC int lan_addr6_set(struct serv_ipv6 *si6)
     sysevent_get(si6->sefd, si6->setok, "ipv6_prefix-divided", evt_val, sizeof(evt_val));
     if (strcmp(evt_val, "ready")) {
         fprintf(stderr, "[%s] ipv6 prefix is not divided.\n", __FUNCTION__);
+        APPLY_PRINT("%s: ipv6 prefix is not divided.\n", __FUNCTION__);
         return -1;
     }
 
@@ -1470,6 +1489,7 @@ STATIC int lan_addr6_set(struct serv_ipv6 *si6)
 
     //Intel Proposed RDKB Generic Bug Fix from XB6 SDK
     /*start zebra*/
+    APPLY_PRINT("%s: Starting zebra\n", __FUNCTION__);
     sysevent_set(si6->sefd, si6->setok, "zebra-restart", NULL, 0);
 	
     return 0;
@@ -2106,6 +2126,7 @@ STATIC int dhcpv6s_restart(struct serv_ipv6 *si6)
 
 STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
 {
+    APPLY_PRINT("%s: Starting service_ipv6\n", __FUNCTION__);
      fprintf(stderr, "Entered serv_ipv6_start \n");
     char rtmod[16];
 #if defined (_ONESTACK_PRODUCT_REQ_)
@@ -2122,6 +2143,7 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
     if (atoi(rtmod) != 1) { /* IPv6-only or Dual-Stack */
         if (!si6->wan_ready) {
             fprintf(stderr, "%s: IPv6-WAN is not ready !\n", __FUNCTION__);
+            APPLY_PRINT("%s: IPv6-WAN is not ready !\n", __FUNCTION__);
             return -1;
         }
     } else {/* IPv4-only */
@@ -2189,6 +2211,7 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
 	
     //Intel Proposed RDKB Generic Bug Fix from XB6 SDK
     /*start zebra*/
+    APPLY_PRINT("%s: Starting zebra\n", __FUNCTION__);
     sysevent_set(si6->sefd, si6->setok, "zebra-restart", NULL, 0);
 	
     if (dhcpv6s_start(si6) != 0) {
