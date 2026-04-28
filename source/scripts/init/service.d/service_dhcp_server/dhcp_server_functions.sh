@@ -41,6 +41,7 @@ DHCP_CONF=/etc/dnsmasq.conf
 DHCP_STATIC_HOSTS_FILE=/etc/dhcp_static_hosts
 DHCP_OPTIONS_FILE=/var/dhcp_options
 SelfHealSupport=`sysevent get SelfhelpWANConnectionDiagSupport`
+# LANIPV6Support only used for identifying the ULA usage
 LANIPV6Support=`sysevent get LANIPv6GUASupport`
 if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$SelfHealSupport" = "true" ]; then
 LOCAL_DHCP_CONF=/tmp/dnsmasq.conf
