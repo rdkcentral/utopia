@@ -5536,8 +5536,15 @@ static int do_wan_nat_lan_clients(FILE *fp)
 	     applyHotspotPostRoutingRules(fp, true);
 #endif
 	 } else {
-             FIREWALL_DEBUG("Apply nating rules do_wan_nat_lan_clients\n");       
-	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
+             FIREWALL_DEBUG("Apply nating rules do_wan_nat_lan_clients\n");      
+	     if (!IS_EMPTY_STRING(natip4))
+	     {
+		     fprintf(fp, "-A postrouting_towan -j SNAT --to-source %s\n", natip4);
+	     }
+	     else
+	     {
+		     FIREWALL_DEBUG("natip4 is empty, skipping SNAT rule\n");
+	     }
 	 }
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
@@ -5561,7 +5568,15 @@ static int do_wan_nat_lan_clients(FILE *fp)
      }
      else
      {
-         fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
+	     if (!IS_EMPTY_STRING(natip4))
+	     {
+		     fprintf(fp, "-A postrouting_towan -j SNAT --to-source %s\n", natip4);
+	     }
+	     else
+	     {
+		     FIREWALL_DEBUG("natip4 is empty, skipping SNAT rule\n");
+	     }
+
      }
 #endif
    if (isCacheActive) {
