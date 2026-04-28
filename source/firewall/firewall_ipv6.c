@@ -1744,22 +1744,9 @@ v6GPFirewallRuleNext:
         fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 500  -j ACCEPT\n");
         fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 4500  -j ACCEPT\n");
     }
-    char sites_enabled[MAX_QUERY];
-    sites_enabled[0] = '\0';
-    syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
-    if (sites_enabled[0] != '\0' && sites_enabled[0] == '0') // managed site list enabled
-    {
-        queryv6[0] = '\0';
+    // Apply SSL blocking rules
+    do_ssl_blocking_rules(fp, "lan2wan_misc_ipv6");
 
-        if((0 == syscfg_get(NULL, "blockssl::result", queryv6, sizeof(queryv6))) && strcmp(queryv6,"DROP") == 0){
-            fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 443  -j DROP\n");
-            fprintf(fp, "-A lan2wan_misc_ipv6 -p tcp --dport 443  -j DROP\n");
-        }
-        else if(strcmp(queryv6,"ACCEPT") == 0){
-            fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 443  -j ACCEPT\n");
-            fprintf(fp, "-A lan2wan_misc_ipv6 -p tcp --dport 443  -j ACCEPT\n");
-        }
-    }
     queryv6[0] = '\0';
 
     if((0 == syscfg_get(NULL, "blockl2tp::result", queryv6, sizeof(queryv6))) && strcmp(queryv6,"DROP") == 0){

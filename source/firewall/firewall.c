@@ -744,8 +744,6 @@ int rfstatus;
  * For simplicity purposes we cap the number of syscfg entries within a
  * specific namespace. This cap is controlled by MAX_SYSCFG_ENTRIES
  */
-#define MAX_PORT 65535
-
 #define MAX_NAMESPACE 64
 
 #define MAX_SRC_IP_TABLE_ROW    10   /*RDKB-7145, CID-33123, defining max size for src_ip[MAX_SRC_IP_TABLE_ENTRY][]*/
@@ -9134,14 +9132,6 @@ static int do_parcon_device_cloud_mgmt(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
-static int validate_port(char* port_num)
-{
-   int port = atoi(port_num);
-   if ( port <= 0 || port > MAX_PORT )
-      return -1;
-
-   return 0;
-}
 /*
  * add parental control managed service(ports) rules
  */
@@ -10128,21 +10118,9 @@ static int do_lan2wan_misc(FILE *filter_fp)
         else if (strcmp(query,"ACCEPT") == 0) {
             fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 1723  -j ACCEPT\n");
         }
-        char sites_enabled[MAX_QUERY];
-        sites_enabled[0] = '\0';
-        syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
-        if (sites_enabled[0] != '\0' && sites_enabled[0] == '0') // managed site list enabled
-        {
-            syscfg_get("blockssl", "result", query, sizeof(query));
-            if (strcmp(query,"DROP") == 0) {
-                fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j DROP\n");
-                fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j DROP\n");
-            }
-            else if(strcmp(query,"ACCEPT") == 0) {
-                fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j ACCEPT\n");
-                fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j ACCEPT\n");
-            }
-        }
+
+        // Apply SSL blocking rule
+        do_ssl_blocking_rules(filter_fp, "lan2wan_misc");
     }
 #endif
 

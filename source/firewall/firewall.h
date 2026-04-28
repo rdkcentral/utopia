@@ -1246,3 +1246,32 @@ void  proxy_dns(FILE *nat_fp,int family);
 */
 void get_iface_ipaddr_ula(const char* ifname,char* ipaddr, int max_ip_size);
 #endif
+
+#define MAX_PORT 65535
+
+/**
+* @brief Validate if a port number string is valid.
+*
+* @param[in] port_num - Pointer to the port number string.
+*
+* @return The status of the operation.
+* @retval 0 if port is valid (1-65535).
+* @retval -1 if port is invalid.
+*
+*/
+int validate_port(const char* port_num);
+
+/**
+* @brief Apply SSL blocking rules based on managed sites/services configuration.
+*
+* Checks if managed sites or managed services (with port 443) are enabled,
+* and emits appropriate SSL blocking (DROP/ACCEPT) rules for port 443.
+* Rules are skipped per protocol if managed services covers that protocol on port 443.
+*
+* @param[in] fp         - Pointer to the FILE stream for writing firewall rules.
+* @param[in] chain_name - The iptables chain name (e.g., "lan2wan_misc" or "lan2wan_misc_ipv6").
+*
+* @return None.
+*
+*/
+void do_ssl_blocking_rules(FILE *fp, const char *chain_name);
