@@ -63,6 +63,8 @@ THIS=/etc/utopia/service.d/lan_handler.sh
 SERVICE_NAME="lan_handler"
 
 log INFO "Script started"
+log INFO "check lan-status at the beginning of script: $(sysevent get lan-status)"
+echo_t "check lan-status at the beginning of script: $(sysevent get lan-status)"
 POSTD_START_FILE="/tmp/.postd_started"
 
 RPI_SPECIFIC=$BOX_TYPE
@@ -201,6 +203,7 @@ case "$1" in
       ;;
    ipv4_*-status)
    log INFO "Received $1 event with status $2"
+   log INFO "check lan-status at ipv4 status event: $(sysevent get lan-status)"
    echo_t "LAN HANDLER : Received $1 event with status $2"
         if [ x"up" = x${2} ]; then
             log INFO "Handling LAN up event for instance ${1}"
@@ -217,7 +220,7 @@ case "$1" in
             #if it's ipv4 only, not enable link local
             SYSCFG_last_erouter_mode=`syscfg get last_erouter_mode`
             log INFO "lan_handler.sh last_erouter_mode: $SYSCFG_last_erouter_mode"
-            echo "lan_handler.sh last_erouter_mode: $SYSCFG_last_erouter_mode"
+            echo_t "lan_handler.sh last_erouter_mode: $SYSCFG_last_erouter_mode"
 
 
             if [ "1" = "$SYSCFG_last_erouter_mode" ]; then
@@ -272,19 +275,23 @@ case "$1" in
                 log INFO "RG_MODE is 2 and start-misc is not ready, setting lan-status to started"
                 sysevent set lan-status started
                 log INFO "lan status set to started lan-status = $(sysevent get lan-status)"
+                echo_t "LAN HANDLER : lan status set to started lan-status = $(sysevent get lan-status)"
                 firewall
                 log INFO "Firewall restarted for RG_MODE:2"
+                echo_t "LAN HANDLER : Firewall restarted for RG_MODE:2"
                 if [ ! -f "$POSTD_START_FILE" ];
                 then
                     touch $POSTD_START_FILE
                     execute_dir /etc/utopia/post.d/
                     log INFO "Executed post.d scripts"
+                    echo_t "LAN HANDLER : Executed post.d scripts"
                 fi
             elif [ x"ready" != x`sysevent get start-misc` -a x != x`sysevent get current_wan_ipaddr` -a "0.0.0.0" != `sysevent get current_wan_ipaddr` ]; then
 				echo_t "LAN HANDLER : Triggering DHCP server using LAN status based on start misc"
 				log INFO "Start misc is not ready and WAN IP is available, setting lan-status to started"
 				sysevent set lan-status started
                 log INFO "lan status set to started lan-status = $(sysevent get lan-status)"
+                echo_t "lan-status set to started lan-status = $(sysevent get lan-status)"
                 STARTED_FLG=`sysevent get parcon_nfq_status`
 
                 if [ x"$STARTED_FLG" != x"started" ]; then
@@ -302,6 +309,7 @@ case "$1" in
                          ( ( nfq_handler 4 & ) & )
                          ( ( nfq_handler 6 & ) & )
                           log INFO "Started NFQ handler for LAN without MAC address for non-XB3 box type"
+                          echo_t "LAN HANDLER : Started NFQ handler for LAN without MAC address for non-XB3 box type"
 		    fi
                     sysevent set parcon_nfq_status started
                 fi
@@ -325,13 +333,16 @@ case "$1" in
                     touch $POSTD_START_FILE
                     execute_dir /etc/utopia/post.d/
                     log INFO "if start file doesnt exist Executed post.d scripts"
+                    echo_t "LAN HANDLER : if start file doesnt exist Executed post.d scripts"
                 fi
 
 	elif [ x"ready" != x`sysevent get start-misc` ] && ( [ "$MANUFACTURE" = "Technicolor" ] || [ "$MANUFACTURE" = "Sercomm" ] ) ; then
                log INFO "box is from Technicolor or Sercomm, setting lan-status to started"
+                echo_t "LAN HANDLER : box is from Technicolor or Sercomm, setting lan-status to started"
                #TCH XBx/TCCBR based startup post.d scripts which includes Firewall restart and dhcp start.
                sysevent set lan-status started
                log INFO "lan status set to started lan-status = $(sysevent get lan-status)"
+               echo_t "LAN HANDLER : lan status set to started lan-status = $(sysevent get lan-status)"
                firewall
                if [ ! -f "$POSTD_START_FILE" ];
                 then
@@ -344,10 +355,12 @@ case "$1" in
         log INFO "Triggering DHCP server using LAN status by setting lan-status to started"
                 sysevent set lan-status started
                 log INFO "lan status set to started lan-status = $(sysevent get lan-status)"
+                echo_t "LAN HANDLER : lan status set to started lan-status = $(sysevent get lan-status)"
 		echo_t "LAN HANDLER : Triggering RDKB_FIREWALL_RESTART"
 		t2CountNotify "RF_INFO_RDKB_FIREWALL_RESTART"
                 sysevent set firewall-restart
                 log INFO "Firewall restarted for LAN status started"
+                echo_t "LAN HANDLER : Firewall restarted for LAN status started"
             fi
 
             #sysevent set desired_moca_link_state up
@@ -355,21 +368,28 @@ case "$1" in
             #firewall_nfq_handler.sh &
 
             sysevent set lan_start_time $(cut -d. -f1 /proc/uptime)
+            log INFO "lan status check before marking uptime of lan_start_time = $(sysevent get lan-status)"
             log INFO "Set lan_start_time to $(sysevent get lan_start_time)"
+            echo_t "LAN HANDLER : lan status check before marking uptime of lan_start_time = $(sysevent get lan-status)"
+            echo_t "LAN HANDLER : Set lan_start_time to $(sysevent get lan_start_time)"
 
             if [ "4" = $INST ];then
                 sysevent set ipv4_4_status_configured 1
                 log INFO "Set ipv4_4_status_configured to 1 for instance 4"
+                echo_t "LAN HANDLER : Set ipv4_4_status_configured to 1 for instance 4"
             fi
 
             #disable dnsmasq when ipv6 only mode and DSlite is disabled
             DSLITE_ENABLED=`sysevent get dslite_enabled`
             log INFO "DSLITE_ENABLED is $DSLITE_ENABLED"
+            echo_t "LAN HANDLER : DSLITE_ENABLED is $DSLITE_ENABLED"
 	    	DHCP_PROGRESS=`sysevent get dhcp_server-progress`
             log INFO "DHCP_PROGRESS is $DHCP_PROGRESS"
+            echo_t "LAN HANDLER : DSLITE_ENABLED is $DSLITE_ENABLED"
 			echo_t "LAN HANDLER : DHCP configuration status got is : $DHCP_PROGRESS"
             if [ "2" = "$SYSCFG_last_erouter_mode" ] && [ "x1" != x$DSLITE_ENABLED ]; then
                 log INFO "In IPv6 only mode with DSLite disabled, stopping DHCP server if it is running"
+                echo_t "LAN HANDLER : In IPv6 only mode with DSLite disabled, stopping DHCP server if it is running"
                 sysevent set dhcp_server-stop
             elif [ "0" != "$SYSCFG_last_erouter_mode" ] && [ "$DHCP_PROGRESS" != "inprogress" ] ; then
                 log INFO "Not in IPv6 only mode and DHCP configuration is not in progress, starting DHCP server"
@@ -384,6 +404,7 @@ case "$1" in
         else
             if [ x"started" = x`sysevent get lan-status` ]; then
                 log INFO "LAN status is started, stopping LAN"
+                echo_t "LAN HANDLER : LAN status is started, stopping LAN by setting lan-status to stopped"
 				#kill `pidof CcspHomeSecurity`
                 sysevent set lan-status stopped
 		echo_t "LAN HANDLER : setting lan status stopped"
@@ -401,10 +422,11 @@ case "$1" in
         echo_t "LAN HANDLER : Triggering RDKB_FIREWALL_RESTART after nfqhandler"
 	t2CountNotify "RF_INFO_RDKB_FIREWALL_RESTART"
         sysevent set firewall-restart
-        log INFO "Firewall restarted for LAN status started after NFQ handler"
+        log INFO "Firewall restarted check lan-status = $(sysevent get lan-status)"
 	if [ -e "/usr/bin/print_uptime" ]; then
 	    /usr/bin/print_uptime "Laninit_complete"
         log INFO "Laninit_complete uptime: $(cut -d. -f1 /proc/uptime)"
+        echo_t "LAN HANDLER : Laninit_complete uptime: $(cut -d. -f1 /proc/uptime)"
 	fi
 
         uptime=$(cut -d. -f1 /proc/uptime)
@@ -418,6 +440,7 @@ case "$1" in
    ipv4-resync)
         LAN_INST=`sysevent get primary_lan_l3net`
         log INFO "Received ipv4-resync event for instance $LAN_INST"
+        echo_t "LAN HANDLER : Received ipv4-resync event for instance $LAN_INST"
         if [ x"$2" = x"$LAN_INST" ]; then
             eval "`psmcli get -e LAN_IP ${IPV4_NV_PREFIX}.${LAN_INST}.$IPV4_NV_IP LAN_SUB ${IPV4_NV_PREFIX}.${LAN_INST}.$IPV4_NV_SUBNET`"
             AP_ADDR="`ap_addr $LAN_IP $LAN_SUB`"
@@ -436,19 +459,28 @@ case "$1" in
 
    pnm-status | bring-lan)
 	if [ -e "/usr/bin/print_uptime" ]; then
+            log INFO "In pnm-status and bring-lan event, checking lan-status : $(sysevent get lan-status)"
+            echo_t "LAN HANDLER : In pnm-status and bring-lan event, checking lan-status : $(sysevent get lan-status)"
             log INFO "Received event, printing uptime for Lan_init_start"
             /usr/bin/print_uptime "Lan_init_start"
+            log INFO "check lan-status after lan_init_start uptime capture : $(sysevent get lan-status)"
+            echo_t "LAN HANDLER : check lan-status after lan_init_start uptime capture : $(sysevent get lan-status)"
+
         fi
         uptime=$(cut -d. -f1 /proc/uptime)
         log INFO "Lan_init_start uptime: $uptime"
+        echo_t "LAN HANDLER : Lan_init_start uptime: $uptime"
 	if [ -e "/usr/bin/onboarding_log" ]; then
 	    /usr/bin/onboarding_log "Lan_init_start:$uptime"
 	fi
+    log INFO "Lan_init_start event: notifying onboarding with t2ValNotify "
+    echo_t "LAN HANDLER : Lan_init_start event: notifying onboarding with t2ValNotify btime_laninit_split with value $uptime"
    	if [ x = x"`sysevent get lan_handler_async`" ]; then
+        log INFO "lan_handler_async is not set, proceeding with lan handler async processing"
         eval `psmcli get -e INST dmsb.MultiLAN.PrimaryLAN_l3net L2INST dmsb.MultiLAN.PrimaryLAN_l2net BRPORT dmsb.MultiLAN.PrimaryLAN_brport HSINST dmsb.MultiLAN.HomeSecurity_l3net`
 	if [ -z "$INST" ]
 	    then
-		echo_t "THE INSTANT=$INST"
+        log INFO "INST value = $INST is null, retrying to get INST value"
 		echo_t "THE INSTANT=$INST"
         #(use a simpler test than this -- but Hacky, since it assumes everything we want is not XB3!!)if [ "$BOX_TYPE" = "TCCBR" ] || [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Technicolor" ] || [ "$BOX_TYPE" = "XB7" -a "$MANUFACTURE" = "Technicolor" ] ; then
 	if ( [ "$BOX_TYPE" != "XB3" ] && ( [ "$MANUFACTURE" = "Technicolor" ] || [ "$MANUFACTURE" = "Sercomm" ] ) )  || [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
@@ -479,25 +511,32 @@ case "$1" in
 	    then
 		echo_t "RDKB_SYSTEM_BOOT_UP_LOG : L2INST returned null, retrying"
 		L2INST=`psmcli get dmsb.MultiLAN.PrimaryLAN_l2net`
+        log INFO "L2INST value is null, retrying to get L2INST value = $L2INST "
 	fi
 	if [ -z "$BRPORT" ]
 	    then
 		echo_t "RDKB_SYSTEM_BOOT_UP_LOG : BRPORT returned null, retrying"
 		BRPORT=`psmcli get dmsb.MultiLAN.PrimaryLAN_brport`
+        log INFO "BRPORT value is null, retrying to get BRPORT value = $BRPORT"
 	fi
 	if [ -z "$HSINST" ]
 	    then
 		echo_t "RDKB_SYSTEM_BOOT_UP_LOG : HSINST returned null, retrying"
 		HSINST=`psmcli get dmsb.MultiLAN.HomeSecurity_l3net`
+        log INFO "HSINST value is null, retrying to get HSINST value = $HSINST "
 	fi
    	if [ x != x$INST ]; then
 		echo_t "SO FAR SO GOOD ALL IS WELL SENDING L3 NET EVENT"
 
         echo_t "Running: sysevent async ipv4_${INST}-status $THIS"
+        log INFO "Running: sysevent async ipv4_${INST}-status $THIS"
         async="$(sysevent async ipv4_${INST}-status $THIS 2>&1)"
+        log INFO "sysevent async output: $async"
         ret=$?
         echo_t "sysevent async return value: $ret"
+        log INFO "sysevent async return value: $ret"
         echo_t "async value: '$async'"
+        log INFO "async value: '$async'"
 
         if [ $ret -ne 0 ] || [ -z "$async" ]; then
             echo_t "Retrying sysevent async ipv4_${INST}-status $THIS"
