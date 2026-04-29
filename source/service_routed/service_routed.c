@@ -1167,31 +1167,22 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
 
 #if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined (_ONESTACK_PRODUCT_REQ_)
-    int multilan_enabled = 0;
-    int pd_enabled = 0;
-
-#if defined(MULTILAN_FEATURE)
-    multilan_enabled = 1;
-#endif
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
-    pd_enabled = 1;
-#endif
-
-    #ifdef _ONESTACK_PRODUCT_REQ_
-        pd_enabled = isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION);
-    #endif
-
-    if (pd_enabled || multilan_enabled)
-    {
     get_active_lanif(sefd, setok, l2_insts, &enabled_iface_num);
     for (i = 0; i < enabled_iface_num; i++)
     {
+#ifdef _ONESTACK_PRODUCT_REQ_
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    {
+#endif
         snprintf(evt_name, sizeof(evt_name), "multinet_%d-name", l2_insts[i]);
         sysevent_get(sefd, setok, evt_name, lan_if, sizeof(lan_if));
         snprintf(evt_name, sizeof(evt_name), "ipv6_%s-prefix", lan_if);
         sysevent_get(sefd, setok, evt_name, prefix, sizeof(prefix));
         snprintf(evt_name, sizeof(evt_name), "ipv6_%s-addr", lan_if);
         sysevent_get(sefd, setok, evt_name, lan_addr, sizeof(lan_addr));
+#ifdef _ONESTACK_PRODUCT_REQ_
+    }
+#endif
 #endif
 //RDKB-47758
 #ifdef WAN_FAILOVER_SUPPORTED
@@ -1488,8 +1479,19 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
         if ((strncmp(buf,"true",4) == 0) && iresCode == 204)
         {
+#if defined (_ONESTACK_PRODUCT_REQ_)
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    {
+	    // For CBR platform, the captive portal redirection feature was removed
+	    // inWifiCp = 1;
+    } 
+    else 
+    {
+	    inWifiCp = 1;
+    }
+#else
 #if defined (_COSA_BCM_MIPS_) 
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) 
 	    // For CBR platform, the captive portal redirection feature was removed
 	    // inWifiCp = 1;
 #else
@@ -1497,6 +1499,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif
 #else
 	    inWifiCp = 1;
+#endif
 #endif
 	}
 #if defined (_XB6_PROD_REQ_)
@@ -1778,7 +1781,6 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
 #if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     } //for (i = 0; i < enabled_iface_num; i++)
-    }
 #endif
 
 #if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
@@ -1982,7 +1984,6 @@ if(!strncmp(out,"true",strlen(out)))
                                     #endif
                                 }
                         }
-
                         for (start = name_servs; (tok = strtok_r(start, " ", &sp)); start = NULL)
                         {
                             // Modifying rdnss value to fix the zebra config.
@@ -1990,7 +1991,7 @@ if(!strncmp(out,"true",strlen(out)))
                         }
          }
 
-	fprintf(fp, "interface %s\n", interface_name);
+		fprintf(fp, "interface %s\n", interface_name);
         }
 	fprintf(fp, "   ip irdp multicast\n");
 	}
