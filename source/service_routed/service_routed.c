@@ -950,7 +950,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     char default_wan_interface[64] = {0};
     char wan_interface[64] = {0};
 #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
-    char mesh_wan_ifname[32];
+    char mesh_wan_ifname[32] = {0};
     char *pStr = NULL;
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME,pStr);
     if(return_status == CCSP_SUCCESS && pStr != NULL){
