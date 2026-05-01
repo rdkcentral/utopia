@@ -1282,9 +1282,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
         snprintf(sysevent_val, sizeof(sysevent_val), "%u", total_ports);
         if(sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_MAPT_TOTAL_PORTS, sysevent_val, 0) != 0)
         {
-            FIREWALL_DEBUG("ERROR: Failed to set total ports \n");
-            ret = RET_ERR;
-            goto END;
+            FIREWALL_DEBUG("ERROR: Failed to set total ports; continuing MAP-T rule generation \n");
         }
         FIREWALL_DEBUG("MAPT Info: offset=%d, psid=%d, psidLen=%d, port_blocks=%d, contiguous_port=%d, total_ports=%d \n" COMMA
             offset COMMA psid COMMA psidLen COMMA a COMMA  contiguous_port COMMA total_ports);
