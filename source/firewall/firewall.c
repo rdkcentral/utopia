@@ -1284,7 +1284,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
         {
             FIREWALL_DEBUG("ERROR: Failed to set total ports; continuing MAP-T rule generation \n");
         }
-        FIREWALL_DEBUG("MAPT Info: offset=%d, psid=%d, psidLen=%d, port_blocks=%d, contiguous_port=%d, total_ports=%d \n" COMMA
+        FIREWALL_DEBUG("MAPT Info: offset=%u, psid=%u, psidLen=%u, port_blocks=%u, contiguous_port=%u, total_ports=%u \n" COMMA
             offset COMMA psid COMMA psidLen COMMA a COMMA  contiguous_port COMMA total_ports);
 
         /* Start of port range parameters. */
