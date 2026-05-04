@@ -470,6 +470,7 @@ char cellular_ifname[32];
 #define SYSEVENT_MAPT_PSID_OFFSET "mapt_psid_offset"
 #define SYSEVENT_MAPT_PSID_VALUE "mapt_psid_value"
 #define SYSEVENT_MAPT_PSID_LENGTH "mapt_psid_length"
+#define SYSEVENT_MAPT_TOTAL_PORTS "mapt_total_ports"
 
 BOOL isMAPTSet(void);
 static int do_wan_nat_lan_clients_mapt(FILE *fp);
@@ -1106,7 +1107,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
     char ipaddress_str[BUFLEN_32] = {0};
     char mapt_config_ratio_str[BUFLEN_64] = {0};
     char mapt_config_value[BUFLEN_8] = {0};
-    unsigned int contigous_port = 0;
+    unsigned int contiguous_port = 0;
     int ratio = 0;
     int port = 0;
     unsigned int i =0;
@@ -1119,6 +1120,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
     unsigned int psidLen = 0;
     unsigned int psid = 0;
     char sysevent_val[BUFLEN_64] = {0};
+    unsigned int total_ports = 0;
 
     /* Check sysevent fd availabe at this point. */
     if (sysevent_fd < 0)
@@ -1263,20 +1265,31 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
 
         a = (1 << offset);
         m = 16 - (psidLen + offset);
-        contigous_port = (1 << m);
+        contiguous_port = (1 << m);
         ratio = 16 - offset;
+
+        // Exclude i=0 block as per original logic
+        total_ports = (a * contiguous_port) - contiguous_port;
+        memset(sysevent_val, 0, sizeof(sysevent_val));
+        snprintf(sysevent_val, sizeof(sysevent_val), "%u", total_ports);
+        if(sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_MAPT_TOTAL_PORTS, sysevent_val, 0) != 0)
+        {
+            FIREWALL_DEBUG("ERROR: Failed to set total ports; continuing MAP-T rule generation \n");
+        }
+        FIREWALL_DEBUG("MAPT Info: offset=%u, psid=%u, psidLen=%u, port_blocks=%u, contiguous_port=%u, total_ports=%u \n" COMMA
+            offset COMMA psid COMMA psidLen COMMA a COMMA  contiguous_port COMMA total_ports);
 
         /* Start of port range parameters. */
         /* create rules */
         for(i=1; i< (a); i++)
         {
-            for(j=0; j<(contigous_port); j++)
+            for(j=0; j<(contiguous_port); j++)
             {
                 port = (i<<ratio) + (psid <<(m)) + j;
 
                 if(j == 0)
                     initialPortValue = port;
-                if( j == contigous_port - 1 )
+                if( j == contiguous_port - 1 )
                     finalPortValue = port;
             }
 #if defined(IVI_KERNEL_SUPPORT)
@@ -1295,6 +1308,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
             fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
 #endif //_HUB4_PRODUCT_REQ_NO_DPORT_
 #endif //IVI_KERNEL_SUPPORT
+            FIREWALL_DEBUG("MAPT Rule: Port range is initialPortValue=%u, finalPortValue=%u \n" COMMA initialPortValue COMMA finalPortValue);
         }
 #ifdef IVI_KERNEL_SUPPORT
         fprintf(nat_fp, "-A %s -o %s -p icmp -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, get_current_wan_ifname(), ipaddress_str,initialPortValue, finalPortValue);
