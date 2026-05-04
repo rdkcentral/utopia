@@ -1318,7 +1318,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
             fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
 #endif //_HUB4_PRODUCT_REQ_NO_DPORT_
 #endif //IVI_KERNEL_SUPPORT
-            FIREWALL_DEBUG("MAPT Rule: Port range is initialPortValue=%d, finalPortValue=%d \n" COMMA initialPortValue COMMA finalPortValue);
+            FIREWALL_DEBUG("MAPT Rule: Port range is initialPortValue=%u, finalPortValue=%u \n" COMMA initialPortValue COMMA finalPortValue);
         }
 #ifdef IVI_KERNEL_SUPPORT
         fprintf(nat_fp, "-A %s -o %s -p icmp -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, get_current_wan_ifname(), ipaddress_str,initialPortValue, finalPortValue);
