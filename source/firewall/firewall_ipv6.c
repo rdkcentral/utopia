@@ -275,6 +275,7 @@ int prepare_ipv6_firewall(const char *fw_file)
 	if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
 	{
 	    snprintf(sysEventName, sizeof(sysEventName), "tr_%s_dhcpv6_client_v6pref", current_wan_ifname);
+	    memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
 	    sysevent_get(sysevent_fd, sysevent_token, sysEventName, ipv6_delegation_prefix, sizeof(ipv6_delegation_prefix));
 	}
    #endif
