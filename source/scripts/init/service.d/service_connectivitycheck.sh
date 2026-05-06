@@ -95,6 +95,7 @@ while true; do
     CURL_STATUS=$?
     uptime=$(cut -d. -f1 /proc/uptime)
     uptime_ms=$((uptime*1000))
+    connectivityCheckLog "SHARMAN-4067 HTTP_CODE is $HTTP_CODE and URL is $URL and CURL_STATUS = $CURL_STATUS"
     if [ "$HTTP_CODE" -eq 204 ]; then
         connectivityCheckLog "Connected: Received HTTP 204 and curlstatus=$CURL_STATUS"
         if [ ! -f $CONNCHECK_FILE ]; then
