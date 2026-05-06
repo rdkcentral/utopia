@@ -3310,7 +3310,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
            FIREWALL_DEBUG("Entering do_single_port_forwarding\n");
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
    BOOL isBothProtocol = FALSE;
-   BOOL isFeatureDisabled = TRUE;
 #endif
    query[0] = '\0';
    rc = syscfg_get(NULL, "SinglePortForwardCount", query, sizeof(query)); 
@@ -3325,11 +3324,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
          count = MAX_SYSCFG_ENTRIES;
       }
    }
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-   {
-       isFeatureDisabled = FALSE;
-   }
-#endif
 
    for (idx=1 ; idx<=count ; idx++) {
       namespace[0] = '\0';
@@ -3704,7 +3698,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
    int count;
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
    BOOL isBothProtocol = FALSE;
-   BOOL isFeatureDisabled = TRUE;
 #endif
 
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP 
@@ -3725,9 +3718,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
          count = MAX_SYSCFG_ENTRIES;
       }
    }
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-   isFeatureDisabled = FALSE;
-#endif
 
    for (idx=1 ; idx<=count ; idx++) {
       namespace[0] = '\0';
