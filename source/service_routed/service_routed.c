@@ -164,6 +164,18 @@ STATIC int IsFileExists(char *file_name)
 #define LOG_FILE_NAME "/rdklogs/logs/Consolelog.txt.0"
 FILE *logfptr=NULL;
 
+/* Helper macro: run a shell command and stream its output into the log file */
+#define XLE_DBG_CMD(fp, cmd_str) do { \
+    FILE *_xdbg_fp = v_secure_popen("r", cmd_str); \
+    if (_xdbg_fp) { \
+        char _xdbg_line[256]; \
+        fprintf((fp), "[XLE-DBG] CMD: " cmd_str "\n"); \
+        while (fgets(_xdbg_line, sizeof(_xdbg_line), _xdbg_fp)) \
+            fprintf((fp), "[XLE-DBG]   %s", _xdbg_line); \
+        v_secure_pclose(_xdbg_fp); \
+    } \
+} while (0)
+
 
 #ifdef WAN_FAILOVER_SUPPORTED
 enum ipv6_mode {
@@ -1192,6 +1204,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         sysevent_get(sefd, setok, evt_name, prefix, sizeof(prefix));
         snprintf(evt_name, sizeof(evt_name), "ipv6_%s-addr", lan_if);
         sysevent_get(sefd, setok, evt_name, lan_addr, sizeof(lan_addr));
+        fprintf(logfptr, "%s: inst=%d if=%s prefix=%s addr=%s\n", __FUNCTION__, l2_insts[i], lan_if, prefix[0]?prefix:"EMPTY", lan_addr[0]?lan_addr:"EMPTY");
 #endif
 //RDKB-47758
 #ifdef WAN_FAILOVER_SUPPORTED
@@ -1800,6 +1813,8 @@ memset(pref_rx,0,sizeof(pref_rx));
 sysevent_get(sefd, setok,"lan_prefix_v6", pref_rx, sizeof(pref_rx));
 syscfg_get(NULL, "IPv6subPrefix", out, sizeof(out));
 pref_len = atoi(pref_rx);
+fprintf(logfptr, "[XLE-DBG] gen_zebra_conf: IPv6subPrefix='%s' lan_prefix_v6='%s' pref_len=%d\n",
+        out[0]?out:"EMPTY", pref_rx[0]?pref_rx:"EMPTY", pref_len);
 if(pref_len < 64)
 {
 if(!strncmp(out,"true",strlen(out)))
@@ -1807,6 +1822,7 @@ if(!strncmp(out,"true",strlen(out)))
 	memset(out,0,sizeof(out));
 	memset(cmd,0,sizeof(cmd));
 	syscfg_get(NULL, "IPv6_Interface", out, sizeof(out));
+	fprintf(logfptr, "[XLE-DBG] gen_zebra_conf: IPv6_Interface='%s'\n", out[0]?out:"EMPTY");
 	pt = out;
 	while((token = strtok_r(pt, ",", &pt)))
 	{
@@ -1872,6 +1888,8 @@ if(!strncmp(out,"true",strlen(out)))
 		memset(prefix,0,sizeof(prefix));
 
 		sysevent_get(sefd, setok, cmd, prefix, sizeof(prefix));
+		fprintf(logfptr, "[XLE-DBG] gen_zebra_conf: iface=%s sysevent_key=%s prefix=%s\n",
+		        interface_name, cmd, prefix[0]?prefix:"EMPTY");
 
         #ifdef WAN_FAILOVER_SUPPORTED
 
@@ -2020,20 +2038,23 @@ STATIC int checkIfULAEnabled(int sefd, token_t setok)
      char buf[16]={0};
 
     sysevent_get(sefd, setok, "ula_ipv6_enabled", buf, sizeof(buf));
+    fprintf(logfptr, "%s: ula_ipv6_enabled='%s'\n", __FUNCTION__, buf[0]?buf:"EMPTY");
     if ( strlen(buf) != 0 )
     {   
         int ulaIpv6Status = atoi(buf);
         if (ulaIpv6Status)
         {
+            fprintf(logfptr, "%s: ULA is ENABLED -> gIpv6AddrAssignment=ULA_IPV6\n", __FUNCTION__);
             return 0 ;
         }
         else
         {
+            fprintf(logfptr, "%s: ULA is DISABLED\n", __FUNCTION__);
             return -1 ;
         }
     }   
-
-      return -1;
+    fprintf(logfptr, "%s: ula_ipv6_enabled not set -> ULA DISABLED\n", __FUNCTION__);
+    return -1;
 }
 
 // Function to check if IPV6 mode is switched between ULA and Global, If mode is switched we need to broadcast old prefix with 0 lifetime
@@ -2073,15 +2094,26 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 #endif 
 STATIC int radv_start(struct serv_routed *sr)
 {
+    fprintf(logfptr, "%s: entered (lan_ready=%d wan_ready=%d)\n", __FUNCTION__, sr->lan_ready, sr->wan_ready);
+
+#ifdef WAN_FAILOVER_SUPPORTED
+    fprintf(logfptr, "[XLE-DBG] radv_start: gIpv6AddrAssignment=%d (0=GLOBAL 1=ULA) gModeSwitched=%d\n",
+            gIpv6AddrAssignment, gModeSwitched);
+#endif
 
 #ifdef RDKB_EXTENDER_ENABLED
     int deviceMode = GetDeviceNetworkMode();
+    fprintf(logfptr, "[XLE-DBG] radv_start: deviceMode=%d (0=ROUTER 1=EXTENDER)\n", deviceMode);
     if ( DEVICE_MODE_EXTENDER == deviceMode )
     {
         fprintf(logfptr, "Device is EXT mode , no need of running zebra for radv\n");
         return -1;
     }
 #endif
+    /* Snapshot IPv6 interface state at radv_start entry */
+    XLE_DBG_CMD(logfptr, "ip -6 addr show brlan0");
+    XLE_DBG_CMD(logfptr, "ip -6 addr show brlan1");
+    XLE_DBG_CMD(logfptr, "ip -6 addr show br106");
 
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
     int result;
@@ -2148,6 +2180,20 @@ STATIC int radv_start(struct serv_routed *sr)
         fprintf(logfptr, "%s: fail to save zebra config\n", __FUNCTION__);
         return -1;
     }
+    /* Dump the generated conf so we can see what was written */
+    {
+        FILE *cf = fopen(ZEBRA_CONF_FILE, "r");
+        if (cf) {
+            char line[256];
+            fprintf(logfptr, "[XLE-DBG] --- %s contents ---\n", ZEBRA_CONF_FILE);
+            while (fgets(line, sizeof(line), cf))
+                fprintf(logfptr, "[XLE-DBG] %s", line);
+            fprintf(logfptr, "[XLE-DBG] --- end %s ---\n", ZEBRA_CONF_FILE);
+            fclose(cf);
+        } else {
+            fprintf(logfptr, "[XLE-DBG] could not open %s for verification\n", ZEBRA_CONF_FILE);
+        }
+    }
 
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
 #if defined(_SCER11BEL_PRODUCT_REQ_) 
@@ -2165,25 +2211,60 @@ STATIC int radv_start(struct serv_routed *sr)
         }   
     }
 #endif
-    daemon_stop(ZEBRA_PID_FILE, "zebra");
+    {
+        int old_pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
+        fprintf(logfptr, "[XLE-DBG] stopping old zebra pid=%d before restart\n", old_pid);
+        daemon_stop(ZEBRA_PID_FILE, "zebra");
+        /* Wait for old zebra to fully exit to avoid bind conflict */
+        int wait_ms = 0;
+        while (pid_of("zebra", NULL) > 0 && wait_ms < 1000) {
+            usleep(100000);
+            wait_ms += 100;
+        }
+        fprintf(logfptr, "[XLE-DBG] waited %d ms for old zebra to exit (pidof now=%d)\n",
+                wait_ms, pid_of("zebra",NULL));
+    }
 
 #if defined(_COSA_FOR_BCI_)
     syscfg_get(NULL, "dhcpv6s00::serverenable", dhcpv6Enable , sizeof(dhcpv6Enable));
     bool bEnabled = (strncmp(dhcpv6Enable,"1",1)==0?true:false);
 
+    fprintf(logfptr, "[XLE-DBG] launching: zebra -d -f %s -P 0\n", ZEBRA_CONF_FILE);
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
 #else
+    fprintf(logfptr, "[XLE-DBG] launching: zebra -d -f %s -P 0\n", ZEBRA_CONF_FILE);
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
 #endif
+    {
+        int new_pid = 0;
+        int check_ms = 0;
+        while ((new_pid = pid_of("zebra", NULL)) <= 0 && check_ms < 500) {
+            usleep(100000);
+            check_ms += 100;
+        }
+        fprintf(logfptr, "[XLE-DBG] new zebra pid=%d after %d ms\n", new_pid, check_ms);
+        if (new_pid <= 0) {
+            fprintf(logfptr, "[XLE-DBG] *** zebra FAILED to start! check /tmp/.zedra_error ***\n");
+        }
+        /* Dump zebra error output and resulting RA state */
+        XLE_DBG_CMD(logfptr, "cat /tmp/.zedra_error");
+        XLE_DBG_CMD(logfptr, "ip -6 addr show brlan0");
+        XLE_DBG_CMD(logfptr, "ip -6 addr show brlan1");
+        XLE_DBG_CMD(logfptr, "ip -6 addr show br106");
+        XLE_DBG_CMD(logfptr, "ip -6 route show");
+    }
 
     return 0;
 }
 
 STATIC int radv_stop(struct serv_routed *sr)
 {
-    if(is_daemon_running(ZEBRA_PID_FILE, "zebra"))
+    int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
+    fprintf(logfptr, "%s: zebra pid=%d\n", __FUNCTION__, pid);
+    if(pid)
     {
+        /* zebra is running - caller (radv_start) will kill it via daemon_stop */
         return 0;
     }
     return daemon_stop(ZEBRA_PID_FILE, "zebra");
@@ -2191,6 +2272,7 @@ STATIC int radv_stop(struct serv_routed *sr)
 
 STATIC int radv_restart(struct serv_routed *sr)
 {
+    fprintf(logfptr, "%s: triggered\n", __FUNCTION__);
     if (radv_stop(sr) != 0){
         fprintf(logfptr, "%s: radv_stop error\n", __FUNCTION__);
     }
@@ -2333,6 +2415,7 @@ STATIC int serv_routed_start(struct serv_routed *sr)
     sysevent_set(sr->sefd, sr->setok, "routed-status", "starting", 0);
 
     /* RA daemon */
+    fprintf(logfptr, "%s: calling radv_start\n", __FUNCTION__);
     if (radv_start(sr) != 0) {
         fprintf(logfptr, "%s: radv_start error\n", __FUNCTION__);
         sysevent_set(sr->sefd, sr->setok, "routed-status", "error", 0);
@@ -2414,6 +2497,36 @@ STATIC int serv_routed_init(struct serv_routed *sr)
     sysevent_get(sr->sefd, sr->setok, "lan-status", lan_st, sizeof(lan_st));
     if (strcmp(lan_st, "started") == 0)
         sr->lan_ready = true;
+
+    /* XLE ULA debug: dump all relevant sysevents at init time */
+    {
+        char ula_en[16]={0}, brlan0_ula[64]={0}, brlan1_ula[64]={0}, br106_ula[64]={0};
+        char ipv6_iface[128]={0}, router_adv[8]={0}, routed_st[16]={0};
+        char zebra_pid_str[10]={0};
+        FILE *pf = fopen("/var/zebra.pid","rb");
+        if(pf) { fgets(zebra_pid_str, sizeof(zebra_pid_str), pf); fclose(pf); }
+        sysevent_get(sr->sefd, sr->setok, "ula_ipv6_enabled",   ula_en,     sizeof(ula_en));
+        sysevent_get(sr->sefd, sr->setok, "brlan0_ipaddr_v6_ula", brlan0_ula, sizeof(brlan0_ula));
+        sysevent_get(sr->sefd, sr->setok, "brlan1_ipaddr_v6_ula", brlan1_ula, sizeof(brlan1_ula));
+        sysevent_get(sr->sefd, sr->setok, "br106_ipaddr_v6_ula",  br106_ula,  sizeof(br106_ula));
+        sysevent_get(sr->sefd, sr->setok, "routed-status", routed_st, sizeof(routed_st));
+        syscfg_get(NULL, "IPv6_Interface", ipv6_iface, sizeof(ipv6_iface));
+        syscfg_get(NULL, "router_adv_enable", router_adv, sizeof(router_adv));
+        fprintf(logfptr, "[XLE-DBG] init: wan=%s lan=%s routed-status=%s\n", wan_st, lan_st, routed_st);
+        fprintf(logfptr, "[XLE-DBG] init: ula_ipv6_enabled=%s router_adv_enable=%s\n",
+                ula_en[0]?ula_en:"EMPTY", router_adv[0]?router_adv:"EMPTY");
+        fprintf(logfptr, "[XLE-DBG] init: IPv6_Interface=%s\n", ipv6_iface[0]?ipv6_iface:"EMPTY");
+        fprintf(logfptr, "[XLE-DBG] init: brlan0_ipaddr_v6_ula=%s\n", brlan0_ula[0]?brlan0_ula:"EMPTY");
+        fprintf(logfptr, "[XLE-DBG] init: brlan1_ipaddr_v6_ula=%s\n", brlan1_ula[0]?brlan1_ula:"EMPTY");
+        fprintf(logfptr, "[XLE-DBG] init: br106_ipaddr_v6_ula=%s\n",  br106_ula[0]?br106_ula:"EMPTY");
+        fprintf(logfptr, "[XLE-DBG] init: zebra.pid=%s pidof=%d\n", zebra_pid_str[0]?zebra_pid_str:"EMPTY", pid_of("zebra",NULL));
+        /* Dump live interface IPv6 state and any existing zebra error */
+        XLE_DBG_CMD(logfptr, "ip -6 addr show brlan0");
+        XLE_DBG_CMD(logfptr, "ip -6 addr show brlan1");
+        XLE_DBG_CMD(logfptr, "ip -6 addr show br106");
+        XLE_DBG_CMD(logfptr, "cat /tmp/.zedra_error");
+        XLE_DBG_CMD(logfptr, "ip -6 route show");
+    }
 
     return 0;
 }
