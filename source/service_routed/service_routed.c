@@ -2243,6 +2243,32 @@ STATIC int radv_start(struct serv_routed *sr)
                 wait_ms, pid_of("zebra",NULL));
     }
 
+#ifdef WAN_FAILOVER_SUPPORTED
+    /* Wait for brlan0 link-local before starting zebra; without it every RA
+     * zebra sends on brlan0 fails with ENETUNREACH (no source address).
+     * Cap at 10 s to avoid blocking indefinitely. */
+    {
+        int ll_wait_ms = 0;
+        int has_ll = 0;
+        while (ll_wait_ms < 10000 && !has_ll) {
+            FILE *ll_fp = v_secure_popen("r", "ip -6 addr show dev brlan0 scope link");
+            if (ll_fp) {
+                char ll_buf[256];
+                while (fgets(ll_buf, sizeof(ll_buf), ll_fp)) {
+                    if (strstr(ll_buf, "fe80")) { has_ll = 1; break; }
+                }
+                v_secure_pclose(ll_fp);
+            }
+            if (!has_ll) {
+                usleep(200000);
+                ll_wait_ms += 200;
+            }
+        }
+        fprintf(logfptr, "[XLE-DBG] brlan0 link-local %s after %d ms\n",
+                has_ll ? "ready" : "TIMEOUT", ll_wait_ms);
+    }
+#endif
+
 #if defined(_COSA_FOR_BCI_)
     syscfg_get(NULL, "dhcpv6s00::serverenable", dhcpv6Enable , sizeof(dhcpv6Enable));
     bool bEnabled = (strncmp(dhcpv6Enable,"1",1)==0?true:false);
