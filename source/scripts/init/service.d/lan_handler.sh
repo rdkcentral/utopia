@@ -438,8 +438,8 @@ case "$1" in
                 fi
 	elif [ "$BOX_TYPE" = "TCCBR" ]; then
 		if [ -z "$INST" ]; then
-			echo "*****SET THE PRIMARY LAN ******" > /dev/null
-  			syseven set primary_lan_l3net 4
+			echo_t "SET THE PRIMARY LAN $INST"
+			sysevent set primary_lan_l3net 4
 		fi
 	fi
 
