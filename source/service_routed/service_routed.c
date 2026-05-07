@@ -932,7 +932,12 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     STATIC const char *zebra_conf_base = \
         "!enable password admin\n"
         "!log stdout\n"
-        "log file /var/tmp/zebra.log errors\n"
+        "log file /var/tmp/zebra.log debugging\n"
+        "debug zebra kernel\n"
+        "debug zebra events\n"
+        "debug zebra packet\n"
+        "debug zebra rib\n"
+        "debug zebra nht\n"
         "table 255\n";
 #if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     int i = 0;
