@@ -1172,9 +1172,17 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     }
 #endif
     if (atoi(preferred_lft) <= 0)
-        snprintf(preferred_lft, sizeof(preferred_lft), "300");
+        snprintf(preferred_lft, sizeof(preferred_lft),
+#ifdef WAN_FAILOVER_SUPPORTED
+            (gIpv6AddrAssignment == ULA_IPV6) ? "86400" :
+#endif
+            "300");
     if (atoi(valid_lft) <= 0)
-        snprintf(valid_lft, sizeof(valid_lft), "300");
+        snprintf(valid_lft, sizeof(valid_lft),
+#ifdef WAN_FAILOVER_SUPPORTED
+            (gIpv6AddrAssignment == ULA_IPV6) ? "86400" :
+#endif
+            "300");
 
     if ( atoi(preferred_lft) > atoi(valid_lft) )
         snprintf(preferred_lft, sizeof(preferred_lft), "%s",valid_lft);
@@ -1347,7 +1355,12 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif                    
                 {
                     //If WAN has stopped, advertise the prefix with lifetime 0 so LAN clients don't use it any more
-                    if (strcmp(wan_st, "stopped") == 0)
+                    //Exception: ULA prefixes are WAN-independent and must never use 0 0 lifetime
+                    if (strcmp(wan_st, "stopped") == 0
+#ifdef WAN_FAILOVER_SUPPORTED
+                        && gIpv6AddrAssignment != ULA_IPV6
+#endif
+                        )
                     {
                         fprintf(fp, "   ipv6 nd prefix %s 0 0\n", prefix);
                     }
