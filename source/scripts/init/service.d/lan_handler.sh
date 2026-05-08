@@ -209,9 +209,8 @@ case "$1" in
             sysevent set current_lan_ipaddr `sysevent get ipv4_${INST}-ipv4addr`
 
             if [ "$RG_MODE" = "2" -a x"ready" != x`sysevent get start-misc` ]; then
-				echo_t "LAN HANDLER : Triggering DHCP server using LAN status based on RG_MODE:2"
+                echo_t "LAN HANDLER : Triggering DHCP server using LAN status based on RG_MODE:2"
                 sysevent set lan-status started
-                echo_t "LAN HANDLER : lan status set to started lan-status = $(sysevent get lan-status)"
                 firewall
                 if [ ! -f "$POSTD_START_FILE" ];
                 then
@@ -221,7 +220,6 @@ case "$1" in
             elif [ x"ready" != x`sysevent get start-misc` -a x != x`sysevent get current_wan_ipaddr` -a "0.0.0.0" != `sysevent get current_wan_ipaddr` ]; then
 				echo_t "LAN HANDLER : Triggering DHCP server using LAN status based on start misc"
 				sysevent set lan-status started
-                echo_t "lan-status set to started lan-status = $(sysevent get lan-status)"
                 STARTED_FLG=`sysevent get parcon_nfq_status`
 
                 if [ x"$STARTED_FLG" != x"started" ]; then
@@ -261,7 +259,7 @@ case "$1" in
                 echo_t "LAN HANDLER : box is from Technicolor or Sercomm, setting lan-status to started"
                #TCH XBx/TCCBR based startup post.d scripts which includes Firewall restart and dhcp start.
                sysevent set lan-status started
-               echo_t "LAN HANDLER : lan status set to started lan-status = $(sysevent get lan-status)"
+               echo_t "LAN HANDLER : lan status set to started"
                firewall
                if [ ! -f "$POSTD_START_FILE" ];
                 then
@@ -271,7 +269,7 @@ case "$1" in
 	   else
 		echo_t "LAN HANDLER : Triggering DHCP server using LAN status"
                 sysevent set lan-status started
-                echo_t "LAN HANDLER : lan status set to started lan-status = $(sysevent get lan-status)"
+                echo_t "LAN HANDLER : lan status set to started"
 		echo_t "LAN HANDLER : Triggering RDKB_FIREWALL_RESTART"
 		t2CountNotify "RF_INFO_RDKB_FIREWALL_RESTART"
                 sysevent set firewall-restart
@@ -282,8 +280,6 @@ case "$1" in
             #firewall_nfq_handler.sh &
 
             sysevent set lan_start_time $(cut -d. -f1 /proc/uptime)
-            echo_t "LAN HANDLER : lan status check before marking uptime of lan_start_time = $(sysevent get lan-status)"
-            echo_t "LAN HANDLER : Set lan_start_time to $(sysevent get lan_start_time)"
 
             if [ "4" = $INST ];then
                 sysevent set ipv4_4_status_configured 1
@@ -356,7 +352,6 @@ case "$1" in
    pnm-status | bring-lan)
 	if [ -e "/usr/bin/print_uptime" ]; then
             /usr/bin/print_uptime "Lan_init_start"
-            echo_t "LAN HANDLER : Lan_init_start uptime: $(cut -d. -f1 /proc/uptime)"
     fi
         uptime=$(cut -d. -f1 /proc/uptime)
 	if [ -e "/usr/bin/onboarding_log" ]; then
