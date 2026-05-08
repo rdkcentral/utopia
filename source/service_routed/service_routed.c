@@ -922,11 +922,13 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         "!log stdout\n"
         "log file /var/tmp/zebra.log errors\n"
         "table 255\n";
-    bool multilan_pd_enabled = false;
     int i = 0;
-    unsigned int l2_insts[4] = {0};
     unsigned int enabled_iface_num = 0;
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    bool multilan_pd_enabled = false;
+    unsigned int l2_insts[4] = {0};
     char evt_name[64] = {0};
+#endif
     int  StaticDNSServersEnabled = 0;
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
     char lan_addr_prefix[64] = {0};
@@ -1185,6 +1187,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
     for (i = 0; i < enabled_iface_num; i++)
     {
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
 	if (multilan_pd_enabled )
 	{
 	    snprintf(evt_name, sizeof(evt_name), "multinet_%d-name", l2_insts[i]);
@@ -1194,6 +1197,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 	    snprintf(evt_name, sizeof(evt_name), "ipv6_%s-addr", lan_if);
 	    sysevent_get(sefd, setok, evt_name, lan_addr, sizeof(lan_addr));
 	}
+#endif 
 	//RDKB-47758
 #ifdef WAN_FAILOVER_SUPPORTED
 	if (gIpv6AddrAssignment == ULA_IPV6)
