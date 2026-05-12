@@ -1185,7 +1185,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
 
     /* Add POSTROUTING rule. */
 #if defined(IVI_KERNEL_SUPPORT)
-#if define(_PLATFORM_GENERICARM_)
+#if defined(_PLATFORM_GENERICARM_)
     fprintf(nat_fp, "-A POSTROUTING -o %s -j %s\n",current_wan_ifname,MAPT_NAT_IPV4_POST_ROUTING_TABLE);
 #else
     fprintf(nat_fp, "-A POSTROUTING -o %s -j %s\n",get_current_wan_ifname(),MAPT_NAT_IPV4_POST_ROUTING_TABLE);
@@ -5475,7 +5475,7 @@ static int do_wan_nat_lan_clients(FILE *fp)
   }
 #endif
 
-#if (defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)) && !defined (_HUB4_PRODUCT_REQ_) || defined(_PLATFORM_GENERICARM_)
+#if (defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_PLATFORM_GENERICARM_)) && !defined (_HUB4_PRODUCT_REQ_)
   if(bEthWANEnable || isBridgeMode) // Check is required for TCHXB6 TCHXB7 CBR and not for HUB4
 #else
   if(bEthWANEnable)
@@ -15182,7 +15182,7 @@ static int service_start ()
        /* Apply Mac Filtering rules */
        v_secure_system("/bin/sh -c /tmp/mac_filter.sh");
    #endif
-   #ifdef _PLATFORM_GENERICARM__
+   #ifdef _PLATFORM_GENERICARM_
        /* Apply Mac Filtering rules */
        v_secure_system("/bin/sh -c /tmp/mac_filter.sh");
    #endif
