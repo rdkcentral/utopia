@@ -276,7 +276,6 @@ int prepare_ipv6_firewall(const char *fw_file)
 	{
 	    snprintf(sysEventName, sizeof(sysEventName), "tr_%s_dhcpv6_client_v6pref", current_wan_ifname);
 	    memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
-	    memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
 	    sysevent_get(sysevent_fd, sysevent_token, sysEventName, ipv6_delegation_prefix, sizeof(ipv6_delegation_prefix));
 	}
    #endif
@@ -2130,8 +2129,8 @@ typedef enum{
 void applyRoutingRules(FILE* fp,ipv6_type type)
 {
        FIREWALL_DEBUG("Entering applyRoutingRules, ipv6_type is %d \n" COMMA type);
-         char prefix[64] ;
-         memset(prefix,0,sizeof(prefix));
+         char prefix[129];
+         prefix[0] = 0;
          int i ;
          if ( ULA_IPV6 == type)
 	 {
