@@ -59,7 +59,11 @@ UTOPIA_PATH="/etc/utopia/service.d"
 SERVICE_NAME="dhcp_server"
 
 #DHCP_CONF=/etc/dnsmasq.conf
+if ([ "$BOX_TYPE" = "genericarm" ]) ;then
+	DHCP_CONF=/var/volatile/dnsmasq.conf
+else
 DHCP_CONF=/var/dnsmasq.conf
+fi
 RESOLV_CONF=/etc/resolv.conf
 BIN=dnsmasq
 SERVER=${BIN}
@@ -451,7 +455,7 @@ dhcp_server_start ()
         return 1
     fi
   
-  if [ "$BOX_TYPE" != "rpi" ] && [ "$BOX_TYPE" != "bpi" ] && [ "$BOX_TYPE" != "turris" ]; then
+  if [ "$BOX_TYPE" != "rpi" ] && [ "$BOX_TYPE" != "bpi" ] && [ "$BOX_TYPE" != "turris" ] && [ "$BOX_TYPE" != "genericarm" ]; then
    DHCP_STATE=`sysevent get lan_status-dhcp`
    #if [ "started" != "$CURRENT_LAN_STATE" ] ; then
    if [ "started" != "$DHCP_STATE" ] ; then
@@ -591,7 +595,7 @@ dhcp_server_start ()
    if [ $? -eq 0 ]; then
    	echo_t "$SERVER process started successfully"
    else
-   	if [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "PUMA7_CGP" ] || [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "turris" ] ; then
+	   if [ "$BOX_TYPE" = "XB6" ] || [ "$BOX_TYPE" = "PUMA7_CGP" ] || [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "turris" ] || [ "$BOX_TYPE" = "genericarm" ]; then
    
         	COUNTER=0
         	while [ $COUNTER -lt 5 ]; do

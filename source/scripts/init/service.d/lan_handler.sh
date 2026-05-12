@@ -54,7 +54,12 @@ SERVICE_NAME="lan_handler"
 
 POSTD_START_FILE="/tmp/.postd_started"
 
+if [ "$BOX_TYPE" = "genericarm" ]; then
+	RPI_SPECIFIC="rpi"
+else
 RPI_SPECIFIC=$BOX_TYPE
+fi
+
 #args: router IP, subnet mask
 ap_addr() {
     if [ "$2" ]; then
@@ -129,6 +134,19 @@ if [ "$1" = "lan-stop" ] && [ "$2" = "NULL" ] ; then
     t2CountNotify "RF_ERROR_LAN_stop"
 fi
 #echo "lan_handler called with $1 $2" > /dev/console
+
+if [ "$BOX_TYPE" = "genericarm" ]; then
+# Used by brlan0_check.sh to workaround LAN issue
+if [ "$1" = "lan-start" ]; then
+    touch /tmp/utopia-lan-started
+fi
+if [ "$1" = "lan-stop" ]; then
+    rm /tmp/utopia-lan-started || :
+fi
+if [ "$1" = "ipv4_4-status" ] && [ "$2" = "up" ]; then
+    touch /tmp/utopia-ipv4-4-up
+fi
+fi
 
 case "$1" in
    ${SERVICE_NAME}-start)
@@ -308,6 +326,25 @@ case "$1" in
             echo "Setting up brlan10 for HOME_LAN_ISOLATION"
             sysevent set multinet-up 9
         fi
+        if [ "${BOX_TYPE}" = "genericarm" ]; then
+	        # --------------------------------------------------------------------
+        # RPi specific change begin
+        # --------------------------------------------------------------------
+
+        PHY_BRIDGE_IFNAME=`syscfg get lan_ifname`
+        PHY_ETH_IFNAMES=`syscfg get lan_ethernet_physical_ifnames`
+        IFS=' ' read -r -a PHY_ETH_IFNAME_ARRAY <<< "$PHY_ETH_IFNAMES"
+        for PHY_ETH_IFNAME in "${PHY_ETH_IFNAME_ARRAY[@]}"
+        do
+            echo "LAN HANDLER : PHY_ETH_IFNAME = $PHY_ETH_IFNAME"
+            ifconfig $PHY_ETH_IFNAME up
+            brctl addif $PHY_BRIDGE_IFNAME $PHY_ETH_IFNAME
+        done
+
+        # --------------------------------------------------------------------
+        # RPi specific change end
+        # --------------------------------------------------------------------
+	fi
 
         echo_t "LAN HANDLER : Triggering RDKB_FIREWALL_RESTART after nfqhandler"
 	t2CountNotify "RF_INFO_RDKB_FIREWALL_RESTART"
@@ -356,7 +393,7 @@ case "$1" in
 		echo_t "THE INSTANT=$INST"
 		echo_t "THE INSTANT=$INST"
         #(use a simpler test than this -- but Hacky, since it assumes everything we want is not XB3!!)if [ "$BOX_TYPE" = "TCCBR" ] || [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Technicolor" ] || [ "$BOX_TYPE" = "XB7" -a "$MANUFACTURE" = "Technicolor" ] ; then
-	if ( [ "$BOX_TYPE" != "XB3" ] && ( [ "$MANUFACTURE" = "Technicolor" ] || [ "$MANUFACTURE" = "Sercomm" ] ) )  || [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
+	if ( [ "$BOX_TYPE" != "XB3" ] && ( [ "$MANUFACTURE" = "Technicolor" ] || [ "$MANUFACTURE" = "Sercomm" ] ) )  || [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "genericarm" ]; then
                 	COUNTER=1
 			while [ $COUNTER -lt 10 ]; do
 				echo_t "RDKB_SYSTEM_BOOT_UP_LOG : INST returned null , retrying $COUNTER"

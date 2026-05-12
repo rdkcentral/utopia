@@ -790,7 +790,7 @@ else
       fi
 fi
 
-if [ "$MODEL_NUM" = "DPC3939B" ] || [ "$MODEL_NUM" = "DPC3941B" ]; then
+if [ "$MODEL_NUM" = "DPC3939B" ] || [ "$MODEL_NUM" = "DPC3941B" ] || [ "${BOX_TYPE}" = "genericarm" ]; then
     if [ -f /nvram/restore_reboot ];then
 	syscfg set X_RDKCENTRAL-COM_LastRebootReason "restore-reboot"
 	syscfg set X_RDKCENTRAL-COM_LastRebootCounter "1"
@@ -859,7 +859,7 @@ syscfg set ntp_status 2
 echo_t "[utopia][init] setting Multicast MAC before any switch configs"
 $UTOPIA_PATH/service_multinet_exec set_multicast_mac &
 
-if [ "$MODEL_NUM" = "DPC3939B" ] || [ "$MODEL_NUM" = "DPC3941B" ]; then
+if [ "$MODEL_NUM" = "DPC3939B" ] || [ "$MODEL_NUM" = "DPC3941B" ] || [ "${BOX_TYPE}" = "genericarm" ]; then
 	echo_t "[utopia][init] started dropbear process"
 	/etc/utopia/service.d/service_sshd.sh sshd-start &
 fi
