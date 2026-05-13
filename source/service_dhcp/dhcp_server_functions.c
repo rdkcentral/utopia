@@ -1524,6 +1524,7 @@ int prepare_dhcp_conf (char *input)
 	    fprintf(l_fLocal_Dhcp_ConfFile, "no-resolv\n");
     }
 
+	fprintf(l_fLocal_Dhcp_ConfFile, "bind-dynamic\n");
 	fprintf(l_fLocal_Dhcp_ConfFile, "expand-hosts\n");
 
 	//Log Level is not used but still retaining the code
