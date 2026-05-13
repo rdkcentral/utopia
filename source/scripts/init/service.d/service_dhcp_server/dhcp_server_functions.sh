@@ -1076,6 +1076,7 @@ fi
    fi
 
    #echo "interface=$LAN_IFNAME" >> $LOCAL_DHCP_CONF
+   echo "bind-dynamic" >> $LOCAL_DHCP_CONF
    echo "expand-hosts" >> $LOCAL_DHCP_CONF
    echo "address=/.c.f.ip6.arpa/" >> $LOCAL_DHCP_CONF
 
