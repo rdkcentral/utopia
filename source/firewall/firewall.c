@@ -1274,7 +1274,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
         // total ports
         if (offset == 0)
         {
-            /* Single contiguous block (psid = 0 will use the well-known ports ports) */
+            /* Single contiguous block (psid = 0 will use the well-known ports) */
             total_ports = a * contiguous_port;
         }
         else
