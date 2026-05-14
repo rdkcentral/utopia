@@ -35,6 +35,9 @@
 
 #include <stdio.h>
 #include "srvmgr.h"
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
+#endif
 
 const char* SERVICE_NAME            = "dhcpv6_server";
 const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_dhcpv6_server.sh";
@@ -47,9 +50,27 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "dhcpv6_server-restart|/usr/bin/service_ipv6",
                                         NULL
                                       };
-#elif defined (CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
+#elif defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
 const char* SERVICE_CUSTOM_EVENTS[] = { 
                                         "dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server.sh|NULL|"TUPLE_FLAG_EVENT,
+                                        NULL
+                                      };
+#elif defined(_ONESTACK_PRODUCT_REQ_)
+const char* SERVICE_DEFAULT_HANDLER_BCI = "/etc/utopia/service.d/service_dhcpv6_server_bci.sh";
+const char* SERVICE_CUSTOM_EVENTS_RESIDENTIAL[] = {
+                                        "lan-status|/etc/utopia/service.d/service_dhcpv6_server.sh",
+                                        "ipv6_nameserver|/etc/utopia/service.d/service_dhcpv6_server.sh",
+                                        "ipv6_domain|/etc/utopia/service.d/service_dhcpv6_server.sh",
+                                        "ipv6_ntp_server|/etc/utopia/service.d/service_dhcpv6_server.sh",
+                                        "dhcp_domain|/etc/utopia/service.d/service_dhcpv6_server.sh",
+                                        "current_lan_ipv6address|/etc/utopia/service.d/service_dhcpv6_server.sh", 
+					NULL
+                                      };
+const char* SERVICE_CUSTOM_EVENTS_BUSINESS[] = {
+                                        "dhcpv6_server-start|/etc/utopia/service.d/service_dhcpv6_server_bci.sh",
+                                        "dhcpv6_server-stop|/etc/utopia/service.d/service_dhcpv6_server_bci.sh",
+                                        "dhcpv6_server-restart|/etc/utopia/service.d/service_dhcpv6_server_bci.sh",
+					"dhcpv6_option_changed|/etc/utopia/service.d/service_dhcpv6_server_bci.sh|NULL|"TUPLE_FLAG_EVENT,
                                         NULL
                                       };
 #else
@@ -64,9 +85,19 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                       };
 #endif                                      
                                    
-
 void srv_register(void) {
+#if defined(_ONESTACK_PRODUCT_REQ_)
+   if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER_BCI, SERVICE_CUSTOM_EVENTS_BUSINESS);
+   }
+   else
+   {
+      sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS_RESIDENTIAL);
+   }
+#else
    sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
+#endif
 }
 
 void srv_unregister(void) {

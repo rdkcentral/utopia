@@ -32,6 +32,10 @@ AM_LDFLAGS = $(top_builddir)/source/util/utils/libutopiautil.la \
              
 LDFLAGS += -lsecure_wrapper
 
+if ONESTACK_PRODUCT_REQ
+AM_LDFLAGS += -ldevicemode
+endif
+
 bin_PROGRAMS = \
     02_bridge \
     02_forwarding \
@@ -131,4 +135,7 @@ if ENABLE_POTD_SERVICE
 endif
 if ENABLE_HOTSPOT_SERVICE
 15_hotspot_SOURCES = 15_hotspot.c
+endif
+if ONESTACK_PRODUCT_REQ
+LDFLAGS += -lrdkb_feature_mode_gate
 endif

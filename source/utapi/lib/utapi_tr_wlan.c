@@ -1340,39 +1340,45 @@ int Utopia_AddWifiSSID(UtopiaContext *ctx, void *entry)
         if(i == count){ /* We found an empty SSID */
             g_IndexMapSSID[cfg_t.InstanceNumber] = count;
             count += 1; /* Increment the count */
-            Utopia_SetInt(ctx,UtopiaValue_WLAN_SSID_Num,count);
+            if(SUCCESS != Utopia_SetInt(ctx,UtopiaValue_WLAN_SSID_Num,count))
+            {
+                ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_SetInt failed !!!", __FUNCTION__);
+            }
             allocateMultiSSID_Struct(i);
             /* Fill in the wifiTRPlatform_multiSSID */
             if( 0 == strncmp(cfg_t.WiFiRadioName,"wl0",3)) {
-               wifiTRPlatform_multiSSID[i].interface = FREQ_2_4_GHZ;
-               safec_rc = strcpy_s(wifiTRPlatform_multiSSID[i].ifconfig_interface,  STR_SZ,"eth0");
-               ERR_CHK(safec_rc);
-           }else if (0 == strncmp(cfg_t.WiFiRadioName,"wl1",3)) {
-               wifiTRPlatform_multiSSID[i].interface = FREQ_5_GHZ;
-               safec_rc = strcpy_s(wifiTRPlatform_multiSSID[i].ifconfig_interface, STR_SZ,"eth1");
-               ERR_CHK(safec_rc);
-           }
-           safec_rc = strcpy_s(wifiTRPlatform_multiSSID[i].syscfg_namespace_prefix, STR_SZ,cfg_t.WiFiRadioName);
-           ERR_CHK(safec_rc);
-           safec_rc = sprintf_s(wifiTRPlatform_multiSSID[i].ssid_name, STR_SZ,"SSID%d",i);
-           if(safec_rc < EOK){
-              ERR_CHK(safec_rc);
-           }
-           safec_rc = sprintf_s(wifiTRPlatform_multiSSID[i].ap_name, STR_SZ,"ap%d",i);
-           if(safec_rc < EOK){
-              ERR_CHK(safec_rc);
-           }
-           /* Set the Instance Number in syscfg */
-           Utopia_SetNamedInt(ctx,UtopiaValue_WLAN_SSID_Instance_Num,wifiTRPlatform_multiSSID[i].ssid_name,cfg_t.InstanceNumber);
-           /* Set Radio for this index */
-           Utopia_SetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,i,cfg_t.WiFiRadioName);
-           /* Call SetCfg to set other parameters */
-           Utopia_SetWifiSSIDCfg(ctx,&cfg_t);
-           /* Get the static and dynamic info */
-           Utopia_GetWifiSSIDSInfo(i, &(entry_t->StaticInfo));
-           Utopia_GetIndexedWifiSSIDDInfo(ctx, i, &(entry_t->DynamicInfo));
+                wifiTRPlatform_multiSSID[i].interface = FREQ_2_4_GHZ;
+                safec_rc = strcpy_s(wifiTRPlatform_multiSSID[i].ifconfig_interface,  STR_SZ,"eth0");
+                ERR_CHK(safec_rc);
+            }else if (0 == strncmp(cfg_t.WiFiRadioName,"wl1",3)) {
+                wifiTRPlatform_multiSSID[i].interface = FREQ_5_GHZ;
+                safec_rc = strcpy_s(wifiTRPlatform_multiSSID[i].ifconfig_interface, STR_SZ,"eth1");
+                ERR_CHK(safec_rc);
+            }
+            safec_rc = strcpy_s(wifiTRPlatform_multiSSID[i].syscfg_namespace_prefix, STR_SZ,cfg_t.WiFiRadioName);
+            ERR_CHK(safec_rc);
+            safec_rc = sprintf_s(wifiTRPlatform_multiSSID[i].ssid_name, STR_SZ,"SSID%d",i);
+            if(safec_rc < EOK){
+                ERR_CHK(safec_rc);
+            }
+            safec_rc = sprintf_s(wifiTRPlatform_multiSSID[i].ap_name, STR_SZ,"ap%d",i);
+            if(safec_rc < EOK){
+                ERR_CHK(safec_rc);
+            }
+            /* Set the Instance Number in syscfg */
+            Utopia_SetNamedInt(ctx,UtopiaValue_WLAN_SSID_Instance_Num,wifiTRPlatform_multiSSID[i].ssid_name,cfg_t.InstanceNumber);
+            /* Set Radio for this index */
+            if(0 == Utopia_SetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,i,cfg_t.WiFiRadioName))
+            {
+                ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_SetIndexed failed !!!", __FUNCTION__);
+            }
+            /* Call SetCfg to set other parameters */
+            Utopia_SetWifiSSIDCfg(ctx,&cfg_t);
+            /* Get the static and dynamic info */
+            Utopia_GetWifiSSIDSInfo(i, &(entry_t->StaticInfo));
+            Utopia_GetIndexedWifiSSIDDInfo(ctx, i, &(entry_t->DynamicInfo));
 
-           return SUCCESS;
+            return SUCCESS;
         }
         append[0] = '\0';
         /* Reset the RadioName to original value */
@@ -1416,24 +1422,27 @@ int Utopia_DelWifiSSID(UtopiaContext *ctx, unsigned long ulInstanceNumber)
 
     if(count > STATIC_SSID_COUNT) /* Required only if we have dynamic SSIDs */
     {
-       for(;ulIndex < count; ulIndex++)
-       {
-          /* Move the array forward */
-          wifiTRPlatform_multiSSID[ulIndex].interface = wifiTRPlatform_multiSSID[ulIndex+1].interface;
-          safec_rc = strcpy_s(wifiTRPlatform_multiSSID[ulIndex].syscfg_namespace_prefix, STR_SZ,wifiTRPlatform_multiSSID[ulIndex+1].syscfg_namespace_prefix);
-          ERR_CHK(safec_rc);
-          safec_rc = strcpy_s(wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, STR_SZ,wifiTRPlatform_multiSSID[ulIndex+1].ifconfig_interface);
-          ERR_CHK(safec_rc);
-          safec_rc = strcpy_s(wifiTRPlatform_multiSSID[ulIndex].ssid_name, STR_SZ,wifiTRPlatform_multiSSID[ulIndex+1].ssid_name);
-          ERR_CHK(safec_rc);
-          safec_rc = strcpy_s(wifiTRPlatform_multiSSID[ulIndex].ap_name, STR_SZ,wifiTRPlatform_multiSSID[ulIndex+1].ap_name );
-          ERR_CHK(safec_rc);
-          Utopia_GetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,(ulIndex + 1),ifCfg,sizeof(ifCfg));
-          Utopia_SetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,ulIndex,ifCfg);
-          Utopia_GetNamedInt(ctx,UtopiaValue_WLAN_SSID_Instance_Num,wifiTRPlatform_multiSSID[ulIndex+1].ssid_name,(int *)&ulInsNum);
-          g_IndexMapSSID[ulInsNum] = ulIndex; /* Point the instance number to correct index */
-       }
-       freeMultiSSID_Struct(ulIndex);
+        for(;ulIndex < count; ulIndex++)
+        {
+            /* Move the array forward */
+            wifiTRPlatform_multiSSID[ulIndex].interface = wifiTRPlatform_multiSSID[ulIndex+1].interface;
+            safec_rc = strcpy_s(wifiTRPlatform_multiSSID[ulIndex].syscfg_namespace_prefix, STR_SZ,wifiTRPlatform_multiSSID[ulIndex+1].syscfg_namespace_prefix);
+            ERR_CHK(safec_rc);
+            safec_rc = strcpy_s(wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, STR_SZ,wifiTRPlatform_multiSSID[ulIndex+1].ifconfig_interface);
+            ERR_CHK(safec_rc);
+            safec_rc = strcpy_s(wifiTRPlatform_multiSSID[ulIndex].ssid_name, STR_SZ,wifiTRPlatform_multiSSID[ulIndex+1].ssid_name);
+            ERR_CHK(safec_rc);
+            safec_rc = strcpy_s(wifiTRPlatform_multiSSID[ulIndex].ap_name, STR_SZ,wifiTRPlatform_multiSSID[ulIndex+1].ap_name );
+            ERR_CHK(safec_rc);
+            Utopia_GetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,(ulIndex + 1),ifCfg,sizeof(ifCfg));
+            if( 0 == Utopia_SetIndexed(ctx,UtopiaValue_WLAN_SSID_Radio,ulIndex,ifCfg))
+            {
+                ulog_errorf(ULOG_CONFIG, UL_UTAPI, "%s: Utopia_SetIndexed failed !!!", __FUNCTION__);
+            }
+            Utopia_GetNamedInt(ctx,UtopiaValue_WLAN_SSID_Instance_Num,wifiTRPlatform_multiSSID[ulIndex+1].ssid_name,(int *)&ulInsNum);
+            g_IndexMapSSID[ulInsNum] = ulIndex; /* Point the instance number to correct index */
+        }
+        freeMultiSSID_Struct(ulIndex);
     }          
     return SUCCESS;
 }
@@ -1973,7 +1982,7 @@ int Utopia_GetWifiAPSecCfg(UtopiaContext *ctx,char *pSSID, void *cfg)
               cfg_t->RekeyingInterval = atol(ptr->param_val);
         }else if(!strcasecmp(ptr->param_name,"WEPKey")) {
             cfg_t->WEPKeyp[0] = '\0' ; /*Default Empty */
-            if(ptr->param_val)
+            if(ptr->param_val[0] != '\0')
             {
                 if (WIFI_SECURITY_WEP_64 == cfg_t->ModeEnabled)
                     getHexGeneric(ptr->param_val,cfg_t->WEPKeyp,5);
@@ -1983,23 +1992,23 @@ int Utopia_GetWifiAPSecCfg(UtopiaContext *ctx,char *pSSID, void *cfg)
          }else if(!strcasecmp(ptr->param_name,"KeyPassphrase")) {
             safec_rc = strcpy_s(cfg_t->KeyPassphrase, sizeof(cfg_t->KeyPassphrase),"wpa2psk"); /*Default Value */
             ERR_CHK(safec_rc);
-            if(ptr->param_val){
+            if(ptr->param_val[0] != '\0'){
                 safec_rc = strcpy_s(cfg_t->KeyPassphrase, sizeof(cfg_t->KeyPassphrase),ptr->param_val);
                 ERR_CHK(safec_rc);
             }
          }else if(!strcasecmp(ptr->param_name,"EncryptionMethod")) {
             cfg_t->EncryptionMethod = WIFI_SECURITY_AES_TKIP; /*Default Value */
-            if(ptr->param_val)
+            if(ptr->param_val[0] != '\0')
                 cfg_t->EncryptionMethod = atoi(ptr->param_val);
          }else if(!strcasecmp(ptr->param_name,"RadiusServerIP")) {
-            if(ptr->param_val)
+            if(ptr->param_val[0] != '\0')
                 cfg_t->RadiusServerIPAddr.Value = inet_addr(ptr->param_val);
          }else if(!strcasecmp(ptr->param_name,"RadiusServerPort")) {
             cfg_t->RadiusServerPort = 1812; /* Default Value */
-            if(ptr->param_val)
+            if(ptr->param_val[0] != '\0')
                 cfg_t->RadiusServerPort = atoi(ptr->param_val);  
          }else if (!strcasecmp(ptr->param_name,"RadiusSharedSecret")) {
-            if(ptr->param_val){
+            if(ptr->param_val[0] != '\0'){
                 safec_rc = strcpy_s(cfg_t->RadiusSecret, sizeof(cfg_t->RadiusSecret),ptr->param_val);
                 ERR_CHK(safec_rc);
             }

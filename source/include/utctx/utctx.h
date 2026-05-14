@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -63,24 +63,30 @@ typedef struct _UtopiaContext
     UtopiaRWLock rwLock;
 } UtopiaContext;
 
-/*
- * Procedure     : Utopia_Init
- * Purpose       : Initialize Utopia context
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Initialize Utopia context.
+*
+* Initializes the Utopia context by clearing event flags, handles, and transaction list.
+* Initializes the read/write lock and the syscfg system.
+*
+* @param[in,out] pUtopiaCtx - UtopiaContext pointer.
+*
+* @return The status of the operation.
+* @retval 1 on success.
+* @retval 0 on error.
+*/
 extern int Utopia_Init(UtopiaContext* pUtopiaCtx);
 
-/*
- * Procedure     : Utopia_Free
- * Purpose       : Commit all values stored in the transaction if fCommit is true, free up context memory
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   fCommit - Commit transaction is true
- * Return Values :
- */
+/**
+* @brief Free Utopia context and optionally commit pending transactions.
+*
+* Frees all transaction nodes, releases the read/write lock, and closes event handles.
+*
+* @param[in,out] pUtopiaCtx - UtopiaContext pointer.
+* @param[in] fCommit - Commit transaction if true, discard changes if false.
+*
+* @return None.
+*/
 extern void Utopia_Free(UtopiaContext* pUtopiaCtx, int fCommit);
 
 #endif /* __UTCTX_H__ */

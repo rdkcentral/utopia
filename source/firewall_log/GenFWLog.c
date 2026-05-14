@@ -745,7 +745,10 @@ void get_rule_time(int count){
         end = line;
     }
 OUT:
-    munmap(start, statbuf.st_size);
+    if(-1 == munmap(start, statbuf.st_size))
+    {
+	    perror("munmap failed");
+    }
 //    close(fd);
 
 #endif
@@ -810,20 +813,20 @@ int main(int argc, char** argv){
         }
     }
 
-    if(access(FIREWALL_LOG_DIR, F_OK) == -1)
+    errno = 0;
+    if(mkdir(FIREWALL_LOG_DIR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1)
     {
-      if(mkdir(FIREWALL_LOG_DIR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH) == -1)
-      {
-        printf("Error Creating Directory");
-      }
-      else
-      {
-        printf("Directory Created Successfully");
-      }
+       if (errno == EEXIST) {
+          printf("Directory already exists");
+       }
+       else
+       {
+          printf("Error Creating Directory");
+       }
     }
     else
     {
-      printf("Directory already exists");
+      printf("Directory Created Successfully");
     }
     
     g_p_rule_tbl = NULL;
@@ -888,7 +891,10 @@ int main(int argc, char** argv){
 
     if( i == 0 ){
         fclose(ipt);
-        remove(TEMP_FILE);
+        if(0 != remove(TEMP_FILE))
+        {
+           perror("remove failed");
+        }
         fUnlock(lock);
         exit(0);
     }
@@ -897,7 +903,10 @@ int main(int argc, char** argv){
     if(log == NULL){
         if(NULL == (log = fopen(fName, "w+"))){
             fclose(ipt);
-            remove(TEMP_FILE);
+            if (0 != remove(TEMP_FILE))
+            {
+                perror("remove failed");
+            }
             fUnlock(lock);
             exit(1);
         }
@@ -920,7 +929,10 @@ int main(int argc, char** argv){
     fclose(log);
     fclose(ipt);
     clean_log();
-    remove(TEMP_FILE);
+    if (0 != remove(TEMP_FILE))
+    {
+       perror("remove failed");
+    }
     fUnlock(lock);
     if(g_rule_tlb_len != 0)
         free(g_p_rule_tbl);

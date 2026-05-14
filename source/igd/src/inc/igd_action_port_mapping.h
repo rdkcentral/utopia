@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -33,7 +33,7 @@
    limitations under the License.
 **********************************************************************/
 
-/* 
+/*
  *    FileName:    igd_action_port_mapping.h
  *      Author:    Lipin Zhou(zlipin@cisco.com)
  *        Date:    2009-04-30
@@ -56,7 +56,7 @@
  *
  *
  **/
- 
+
 #ifndef _IGD_ACTION_PORT_MAPPING_
 #define _IGD_ACTION_PORT_MAPPING_
 
@@ -74,7 +74,7 @@
 
 typedef struct _genPortMapIndex{
     PAL_XML2S_FDMSK fieldMask;
-    
+
     #define MASK_OF_PORTMAP_INDEX    0x00000001
 
     UINT16 portMapIndex;
@@ -82,11 +82,11 @@ typedef struct _genPortMapIndex{
 
 typedef struct _PORT_MAP_INDEX{
     PAL_XML2S_FDMSK fieldMask;
-    
+
     #define MASK_OF_INDEX_REMOTE_HOST       0x00000001
     #define MASK_OF_INDEX_EXTERNAL_PORT    0x00000002
     #define MASK_OF_INDEX_PROTOCOL              0x00000004
-    
+
     CHAR    *remoteHost;
     UINT16  externalPort;
     CHAR    *pmProtocol;
@@ -94,7 +94,7 @@ typedef struct _PORT_MAP_INDEX{
 
 typedef struct _PORT_MAP_ENTRY{
     PAL_XML2S_FDMSK fieldMask;
-    
+
     #define MASK_OF_ENTRY_REMOTE_HOST       0x00000001
     #define MASK_OF_ENTRY_EXTERNAL_PORT    0x00000002
     #define MASK_OF_ENTRY_PROTOCOL              0x00000004
@@ -103,7 +103,7 @@ typedef struct _PORT_MAP_ENTRY{
     #define MASK_OF_ENTRY_ENABLED                0x00000020
     #define MASK_OF_ENTRY_DESCRIPTION         0x00000040
     #define MASK_OF_ENTRY_LEASE_TIME           0x00000080
-    
+
     CHAR    *remoteHost;
     UINT16  externalPort;
     CHAR    *pmProtocol;
@@ -119,93 +119,126 @@ typedef struct _PORT_MAP_ENTRY{
 
 /***************************interface function***************************/
 
- /************************************************************
- * Function: IGD_get_NATRSIP_status
- *
- *  Parameters:	
- *      event: 		INOUT.  action request from upnp template 
- * 
- *  Description:
- *     This function process the action "IGD_get_NATRSIP_status".  
- *
- *  Return Values: INT32
- *      0 if successful else error code.
- ************************************************************/  
+/**
+* @brief Get NAT and RSIP status.
+*
+* Retrieves the NAT (Network Address Translation) and RSIP (Realm-Specific IP) status
+* \n for the WAN connection device and returns the values in UPnP action response.
+*
+* @param[in,out] event - Pointer to action_event structure containing UPnP action request.
+*                        \n The event structure includes service information, request parameters,
+*                        \n and will be populated with response data or error codes.
+*
+* @return The status of the operation.
+* @retval PAL_UPNP_E_SUCCESS if successful.
+* @retval IGD_GENERAL_ERROR if input parameter is NULL.
+* @retval PAL_UPNP_SOAP_E_ACTION_FAILED if service private data is NULL or PII function fails.
+*
+*/
 INT32 IGD_get_NATRSIP_status(INOUT struct action_event *event);
 
- /************************************************************
- * Function: IGD_get_GenericPortMapping_entry
- *
- *  Parameters:	
- *      event: 		INOUT.  action request from upnp template 
- * 
- *  Description:
- *     This function process the action "IGD_get_GenericPortMapping_entry".  
- *
- *  Return Values: INT32
- *      0 if successful else error code.
- ************************************************************/  
+/**
+* @brief Get generic port mapping entry by index.
+*
+* Retrieves port mapping entry information by index number.
+* \n Returns all port mapping fields including remote host, external/internal ports,
+* \n protocol, internal client, enabled status, description, and lease duration.
+* \n Input parameter NewPortMappingIndex specifies the entry to retrieve.
+*
+* @param[in,out] event - Pointer to action_event structure containing UPnP action request.
+*                        \n Input: NewPortMappingIndex (UINT16) - Index of port mapping entry to retrieve.
+*                        \n Output: All port mapping entry fields in action response.
+*
+* @return The status of the operation.
+* @retval PAL_UPNP_E_SUCCESS if successful.
+* @retval IGD_GENERAL_ERROR if input parameter is NULL.
+* @retval PAL_UPNP_SOAP_E_ACTION_FAILED if service private data is NULL.
+* @retval PAL_UPNP_SOAP_E_INVALID_ARGS if XML parsing fails.
+* @retval ARRAY_INDEX_INVALID if port mapping index is out of range.
+*
+*/
 INT32 IGD_get_GenericPortMapping_entry(INOUT struct action_event *event);
 
- /************************************************************
- * Function: IGD_get_SpecificPortMapping_entry
- *
- *  Parameters:	
- *      event: 		INOUT.  action request from upnp template 
- * 
- *  Description:
- *     This function process the action "IGD_get_SpecificPortMapping_entry".  
- *
- *  Return Values: INT32
- *      0 if successful else error code.
- ************************************************************/  
+/**
+* @brief Get specific port mapping entry by key fields.
+*
+* Retrieves port mapping entry information by specifying remote host, external port, and protocol.
+* \n Returns internal port, internal client, enabled status, description, and lease duration.
+*
+* @param[in,out] event - Pointer to action_event structure containing UPnP action request.
+*                        \n Input: NewRemoteHost (string), NewExternalPort (UINT16), NewProtocol (string).
+*                        \n Output: Internal port, internal client, enabled, description, lease duration.
+*
+* @return The status of the operation.
+* @retval PAL_UPNP_E_SUCCESS if successful.
+* @retval IGD_GENERAL_ERROR if input parameter is NULL.
+* @retval PAL_UPNP_SOAP_E_ACTION_FAILED if service private data is NULL.
+* @retval PAL_UPNP_SOAP_E_INVALID_ARGS if XML parsing fails or remote host format is invalid (must be x.x.x.x).
+*
+*/
 INT32 IGD_get_SpecificPortMapping_entry(INOUT struct action_event *event);
 
- /************************************************************
- * Function: IGD_add_PortMapping
- *
- *  Parameters:	
- *      event: 		INOUT.  action request from upnp template 
- * 
- *  Description:
- *     This function process the action "IGD_add_PortMapping".  
- *
- *  Return Values: INT32
- *      0 if successful else error code.
- ************************************************************/  
+/**
+* @brief Add a port mapping entry.
+*
+* Creates a new port mapping entry with specified parameters.
+* \n Validates remote host and internal client IP address formats (x.x.x.x).
+* \n Verifies internal client matches control point address and is within valid subnet.
+* \n Checks for conflicts with SpeedBoost port ranges if SPEED_BOOST_SUPPORTED is enabled.
+* \n Sets lease time to 86400 seconds (24 hours) for the port mapping rule.
+*
+* @param[in,out] event - Pointer to action_event structure containing UPnP action request.
+*                        \n Input: All port mapping fields for the new entry.
+*                        \n Output: Empty response on success, error code on failure.
+*
+* @return The status of the operation.
+* @retval PAL_UPNP_E_SUCCESS if successful.
+* @retval IGD_GENERAL_ERROR if input parameter is NULL.
+* @retval PAL_UPNP_SOAP_E_ACTION_FAILED if service private data is NULL.
+* @retval PAL_UPNP_SOAP_E_INVALID_ARGS if XML parsing fails, IP format invalid, or client validation fails.
+* @retval Conflict_In_MappingEntry if port conflicts with SpeedBoost port ranges.
+*
+*/
 INT32 IGD_add_PortMapping(INOUT struct action_event *event);
 
- /************************************************************
- * Function: IGD_delete_PortMapping
- *
- *  Parameters:	
- *      event: 		INOUT.  action request from upnp template 
- * 
- *  Description:
- *     This function process the action "IGD_delete_PortMapping".  
- *
- *  Return Values: INT32
- *      0 if successful else error code.
- ************************************************************/  
+/**
+* @brief Delete a port mapping entry.
+*
+* Removes an existing port mapping entry identified by remote host, external port, and protocol.
+* \n Validates remote host IP address format if provided (must be x.x.x.x).
+*
+* @param[in,out] event - Pointer to action_event structure containing UPnP action request.
+*                        \n Input: NewRemoteHost (string), NewExternalPort (UINT16), NewProtocol (string).
+*                        \n Output: Empty response on success, error code on failure.
+*
+* @return The status of the operation.
+* @retval PAL_UPNP_E_SUCCESS if successful.
+* @retval IGD_GENERAL_ERROR if input parameter is NULL.
+* @retval PAL_UPNP_SOAP_E_ACTION_FAILED if service private data is NULL.
+* @retval PAL_UPNP_SOAP_E_INVALID_ARGS if XML parsing fails or remote host format is invalid.
+*
+*/
 INT32 IGD_delete_PortMapping(INOUT struct action_event *event);
 
 #if defined (SPEED_BOOST_SUPPORTED)
- /*************************************************************************************
- *  Function   : IGD_checkport_SpeedboostPort
- *
- *  Parameters :
- *    fp       : External and internal port for UPnP mapping
- *
- *  Description:
- *    check if Extenal or Internal port overlaps with Speedboot Range port
- *
- *  Return     :
- *    TRUE     : Ext/Int upnp port range is overlapping with xm speedboost port ranges
- *    FALSE    : Ext/Int upnp port range is NOT overlapping with xm speedboost port ranges
- ************************************************************/
+
+/**
+* @brief Check if port overlaps with SpeedBoost port ranges.
+*
+* Validates that external and internal UPnP port mapping ports do not overlap
+* \n with reserved SpeedBoost port ranges (IPv4 and IPv6).
+*
+* @param[in] ExternalPort - External port number for UPnP port mapping.
+* @param[in] InternalPort - Internal port number for UPnP port mapping.
+*
+* @return The status of port overlap check.
+* @retval TRUE if external or internal port overlaps with SpeedBoost port ranges.
+* @retval FALSE if no overlap detected or SpeedBoost is disabled.
+*
+*/
 INT32 IGD_checkport_SpeedboostPort(UINT16 ExternalPort, UINT16 InternalPort);
 #endif
- 
+
 /***************************interface function end***********************/
 
 #endif  //_IGD_ACTION_PORT_MAPPING_

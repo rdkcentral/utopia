@@ -42,3 +42,7 @@ service_dhcp_LDADD = $(top_builddir)/source/util/utils/libutopiautil.la \
 if CORE_NET_LIB_FEATURE_SUPPORT
 service_dhcp_LDFLAGS += -lnet
 endif
+
+if ONESTACK_PRODUCT_REQ
+service_dhcp_LDFLAGS += -lrdkb_feature_mode_gate
+endif

@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,11 +51,11 @@
  * Purpose      : Hold information about one connected client
  * Fields       :
  *   used          : does this structure contain information
- *                   0 is unused, non-zeof means it contains 
+ *                   0 is unused, non-zeof means it contains
  *                   information about some connected client
  *   id            : id assigned by the server for this client.
  *                   This is an opaque value to the client, but
- *                   the client must send this value when 
+ *                   the client must send this value when
  *                   communicating with the server
  *   fd            : The file descriptor that the server uses
  *                   to communicate with this client
@@ -93,128 +93,164 @@ typedef struct {
     a_client_t     *clients;
 } clients_t;
 
-/*
- * Procedure     : print_clients_t 
- * Purpose       : print all elements in clientx_t
- * Parameters    :
- * Return Code   :
- *    0             : OK
- */
+/**
+* @brief Print all elements in the clients_t structure.
+*
+* This function prints detailed information about all clients currently managed by the client manager.
+*
+* @return The status of the operation.
+* @retval 0 if the operation is successful.
+*
+*/
 int print_clients_t(void);
 
-/*
- * Procedure     : CLI_MGR_id2fd
- * Purpose       : Given a client id return the fd of that client
- * Parameters    :
- *    id            : The client id of the client
- * Return Code   :
- *    >0            : The fd that the client listens on
- *     0            : client id not found
- *    <0            : Some error
- */
+/**
+* @brief Given a client ID, return the file descriptor of that client.
+*
+* This function looks up a client in the clients table using the provided client ID
+* and returns the associated file descriptor used for communication with that client.
+*
+* @param[in] id - The client ID of the client to look up.
+*
+* @return The file descriptor of the client or an error code.
+* @retval >0 The file descriptor that the client listens on.
+* @retval 0 Client ID not found.
+* @retval <0 Some error.
+*
+*/
 int CLI_MGR_id2fd (token_t id);
 
-/*
- * Procedure     : CLI_MGR_fd2id
- * Purpose       : Given a file descriptor return the corresponding client id
- * Parameters    :
- *    fd            : A file descriptor
- * Return Code   :
- *    NULL          : Not a valid client
- *    token_t       : Valid client
- * NOTE          :
- *    Due to the multi threaded nature of syseventd, you cannot guarantee anything about
- *    the client or its validity after this call ends. Don't use the return token
- */
+/**
+* @brief Given a file descriptor, return the corresponding client ID.
+*
+* This function looks up a client in the clients table using the provided file descriptor
+* and returns the associated client ID (token).
+*
+* @param[in] fd - A file descriptor.
+*
+* @return The client ID token
+* @retval token_t Valid client ID on success
+* @retval TOKEN_INVALID Not a valid client.
+*
+* @note Due to the multi-threaded nature of syseventd, you cannot guarantee anything about
+*       the client or its validity after this call ends. Don't use the return token.
+*/
 token_t CLI_MGR_fd2id (const int fd);
 
-/*
- * Procedure     : CLI_MGR_new_client
- * Purpose       : Add a new client to the database of clients
- * Parameters    :
- *    name          : A printable name assigned by the client
- *    fp            : The connection id for communication with this client
- * Return Code   :
- *    non NULL      : OK
- *    NULL          : some error.
- */
+/**
+* @brief Add a new client to the database of clients.
+*
+* This function creates a new client entry in the clients table, assigns it a unique
+* client ID, and associates it with the provided file descriptor for communication.
+*
+* @param[in] name - A printable name assigned by the client.
+* @param[in] fd - The connection ID (file descriptor) for communication with this client.
+*
+* @return Pointer to the newly created client structure
+* @retval Non-NULL pointer to a_client_t structure on success.
+* @retval NULL if error occurred.
+*
+*/
 a_client_t *CLI_MGR_new_client(const char *name, const int fd);
 
-/*
- * Procedure     : CLI_MGR_remove_client_by_fd
- * Purpose       : Remove a client from the table of clients
- *                 The client is identified by the file descriptor
- *                 that we receive messages from.
- * Parameters    :
- *    fd            : The file descriptor that we receive messages from that client
- *    id            : The client id, if known
- *    force         : 1 if client data needs to be removed even if id doesnt match CLI_MGR data
- *                            0 is not force, 1 is force
- * Return Code   :
- *    0             : OK
- *    < 0           : some error
- */
+/**
+* @brief Remove a client from the table of clients.
+*
+* This function removes a client entry from the clients table identified by its file descriptor.
+* If the client has registered for notifications, those registrations will be removed as well.
+*
+* @param[in] fd - The file descriptor that we receive messages from that client.
+* @param[in] id - The client ID, if known.
+* @param[in] force - Flag to force removal even if ID doesn't match CLI_MGR data.
+*                    \n 0 is not force, 1 is force.
+*
+* @return The status of the operation.
+* @retval 0 on Success.
+* @retval <0 on error.
+*/
 int CLI_MGR_remove_client_by_fd (const int fd, const token_t id, const int force);
 
-/*
- * Procedure     : CLI_MGR_clear_client_error_by_fd
- * Purpose       : Clear the number of errors for a client
- *                 The client is identified by the file descriptor
- *                 that we receive messages from.
- * Parameters    :
- *    fd            : The file descriptor that we receive messages from that client
- * Return Code   :  
- *    0
- */
+/**
+* @brief Clear the number of errors for a client.
+*
+* This function resets the error counter to zero for a client identified by its file descriptor.
+*
+* @param[in] fd - The file descriptor that we receive messages from that client.
+*
+* @return The status of the operation.
+* @retval 0 if the operation is successful.
+*
+*/
 int CLI_MGR_clear_client_error_by_fd (int fd);
 
-/*
- * Procedure     : CLI_MGR_handle_client_error_by_fd
- * Purpose       : Increment the number of errors for a client 
- *                 The client is identified by the file descriptor
- *                 that we receive messages from.
- *                 If the number of errors surpasses a threshold, then force close 
- *                 the client
- * Parameters    :
- *    fd            : The file descriptor that we receive messages from that client
- * Return Code   :  
- *    0    : errors incremented 
- *    1    : client forcibly disconnected
- *    <0   : an error
- */
+/**
+* @brief Increment the number of errors for a client and handle threshold.
+*
+* This function increments the error counter for a client identified by its file descriptor.
+* If the number of errors surpasses a threshold, then force closed and removed from the clients table.
+*
+* @param[in] fd - The file descriptor that we receive messages from that client.
+*
+* @return The status of the operation.
+* @retval 0 Errors incremented.
+* @retval 1 Client forcibly disconnected.
+* @retval <0 An error occurred.
+*
+*/
 int CLI_MGR_handle_client_error_by_fd (int fd);
 
-/*
- * Procedure     : CLI_MGR_add_notification_to_client_by_fd
- * Purpose       : Increment the number of notifications that client has registered for
- *                 The client is identified by the file descriptor
- * Parameters    :
- *    fd            : The file descriptor that we receive messages from that client
- * Return Code   : 
- *    0    : 
- */
+/**
+* @brief Increment the number of notifications that a client has registered for.
+*
+* This function increments the notification counter for a client identified by its file descriptor.
+* This counter tracks how many event notifications the client has subscribed to.
+*
+* @param[in] fd - The file descriptor that we receive messages from that client.
+*
+* @return The status of the operation.
+* @retval 0 if the operation is successful.
+*
+*/
 int CLI_MGR_add_notification_to_client_by_fd (int fd);
 
 
-/*
- * Procedure     : CLI_MGR_init_clients_table
- * Purpose       : Initialize a table of clients
- * Parameters    :
- * Return Code   :
- *    0             : OK
- *    <0            : some error.
- */
+/**
+* @brief Initialize the table of clients.
+*
+* This function initializes the global clients table.
+*
+* @return The status of the operation.
+* @retval 0 if the operation is successful.
+* @retval <0 Some error occurred.
+*
+*/
 int CLI_MGR_init_clients_table(void);
 
-/*
- * Procedure     : CLI_MGR_deinit_clients_table
- * Purpose       : Uninitialize a table of clients
- * Parameters    :
- * Return Code   :
- *    0             : OK
- */
+/**
+* @brief Uninitialize the table of clients.
+*
+* This function cleans up the global clients table by freeing all client structures,
+* closing their connections, releasing allocated memory, and resetting the client ID counter.
+*
+* @return The status of the operation.
+* @retval 0 if the operation is successful.
+*
+*/
 int CLI_MGR_deinit_clients_table(void);
 
+/**
+* @brief Given a client ID, return the client's name.
+*
+* This function looks up a client in the clients table using the provided client ID
+* and returns the client's self-assigned name string.
+*
+* @param[in] id - The client ID of the client to look up.
+*
+* @return Pointer to the client's name string.
+* @retval Valid client name string on initialization.
+* @retval "null" If client ID not found or client manager not initialized.
+*
+*/
 char* CLI_MGR_id2name (token_t id);
 
 #endif   // __CLIENTS_MGR_H_

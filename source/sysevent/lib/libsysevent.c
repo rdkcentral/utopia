@@ -1757,6 +1757,7 @@ int SE_msg_send (int fd, char *sendmsg)
    int bytes_sent = 0;
    int num_retries = 3;
    int rc;
+   int last_errno = 0;
    while (0 < bytes_to_write && 0 < num_retries) {
       rc = write(fd, send_msg_buffer+bytes_sent, bytes_to_write);
       if (0 < rc) {
@@ -1764,8 +1765,10 @@ int SE_msg_send (int fd, char *sendmsg)
          bytes_to_write -= rc;
          bytes_sent+=rc;
       } else if (0 == rc) {
+	 last_errno = EWOULDBLOCK;
          num_retries--;
       } else {
+	 last_errno = errno;
          struct timespec sleep_time;
          sleep_time.tv_sec = 0;
          sleep_time.tv_nsec  = 100000000;  // .1 secs
@@ -1777,11 +1780,14 @@ int SE_msg_send (int fd, char *sendmsg)
    if (0 == bytes_to_write) {
       return(0);
    } else {
+      if (0 != last_errno) {
+         errno = last_errno;
+      }
       return(-1);
    }
 }
 
-int SE_msg_send_data (int fd, char *sendmsg,int msgsize)
+int SE_msg_send_data (int fd, char *sendmsg, unsigned int msgsize)
 {
    se_msg_hdr *msg_hdr = (se_msg_hdr *)sendmsg;
    int fileread = access("/tmp/sysevent_debug", F_OK);
@@ -1809,6 +1815,7 @@ int SE_msg_send_data (int fd, char *sendmsg,int msgsize)
    int bytes_sent = 0;
    int num_retries = 3;
    int rc;
+   int last_errno = 0;
    if (fileread == 0)
    {
        v_secure_system("echo fname before write %s: %d >> /tmp/sys_d.txt",__FUNCTION__, bytes_to_write);
@@ -1820,8 +1827,10 @@ int SE_msg_send_data (int fd, char *sendmsg,int msgsize)
          bytes_to_write -= rc;
          bytes_sent+=rc;
       } else if (0 == rc) {
+	 last_errno = EWOULDBLOCK;
          num_retries--;
       } else {
+	 last_errno = errno;
          struct timespec sleep_time;
          sleep_time.tv_sec = 0;
          sleep_time.tv_nsec  = 100000000;  // .1 secs
@@ -1836,6 +1845,9 @@ int SE_msg_send_data (int fd, char *sendmsg,int msgsize)
    if (0 == bytes_to_write) {
       return(0);
    } else {
+      if (0 != last_errno) {
+         errno = last_errno;
+      }
       return(-1);
    }
 }
@@ -1890,7 +1902,7 @@ int SE_msg_send_receive (int fd, char *sendmsg, char *replymsg, unsigned int *re
    return(msgtype); 
 }
 
-int SE_msg_send_receive_data (int fd, char *sendmsg, int sendmsg_size, char *replymsg, unsigned int *replymsg_size)
+int SE_msg_send_receive_data (int fd, char *sendmsg, unsigned int sendmsg_size, char *replymsg, unsigned int *replymsg_size)
 {
    int rc = SE_msg_send_data(fd, sendmsg,sendmsg_size);
    if (0 != rc) {
@@ -3337,14 +3349,15 @@ unsigned int sysevent_get_binmsg_maxsize()
     if (NULL != fp) 
     {
         unsigned int value = 0;
-        if (fscanf(fp, "%u",&value) <= 0)
+        if (fscanf(fp, "%5u",&value) <= 0)
         {
             printf("read error of %s \n",SE_MAX_MSG_DATA_SIZE_READ_FILE); //CID -160978
             fclose(fp);
             return SE_MAX_MSG_DATA_SIZE + 1024;
         }
         fclose(fp);
-        if (value > 0)
+	// TAINTED_SCALAR value
+        if ((value > 0) && (value < SE_MAX_MSG_DATA_SIZE))
         {    
             return value + 1024 /* additional 1k is headermsg*/;
         }

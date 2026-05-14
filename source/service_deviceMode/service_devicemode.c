@@ -417,7 +417,9 @@ int service_start(int mode)
              sysevent_set(sysevent_fd, sysevent_token, "lnf-setup", buf, 0);
 #endif
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
-            sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
+#if !defined(_WNXL11BWL_PRODUCT_REQ_)
+                sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
+#endif
         }
         break;
         case DEVICE_MODE_EXTENDER:

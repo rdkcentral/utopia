@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -50,7 +50,7 @@
 #define UTOPIA_MAX_PASSWD_LENGTH    64
 #define UTOPIA_MIN_PASSWD_LENGTH    1
 #define UTOPIA_MAX_USERNAME_LENGTH  63
-#define UTOPIA_DEFAULT_ADMIN_PASSWD "admin" 
+#define UTOPIA_DEFAULT_ADMIN_PASSWD "admin"
 #define UTOPIA_DEFAULT_ADMIN_USER   "admin"
 
 /*
@@ -147,7 +147,7 @@ typedef enum _UtopiaValue
     UtopiaValue_Mgmt_WANIPrange_SrcEndIP,
     UtopiaValue_Mgmt_WANIPRange_SrcStartIP,
     UtopiaValue_Mgmt_WANIPrange_Desp,
-    UtopiaValue_Mgmt_WANIPrange_InsNum, 
+    UtopiaValue_Mgmt_WANIPrange_InsNum,
     UtopiaValue_Mgmt_IGDEnabled,
     UtopiaValue_Mgmt_IGDUserConfig,
     UtopiaValue_Mgmt_IGDWANDisable,
@@ -603,8 +603,8 @@ typedef enum _UtopiaValue
     UtopiaValue_USGv2_Lan_Clients_Count,
     UtopiaValue_USGv2_Lan_Clients,
     UtopiaValue_USGv2_Lan_Clients_Mac,
-	UtopiaValue_PNM_Status,    
-	UtopiaValue_SPF_PrevRuleEnabledState,	 
+	UtopiaValue_PNM_Status,
+	UtopiaValue_SPF_PrevRuleEnabledState,
 	UtopiaValue_PFR_PrevRuleEnabledState,
 	UtopiaValue_PRT_PrevRuleEnabledState,
     UtopiaValue_HashPassword,
@@ -635,325 +635,452 @@ typedef enum _UtopiaValue
     UtopiaValue__LAST__
 } UtopiaValue;
 
-/*
- * Procedure     : Utopia_GetKey
- * Purpose       : Retrieve a Utopia key
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszBuffer  - Buffer to store output key string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve a Utopia key string for a given UtopiaValue index.
+*
+* This function retrieves the key string associated with a UtopiaValue index.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying which key to retrieve.
+* @param[out] pszBuffer - Pointer to a buffer where the key string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the key was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_GetKey(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_GetIndexedKey
- * Purpose       : Retrieve a Utopia value with a key that is numerically indexed
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   iIndex - The numeric index of the key
- *   pszBuffer  - Buffer to store output key string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve a Utopia key string with a numerically indexed key.
+*
+* This function retrieves the key string for a UtopiaValue that uses numeric indexing.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] iIndex - The numeric index to append to the key.
+* @param[out] pszBuffer - Pointer to a buffer where the indexed key string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the indexed key was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_GetIndexedKey(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, int iIndex, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_GetIndexed2Key
- * Purpose       : Retrieve a Utopia value with a key that is two-dimensionally indexed
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   iIndex1 - The numeric index 1
- *   iIndex2 - The numeric index 2
- *   pszBuffer  - Buffer to store output key string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve a Utopia key string with a two-dimensionally indexed key.
+*
+* This function retrieves the key string for a UtopiaValue that uses two-dimensional numeric indexing.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] iIndex1 - The first numeric index dimension.
+* @param[in] iIndex2 - The second numeric index dimension.
+* @param[out] pszBuffer - Pointer to a buffer where the indexed key string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the two-dimensionally indexed key was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_GetIndexed2Key(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, int iIndex1, int iIndex2, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_GetNamedKey
- * Purpose       : Retrieve a Utopia key that is indexed with a string
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszName - Index string
- *   pszBuffer  - Buffer to store output key string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve a Utopia key string that is indexed with a string name.
+*
+* This function retrieves the key string for a UtopiaValue that uses string-based indexing.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] pszName - Null-terminated string used as the name index.
+* @param[out] pszBuffer - Pointer to a buffer where the named key string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the named key was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_GetNamedKey(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszName, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_GetNamed2Key
- * Purpose       : Retrieve Utopia key that is two-dimensionally indexed by strings
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszName1 - Index string 1
- *   pszName2 - Index string 2
- *   pszBuffer  - Buffer to store output key string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve Utopia key that is two-dimensionally indexed by string names.
+*
+* This function retrieves the key string for a UtopiaValue that uses two-dimensional string-based indexing.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] pszName1 - Null-terminated string for the first name index dimension.
+* @param[in] pszName2 - Null-terminated string for the second name index dimension.
+* @param[out] pszBuffer - Pointer to a buffer where the two-dimensionally named key string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the two-dimensionally named key was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_GetNamed2Key(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszName1, char* pszName2, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_Get
- * Purpose       : Retrieve a Utopia value
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszBuffer  - Buffer to store output value string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve a Utopia value for a given UtopiaValue index.
+*
+* This function retrieves the value associated with a UtopiaValue index from either the configuration system,
+* event system, or static value table depending on the UtopiaValue type.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying which value to retrieve.
+* @param[out] pszBuffer - Pointer to a buffer where the value string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the value was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_Get(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_GetAll
- * Purpose       : Returns all set values in the format '<namespace>::<key>=<value>\n'
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   pszBuffer  - Null-terminated return buffer
- *   ccbBuf  - Size of the passed in return buffer
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Returns all set Utopia values in a formatted string.
+*
+* This function retrieves all currently set configuration and event values from the Utopia system
+* and returns them in a formatted string with the format '<namespace>::<key>=<value>\n' for each entry.
+
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[out] pszBuffer - Pointer to a null-terminated buffer where all values will be stored in the format
+*                    \n '<namespace>::<key>=<value>\n' for each entry.
+*                    \n Must be allocated by the caller with sufficient size.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*                    \n Should be at least UTOPIA_STATE_SIZE (32KB) for complete retrieval.
+*
+* @return The status of the operation.
+* @retval 1 if all values were successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_GetAll(UtopiaContext* pUtopiaCtx, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_GetIndexed
- * Purpose       : Retrieve a Utopia value with a key that is numerically indexed
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   iIndex - The numeric index of the key
- *   pszBuffer  - Buffer to store output value string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve a Utopia value with a numerically indexed key.
+*
+* This function retrieves the value for a UtopiaValue that uses numeric indexing from the configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] iIndex - The numeric index to identify the specific value.
+* @param[out] pszBuffer - Pointer to a buffer where the indexed value string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the indexed value was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_GetIndexed(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, int iIndex, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_GetIndexed2
- * Purpose       : Retrieve a Utopia value with a key that is two-dimensionally indexed
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   iIndex1 - The numeric index 1
- *   iIndex2 - The numeric index 2
- *   pszBuffer  - Buffer to store output value string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve a Utopia value with a two-dimensionally indexed key.
+*
+* This function retrieves the value for a UtopiaValue that uses two-dimensional numeric indexing
+* from the configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] iIndex1 - The first numeric index dimension.
+* @param[in] iIndex2 - The second numeric index dimension.
+* @param[out] pszBuffer - Pointer to a buffer where the two-dimensionally indexed value string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the two-dimensionally indexed value was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_GetIndexed2(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, int iIndex1, int iIndex2, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_GetNamed
- * Purpose       : Retrieve a Utopia value with a key that is indexed with a string
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszName - Index string
- *   pszBuffer  - Buffer to store output value string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve a Utopia value with a key that is indexed with a string name.
+*
+* This function retrieves the value for a UtopiaValue that uses string-based indexing from the
+* configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] pszName - Null-terminated string used as the name index.
+* @param[out] pszBuffer - Pointer to a buffer where the named value string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the named value was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_GetNamed(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszName, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_GetNamed2
- * Purpose       : Retrieve a Utopia value with a key that is two-dimensionally indexed by strings
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszName1 - Index string 1
- *   pszName2 - Index string 2
- *   pszBuffer  - Buffer to store output value string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve a Utopia value with a key that is two-dimensionally indexed by string names.
+*
+* This function retrieves the value for a UtopiaValue that uses two-dimensional string-based indexing
+* from the configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] pszName1 - Null-terminated string for the first name index dimension.
+* @param[in] pszName2 - Null-terminated string for the second name index dimension.
+* @param[out] pszBuffer - Pointer to a buffer where the two-dimensionally named value string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the two-dimensionally named value was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_GetNamed2(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszName1, char* pszName2, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_RawGet
- * Purpose       : Retrieve a raw non-Utopia value (UtopiaValue doesn't exist)
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   pszNamespace - Namespace of the value retrieved
- *   pszKey - Key of the value being retrieved
- *   pszBuffer  - Buffer to store output value string
- *   ccbBuf - Output buffer size
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Retrieve a raw non-Utopia value directly by namespace and key.
+*
+* This function retrieves a value directly from the underlying configuration system using explicit
+* namespace and key parameters, bypassing the UtopiaValue enumeration.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] pszNamespace - Null-terminated string specifying the namespace of the value to retrieve.
+* @param[in] pszKey - Null-terminated string specifying the key of the value being retrieved.
+* @param[out] pszBuffer - Pointer to a buffer where the value string will be stored.
+*                    \n Must be allocated by the caller.
+* @param[in] ccbBuf - Size of the output buffer in bytes.
+*
+* @return The status of the operation.
+* @retval 1 if the raw value was successfully retrieved.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_RawGet(UtopiaContext* pUtopiaCtx, char* pszNamespace, char* pszKey, char* pszBuffer, unsigned int ccbBuf);
 
-/*
- * Procedure     : Utopia_RawSet
- * Purpose       : Set a raw non-Utopia value (UtopiaValue doesn't exist)
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   pszNamespace - Namespace of value being set
- *   pszKey  - Key of value being set
- *   pszValue  - Value being set
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Set a raw non-Utopia value directly by namespace and key.
+*
+* This function sets a value directly in the underlying configuration system using explicit
+* namespace and key parameters, bypassing the UtopiaValue enumeration.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] pszNamespace - Null-terminated string specifying the namespace of the value being set.
+* @param[in] pszKey - Null-terminated string specifying the key of the value being set.
+* @param[in] pszValue - Null-terminated string containing the value to set.
+*
+* @return The status of the operation.
+* @retval 1 if the raw value was successfully set.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_RawSet(UtopiaContext* pUtopiaCtx, char* pszNamespace, char* pszKey, char* pszValue);
 
-/*
- * Procedure     : Utopia_Set
- * Purpose       : Set a Utopia value
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszValue  - Value being set
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Set a Utopia value for a given UtopiaValue index.
+*
+* This function sets the value associated with a UtopiaValue index in the configuration or event system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying which value to set.
+* @param[in] pszValue - Null-terminated string containing the value to set.
+*
+* @return The status of the operation.
+* @retval 1 if the value was successfully set.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_Set(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszValue);
 
-/*
- * Procedure     : Utopia_SetAll
- * Purpose       : Sets all of the values in the input buffer, which should be formatted '<namespace>::<key>=<value>\n'.
- *               : Passing in a null buffer will result in all values being set to factory defaults.
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   pszBuffer  - Null-terminated input buffer
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Sets all Utopia values from a formatted input buffer or resets to factory defaults.
+*
+* This function sets all configuration and event values in the Utopia system from a formatted input buffer
+* with the format '<namespace>::<key>=<value>\n' for each entry. If a null buffer is passed, all values
+* are reset to factory defaults.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] pszBuffer - Pointer to a null-terminated input buffer containing values in the format
+*                    \n '<namespace>::<key>=<value>\n' for each entry.
+*                    \n Pass NULL to reset all values to factory defaults.
+*
+* @return The status of the operation.
+* @retval 1 if all values were successfully set or reset.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_SetAll(UtopiaContext* pUtopiaCtx, char* pszBuffer);
 
-/*
- * Procedure     : Utopia_SetIndexed
- * Purpose       : Set a Utopia value with a key that is numerically indexed
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszValue  - Value being set
- *   iIndex - The numeric index
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Set a Utopia value with a numerically indexed key.
+*
+* This function sets the value for a UtopiaValue that uses numeric indexing in the configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] iIndex - The numeric index to identify the specific value.
+* @param[in] pszValue - Null-terminated string containing the value to set.
+*
+* @return The status of the operation.
+* @retval 1 if the indexed value was successfully set.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_SetIndexed(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, int iIndex, char* pszValue);
 
-/*
- * Procedure     : Utopia_SetIndexed2
- * Purpose       : Set a Utopia value with a key that is two-dimensionally indexed
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   iIndex1 - The numeric index 1
- *   iIndex2 - The numeric index 2
- *   pszValue  - Value being set
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Set a Utopia value with a two-dimensionally indexed key.
+*
+* This function sets the value for a UtopiaValue that uses two-dimensional numeric indexing in the
+* configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] iIndex1 - The first numeric index dimension.
+* @param[in] iIndex2 - The second numeric index dimension.
+* @param[in] pszValue - Null-terminated string containing the value to set.
+*
+* @return The status of the operation.
+* @retval 1 if the two-dimensionally indexed value was successfully set.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_SetIndexed2(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, int iIndex1, int iIndex2, char* pszValue);
 
-/*
- * Procedure     : Utopia_SetNamed
- * Purpose       : Set a Utopia value with a key that is indexed with a string
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszName - Index string
- *   pszValue  - Value being set
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Set a Utopia value with a key that is indexed with a string name.
+*
+* This function sets the value for a UtopiaValue that uses string-based indexing in the configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] pszName - Null-terminated string used as the name index.
+* @param[in] pszValue - Null-terminated string containing the value to set.
+*
+* @return The status of the operation.
+* @retval 1 if the named value was successfully set.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_SetNamed(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszName, char* pszValue);
 
-/*
- * Procedure     : Utopia_SetNamed2
- * Purpose       : Set a Utopia value with a key that is two-dimensionally indexed by strings
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszName1 - Index string 1
- *   pszName2 - Index string 2
- *   pszValue  - Value being set
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Set a Utopia value with a key that is two-dimensionally indexed by string names.
+*
+* This function sets the value for a UtopiaValue that uses two-dimensional string-based indexing in the
+* configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] pszName1 - Null-terminated string for the first name index dimension.
+* @param[in] pszName2 - Null-terminated string for the second name index dimension.
+* @param[in] pszValue - Null-terminated string containing the value to set.
+*
+* @return The status of the operation.
+* @retval 1 if the two-dimensionally named value was successfully set.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_SetNamed2(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszName1, char* pszName2, char* pszValue);
 
-/*
- * Procedure     : Utopia_Unset
- * Purpose       : Unset a Utopia value
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszValue  - Value being set
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Unset a Utopia value for a given UtopiaValue index.
+*
+* This function removes/clears the value associated with a UtopiaValue index from the configuration or
+* event system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying which value to unset.
+*
+* @return The status of the operation.
+* @retval 1 if the value was successfully unset.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_Unset(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia);
 
-/*
- * Procedure     : Utopia_UnsetIndexed
- * Purpose       : Unset a Utopia value with a key that is numerically indexed
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   iIndex - The numeric index
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Unset a Utopia value with a numerically indexed key.
+*
+* This function removes/clears the value for a UtopiaValue that uses numeric indexing from the
+* configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] iIndex - The numeric index to identify the specific value to unset.
+*
+* @return The status of the operation.
+* @retval 1 if the indexed value was successfully unset.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_UnsetIndexed(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, int iIndex);
 
-/*
- * Procedure     : Utopia_UnsetIndexed2
- * Purpose       : Unset a Utopia value with a key that is two-dimensionally indexed
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   iIndex1 - The numeric index 1
- *   iIndex2 - The numeric index 2
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Unset a Utopia value with a two-dimensionally indexed key.
+*
+* This function removes/clears the value for a UtopiaValue that uses two-dimensional numeric indexing
+* from the configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] iIndex1 - The first numeric index dimension.
+* @param[in] iIndex2 - The second numeric index dimension.
+*
+* @return The status of the operation.
+* @retval 1 if the two-dimensionally indexed value was successfully unset.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_UnsetIndexed2(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, int iIndex1, int iIndex2);
 
-/*
- * Procedure     : Utopia_UnsetNamed
- * Purpose       : Unset a Utopia value with a key that is indexed with a string
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszName - Index string
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Unset a Utopia value with a key that is indexed with a string name.
+*
+* This function removes/clears the value for a UtopiaValue that uses string-based indexing from the
+* configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] pszName - Null-terminated string used as the name index.
+*
+* @return The status of the operation.
+* @retval 1 if the named value was successfully unset.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_UnsetNamed(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszName);
 
-/*
- * Procedure     : Utopia_UnsetNamed2
- * Purpose       : Unset a Utopia value with a key that is two-dimensionally indexed by strings
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   ixUtopia  - UtopiaValue index
- *   pszName1 - Index string 1
- *   pszName2 - Index string 2
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Unset a Utopia value with a key that is two-dimensionally indexed by string names.
+*
+* This function removes/clears the value for a UtopiaValue that uses two-dimensional string-based indexing
+* from the configuration system.
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext containing the system state.
+* @param[in] ixUtopia - UtopiaValue enumeration index specifying the base key.
+* @param[in] pszName1 - Null-terminated string for the first name index dimension.
+* @param[in] pszName2 - Null-terminated string for the second name index dimension.
+*
+* @return The status of the operation.
+* @retval 1 if the two-dimensionally named value was successfully unset.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_UnsetNamed2(UtopiaContext* pUtopiaCtx, UtopiaValue ixUtopia, char* pszName1, char* pszName2);
 
 /*
@@ -987,15 +1114,19 @@ typedef enum _Utopia_Event
     Utopia_Event__LAST__ = 0x200000
 } Utopia_Event;
 
-/*
- * Procedure     : Utopia_SetEvent
- * Purpose       : Set a Utopia event to be triggered on context free
- * Parameters    :
- *   pUtopiaCtx -  UtopiaContext pointer
- *   event - Utopia event to be triggered
- * Return Values :
- *    1 on success, 0 on error
- */
+/**
+* @brief Set a Utopia event to be triggered on context free.
+*
+* This function marks a Utopia event to be triggered when the context is freed using Utopia_Free().
+*
+* @param[in] pUtopiaCtx - Pointer to the UtopiaContext where the event will be registered.
+* @param[in] event - Utopia_Event enumeration value specifying which event to trigger.
+*
+* @return The status of the operation.
+* @retval 1 if the event was successfully set.
+* @retval 0 if the operation failed.
+*
+*/
 extern int Utopia_SetEvent(UtopiaContext* pUtopiaCtx, Utopia_Event event);
 
 #endif /* __UTCTX_API_H__ */

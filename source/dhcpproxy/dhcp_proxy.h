@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -99,19 +99,78 @@ extern struct in_addr g_my_ip;
 extern "C" {
 #endif
 
+/**
+* @brief Find DHCP lease associated with a DHCP message.
+*
+* This function lookup an existing DHCP lease by client identifier if present, otherwise by hardware type and chaddr.
+*
+* @param[in] msg - Pointer to the DHCP message used for lease lookup.
+* @param[in] opt_info - Pointer to DHCP option info containing client identifier.
+* @param[out] pprev - Pointer to store the previous lease in the list.
+*
+* @return DHCP lease found associated with a DHCP message.
+* @retval Pointer to the found DHCP lease.
+* @retval NULL if not found.
+*
+*/
 struct dhcp_lease *dhcp_find_lease(const struct dhcp_msg *msg,
                                    const struct dhcp_option_info *opt_info,
                                    struct dhcp_lease **pprev);
 
+/**
+* @brief Process received DHCP message and update lease information.
+*
+* This function validate and process a received DHCP message, find or create/update the associated lease and persist changes.
+*
+* @param[in] recv_msg - Pointer to the received DHCP message to process.
+* @param[in] recv_msg_size - Size of the received DHCP message in bytes.
+* @param[in] opt_info - Pointer to DHCP option info containing parsed options from the message.
+* @param[in] recv_ifindex - Index of the interface from which the message was received.
+* @param[in] recv_iftype - Type of the interface from which the message was received.
+*
+* @return DHCP lease this messsage associated with
+* @retval Pointer to the DHCP lease associated with this message if processing success.
+* @retval NULL if processing fails.
+*
+*/
 struct dhcp_lease* dhcp_process_msg(struct dhcp_msg *recv_msg, size_t recv_msg_size,
                                     struct dhcp_option_info *opt_info,
                                     int recv_ifindex, int recv_iftype);
 
+/**
+* @brief Relay DHCP message to the appropriate interface with modified options.
+*
+* For DHCP OFFER and ACK, this function will update Router option and DNS server option.
+* It will also update IP length field, UDP length field, as well as IP checksum field accordingly.
+* UDP checksum field will be zero out. (Not necessary in a LAN environment).
+*
+* @param[in] lease - Pointer to the DHCP lease associated with this message.
+* @param[in] recv_packet - Pointer to the received packet buffer including all headers.
+* @param[in] udp_header_offset - Offset to the UDP header in the packet buffer in bytes.
+* @param[in] recv_msg - Pointer to the received DHCP message.
+* @param[in] recv_msg_size - Size of the received DHCP message in bytes.
+* @param[in] opt_info - Pointer to DHCP option info containing parsed options.
+*
+* @return None.
+*
+*/
 void dhcp_relay_message(struct dhcp_lease *lease,
                         void *recv_packet, int udp_header_offset,
                         struct dhcp_msg *recv_msg, size_t recv_msg_size,
                         struct dhcp_option_info *opt_info);
 
+/**
+* @brief Encode DHCP option list to buffer, replacing Router and DNS Server options with proxy IP.
+*
+* This function encode a linked list of DHCP options to a buffer, forcibly replacing Router and DNS Server values with the relay agent's own IP address.
+*
+* @param[in] option_list - Pointer to the linked list of DHCP options to encode.
+* @param[out] buf - Pointer to the buffer where encoded options will be written.
+* @param[in] bufsize - Size of the buffer in bytes.
+*
+* @return The number of bytes written to the buffer.
+*
+*/
 ssize_t dhcp_encode_option_list(const struct dhcp_option *option_list, ui8 *buf, size_t bufsize);
 
 #ifdef __cplusplus

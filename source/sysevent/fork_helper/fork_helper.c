@@ -752,6 +752,6 @@ int main(int argc, char **argv)
       }
    }
 
-   deinitialize_system();
+   //deinitialize_system(); UNREACHABLE
    return(0);
 }

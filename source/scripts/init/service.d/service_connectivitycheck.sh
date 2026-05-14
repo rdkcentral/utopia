@@ -61,7 +61,7 @@ else
     if [ ! -f $CONNCHECK_FILE ]; then
         touch $CONNCHECK_FILE
     fi
-    t2CountNotify "SYST_WARN_connectivitycheck_nourl_set"
+    t2CountNotify "SYS_WARN_connectivitycheck_nourl_set"
     # Send dbus-send
     if [ -x "$DBUS_SEND_BIN" ]; then
         $DBUS_SEND_BIN --system --type=method_call --dest=org.freedesktop.nm_connectivity /org/freedesktop/nm_connectivity org.freedesktop.nm_connectivity.NotifyFullyConnected
@@ -81,7 +81,7 @@ while true; do
         if [ ! -f $CONNCHECK_FILE ]; then
             touch $CONNCHECK_FILE
         fi
-        t2CountNotify "SYST_WARN_connectivitycheck_time_expire"
+        t2CountNotify "SYS_WARN_connectivitycheck_time_expire"
         # Send dbus-send
         if [ -x "$DBUS_SEND_BIN" ]; then
             $DBUS_SEND_BIN --system --type=method_call --dest=org.freedesktop.nm_connectivity /org/freedesktop/nm_connectivity org.freedesktop.nm_connectivity.NotifyFullyConnected
@@ -91,7 +91,7 @@ while true; do
         fi
         exit 0
     fi
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+    HTTP_CODE=$(curl -s --connect-timeout 3 --max-time 5 -o /dev/null -w "%{http_code}" "$URL")
     CURL_STATUS=$?
     uptime=$(cut -d. -f1 /proc/uptime)
     uptime_ms=$((uptime*1000))
@@ -101,7 +101,7 @@ while true; do
             touch $CONNCHECK_FILE
         fi
         
-        t2ValNotify "SYST_INFO_INTERNETRDY_split" "$uptime_ms"
+        t2ValNotify "SYS_INFO_INTERNETRDY_split" "$uptime_ms"
         # Send dbus-send
         if [ -x "$DBUS_SEND_BIN" ]; then
             $DBUS_SEND_BIN --system --type=method_call --dest=org.freedesktop.nm_connectivity /org/freedesktop/nm_connectivity org.freedesktop.nm_connectivity.NotifyFullyConnected

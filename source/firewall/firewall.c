@@ -353,6 +353,10 @@ NOT_DEF:
 #include <sys/mman.h>
 #include "secure_wrapper.h"
 #include "util.h"
+#include "ccsp_custom.h"
+#include "ccsp_psm_helper.h"
+#include <ccsp_base_api.h>
+#include "ccsp_memory.h"
 
 
 #if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
@@ -363,6 +367,10 @@ NOT_DEF:
 #include <netinet/in.h>
 #include <net/if.h>
 
+#endif
+
+#ifdef _ONESTACK_PRODUCT_REQ_
+#include <rdkb_feature_mode_gate.h>
 #endif
 
 #ifdef FEATURE_464XLAT
@@ -449,6 +457,7 @@ char cellular_ifname[32];
 #define IS_EMPTY_STRING(s) ((s == NULL) || (*s == '\0'))
 
 #define BUFLEN_8 8
+#define BUFLEN_20 20
 #define BUFLEN_32 32
 #define BUFLEN_64 64
 #define RET_OK 0
@@ -456,6 +465,9 @@ char cellular_ifname[32];
 #define SET "set"
 #define RESET "reset"
 #define UP "up"
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
 
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
 #define SYSEVENT_MAPT_CONFIG_FLAG "mapt_config_flag"
@@ -466,6 +478,7 @@ char cellular_ifname[32];
 #define SYSEVENT_MAPT_PSID_OFFSET "mapt_psid_offset"
 #define SYSEVENT_MAPT_PSID_VALUE "mapt_psid_value"
 #define SYSEVENT_MAPT_PSID_LENGTH "mapt_psid_length"
+#define SYSEVENT_MAPT_TOTAL_PORTS "mapt_total_ports"
 
 BOOL isMAPTSet(void);
 static int do_wan_nat_lan_clients_mapt(FILE *fp);
@@ -482,6 +495,8 @@ void logPrintMain(char* filename, int line, char *fmt,...);
 #define XHS_BRIDGE  "brlan1"
 #define LNF_BRIDGE  "br106"
 #endif
+
+BOOL isMAPEReady = 0;
 
 #define V4_BLOCKFRAGIPPKT   "v4_BlockFragIPPkts"
 #define V4_PORTSCANPROTECT  "v4_PortScanProtect"
@@ -522,7 +537,6 @@ enum{
     NAT_DISABLE_STATICIP,
 };
 #define PCMD_LIST "/tmp/.pcmd"
-
 typedef struct _decMacs_
 {
 char mac[19];
@@ -731,8 +745,6 @@ int rfstatus;
  * For simplicity purposes we cap the number of syscfg entries within a
  * specific namespace. This cap is controlled by MAX_SYSCFG_ENTRIES
  */
-#define MAX_PORT 65535
-
 #define MAX_NAMESPACE 64
 
 #define MAX_SRC_IP_TABLE_ROW    10   /*RDKB-7145, CID-33123, defining max size for src_ip[MAX_SRC_IP_TABLE_ENTRY][]*/
@@ -805,7 +817,7 @@ static inline int SET_IPT_PRI_MODULD(char *s){
 
 #define PSM_NAME_SPEEDTEST_SERVER_CAPABILITY "eRT.com.cisco.spvtg.ccsp.tr181pa.Device.IP.Diagnostics.X_RDKCENTRAL-COM_SpeedTest.Server.Capability"
 
-#if defined(FEATURE_SUPPORT_RADIUSGREYLIST) && (defined(_COSA_INTEL_XB3_ARM_) || defined(_XB6_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_))
+#if defined(FEATURE_SUPPORT_RADIUSGREYLIST) && (defined(_COSA_INTEL_XB3_ARM_) || defined(_XB6_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_))
 #define PSM_NAME_RADIUS_GREY_LIST_ENABLED "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.RadiusGreyList.Enable"
 #endif
 /* 
@@ -856,7 +868,6 @@ void firewall_log( char* fmt, ...)
 #ifdef WAN_FAILOVER_SUPPORTED
 unsigned int Get_Device_Mode()
 {
-	FIREWALL_DEBUG("Inside Get_Device_Mode\n");
         syscfg_get(NULL, "Device_Mode", dev_type, sizeof(dev_type));
         unsigned int dev_mode = atoi(dev_type);
         Dev_Mode mode;
@@ -912,7 +923,6 @@ char* get_iface_ipaddr(const char* iface_name)
 
 bool isServiceNeeded()
 {
-        FIREWALL_DEBUG("Inside isServiceNeeded\n");
         if (Get_Device_Mode()==EXTENDER_MODE)
         {
 		FIREWALL_DEBUG("Service Not Needed\n");
@@ -931,7 +941,6 @@ bool isServiceNeeded()
 		}
         }
 
-      FIREWALL_DEBUG("returning true\n");
     return TRUE;
 }
 #endif
@@ -1101,7 +1110,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
     char ipaddress_str[BUFLEN_32] = {0};
     char mapt_config_ratio_str[BUFLEN_64] = {0};
     char mapt_config_value[BUFLEN_8] = {0};
-    unsigned int contigous_port = 0;
+    unsigned int contiguous_port = 0;
     int ratio = 0;
     int port = 0;
     unsigned int i =0;
@@ -1114,6 +1123,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
     unsigned int psidLen = 0;
     unsigned int psid = 0;
     char sysevent_val[BUFLEN_64] = {0};
+    unsigned int total_ports = 0;
 
     /* Check sysevent fd availabe at this point. */
     if (sysevent_fd < 0)
@@ -1258,20 +1268,31 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
 
         a = (1 << offset);
         m = 16 - (psidLen + offset);
-        contigous_port = (1 << m);
+        contiguous_port = (1 << m);
         ratio = 16 - offset;
+
+        // Exclude i=0 block as per original logic
+        total_ports = (a * contiguous_port) - contiguous_port;
+        memset(sysevent_val, 0, sizeof(sysevent_val));
+        snprintf(sysevent_val, sizeof(sysevent_val), "%u", total_ports);
+        if(sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_MAPT_TOTAL_PORTS, sysevent_val, 0) != 0)
+        {
+            FIREWALL_DEBUG("ERROR: Failed to set total ports; continuing MAP-T rule generation \n");
+        }
+        FIREWALL_DEBUG("MAPT Info: offset=%u, psid=%u, psidLen=%u, port_blocks=%u, contiguous_port=%u, total_ports=%u \n" COMMA
+            offset COMMA psid COMMA psidLen COMMA a COMMA  contiguous_port COMMA total_ports);
 
         /* Start of port range parameters. */
         /* create rules */
         for(i=1; i< (a); i++)
         {
-            for(j=0; j<(contigous_port); j++)
+            for(j=0; j<(contiguous_port); j++)
             {
                 port = (i<<ratio) + (psid <<(m)) + j;
 
                 if(j == 0)
                     initialPortValue = port;
-                if( j == contigous_port - 1 )
+                if( j == contiguous_port - 1 )
                     finalPortValue = port;
             }
 #if defined(IVI_KERNEL_SUPPORT)
@@ -1290,6 +1311,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
             fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
 #endif //_HUB4_PRODUCT_REQ_NO_DPORT_
 #endif //IVI_KERNEL_SUPPORT
+            FIREWALL_DEBUG("MAPT Rule: Port range is initialPortValue=%u, finalPortValue=%u \n" COMMA initialPortValue COMMA finalPortValue);
         }
 #ifdef IVI_KERNEL_SUPPORT
         fprintf(nat_fp, "-A %s -o %s -p icmp -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, get_current_wan_ifname(), ipaddress_str,initialPortValue, finalPortValue);
@@ -1815,6 +1837,7 @@ static int substitute(char *in_str, char *out_str, const int size, char *from, c
  *                       $ACCEPT $DROP $REJECT and 
  *   QoS classes $HIGH, $MEDIUM, $NORMAL, $LOW
  */
+#define TOKEN_MAX_LEN 50
 char *make_substitutions(char *in_str, char *out_str, const int size)
 {
     char *in_str_p = in_str;
@@ -1823,9 +1846,9 @@ char *make_substitutions(char *in_str, char *out_str, const int size)
     char *out_str_end = out_str + size;
    // FIREWALL_DEBUG("Entering *make_substitutions\n");         
     while (in_str_p < in_str_end && out_str_p < out_str_end) {
-       char token[50];
+       char token[TOKEN_MAX_LEN + 1];
        if ('$' == *in_str_p) {
-          sscanf(in_str_p, "%50s", token); 
+          sscanf(in_str_p, "%" STR(TOKEN_MAX_LEN) "s", token);
           in_str_p += strlen(token);
           if (0 == strcmp(token, "$WAN_IPADDR")) {
              out_str_p += snprintf(out_str_p, out_str_end-out_str_p, "%s", current_wan_ipaddr);
@@ -1896,9 +1919,9 @@ static char *match_keyword(FILE *fp, char *keyword, char delim, char *line, int 
        * handle space differently
        */
       if (' ' == delim) {
-         char local_name[50];
+         char local_name[TOKEN_MAX_LEN + 1];
          local_name[0] = '\0';
-         sscanf(line, "%50s ", local_name); 
+         sscanf(line, "%" STR(TOKEN_MAX_LEN) "s", local_name);
          next = line + strlen(local_name);
          if (next-line > size) {
               continue;
@@ -2158,7 +2181,7 @@ static int bIsContainerEnabled( void)
     deviceFilePtr = fopen( DEVICE_PROPERTIES, "r" );
 
     if (deviceFilePtr) {
-        while (fscanf(deviceFilePtr , "%s", fileContent) != EOF ) {
+        while (fscanf(deviceFilePtr , "%254s", fileContent) != EOF ) {
             if ((pContainerSupport = strstr(fileContent, "CONTAINER_SUPPORT")) != NULL) {
                 offsetValue = strlen("CONTAINER_SUPPORT=");
                 pContainerSupport = pContainerSupport + offsetValue;
@@ -2381,7 +2404,9 @@ static int prepare_globals_from_configuration(void)
    syscfg_get(NULL, "firewall_levelv6", firewall_levelv6, sizeof(firewall_levelv6));
 
    syscfg_get(NULL, "ecm_wan_ifname", ecm_wan_ifname, sizeof(ecm_wan_ifname));
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    syscfg_get(NULL, "emta_wan_ifname", emta_wan_ifname, sizeof(emta_wan_ifname));
+#endif
    syscfg_get(NULL, "eth_wan_enabled", eth_wan_enabled, sizeof(eth_wan_enabled));
    if (0 == strcmp("true", eth_wan_enabled))
       bEthWANEnable = TRUE;
@@ -2405,7 +2430,7 @@ static int prepare_globals_from_configuration(void)
 #ifdef CORE_NET_LIB
         libnet_status ret;
         ret = get_ipv6_address(wanInterface, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
-        if (ret == CNL_STATUS_SUCCESS) {
+        if (ret == ANSC_STATUS_SUCCESS) {
             FIREWALL_DEBUG("Successfully retrived global IPv6 address for %s\n" COMMA wanInterface);
 	    current_wan_ip6_addr[sizeof(current_wan_ip6_addr) - 1] = '\0';
 	}
@@ -2421,7 +2446,7 @@ static int prepare_globals_from_configuration(void)
 	char interface_ipv6[BUFLEN_64] = "erouter0";
         libnet_status stat;
       	stat = get_ipv6_address(interface_ipv6, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
-        if (stat == CNL_STATUS_SUCCESS) {
+        if (stat == ANSC_STATUS_SUCCESS) {
             FIREWALL_DEBUG("Successfully retrived IPv6 address for erouter0\n");
 	    current_wan_ip6_addr[sizeof(current_wan_ip6_addr) - 1] = '\0';
         }
@@ -2470,15 +2495,17 @@ static int prepare_globals_from_configuration(void)
          }      
    }
 
-   // Update WIFI hotspot interface name -> from PSM
+   // Update WIFI hotspot interface name -> from CurrentActiveInterface
    memset(hotspot_wan_ifname,0,sizeof(hotspot_wan_ifname));
-   rc = PSM_VALUE_GET_STRING(PSM_HOTSPOT_WAN_IFNAME, pStr);
-   if(rc == CCSP_SUCCESS && pStr != NULL){
-	   FIREWALL_DEBUG("HotSpot wan interface fetched \n");
-	   safec_rc = strcpy_s(hotspot_wan_ifname, sizeof(hotspot_wan_ifname),pStr);
-	   ERR_CHK(safec_rc);
-	   Ansc_FreeMemory_Callback(pStr);
-	   pStr = NULL;
+   if (IsHotspotActive())
+   {
+        // Get the current active interface from RDK Bus
+        if (RdkBus_GetParamValues(
+                FIREWALL_COMPONENT_NAME, FIREWALL_DBUS_PATH, "Device.X_RDK_WanManager.CurrentActiveInterface", 
+		hotspot_wan_ifname, sizeof(hotspot_wan_ifname)) == ANSC_STATUS_SUCCESS)
+        {
+	    FIREWALL_DEBUG("HotSpot wan interface fetched \n");
+        }
    }
    FIREWALL_DEBUG(" line:%d current_wan_ifname:%s  hotspot_wan_ifname %s \n" COMMA __LINE__ COMMA current_wan_ifname COMMA hotspot_wan_ifname);
 
@@ -2492,6 +2519,18 @@ static int prepare_globals_from_configuration(void)
    rfstatus =  isInRFCaptivePortal();
    isCacheActive     = (0 == strcmp("started", transparent_cache_state)) ? 1 : 0;
    isFirewallEnabled = (0 == strcmp("0", firewall_enabled)) ? 0 : 1; 
+
+#ifdef FEATURE_MAPE
+   char mape_status[32] = {0};
+   char d_log[128]      = {0};
+   syscfg_get(NULL, "mape_config_flag", mape_status, sizeof(mape_status));
+   if(!strcmp(mape_status, "true")){//MAP-E
+       isMAPEReady=1;
+       syscfg_get(NULL, "mape_ipv4_address", current_wan_ipaddr, sizeof(current_wan_ipaddr));
+   }
+   sprintf(d_log, "isMAPEReady=%d, current_wan_ipaddr=%s\n", isMAPEReady, current_wan_ipaddr);
+   FIREWALL_DEBUG(d_log);
+#endif
 
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
    isMAPTReady = isMAPTSet();
@@ -2529,11 +2568,22 @@ static int prepare_globals_from_configuration(void)
    isDmzEnabled      = (0 == strcmp("1", dmz_enabled)) ? 1 : 0;
    /* nat_enabled(0): disable  (1) DHCP (2)StaticIP (others) disable */
    isNatEnabled      = atoi(nat_enabled);
-   #ifdef CISCO_CONFIG_TRUE_STATIC_IP
-   isNatEnabled      = (isNatEnabled > NAT_STATICIP ? NAT_DISABLE : isNatEnabled);
-   #else
-   isNatEnabled      = (isNatEnabled == NAT_DISABLE ? NAT_DISABLE : NAT_DHCP);
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
+    {
+   isNatEnabled      = (isNatEnabled > NAT_STATICIP ? NAT_DISABLE : isNatEnabled);
+    }
+#endif
+#if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
+   #endif
+    {
+   isNatEnabled      = (isNatEnabled == NAT_DISABLE ? NAT_DISABLE : NAT_DHCP);
+    }
+#endif
    isLogEnabled      = (log_leveli > 1) ? 1 : 0;
    isLogSecurityEnabled = (isLogEnabled && log_leveli > 1) ? 1 : 0;
 #if 0
@@ -2545,7 +2595,11 @@ static int prepare_globals_from_configuration(void)
    isLogOutgoingEnabled = 0;
    isCmDiagEnabled   = (0 == strcmp("1", cmdiag_enabled)) ? 1 : 0;
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
+   #endif
+    {
    /* get true static IP info */   
    sysevent_get(sysevent_fd, sysevent_token, "wan_staticip-status", wan_staticip_status, sizeof(wan_staticip_status));
    isWanStaticIPReady = (0 == strcmp("started", wan_staticip_status)) ? 1 : 0; 
@@ -2664,11 +2718,17 @@ static int prepare_globals_from_configuration(void)
    memset(firewall_true_static_ip_enable, 0, sizeof(firewall_true_static_ip_enable));
    syscfg_get(NULL, "firewall_true_static_ip_enable", firewall_true_static_ip_enable,sizeof(firewall_true_static_ip_enable));
    isFWTS_enable = (0 == strcmp("1", firewall_true_static_ip_enable) ? 1 : 0);
-	   
-#else
+    }	   
+#endif
+#if !defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
+   #endif
+    {
     safec_rc = strcpy_s(natip4, sizeof(natip4),current_wan_ipaddr);
     ERR_CHK(safec_rc);
-    isNatReady = isWanReady; 
+    isNatReady = isWanReady;
+    }
 #endif
 
 
@@ -3248,7 +3308,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
            FIREWALL_DEBUG("Entering do_single_port_forwarding\n");
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
    BOOL isBothProtocol = FALSE;
-   BOOL isFeatureDisabled = TRUE;
 #endif
    query[0] = '\0';
    rc = syscfg_get(NULL, "SinglePortForwardCount", query, sizeof(query)); 
@@ -3263,12 +3322,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
          count = MAX_SYSCFG_ENTRIES;
       }
    }
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-   {
-       FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA TRUE);
-       isFeatureDisabled = FALSE;
-   }
-#endif
 
    for (idx=1 ; idx<=count ; idx++) {
       namespace[0] = '\0';
@@ -3620,12 +3673,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
 #endif
    }
 SinglePortForwardNext:
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-     if(isFeatureDisabled == TRUE)
-     {
-         FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA FALSE);
-     }
-#endif
            FIREWALL_DEBUG("Exiting do_single_port_forwarding\n");       
    return(0);
 }
@@ -3649,7 +3696,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
    int count;
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
    BOOL isBothProtocol = FALSE;
-   BOOL isFeatureDisabled = TRUE;
 #endif
 
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP 
@@ -3670,10 +3716,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
          count = MAX_SYSCFG_ENTRIES;
       }
    }
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-   FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA TRUE);
-   isFeatureDisabled = FALSE;
-#endif
 
    for (idx=1 ; idx<=count ; idx++) {
       namespace[0] = '\0';
@@ -4077,13 +4119,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
 
    }
 PortRangeForwardNext:
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-      if (isFeatureDisabled == TRUE)
-      {
-          FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA FALSE);
-      }
-#endif
-
          FIREWALL_DEBUG("Exiting do_port_range_forwarding\n");
 
    return(0);
@@ -5278,6 +5313,7 @@ static int do_nat_ephemeral(FILE *fp)
    return(0);
 }
 
+#if defined  (WAN_FAILOVER_SUPPORTED)
 void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
 {
     FIREWALL_DEBUG(" Entering applyHotspotPostRoutingRules \n");
@@ -5308,7 +5344,7 @@ void applyHotspotPostRoutingRules(FILE *fp, bool isIpv4)
     }
     FIREWALL_DEBUG(" Exiting applyHotspotPostRoutingRules \n");
 }
-
+#endif
 #if defined(_BWG_PRODUCT_REQ_)
 /*
  *  Procedure     : do_raw_table_staticip
@@ -5417,9 +5453,19 @@ static int do_wan_nat_lan_clients(FILE *fp)
   {/*fix RDKB-21704, SNAT is required only for private IP ranges. */
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
   if (!isMAPTReady)
+  {
 #endif //FEATURE_MAPT
-     if(!IS_EMPTY_STRING(natip4))
-     {
+#ifdef FEATURE_MAPE
+  if(!isMAPEReady)
+  {
+#endif
+      if (IsHotspotActive())
+      {
+#if defined  (WAN_FAILOVER_SUPPORTED)
+	  applyHotspotPostRoutingRules(fp, true);
+#endif
+      } else if(!IS_EMPTY_STRING(natip4))
+      {
          fprintf(fp, "-A postrouting_towan -s 10.0.0.0/8 -j SNAT --to-source %s\n", natip4);
          fprintf(fp, "-A postrouting_towan -s 192.168.0.0/16 -j SNAT --to-source %s\n", natip4);
          fprintf(fp, "-A postrouting_towan -s 172.16.0.0/12 -j SNAT --to-source %s\n", natip4);
@@ -5451,6 +5497,12 @@ static int do_wan_nat_lan_clients(FILE *fp)
             #endif /*WIFI_MANAGE_SUPPORTED*/
          }
      }
+#ifdef FEATURE_MAPE
+  }
+#endif  
+#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
+     }
+#endif
   }
   else
   {
@@ -5461,14 +5513,16 @@ static int do_wan_nat_lan_clients(FILE *fp)
       #ifdef RDKB_EXTENDER_ENABLED
          fprintf(fp, "-A postrouting_towan -j MASQUERADE\n");
       #else
-         #ifdef WAN_FAILOVER_SUPPORTED
-	 if (0 == checkIfULAEnabled())
+	 if (IsHotspotActive())
 	 {
+             FIREWALL_DEBUG("Apply HOTSPOT nating rules do_wan_nat_lan_clients\n");       
+#if defined  (WAN_FAILOVER_SUPPORTED)
 	     applyHotspotPostRoutingRules(fp, true);
+#endif
 	 } else {
+             FIREWALL_DEBUG("Apply nating rules do_wan_nat_lan_clients\n");       
 	     fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
 	 }
-         #endif
       #endif
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
      }
@@ -5476,7 +5530,24 @@ static int do_wan_nat_lan_clients(FILE *fp)
   }
 
   // fprintf(fp, "%s\n", str);
-  
+#ifdef FEATURE_MAPE
+  if(isMAPEReady)
+     {
+         unsigned short min_port    = 0;
+         unsigned short max_port    = 0;
+
+         min_port=10000;
+	 max_port=10000;
+         fprintf(fp, "-A postrouting_towan -o %s -p udp -j MASQUERADE --to-ports %hu-%hu\n", "ip6tnl", min_port, max_port);
+         fprintf(fp,"-A postrouting_towan -o %s -p tcp -j MASQUERADE --to-ports %hu-%hu\n", "ip6tnl", min_port, max_port);
+         fprintf(fp, "-A postrouting_towan -o %s -p icmp -j MASQUERADE --to-ports %hu-%hu\n", "ip6tnl", min_port, max_port);
+         fprintf(fp, "-A postrouting_towan -o %s -j MASQUERADE\n", "ip6tnl");
+     }
+     else
+     {
+         fprintf(fp, "-A postrouting_towan  -j SNAT --to-source %s\n", natip4);
+     }
+#endif
    if (isCacheActive) {
       fprintf(fp, "-A PREROUTING -i %s -p tcp --dport 80 -j DNAT --to %s:%s\n", lan_ifname, lan_ipaddr, "3128");
    }
@@ -5998,7 +6069,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    fprintf(fp, "-A INPUT -j wanattack\n");
 
    //Smurf attack, actually the below rules are to prevent us from being the middle-man host
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_)
    fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request %s -j LOG --log-prefix \"DoS Attack - Smurf Attack\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6018,7 +6089,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(fp, "-A SmurfAttack -p icmp -m icmp --icmp-type address-mask-request -j xlog_drop_wanattack\n");
    // ICMP Smurf Attack (timestamp)
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_) /* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A ICMPSmurfAttack -p icmp -m icmp --icmp-type timestamp-request %s -j LOG --log-prefix \"DoS Attack - Smurf Attack\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6040,7 +6111,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 
    //ICMP Flooding. Mark traffic bit rate > 5/s as attack and limit 6 log entries per hour
    fprintf(fp, "-A ICMPFlooding -p icmp -m limit --limit 5/s --limit-burst 10 -j RETURN\n");
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_) /* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A ICMPFlooding -p icmp %s -j LOG --log-prefix \"DoS Attack - ICMP Flooding\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6062,7 +6133,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 
    //TCP SYN Flooding
    fprintf(fp, "-A TCPSYNFlooding -p tcp --syn -m limit --limit 10/s --limit-burst 20 -j RETURN\n");
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)/* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_)/* ULOG target removed in kernels 3.17+ */
    fprintf(fp, "-A TCPSYNFlooding -p tcp --syn %s -j LOG --log-prefix \"DoS Attack - TCP SYN Flooding\" --log-level 7\n", logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
    if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6086,7 +6157,7 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
    if(isWanReady) {
        /* Allow multicast packet through */
       fprintf(fp, "-A LANDAttack -p udp -s %s -d 224.0.0.0/8 -j RETURN\n", wan_ip);
-#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) /* ULOG target removed in kernels 3.17+ */
+#if defined(_HUB4_PRODUCT_REQ_) || defined(_WNXL11BWL_PRODUCT_REQ_) || defined(_XER5_PRODUCT_REQ_) || defined (_SCER11BEL_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_COSA_QCA_ARM_) /* ULOG target removed in kernels 3.17+ */
       fprintf(fp, "-A LANDAttack -s %s %s -j LOG --log-prefix \"DoS Attack - LAND Attack\" --log-level 7\n", wan_ip, logRateLimit);
 #elif defined(_PROPOSED_BUG_FIX_)
        if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0))
@@ -6161,7 +6232,14 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
     // connection as well 
     char isp_connection[MAX_QUERY];
     isp_connection[0] = '\0';
-    sysevent_get(sysevent_fd, sysevent_token, "ipv4_wan_ipaddr", isp_connection, sizeof(isp_connection));
+    if(isMAPEReady)
+    {
+        strcpy(isp_connection, current_wan_ipaddr);
+    }
+    else
+    {
+        sysevent_get(sysevent_fd, sysevent_token, "ipv4_wan_ipaddr", isp_connection, sizeof(isp_connection));
+    }
     if ('\0' != isp_connection[0] && 
         0 != strcmp("0.0.0.0", isp_connection) && 
         0 != strcmp(isp_connection, wan_ip)) {
@@ -6194,9 +6272,9 @@ int do_wan2self_attack(FILE *fp,char* wan_ip)
 
 
       // These rules add scanners to the portscan list, and log the attempt.
-      fprintf(fp, "-A PortScanning -i %s -p tcp -m tcp --dport 139 -m recent --name portscan --set -j LOG --log-prefix \"Portscan:\" -m limit --limit 1/minute --limit-burst 1\n", current_wan_ifname);
+      fprintf(fp, "-A PortScanning -i %s -p tcp -m tcp --dport 139 -m recent --name portscan --set -j LOG --log-prefix \"Portscan:\" -m limit --limit 1/minute --limit-burst 1\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
 
-      fprintf(fp, "-A PortScanning -i %s -p tcp -m tcp --dport 139 -m recent --name portscan --set -j xlog_drop_wanattack\n", current_wan_ifname);
+      fprintf(fp, "-A PortScanning -i %s -p tcp -m tcp --dport 139 -m recent --name portscan --set -j xlog_drop_wanattack\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
    }
         // FIREWALL_DEBUG("Exiting do_wan2self_attack\n");     
    return(0);
@@ -6235,7 +6313,6 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
   	char httpsport[64] = {0};
   	char tmpQuery[MAX_QUERY];
 		
-         FIREWALL_DEBUG("Entering remote_access_set_proto\n");   
         ret = syscfg_get(NULL, "mgmt_wan_httpport", httpport, sizeof(port));
 #if defined(CONFIG_CCSP_WAN_MGMT_PORT)
           tmpQuery[0] = '\0';
@@ -6251,13 +6328,17 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
   	if ((ret != 0) || ('\0' == httpsport[0])) {
              strcpy(httpsport, "8181");
         }
-    if (family == AF_INET) {
-        if ((0 == strcmp(httpport, port)) || (0 == strcmp(httpsport, port))) {
-          fprintf(filt_fp, "-A wan2self_mgmt -i %s %s -p tcp -m tcp --dport %s -j webui_limit\n", interface, src, port);
-        } else {
-          fprintf(filt_fp, "-A wan2self_mgmt -i %s %s -p tcp -m tcp --dport %s -j ACCEPT \n", interface, src, port);
-        }          
-    } else { 
+	if (family == AF_INET)
+        {
+           if ((0 == strcmp(httpport, port)) || (0 == strcmp(httpsport, port)))
+	   {
+              fprintf(filt_fp, "-A wan2self_mgmt -i %s %s -p tcp -m tcp --dport %s -j webui_limit\n", interface, src, port);
+           }
+	   else
+	   {
+	      fprintf(filt_fp, "-A wan2self_mgmt -i %s %s -p tcp -m tcp --dport %s -j ACCEPT\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:interface, src, port);
+	   }
+	} else {
 #if defined(_COSA_BCM_MIPS_) //Fix  for XF3-5627
 		if(0 == strcmp("80", port)) {
                     char IPv6[INET6_ADDRSTRLEN];
@@ -6272,7 +6353,6 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
         fprintf(filt_fp, "-A INPUT -i %s %s -p tcp -m tcp --dport %s -j ACCEPT\n", interface, src, port); 
       }
     }
-         FIREWALL_DEBUG("Exiting remote_access_set_proto\n");    
     return 0;
 }
 int wan_lan_webui_attack(FILE *fp, const char *interface)
@@ -6697,6 +6777,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
            remote_access_set_proto(filter_fp, nat_fp, port, iprangeAddr[i], family, ecm_wan_ifname);
    }
 
+#if !defined (NO_MTA_FEATURE_SUPPORT)
    /* eMTA SSH access */
    rc = syscfg_get(NULL, "mgmt_mta_sshaccess", query, sizeof(query));
    rc |= syscfg_get(NULL, "mgmt_wan_sshport", port, sizeof(port));
@@ -6718,6 +6799,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
        for(i = 0; i < count && family == AF_INET && srcany == 0; i++)
            remote_access_set_proto(filter_fp, nat_fp, port, iprangeAddr[i], family, emta_wan_ifname);
    }
+#endif
 
 #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
     // RDKB-21814 
@@ -8135,39 +8217,37 @@ static int determine_enforcement_schedule2(FILE *cron_fp, const char *namespace)
 
    int today_bits = 0;
    today_bits = (1 << local_now.tm_wday);
-   if(!(today_bits & policy_days)) {
-   } else {
-      if (1 == h24) {
-         within_policy_start_stop = 1;
-      } else {
-         int startPassedHours, startPassedMins;
-         int stopPassedHours, stopPassedMins;
-         int startPass, stopPass;
-         int sh, sm, eh, em;
+   if(!(today_bits & policy_days))
+   {
+   }
+   else
+   {
+       int startPassedHours, startPassedMins;
+       int stopPassedHours, stopPassedMins;
+       int startPass, stopPass;
+       int sh, sm, eh, em;
 
+       sscanf(policy_time_start, "%d:%d", &sh, &sm);
+       sscanf(policy_time_stop, "%d:%d", &eh, &em);
 
-         sscanf(policy_time_start, "%d:%d", &sh, &sm);
-         sscanf(policy_time_stop, "%d:%d", &eh, &em);
+       startPass = time_delta(&local_now, policy_time_start, &startPassedHours, &startPassedMins);
+       stopPass = time_delta(&local_now, policy_time_stop, &stopPassedHours, &stopPassedMins);
 
-         startPass = time_delta(&local_now, policy_time_start, &startPassedHours, &startPassedMins);
-         stopPass = time_delta(&local_now, policy_time_stop, &stopPassedHours, &stopPassedMins);
-         
-         //start time > stop time
-         if(sh > eh || (sh == eh && sm >= em)) {
-             if(!((stopPass == -1 || (stopPass == 0 && stopPassedHours == 0 && stopPassedMins == 0))
-                 && startPass == 0))
+       //start time > stop time
+       if(sh > eh || (sh == eh && sm >= em)) {
+           if(!((stopPass == -1 || (stopPass == 0 && stopPassedHours == 0 && stopPassedMins == 0))
+                       && startPass == 0))
                within_policy_start_stop = 1;
-         }
-         else { //start time < stop time
-             //printf("today is %d, start time is %d, stop time is %d\n", today_bits, sh, eh);
-             if((startPass == -1 || (startPass == 0 && startPassedHours == 0 && startPassedMins == 0))
-                 && stopPass == 0) {
+       }
+       else { //start time < stop time
+           //printf("today is %d, start time is %d, stop time is %d\n", today_bits, sh, eh);
+           if((startPass == -1 || (startPass == 0 && startPassedHours == 0 && startPassedMins == 0))
+                   && stopPass == 0) {
                within_policy_start_stop = 1;
-             }
-         }
+           }
        }
    }
-    FIREWALL_DEBUG("Exiting determine_enforcement_schedule2\n");  
+   FIREWALL_DEBUG("Exiting determine_enforcement_schedule2\n");
    return within_policy_start_stop;
 }
 
@@ -8941,12 +9021,14 @@ static int do_parcon_mgmt_device(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
+#define MAX_DEV_8K 8192
 devMacSt * getPcmdList(int *devCount)
 {
 int count = 0;
-int numDev = 0;
+long numDev = 0;
 FILE * fp;
 char buf[19];
+char *endptr = NULL;
 devMacSt *devMacs = NULL;
 devMacSt *dev = NULL;
 memset(buf, 0, sizeof(buf));
@@ -8957,11 +9039,28 @@ memset(buf, 0, sizeof(buf));
            FIREWALL_DEBUG("Error while locking file\n");
        while( fgets ( buf, sizeof(buf), fp ) != NULL ) 
        {
-           if(count == 0){
-               numDev = atoi(buf);            		
-               printf("numDev = %d \n" COMMA numDev);
-               *devCount = numDev;
-               devMacs = (devMacSt *)calloc(numDev,sizeof(devMacSt));
+           int len = strlen(buf);
+           if(len > 0 && buf[len-1] == '\n')
+               buf[len-1] = '\0';
+
+           if(count == 0)
+           {
+               errno = 0;
+               numDev = strtol(buf, &endptr, 10);
+               if (endptr == buf || *endptr != '\0' || errno == ERANGE)
+               {
+                   FIREWALL_DEBUG("invalid data\n");
+                   break;
+               }
+
+               if(numDev < 0 || numDev > MAX_DEV_8K)
+               {
+                   FIREWALL_DEBUG("value out of range\n");
+                   break;
+               }
+
+               *devCount = (int)numDev;
+               devMacs = (devMacSt *)calloc(*devCount,sizeof(devMacSt));
                dev = devMacs;
            }
            else
@@ -9017,14 +9116,6 @@ static int do_parcon_device_cloud_mgmt(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
-static int validate_port(char* port_num)
-{
-   int port = atoi(port_num);
-   if ( port <= 0 || port > MAX_PORT )
-      return -1;
-
-   return 0;
-}
 /*
  * add parental control managed service(ports) rules
  */
@@ -9162,6 +9253,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
         ruleIndex += do_parcon_mgmt_lan2wan_pc_site_appendrule(fp);
 #endif
 
+        bool keywd_chains_exists = false;
         for (idx = 1; idx <= count; idx++)
         {
             char namespace[MAX_QUERY];
@@ -9339,7 +9431,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 					//Intel Proposed RDKB Generic Bug Fix from XB6 SDK
 					fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 80 -m webstr --host \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
 					fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 -m webstr --host \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
-#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
+#elif defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)
                     fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 80 -d \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
                     fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 -d \"%s\" -j LOG_SiteBlocked_%d_DROP\n", query + host_name_offset, idx);
 #elif !defined(_XER5_PRODUCT_REQ_)
@@ -9367,6 +9459,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int range_max = 1024; //max payload bytes to filter
                 int range_multiplier = 2;
 
+                FIREWALL_DEBUG("adding rules for KEYWD\n");
                 // Extract keyword if user input is a full URL
                 if (strstr(query, "://") != NULL) {
                     keyword = strstr(query, "://") + 3;
@@ -9383,24 +9476,32 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 int from,to;
                 for (from = 0, to = 64; from < range_max; from = to, to = (to * range_multiplier > range_max) ? range_max : to * range_multiplier)
                 {
-                    char chainName[64] = {'\0'};
+                    char chain_name[64] = {'\0'};
 
-                    // Create new chain
+                    // Create new chain only for first keyword
                     // linux iptables chainname length is max 29 chars
-                    snprintf(chainName, sizeof(chainName), "LOG_SiteBlk_KW_%d_%d", from, to);
-                    fprintf(fp, ":%s - [0:0]\n", chainName);
+                    snprintf(chain_name, sizeof(chain_name), "LOG_SiteBlk_KW_%d_%d", from, to);
+
+		    // Private chain per range is created only once
+		    if (keywd_chains_exists == false) {
+                        // create new chain
+                        fprintf(fp, ":%s - [0:0]\n", chain_name);
+                    }
 
                     // Add rule to jump to private chain if "Host:" is found in this offset range
                     fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 80 -m string --string \"Host:\" --algo kmp --from %d --to %d --icase -j %s\n",
-                        from, to, chainName);
+                        from, to, chain_name);
 
                     // Add rule to match keyword in private chain within same offset range
                     fprintf(fp, "-A %s -m string --string \"%s\" --algo kmp --from %d --to %d --icase -j %s\n",
-                        chainName, keyword, from, to, drop_log);
+                        chain_name, keyword, from, to, drop_log);
 
                     // Default rule to return if not matched
-                    fprintf(fp, "-A %s -j RETURN\n", chainName);
+                    fprintf(fp, "-A %s -j RETURN\n", chain_name);
                 }
+
+                // set keywd chains created
+                keywd_chains_exists = true;
 
                 // Add rule for https filter
                 fprintf(fp, "-A lan2wan_pc_site -p tcp --dport 443 -m string --string \"%s\" --algo kmp --icase -j %s\n",
@@ -9702,9 +9803,9 @@ static int prepare_host_detect(FILE * fp)
       char buf[1024];
       if (NULL != kh_fp) { 
          while (NULL != fgets(buf, sizeof(buf), kh_fp)) {
-            char ip[20];
-            char mac[20];
-            sscanf(buf, "%20s %20s", ip, mac);
+            char ip[BUFLEN_20 + 1];
+            char mac[BUFLEN_20 + 1];
+            sscanf(buf, "%" STR(BUFLEN_20) "s" "%" STR(BUFLEN_20) "s", ip, mac);
            fprintf(fp, "-A host_detect -i %s -s %s -j RETURN\n", lan_ifname, ip);
          }
          fclose(kh_fp);
@@ -9744,7 +9845,7 @@ static int prepare_lan_bandwidth_tracking(FILE *fp)
 	 fprintf(fp, "-N bandwidth_%s\n", ip);
          fprintf(fp, "-A bandwidth_%s -j RETURN\n", ip);
 
-         fprintf(fp, "-A lan2wan_bandwidth -s %s -o %s -j bandwidth_%s\n", ip, current_wan_ifname, ip);
+	 fprintf(fp, "-A lan2wan_bandwidth -s %s -o %s -j bandwidth_%s\n", ip, isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname, ip);
 
          hosts++;
       }
@@ -10001,21 +10102,9 @@ static int do_lan2wan_misc(FILE *filter_fp)
         else if (strcmp(query,"ACCEPT") == 0) {
             fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 1723  -j ACCEPT\n");
         }
-        char sites_enabled[MAX_QUERY];
-        sites_enabled[0] = '\0';
-        syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
-        if (sites_enabled[0] != '\0' && sites_enabled[0] == '0') // managed site list enabled
-        {
-            syscfg_get("blockssl", "result", query, sizeof(query));
-            if (strcmp(query,"DROP") == 0) {
-                fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j DROP\n");
-                fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j DROP\n");
-            }
-            else if(strcmp(query,"ACCEPT") == 0) {
-                fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j ACCEPT\n");
-                fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j ACCEPT\n");
-            }
-        }
+
+        // Apply SSL blocking rule
+        do_ssl_blocking_rules(filter_fp, "lan2wan_misc");
     }
 #endif
 
@@ -10662,6 +10751,24 @@ static int do_wan2lan(FILE *fp)
 }
 
 /*
+ *  Procedure     : do_block_lan_access_to_wan_ssh
+ *  Purpose       : To block SSH using WAN IP from LAN client
+ *  Parameters    :
+ *    fp             : An open file to write rules to block SSH using WAN IP in LAN client
+ * Return Values  :
+ *    0              : Success
+ */
+#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
+static int do_block_lan_access_to_wan_ssh(FILE *fp)
+{
+   FIREWALL_DEBUG("Entering do_block_lan_access_to_wan_ssh\n");
+   fprintf(fp, "-I INPUT 1 -i %s -d %s -p tcp --dport 10022 -j REJECT\n", lan_ifname, current_wan_ipaddr);
+   FIREWALL_DEBUG("Exiting do_block_lan_access_to_wan_ssh\n");
+   return(0);
+}
+#endif
+
+/*
  ==========================================================================
               Ephemeral filter rules
  ==========================================================================
@@ -10950,6 +11057,10 @@ static int prepare_multinet_filter_input (FILE *filter_fp)
     FIREWALL_DEBUG("Entering prepare_multinet_filter_input\n");
 #endif
 
+#ifdef FEATURE_MAPE
+    fprintf(filter_fp, "-I INPUT -i %s -p gre -j ACCEPT\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
+#endif
+
 #if (defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)) || defined(FEATURE_SUPPORT_MAPT_NAT46)
     if (isMAPTReady)
     {
@@ -11075,12 +11186,12 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
         fprintf(filter_fp, "-A INPUT -i %s -m pkttype ! --pkt-type unicast -j ACCEPT\n", net_resp);
 #ifdef MULTILAN_FEATURE
 	if ( 0 == strncmp( lan_ifname, net_resp, strlen(lan_ifname))){
-        fprintf(filter_fp, "-A FORWARD -i %s -o %s -j lan2wan\n", net_resp, current_wan_ifname);
+        fprintf(filter_fp, "-A FORWARD -i %s -o %s -j lan2wan\n", net_resp, isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
 	}
-        fprintf(filter_fp, "-A FORWARD -i %s -o %s -j wan2lan\n", current_wan_ifname, net_resp);
+        fprintf(filter_fp, "-A FORWARD -i %s -o %s -j wan2lan\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname, net_resp);
 #else
-        fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", net_resp, current_wan_ifname);
-        fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", current_wan_ifname, net_resp);
+        fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", net_resp, isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
+        fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname, net_resp);
 #endif /*MULTILAN_FEATURE*/
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
@@ -11121,7 +11232,7 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     fprintf(filter_fp, "-A INPUT -i brlan113 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brebhaul -d 169.254.85.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brebhaul -m pkttype ! --pkt-type unicast -j ACCEPT\n");
-#elif defined(_XB7_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
+#elif defined(_XB7_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
     fprintf(filter_fp, "-A INPUT -i brlan112 -d 169.254.0.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brlan112 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
     fprintf(filter_fp, "-A FORWARD -i brlan112 -o erouter0 -j DROP\n");
@@ -11603,13 +11714,13 @@ int prepare_lnf_internet_rules(FILE *mangle_fp,int iptype)
         memset(lnf_ipaddress, 0, sizeof(lnf_ipaddress));
         syscfg_get(NULL, "iot_ipaddr", lnf_ipaddress, sizeof(lnf_ipaddress));
         fprintf(mangle_fp, "-A FORWARD -i %s -d %s/24 -m dscp --dscp-class cs0 -m limit --limit 1/minute -j LOG --log-prefix \"Internet packets in LnF\"\n",
-                current_wan_ifname,lnf_ipaddress);
-        fprintf(mangle_fp, "-A FORWARD -i %s -d %s/24 -m dscp --dscp-class cs0 -j DROP\n",current_wan_ifname,lnf_ipaddress);
+               isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname,lnf_ipaddress);
+        fprintf(mangle_fp, "-A FORWARD -i %s -d %s/24 -m dscp --dscp-class cs0 -j DROP\n",isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname,lnf_ipaddress);
 
         fprintf(mangle_fp, "-A FORWARD -i %s -d %s/24 -m dscp --dscp-class cs1 -m limit --limit 1/minute -j LOG --log-prefix \"Internet packets in LnF\"\n",
-                current_wan_ifname,lnf_ipaddress);
-        fprintf(mangle_fp, "-A FORWARD -i %s -d %s/24 -m dscp --dscp-class cs1 -j DROP\n",current_wan_ifname,lnf_ipaddress);
-        fprintf(mangle_fp, "-A FORWARD -i %s -d %s/24 -j ACCEPT\n",current_wan_ifname,lnf_ipaddress);
+                isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname,lnf_ipaddress);
+        fprintf(mangle_fp, "-A FORWARD -i %s -d %s/24 -m dscp --dscp-class cs1 -j DROP\n",isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname,lnf_ipaddress);
+        fprintf(mangle_fp, "-A FORWARD -i %s -d %s/24 -j ACCEPT\n",isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname,lnf_ipaddress);
     }
     else 
     {
@@ -11779,6 +11890,43 @@ static void do_secure_backhaul(FILE *filter_fp)
 }
 #endif
 #endif
+
+#ifdef FEATURE_MAPE
+int prepare_mape_rules(FILE *mangle_fp)
+{
+   char mape_enable[64]     = {0};
+   char lan_ip_address[64]  = {0};
+   char lan_subnet_mask[64] = {0};
+   char lan_prefix[80]      = {0};
+
+   syscfg_get(NULL,"mape_config_flag",mape_enable, sizeof(mape_enable));
+    if( mape_enable[0] != '\0' )
+    {
+        if (strcmp(mape_enable, "true") == 0)
+        {
+            syscfg_get(NULL, "lan_ipaddr", lan_ip_address, sizeof(lan_ip_address));
+            if( lan_ip_address[0] != '\0' )
+            {
+                syscfg_get(NULL, "lan_netmask", lan_subnet_mask, sizeof(lan_subnet_mask));
+                if( lan_subnet_mask[0] != '\0' )
+                {
+                    unsigned int lanSubnetMask = inet_network(lan_subnet_mask);
+                    unsigned int subnetCount = 0;
+                    while (lanSubnetMask)
+                    {
+                        subnetCount += lanSubnetMask & 1;
+                        lanSubnetMask = lanSubnetMask >> 1;
+                    }
+                    snprintf(lan_prefix, sizeof(lan_prefix), "%s/%u", lan_ip_address, subnetCount);
+                    fprintf(mangle_fp, "-A PREROUTING -p all -i %s -d %s -j ACCEPT\n", current_wan_ifname, lan_prefix);
+                }
+            }
+        }
+    }
+    return 0;
+}
+#endif
+
 /*
  *  Procedure     : prepare_subtables
  *  Purpose       : prepare the iptables-restore file that establishes all
@@ -11836,6 +11984,12 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
        do_lan2wan_helpers(raw_fp);
    }
 #endif
+
+#if defined (_PLATFORM_BANANAPI_R4_)
+       isRawTableUsed = 1;
+       fprintf(raw_fp, "-A OUTPUT -p udp --dport 69 -j CT --helper tftp\n");
+#endif
+
    /*
     * mangle
     */
@@ -11878,7 +12032,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    prepare_lnf_internet_rules(mangle_fp,4);
    prepare_dscp_rule_for_host_mngt_traffic(mangle_fp);
    prepare_xconf_rules(mangle_fp);
-
+#ifdef FEATURE_MAPE
+   prepare_mape_rules(mangle_fp);
+#endif
 
 #ifdef CONFIG_BUILD_TRIGGER
 #ifndef CONFIG_KERNEL_NF_TRIGGER_SUPPORT
@@ -12044,7 +12200,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    }
    else // Add erouter0 prerouting_fromwan chain for 'Dual Stack' line only
 #endif //FEATURE_MAPT
-   fprintf(nat_fp, "-A PREROUTING -i %s -j prerouting_fromwan\n", current_wan_ifname);
+   fprintf(nat_fp, "-A PREROUTING -i %s -j prerouting_fromwan\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
    prepare_multinet_prerouting_nat(nat_fp);
 #ifdef CONFIG_BUILD_TRIGGER
 #ifdef CONFIG_KERNEL_NF_TRIGGER_SUPPORT
@@ -12097,10 +12253,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif //NAT46_KERNEL_SUPPORT
    if (!isMAPTReady)
    {   // Add erouter0 prerouting_fromwan_todmz chain for 'Dual Stack' line only
-       fprintf(nat_fp, "-A PREROUTING -i %s -j prerouting_fromwan_todmz\n", current_wan_ifname);
+       fprintf(nat_fp, "-A PREROUTING -i %s -j prerouting_fromwan_todmz\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
        fprintf(nat_fp, "-A POSTROUTING -j postrouting_ephemeral\n");
        // This breaks emta DNS routing on XF3. We may need some special rule here.
-       fprintf(nat_fp, "-A POSTROUTING -o %s -j postrouting_towan\n", current_wan_ifname);
+       fprintf(nat_fp, "-A POSTROUTING -o %s -j postrouting_towan\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
    }
 #endif // FEATURE_MAPT
 
@@ -12109,10 +12265,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
    {
-      fprintf(nat_fp, "-A PREROUTING -i %s -j prerouting_fromwan_todmz\n", current_wan_ifname);
+      fprintf(nat_fp, "-A PREROUTING -i %s -j prerouting_fromwan_todmz\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
       fprintf(nat_fp, "-A POSTROUTING -j postrouting_ephemeral\n");
    // This breaks emta DNS routing on XF3. We may need some special rule here.
-      fprintf(nat_fp, "-A POSTROUTING -o %s -j postrouting_towan\n", current_wan_ifname);
+      fprintf(nat_fp, "-A POSTROUTING -o %s -j postrouting_towan\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
    }
 #endif //_HUB4_PRODUCT_REQ_ ENDS
 
@@ -12166,6 +12322,12 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #if defined(_PLATFORM_BANANAPI_R4_)
    fprintf(filter_fp, "-I OUTPUT -o %s -p tcp --sport 49153 -j ACCEPT\n",get_current_wan_ifname());
 #endif
+   char tr69_enabled[20];
+   memset(tr69_enabled, 0, sizeof(tr69_enabled));
+   syscfg_get(NULL, "EnableTR69Binary", tr69_enabled, sizeof(tr69_enabled));
+   if (!isComcastImage &&((tr69_enabled[0] == '\0') || (strcasecmp(tr69_enabled, "true") == 0))) {
+       fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 7547 -j ACCEPT\n",get_current_wan_ifname());
+   }
 #ifdef CONFIG_CISCO_FEATURE_CISCOCONNECT
    fprintf(filter_fp, ":%s - [0:0]\n", "pp_disabled");
    if(isGuestNetworkEnabled) {
@@ -12372,7 +12534,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    // Allow local loopback traffic 
    fprintf(filter_fp, "-A INPUT -i lo -s 127.0.0.0/8 -j ACCEPT\n");
    if (isWanReady) {
-       #ifdef _COSA_FOR_BCI_ 
+       #if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
        if (1 == isWanPingDisable)
        {
            fprintf(filter_fp, "-A INPUT -i %s -p icmp -m icmp --icmp-type 8 -j DROP\n",current_wan_ifname);
@@ -12394,6 +12556,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
    fprintf(filter_fp, "-A INPUT -i lo -m state --state NEW -j ACCEPT\n");
    fprintf(filter_fp, "-A INPUT -j general_input\n");
+#ifdef FEATURE_MAPE
+   fprintf(filter_fp, "-A INPUT -i %s -j wan2self\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
+#endif
    wan_lan_webui_attack(filter_fp,lan_ifname);
    // Rate limiting the webui-access lan side
    lan_access_set_proto(filter_fp, "80",lan_ifname);
@@ -12452,7 +12617,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
        fprintf(filter_fp,"-A INPUT -p tcp --dport 8181 -j DROP\n");
    }
 
-#if defined (_XB7_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (XB6_PRODUCT_REQ)
+#if defined (_XB7_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_) || defined (XB6_PRODUCT_REQ)
     /* RDKB-57664 Blocking rx_motion port TCP 6969 for Outside access */
     fprintf(filter_fp, "-A INPUT -p tcp ! -i lo --dport 6969 -j DROP\n");
 #endif
@@ -12470,8 +12635,8 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", ecm_wan_ifname);
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
-   fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", current_wan_ifname);
-#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
+#if !defined(_HUB4_PRODUCT_REQ_) && !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
@@ -12481,10 +12646,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -i %s -j lan2self\n", lan_ifname);
    fprintf(filter_fp, "-A INPUT -i %s -j wan2self\n", current_wan_ifname);
-   if ('\0' != default_wan_ifname[0] && 0 != strlen(default_wan_ifname) && 0 != strcmp(default_wan_ifname, current_wan_ifname)) {
+   if ('\0' != default_wan_ifname[0] && 0 != strlen(default_wan_ifname) && 0 != strcmp(default_wan_ifname, isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname)) {
       // even if current_wan_ifname is ppp we still want to consider default wan ifname as an interface
       // but dont duplicate
-      fprintf(filter_fp, "-A INPUT -i %s -j wan2self\n", default_wan_ifname);
+      fprintf(filter_fp, "-A INPUT -i %s -j wan2self\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:default_wan_ifname);
    }
    if (FALSE == bAmenityEnabled)
    {
@@ -12498,6 +12663,16 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       updateAmenityNetworkRules(filter_fp,mangle_fp , AF_INET);
       #endif
    }
+   #if defined(VOICE_MTA_SUPPORT)
+   char cVoiceRule[64] = {0};
+   sysevent_get(sysevent_fd, sysevent_token, "VoiceIpRule", cVoiceRule, sizeof(cVoiceRule));
+   FIREWALL_DEBUG("%s: VoiceIpRule=%s\n" COMMA __FUNCTION__ COMMA cVoiceRule);
+   if (strlen(cVoiceRule) > 0)
+   {
+      fprintf(filter_fp,"%s\n", cVoiceRule);
+      FIREWALL_DEBUG("%s: Applied VoiceIpRule\n" COMMA __FUNCTION__);
+   }
+   #endif
    //Add wan2self restrictions to other wan interfaces
    //ping is allowed to cm and mta inferfaces regardless the firewall level
 #if !defined(_HUB4_PRODUCT_REQ_)
@@ -12507,8 +12682,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    {
       fprintf(filter_fp, "-A INPUT -i %s -p icmp --icmp-type 8 -m limit --limit 3/second -j %s\n", ecm_wan_ifname, "xlog_accept_wan2self"); // ICMP PING
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_ports\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
       fprintf(filter_fp, "-A INPUT -i %s -p icmp --icmp-type 8 -m limit --limit 3/second -j %s\n", emta_wan_ifname, "xlog_accept_wan2self"); // ICMP PING
       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_ports\n", emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n");
@@ -12588,7 +12765,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
          fprintf(filter_fp, "-A INPUT -i %s -j ACCEPT\n", ecm_wan_ifname);
       }
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_TURRIS_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined (NO_MTA_FEATURE_SUPPORT)
       if (emta_wan_ifname[0]) // spare eMTA wan interface from Utopia firewall
       {
          fprintf(filter_fp, "-A INPUT -i %s -p udp --dport 80 -j DROP\n", emta_wan_ifname);
@@ -12664,8 +12841,8 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
 
    fprintf(filter_fp, "-A FORWARD -j general_forward\n");
-   fprintf(filter_fp, "-A FORWARD -i %s -o %s -j wan2lan\n", current_wan_ifname, lan_ifname);
-   fprintf(filter_fp, "-A FORWARD -i %s -o %s -j lan2wan\n", lan_ifname, current_wan_ifname);
+   fprintf(filter_fp, "-A FORWARD -i %s -o %s -j wan2lan\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname, lan_ifname);
+   fprintf(filter_fp, "-A FORWARD -i %s -o %s -j lan2wan\n", lan_ifname, isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
    // need br0 to br0 for virtual services)
    fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", lan_ifname, lan_ifname);
    prepare_multinet_filter_forward(filter_fp);
@@ -12731,8 +12908,8 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       fprintf(filter_fp,"-A INPUT -i %s -m pkttype ! --pkt-type unicast -j ACCEPT\n",iot_ifName);
       //fprintf(filter_fp,"-A FORWARD -i %s -o %s -j ACCEPT\n",iot_ifName,iot_ifName);
       //fprintf(filter_fp, "-I FORWARD 2 -i %s -o %s -j lan2wan_iot_allow\n", iot_ifName,current_wan_ifname);
-      fprintf(filter_fp, "-I FORWARD 2 -i %s -o %s -j ACCEPT\n", iot_ifName,current_wan_ifname);
-      fprintf(filter_fp, "-I FORWARD 3 -i %s -o %s -j wan2lan_iot_allow\n", current_wan_ifname, iot_ifName);
+      fprintf(filter_fp, "-I FORWARD 2 -i %s -o %s -j ACCEPT\n", iot_ifName,isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
+      fprintf(filter_fp, "-I FORWARD 3 -i %s -o %s -j wan2lan_iot_allow\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname, iot_ifName);
       //zqiu: R5337
       //do_lan2wan_IoT_Allow(filter_fp);
       do_wan2lan_IoT_Allow(filter_fp);
@@ -12745,7 +12922,32 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    }
 
+   /*
+    * Check WAN-to-LAN operational mode. When set to "Manageable",
+    * treat WAN-to-LAN forwarding as manageable by blocking LAN-to-WAN
+    * traffic via the lan2wan chain.
+    */
+   char cValue[64] = {0};
+   const char *pWanOutputIfname = NULL;
+   sysevent_get(sysevent_fd, sysevent_token, "wan_to_lan_operational_mode",cValue, sizeof(cValue));
+   if (0 == strcasecmp(cValue, "Manageable"))
+   {
+      if('\0' == lan_ifname[0])
+          snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
 
+      /* When MAP-E is not ready, ensure current_wan_ifname has a sane default. In MAP-E mode,
+       * the WAN egress interface is the MAP-E tunnel interface instead.
+       */
+      if(!isMAPEReady && '\0' == current_wan_ifname[0])
+          snprintf(current_wan_ifname, sizeof(current_wan_ifname), "erouter0");
+
+      /* Align the DROP rule's output interface with the forwarding path:
+       * use the MAP-E tunnel interface when MAP-E is ready, otherwise use current_wan_ifname.
+       */
+      pWanOutputIfname = isMAPEReady ? MAPE_TUNNEL_INTERFACE : current_wan_ifname;
+      FIREWALL_DEBUG("wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic from %s to %s\n" COMMA lan_ifname COMMA pWanOutputIfname);
+      fprintf(filter_fp, "-A lan2wan -i %s -o %s -j DROP\n", lan_ifname, pWanOutputIfname);
+   }
    /***********************
     * set lan to wan subrule by order 
     * *********************/
@@ -12799,7 +13001,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
        fprintf(filter_fp, "-A general_input -i brlan0 ! -s 192.168.100.3 -d 192.168.100.1 -j xlog_drop_lan2self\n");
    }
  
-#if defined(FEATURE_SUPPORT_RADIUSGREYLIST) && ( defined (_XB7_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) )
+#if defined(FEATURE_SUPPORT_RADIUSGREYLIST) && ( defined (_XB7_PRODUCT_REQ_) || defined (_XB8_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) )
      int RPsmGet = CCSP_SUCCESS;
      char *strvalue = NULL;
      RPsmGet = PSM_VALUE_GET_STRING(PSM_NAME_RADIUS_GREY_LIST_ENABLED, strvalue);
@@ -12830,7 +13032,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    {
        fprintf(filter_fp, "-A general_input -i %s -p udp --dport 68 -j ACCEPT\n", ecm_wan_ifname);
+#if !defined (NO_MTA_FEATURE_SUPPORT)
        fprintf(filter_fp, "-A general_input -i %s -p udp --dport 68 -j ACCEPT\n", emta_wan_ifname);
+#endif
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
    }
@@ -13207,10 +13411,11 @@ int do_block_ports(FILE *filter_fp)
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 49152:49153 -j DROP\n");
    /* For EasyMesh Controller Communication */
 #if defined(_PLATFORM_BANANAPI_R4_)
-   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n",get_current_wan_ifname());
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 49153 -j ACCEPT\n", get_current_wan_ifname());
+   fprintf(filter_fp, "-I INPUT -i %s -p tcp --dport 8888 -j ACCEPT\n", get_current_wan_ifname());
 #endif
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 1900 -j DROP\n");
-   fprintf(filter_fp, "-A INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
+   fprintf(filter_fp, "-I INPUT ! -i brlan0 -p tcp -m tcp --dport 21515 -j DROP\n");
    fprintf(filter_fp, "-A INPUT ! -i brlan0 -p udp -m udp --dport 21515 -j DROP\n");
 
    /*	RDKB-22836 :
@@ -13661,6 +13866,10 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_lan2wan(mangle_fp, filter_fp, nat_fp); 
    do_wan2lan(filter_fp);
    do_filter_table_general_rules(filter_fp);
+#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
+   if(isWanReady)
+        do_block_lan_access_to_wan_ssh(filter_fp);
+#endif
 #if defined(SPEED_BOOST_SUPPORTED)
 WAN_FAILOVER_SUPPORT_CHECK
    if(isWanServiceReady)
@@ -13783,6 +13992,10 @@ WAN_FAILOVER_SUPPORT_CHECk_END
          }
          fprintf(filter_fp, "-I FORWARD -o %s -m state --state INVALID -j DROP\n",current_wan_ifname);
    #endif
+#if defined(_PLATFORM_BANANAPI_R4_)
+   fprintf(filter_fp, "-I INPUT -p udp --dport 5060 -j ACCEPT\n");
+   fprintf(filter_fp, "-I INPUT -p udp --dport 10000:20000 -j ACCEPT\n");
+#endif
    fprintf(raw_fp, "COMMIT\n");
    fprintf(mangle_fp, "COMMIT\n");
    fprintf(nat_fp, "COMMIT\n");
@@ -13841,6 +14054,9 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 
    //zqiu: RDKB-5686: xconf rule should work for pseudo bridge mode
    prepare_xconf_rules(mangle_fp);
+#ifdef FEATURE_MAPE
+   prepare_mape_rules(mangle_fp);
+#endif
 
 #ifdef CONFIG_BUILD_TRIGGER
 #ifndef CONFIG_KERNEL_NF_TRIGGER_SUPPORT
@@ -13968,7 +14184,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
        fprintf(filter_fp, "-A INPUT -p tcp -m multiport --dports 80,443 -d %s -j ACCEPT\n",lan0_ipaddr);
 #endif
 #if defined (MULTILAN_FEATURE)
-       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", current_wan_ifname);
+       fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
 #else
        fprintf(filter_fp, "-A INPUT ! -i %s -j wan2self_mgmt\n", isBridgeMode == 0 ? lan_ifname : cmdiag_ifname);
 #endif
@@ -14534,7 +14750,7 @@ int CleanIPConntrack(char *physAddress)
        return -1;
     }
     libnet_status status = neighbour_get_list(neigh_data, mac_filter, if_filter, af_filter);
-    if (status != CNL_STATUS_SUCCESS) {
+    if (status != ANSC_STATUS_SUCCESS) {
         FIREWALL_DEBUG("Failed to list neighbours for %s\n" COMMA physAddress);
         free(mac_filter);
         neighbour_free_neigh(neigh_data);
@@ -15488,4 +15704,124 @@ int do_wpad_isatap_blockv6 (FILE *filter_fp)
 #endif
 
     return 0;
+}
+
+// Function to query parameters from RDK Bus
+ANSC_STATUS RdkBus_GetParamValues(
+    char *pComponent,
+    char *pBus,
+    char *pParamName,
+    char *pReturnVal,
+    size_t returnValSize)
+{
+    parameterValStruct_t   **retVal = NULL;
+    char                   *ParamName[ 1 ] = { 0 };
+    int                    ret = 0, nval = 0;
+
+    if (!pReturnVal || returnValSize == 0) {
+	return ANSC_STATUS_FAILURE;
+    }
+
+    // Assign the address for the parameter name
+    ParamName[0] = pParamName;
+
+    // Make the request to get the parameter value from the RDK bus
+    ret = CcspBaseIf_getParameterValues(
+        bus_handle,
+        pComponent,
+        pBus,
+        ParamName,
+        1,
+        &nval,
+        &retVal
+    );
+
+    // Copy the value if the request was successful
+    if (CCSP_SUCCESS == ret)
+    {
+        // Copy the value to the return buffer
+	if (retVal && nval > 0 && retVal[0] && retVal[0]->parameterValue)
+        {
+	    const char *src = retVal[0]->parameterValue;
+
+	    /* Safe copy with truncation */
+	    strncpy(pReturnVal, src, returnValSize - 1);
+	    pReturnVal[returnValSize - 1] = '\0';
+        }
+
+
+        // Free the allocated memory for the return value struct
+        if (retVal)
+        {
+            free_parameterValStruct_t(bus_handle, nval, retVal);
+        }
+
+        return ANSC_STATUS_SUCCESS;
+    }
+
+    // Free the allocated memory for the return value struct if an error occurred
+    if (retVal)
+    {
+        free_parameterValStruct_t(bus_handle, nval, retVal);
+    }
+
+    return ANSC_STATUS_FAILURE;
+}
+/**********************************************************************
+ * Function:  IsHotspotActive
+ * Description:
+ *     Checks whether the HOTSPOT interface is currently active by
+ *     querying the parameter FIREWALL_INTERFACE_STATUS_PARAM_NAME which
+ *     contains the status of WAN interfaces in the format:
+ *        INTERFACE_NAME,STATUS|INTERFACE_NAME,STATUS|...
+ *     Example: "HOTSPOT,1|WANOE,0|DSL,0"
+ *
+ *     - Returns true if HOTSPOT is present and has status = 1.
+ *     - Returns false if HOTSPOT is not present or status != 1.
+ *
+ * Output:
+ *     bool - true if HOTSPOT is active, false otherwise
+ *
+ **********************************************************************/
+bool IsHotspotActive()
+{
+    char acTmpReturnValue[BUFLEN_256] = { 0 };
+
+    // Query the WAN Manager for the Interface Active Status
+    if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(
+            FIREWALL_COMPONENT_NAME, FIREWALL_DBUS_PATH, TR181_ACTIVE_WAN_INTERFACE, 
+	    acTmpReturnValue, sizeof(acTmpReturnValue)))
+    {
+        FIREWALL_DEBUG("%s %d Failed to get param value \n" COMMA __FUNCTION__ COMMA __LINE__);
+        return false;
+    }
+
+    // Tokenize the response to check for HOTSPOT
+    char buf[BUFLEN_256];
+    strncpy(buf, acTmpReturnValue, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = '\0';
+
+    char* token = strtok(buf, "|");
+    while (token != NULL)
+    {
+        // Check if HOTSPOT is in the token and its value is 1
+        if (strncasecmp(token, "HOTSPOT,", 8) == 0)
+        {
+            // Last character should be '1' to be active
+	    if (strlen(token) > 8 && token[strlen(token) - 1] == '1')  
+            {
+                FIREWALL_DEBUG("HOTSPOT interface is ACTIVE\n");
+                return true;
+            }
+            else
+            {
+                FIREWALL_DEBUG("HOTSPOT interface is NOT active\n");
+                return false;
+            }
+        }
+
+        token = strtok(NULL, "|");
+    }
+
+    return false;
 }

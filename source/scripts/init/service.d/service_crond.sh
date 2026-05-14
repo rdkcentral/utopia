@@ -111,6 +111,10 @@ service_start ()
         echo "* * * * *   /etc/sky/set_dscp_lan.sh" >> $CRONTAB_FILE
       fi
 
+      if [ "$BOX_TYPE" == "SCXF11BFL" ]; then
+	      echo "* * * * *   /etc/comcast/set_dscp_lan.sh" >> $CRONTAB_FILE
+      fi
+
       echo "1 */6 * * *   /usr/ccsp/tad/log_sixhourly.sh" >> $CRONTAB_FILE
 #RDKB-9367, file handle monitor, needs to be run every 12 hours
       echo "1 */12 * * *   /usr/ccsp/tad/FileHandle_Monitor.sh" >> $CRONTAB_FILE
@@ -163,13 +167,41 @@ service_start ()
       # Don't Zero iptable Counter
       echo "58 * * * * /usr/bin/GenFWLog -nz" >> $CRONTAB_FILE
 
-      # Monitor syscfg DB every 15minutes 
-      echo "*/15 * * * * /usr/ccsp/tad/syscfg_recover.sh" >> $CRONTAB_FILE
+      SELFHEAL_CRON_ENABLE=$(syscfg get SelfHealCronEnable)
+      SELFHEAL_ENABLE=$(syscfg get selfheal_enable)
+      if [ "$SELFHEAL_CRON_ENABLE" = "true" ] && [ "$SELFHEAL_ENABLE" = "true" ]; then
+	      echo_t "SelfHeal Cron is enabled"
+         if [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "HUB4" ] && [ "$BOX_TYPE" != "SR213" ]; then
+            # Monitor selfheal_aggressive.sh based on syscfg value
+            AGGRESSIVE_INTERVAL=$(syscfg get AggressiveInterval)
+            if [ -z "$AGGRESSIVE_INTERVAL" ]; then
+               AGGRESSIVE_INTERVAL=5
+            fi
+            #Write cron rule
+            echo "*/$AGGRESSIVE_INTERVAL * * * * /usr/ccsp/tad/selfheal_aggressive.sh" >> $CRONTAB_FILE
+         fi
+	  
+	      # Monitor resource_monitor.sh based on syscfg value 
+         RESOURCE_MONITOR_INTERVAL=$(syscfg get resource_monitor_interval)
+         if [ -z "$RESOURCE_MONITOR_INTERVAL" ]; then
+            RESOURCE_MONITOR_INTERVAL=15
+         fi
+         echo "*/$RESOURCE_MONITOR_INTERVAL * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
+
+         echo "*/10 * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE 
+	     echo_t "Selfheal cron jobs are started"
+   
+      else
+	      echo_t "Selfheal cron is disabled"
+	      # Monitor syscfg DB every 15minutes
+         echo "*/15 * * * * /usr/ccsp/tad/syscfg_recover.sh" >> $CRONTAB_FILE
 
       # Monitor resource_monitor.sh every 5 minutes TCCBR-3288
 #      if [ "$BOX_TYPE" = "TCCBR" ]; then 
          echo "*/5 * * * * /usr/ccsp/tad/resource_monitor_recover.sh" >> $CRONTAB_FILE
 #      fi
+	 
+      fi
 
       # RDKB-23651
       if [ "$THERMALCTRL_ENABLE" = "true" ]; then
@@ -290,10 +322,37 @@ service_start ()
 			echo_t "This Device WAN TYPE is not DOCSIS, Needed DOCSIS type Device for WANLinkHeal"
 		fi
 
+        MEMSWAP_ENABLE=`syscfg get MemorySwapEnable`
+        if [ "$MEMSWAP_ENABLE" = "true" ]; then
+            MEMSWAP_INTERVAL=`syscfg get MemorySwapStatsIntervalMinutes`
+            if [ -n "$MEMSWAP_INTERVAL" ] && [ "$MEMSWAP_INTERVAL" -gt 0 ]; then
+                case "$MEMSWAP_INTERVAL" in
+                    10|12|15|20|30)
+                        # Run every MEMSWAP_INTERVAL minutes
+                        cron_minute="*/$MEMSWAP_INTERVAL"
+                        cron_hour="*"
+                        ;;
+                    60)
+                        # Run every hour at minute 0
+                        cron_minute="0"
+                        cron_hour="*"
+                        ;;
+                    120)
+                        # Run every 2 hours at minute 0
+                        cron_minute="0"
+                        cron_hour="*/2"
+                        ;;
+                    *)
+                        echo_t "Invalid MemorySwapStatsIntervalMinutes value: $MEMSWAP_INTERVAL. Please set it to one of the following values: 10, 12, 15, 20, 30, 60, or 120."
+                        ;;
+                esac
+
+                if [ -n "$cron_minute" ] && [ -n "$cron_hour" ]; then
+                    echo "$cron_minute $cron_hour * * * /usr/ccsp/tad/zram_stats.sh" >> $CRONTAB_FILE
+                fi
+            fi
+        fi
    fi
- 
-
-
  
    # start the cron daemon
    # echo "[utopia][registration] Starting cron daemon"

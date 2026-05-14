@@ -427,6 +427,25 @@ static void reinit_signal_handler (int signum)
    ulog(ULOG_SYSTEM, UL_SYSEVENT, "Received reinit signal");
 }
 
+static int set_fd_socket_timeouts(int fd, int timeout_ms)
+{
+   if (timeout_ms <= 0) {
+      return(-1);
+   }
+
+   struct timeval tv;
+   tv.tv_sec = timeout_ms / 1000;
+   tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+   if (-1 == setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv))) {
+      return(-1);
+   }
+   if (-1 == setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv))) {
+      return(-1);
+   }
+   return(0);
+}
+
 /*
  * Procedure     : initialize_system
  * Purpose       : Initialize the system
@@ -1221,36 +1240,36 @@ int main (int argc, char **argv)
    */
    FILE *fp = fopen(SE_SERVER_PID_FILE, "r");
    if (NULL != fp) {
-      int old_pid;
-      /* CID 60917:Unchecked return value from library */
-      if((ret = fscanf(fp, "%d", &old_pid)) <= 0 )
-      {
-	  printf("read error of %s\n",SE_SERVER_PID_FILE);
-      }
-      fclose(fp);
+       int old_pid;
+       /* CID 60917:Unchecked return value from library */
+       if((ret = fscanf(fp, "%d", &old_pid)) <= 0 )
+       {
+           printf("read error of %s\n",SE_SERVER_PID_FILE);
+       }
+       fclose(fp);
 
-      // see if the process is still alive
-      char filename[500];
-      snprintf(filename, sizeof(filename), "/proc/%d/cmdline", old_pid);
-      fp = fopen(filename, "r");
-      if (NULL == fp) {
-         printf("We are dead but have an old pid file. Cleaning up\n");
-         unlink(SE_SERVER_PID_FILE);
-      } else {
-         char cmdline[500];
-         if ((ret = fscanf(fp, "%s", cmdline)) <= 0)
-	 {
-	    printf("read error of %s\n",filename);
-	 }
-         fclose(fp);
-         if (NULL == strstr(cmdline, argv[0])) {
-            printf("Our pid has been taken over. We are dead. Cleaning up\n");
-            unlink(SE_SERVER_PID_FILE);
-         } else {
-            printf("We are alive and well. Ignoring start command\n");
-            return(0);
-         }
-      }
+       // see if the process is still alive
+       char filename[500];
+       snprintf(filename, sizeof(filename), "/proc/%d/cmdline", old_pid);
+       fp = fopen(filename, "r");
+       if (NULL == fp) {
+           printf("We are dead but have an old pid file. Cleaning up\n");
+           unlink(SE_SERVER_PID_FILE);
+       } else {
+           char cmdline[500];
+           if ((ret = fscanf(fp, "%499s", cmdline)) <= 0)
+           {
+               printf("read error of %s\n",filename);
+           }
+           fclose(fp);
+           if (NULL == strstr(cmdline, argv[0])) {
+               printf("Our pid has been taken over. We are dead. Cleaning up\n");
+               unlink(SE_SERVER_PID_FILE);
+           } else {
+               printf("We are alive and well. Ignoring start command\n");
+               return(0);
+           }
+       }
    }
 
 
@@ -1360,7 +1379,12 @@ int main (int argc, char **argv)
    // start the sanity thread
    pthread_t sanity_thread_id;
    pthread_attr_setstacksize(&thread_attr, SANITY_THREAD_STACK_SIZE);
-   pthread_create(&sanity_thread_id, &thread_attr, sanity_thread_main, (void *)NULL);
+   if (0 != pthread_create(&sanity_thread_id, &thread_attr, sanity_thread_main, (void *)NULL))
+   {
+       SE_INC_LOG(ERROR,
+               printf("Unable to create sanity thread. (%d) %s. ", errno, strerror(errno));
+               )
+   }
 
    // all that this main thread does is listen on a well known port for 
    // clients to register. And when they do, set them up in the clients
@@ -1388,8 +1412,6 @@ int main (int argc, char **argv)
       clilen = sizeof(cli_addr);
       int rc = select(maxfd, &rd_set, NULL, NULL, NULL);
       if (-1 == rc) {
-       // stop hogging processor in case of error
-	 sleep(1);
          continue;
       }
 
@@ -1476,6 +1498,13 @@ int main (int argc, char **argv)
                   close(newsockfd);
                   continue;
                } else {
+                   // Keep sockets in blocking mode, but cap read/write wait time.
+                   // Start with 200ms and tune in the 100-500ms range.
+                   if (-1 == set_fd_socket_timeouts(newsockfd, 200)) {
+                      ulogf(ULOG_SYSTEM, UL_SYSEVENT,
+                            "Unable to set client fd %d socket timeouts. (%d) %s",
+                            newsockfd, errno, strerror(errno));
+                   }
                    if (SE_MSG_OPEN_CONNECTION_DATA == msgtype)
                    {
                        new_client->isData = 1;

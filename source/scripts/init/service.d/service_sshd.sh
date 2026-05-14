@@ -48,7 +48,7 @@ WAN_INTERFACE=$(getWanInterfaceName)
 DEFAULT_WAN_INTERFACE="erouter0"
 LANIPV6Support=`sysevent get LANIPv6GUASupport`
 DEVICETYPE=$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Identity.DeviceType | grep value | cut -d ":" -f 3 | tr -d ' ' | tr -s ' ' | tr '[:lower:]' '[:upper:]')
-if [ $DEVICETYPE = "TEST" ] && [ $USE_DYNAMICKEYING = "TRUE" ]; then
+if [ "$DEVICETYPE" = "TEST" ] && [ "$USE_DYNAMICKEYING" = "TRUE" ]; then
     USE_DEVKEYS="-f authorized_keys_dev"
     echo_t "[utopia]: dropbear using dev authorization keys"
 else
@@ -207,6 +207,19 @@ do_start() {
         if [ ! -z "$CM_IPV4" ]; then
              commandString="$commandString -p [$CM_IPV4]:22"
         fi
+    elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
+	    CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+        if [ ! -z $CM_IP ]; then
+	        commandString="$commandString -p [$CM_IP]:22"
+	    fi
+        CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+	    if [ ! -z $CM_IPv6 ]; then
+            commandString="$commandString -p [$CM_IPv6]:22"
+	    fi
+	    CM_IPv4=`ip -4 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+	    if [ ! -z $CM_IPv4 ]; then
+            commandString="$commandString -p [$CM_IPv4]:22"
+        fi
     else
         CM_IP=""
         if ([ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]) ;then
@@ -254,8 +267,8 @@ do_start() {
       echo_t "utopia: dropbear could not be started on erouter0 IPv6 interface."
     fi
    else
-       if  ([ "$MANUFACTURE" = "Technicolor" ] || [ "$MODEL_NUM" = "SG417DBCT" ]) ; then
-	  echo dropbear -E -s -K 60 -b /etc/sshbanner.txt ${commandString} -r ${DROPBEAR_PARAMS_1} -r ${DROPBEAR_PARAMS_2} -a -P ${PID_FILE}
+       if  ([ "$MANUFACTURE" = "Technicolor" ] || [ "$MODEL_NUM" = "SG417DBCT" ] || [ "$BOX_TYPE" = "WNXL11BWL" ]) ; then
+	      echo_t "dropbear -E -s -K 60 -b /etc/sshbanner.txt ${commandString} -r ${DROPBEAR_PARAMS_1} -r ${DROPBEAR_PARAMS_2} -a -P ${PID_FILE}"
           dropbear -E -s -b /etc/sshbanner.txt $commandString -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -a -P $PID_FILE -K 60 $USE_DEVKEYS 2>>$CONSOLEFILE
        elif [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" = "true" ]; then
               dropbear -E -s -b /etc/sshbanner.txt $commandString -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 -a -P $PID_FILE -K 60 $USE_DEVKEYS 2>>$CONSOLEFILE

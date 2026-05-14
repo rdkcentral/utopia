@@ -19,13 +19,13 @@
 
 /**********************************************************************
    Copyright [2014] [Cisco Systems, Inc.]
- 
+
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
    You may obtain a copy of the License at
- 
+
        http://www.apache.org/licenses/LICENSE-2.0
- 
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -33,7 +33,7 @@
    limitations under the License.
 **********************************************************************/
 
-/* 
+/*
  *    FileName:    igd_service_wan_connect.h
  *      Author:    Andy Liu(zhihliu@cisco.com)
  *                     Tao Hong(tahong@cisco.com)
@@ -102,31 +102,39 @@ typedef struct{
     CHAR *desc;
 } error_pair;
 
-/************************************************************
-* Function: IGD_wan_ppp_connection_service_init
+/**
+* @brief Initialize WAN IP connection service instance.
 *
-*  Parameters:
-*               input_index_struct:    IN.          Wan device index, wan connection device index and wan connection service index
-*               wan_desc_file:          INOUT.    The fd to write description file
-*  Description:
-*     This function is called by IGD_wan_connection_device_init() to initialize a wan ppp connection service instance
+* Creates and initializes a WANIPConnection service instance for the UPnP IGD device.
+* \n Called by IGD_wan_connection_device_init() to initialize a wan ip connection service instance.
 *
-*  Return Values: struct upnp_service *
-*               the initialized wan ppp connection service if successful else NULL
-************************************************************/
+* @param[in] input_index_struct - Pointer to device_and_service_index structure containing:
+*                                 \n WAN device index, WAN connection device index, and WAN connection service index.
+* @param[in,out] wan_desc_file - File pointer to device description file for writing service XML entry.
+*                                \n Service description will be appended to this file.
+*
+* @return Pointer to initialized upnp_service structure.
+* @retval struct upnp_service* - Pointer to initialized WAN IP connection service if successful.
+* @retval NULL if initialization fails (memory allocation error or invalid parameters).
+*
+*/
 extern struct upnp_service * IGD_wan_ip_connection_service_init (IN VOID* input_index_struct, INOUT FILE *wan_desc_file);
-/************************************************************
-* Function: IGD_wan_ip_connection_service_init
+/**
+* @brief Initialize WAN PPP connection service instance.
 *
-*  Parameters:
-*               input_index_struct:    IN.          Wan device index, wan connection device index and wan connection service index
-*               wan_desc_file:          INOUT.    The fd to write description file
-*  Description:
-*     This function is called by IGD_wan_connection_device_init() to initialize a wan ip connection service instance
+* Creates and initializes a WANPPPConnection service instance for the UPnP IGD device.
+* \n Called by IGD_wan_connection_device_init() to initialize a wan ppp connection service instance.
 *
-*  Return Values: struct upnp_service *
-*               the initialized wan ip connection service if successful else NULL
-************************************************************/
+* @param[in] input_index_struct - Pointer to device_and_service_index structure containing:
+*                                 \n WAN device index, WAN connection device index, and WAN connection service index.
+* @param[in,out] wan_desc_file - File pointer to device description file for writing service XML entry.
+*                                \n Service description will be appended to this file.
+*
+* @return Pointer to initialized upnp_service structure.
+* @retval struct upnp_service* - Pointer to initialized WAN PPP connection service if successful.
+* @retval NULL if initialization fails (memory allocation error or invalid parameters).
+*
+*/
 extern struct upnp_service * IGD_wan_ppp_connection_service_init (IN VOID* input_index_struct, INOUT FILE *wan_desc_file);
 
 #endif /* WAN_CONNECTION_SERVICE_H */
