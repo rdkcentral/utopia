@@ -414,6 +414,10 @@ int prepare_ipv6_firewall(const char *fw_file)
 
    #endif
 
+#if defined (_PLATFORM_BANANAPI_R4_)
+        fprintf(fp, "*raw\n-F\n");
+#endif
+
 	/*add rules before this*/
 #if !defined(_BWG_PRODUCT_REQ_)
 	fprintf(raw_fp, "COMMIT\n");
