@@ -268,14 +268,14 @@ int prepare_ipv6_firewall(const char *fw_file)
 	if (NULL == nat_fp) {
 		ret=-2;
 		goto clean_up_files;
-        }
+	}
 #if defined (_ONESTACK_PRODUCT_REQ_)
 	char sysEventName[256] ={0};
 	memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
 	if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
 	{
-	    snprintf(sysEventName, sizeof(sysEventName), "tr_%s_dhcpv6_client_v6pref", current_wan_ifname);
-	    sysevent_get(sysevent_fd, sysevent_token, sysEventName, ipv6_delegation_prefix, sizeof(ipv6_delegation_prefix));
+		snprintf(sysEventName, sizeof(sysEventName), "tr_%s_dhcpv6_client_v6pref", current_wan_ifname);
+		sysevent_get(sysevent_fd, sysevent_token, sysEventName, ipv6_delegation_prefix, sizeof(ipv6_delegation_prefix));
 	}
 #endif 
 
