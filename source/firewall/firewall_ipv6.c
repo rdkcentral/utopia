@@ -186,9 +186,9 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_BLOCKFRAGIPPKT   "v6_BlockFragIPPkts"
 #define V6_PORTSCANPROTECT  "v6_PortScanProtect"
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
-#define BUF_SIZE 128
+#define IPV6_PREFIX_BUF_LEN 128
 #if defined (_ONESTACK_PRODUCT_REQ_)
-static char ipv6_delegation_prefix[BUF_SIZE+1] ={0};
+static char ipv6_delegation_prefix[IPV6_PREFIX_BUF_LEN+1] ={0};
 #endif
 /*
  ****************************************************************
@@ -271,10 +271,10 @@ int prepare_ipv6_firewall(const char *fw_file)
         }
 #if defined (_ONESTACK_PRODUCT_REQ_)
 	char sysEventName[256] ={0};
+	memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
 	if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
 	{
 	    snprintf(sysEventName, sizeof(sysEventName), "tr_%s_dhcpv6_client_v6pref", current_wan_ifname);
-	    memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
 	    sysevent_get(sysevent_fd, sysevent_token, sysEventName, ipv6_delegation_prefix, sizeof(ipv6_delegation_prefix));
 	}
 #endif 
@@ -1252,7 +1252,7 @@ v6GPFirewallRuleNext:
       fprintf(fp, "-A FORWARD -d 0::/96  -j LOG_FORWARD_DROP\n");
 
       // Basic RPF check on the egress & ingress traffic
-      char prefix[BUF_SIZE+1];
+      char prefix[IPV6_PREFIX_BUF_LEN+1];
       prefix[0] = 0;
 #ifdef FEATURE_MAPE
       char prev_prefix[MAX_QUERY] = {0};
@@ -2128,7 +2128,7 @@ typedef enum{
 void applyRoutingRules(FILE* fp,ipv6_type type)
 {
        FIREWALL_DEBUG("Entering applyRoutingRules, ipv6_type is %d \n" COMMA type);
-         char prefix[BUF_SIZE+1];
+         char prefix[IPV6_PREFIX_BUF_LEN+1];
 	 memset(prefix,0,sizeof(prefix));
          int i ;
          if ( ULA_IPV6 == type)
