@@ -64,18 +64,6 @@ AM_CONDITIONAL([PLATFORM_HAL_SYNDICATION], [test "$PLATFORM_HAL_SYNDICATION" = "
 
 AM_CONDITIONAL([PARTNER_DEFAULT_EXT], [test "$PARTNER_DEFAULT_EXT" = "yes"])
 
-# Specify target machine name
-AC_ARG_WITH([machine],
-[AC_HELP_STRING([--with-machine=MACHINE],
-                [specify the target machine name])],
-[MACHINE="$withval"],
-[MACHINE=''])
-if test x"${MACHINE}" != x; then
-  AC_DEFINE_UNQUOTED(MACHINE, "$MACHINE",
-                     [The target machine name])
-fi
-AM_CONDITIONAL([MACHINE_SET], [test x"${MACHINE}" != x])
-
 # Specify ccsp platform (device)
 AC_ARG_WITH([ccsp-platform],
 [AC_HELP_STRING([--with-ccsp-platform={intel_usg,pc,bcm,intel_puma7}],
@@ -198,22 +186,6 @@ AC_CONFIG_FILES([
 #AC_CONFIG_FILES([
 #    source/NetworkMonitor/Makefile
 #])] )
-
-# Checks for Breakpad support
-AC_ARG_ENABLE([breakpad],
-        AS_HELP_STRING([--enable-breakpad],[Enable Breakpad minidump support]),
-        [
-          case "${enableval}" in
-            yes) enable_breakpad=true ;;
-            no)  enable_breakpad=false ;;
-            *) AC_MSG_ERROR([bad value ${enableval} for --enable-breakpad]) ;;
-          esac
-        ],
-        [enable_breakpad=false])
-AM_CONDITIONAL([BREAKPAD_SUPPORT], [test x$enable_breakpad = xtrue])
-if test x"$enable_breakpad" = x"true"; then
-  AC_DEFINE([ENABLE_BREAKPAD], [1], [Define to 1 if Breakpad support is enabled])
-fi
 
 # Checks for DDNS Binary Client Support
 AC_ARG_ENABLE([ddns_binary_client_support],
