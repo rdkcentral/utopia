@@ -457,6 +457,7 @@ char cellular_ifname[32];
 #define IS_EMPTY_STRING(s) ((s == NULL) || (*s == '\0'))
 
 #define BUFLEN_8 8
+#define BUFLEN_20 20
 #define BUFLEN_32 32
 #define BUFLEN_64 64
 #define RET_OK 0
@@ -464,6 +465,9 @@ char cellular_ifname[32];
 #define SET "set"
 #define RESET "reset"
 #define UP "up"
+
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
 
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
 #define SYSEVENT_MAPT_CONFIG_FLAG "mapt_config_flag"
@@ -474,6 +478,7 @@ char cellular_ifname[32];
 #define SYSEVENT_MAPT_PSID_OFFSET "mapt_psid_offset"
 #define SYSEVENT_MAPT_PSID_VALUE "mapt_psid_value"
 #define SYSEVENT_MAPT_PSID_LENGTH "mapt_psid_length"
+#define SYSEVENT_MAPT_TOTAL_PORTS "mapt_total_ports"
 
 BOOL isMAPTSet(void);
 static int do_wan_nat_lan_clients_mapt(FILE *fp);
@@ -740,8 +745,6 @@ int rfstatus;
  * For simplicity purposes we cap the number of syscfg entries within a
  * specific namespace. This cap is controlled by MAX_SYSCFG_ENTRIES
  */
-#define MAX_PORT 65535
-
 #define MAX_NAMESPACE 64
 
 #define MAX_SRC_IP_TABLE_ROW    10   /*RDKB-7145, CID-33123, defining max size for src_ip[MAX_SRC_IP_TABLE_ENTRY][]*/
@@ -865,7 +868,6 @@ void firewall_log( char* fmt, ...)
 #ifdef WAN_FAILOVER_SUPPORTED
 unsigned int Get_Device_Mode()
 {
-	FIREWALL_DEBUG("Inside Get_Device_Mode\n");
         syscfg_get(NULL, "Device_Mode", dev_type, sizeof(dev_type));
         unsigned int dev_mode = atoi(dev_type);
         Dev_Mode mode;
@@ -921,7 +923,6 @@ char* get_iface_ipaddr(const char* iface_name)
 
 bool isServiceNeeded()
 {
-        FIREWALL_DEBUG("Inside isServiceNeeded\n");
         if (Get_Device_Mode()==EXTENDER_MODE)
         {
 		FIREWALL_DEBUG("Service Not Needed\n");
@@ -940,7 +941,6 @@ bool isServiceNeeded()
 		}
         }
 
-      FIREWALL_DEBUG("returning true\n");
     return TRUE;
 }
 #endif
@@ -1110,7 +1110,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
     char ipaddress_str[BUFLEN_32] = {0};
     char mapt_config_ratio_str[BUFLEN_64] = {0};
     char mapt_config_value[BUFLEN_8] = {0};
-    unsigned int contigous_port = 0;
+    unsigned int contiguous_port = 0;
     int ratio = 0;
     int port = 0;
     unsigned int i =0;
@@ -1123,6 +1123,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
     unsigned int psidLen = 0;
     unsigned int psid = 0;
     char sysevent_val[BUFLEN_64] = {0};
+    unsigned int total_ports = 0;
 
     /* Check sysevent fd availabe at this point. */
     if (sysevent_fd < 0)
@@ -1267,20 +1268,31 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
 
         a = (1 << offset);
         m = 16 - (psidLen + offset);
-        contigous_port = (1 << m);
+        contiguous_port = (1 << m);
         ratio = 16 - offset;
+
+        // Exclude i=0 block as per original logic
+        total_ports = (a * contiguous_port) - contiguous_port;
+        memset(sysevent_val, 0, sizeof(sysevent_val));
+        snprintf(sysevent_val, sizeof(sysevent_val), "%u", total_ports);
+        if(sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_MAPT_TOTAL_PORTS, sysevent_val, 0) != 0)
+        {
+            FIREWALL_DEBUG("ERROR: Failed to set total ports; continuing MAP-T rule generation \n");
+        }
+        FIREWALL_DEBUG("MAPT Info: offset=%u, psid=%u, psidLen=%u, port_blocks=%u, contiguous_port=%u, total_ports=%u \n" COMMA
+            offset COMMA psid COMMA psidLen COMMA a COMMA  contiguous_port COMMA total_ports);
 
         /* Start of port range parameters. */
         /* create rules */
         for(i=1; i< (a); i++)
         {
-            for(j=0; j<(contigous_port); j++)
+            for(j=0; j<(contiguous_port); j++)
             {
                 port = (i<<ratio) + (psid <<(m)) + j;
 
                 if(j == 0)
                     initialPortValue = port;
-                if( j == contigous_port - 1 )
+                if( j == contiguous_port - 1 )
                     finalPortValue = port;
             }
 #if defined(IVI_KERNEL_SUPPORT)
@@ -1299,6 +1311,7 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
             fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
 #endif //_HUB4_PRODUCT_REQ_NO_DPORT_
 #endif //IVI_KERNEL_SUPPORT
+            FIREWALL_DEBUG("MAPT Rule: Port range is initialPortValue=%u, finalPortValue=%u \n" COMMA initialPortValue COMMA finalPortValue);
         }
 #ifdef IVI_KERNEL_SUPPORT
         fprintf(nat_fp, "-A %s -o %s -p icmp -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, get_current_wan_ifname(), ipaddress_str,initialPortValue, finalPortValue);
@@ -1824,6 +1837,7 @@ static int substitute(char *in_str, char *out_str, const int size, char *from, c
  *                       $ACCEPT $DROP $REJECT and 
  *   QoS classes $HIGH, $MEDIUM, $NORMAL, $LOW
  */
+#define TOKEN_MAX_LEN 50
 char *make_substitutions(char *in_str, char *out_str, const int size)
 {
     char *in_str_p = in_str;
@@ -1832,9 +1846,9 @@ char *make_substitutions(char *in_str, char *out_str, const int size)
     char *out_str_end = out_str + size;
    // FIREWALL_DEBUG("Entering *make_substitutions\n");         
     while (in_str_p < in_str_end && out_str_p < out_str_end) {
-       char token[50];
+       char token[TOKEN_MAX_LEN + 1];
        if ('$' == *in_str_p) {
-          sscanf(in_str_p, "%50s", token); 
+          sscanf(in_str_p, "%" STR(TOKEN_MAX_LEN) "s", token);
           in_str_p += strlen(token);
           if (0 == strcmp(token, "$WAN_IPADDR")) {
              out_str_p += snprintf(out_str_p, out_str_end-out_str_p, "%s", current_wan_ipaddr);
@@ -1905,9 +1919,9 @@ static char *match_keyword(FILE *fp, char *keyword, char delim, char *line, int 
        * handle space differently
        */
       if (' ' == delim) {
-         char local_name[50];
+         char local_name[TOKEN_MAX_LEN + 1];
          local_name[0] = '\0';
-         sscanf(line, "%50s ", local_name); 
+         sscanf(line, "%" STR(TOKEN_MAX_LEN) "s", local_name);
          next = line + strlen(local_name);
          if (next-line > size) {
               continue;
@@ -3294,7 +3308,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
            FIREWALL_DEBUG("Entering do_single_port_forwarding\n");
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
    BOOL isBothProtocol = FALSE;
-   BOOL isFeatureDisabled = TRUE;
 #endif
    query[0] = '\0';
    rc = syscfg_get(NULL, "SinglePortForwardCount", query, sizeof(query)); 
@@ -3309,12 +3322,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
          count = MAX_SYSCFG_ENTRIES;
       }
    }
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-   {
-       FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA TRUE);
-       isFeatureDisabled = FALSE;
-   }
-#endif
 
    for (idx=1 ; idx<=count ; idx++) {
       namespace[0] = '\0';
@@ -3666,12 +3673,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
 #endif
    }
 SinglePortForwardNext:
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-     if(isFeatureDisabled == TRUE)
-     {
-         FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA FALSE);
-     }
-#endif
            FIREWALL_DEBUG("Exiting do_single_port_forwarding\n");       
    return(0);
 }
@@ -3695,7 +3696,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
    int count;
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
    BOOL isBothProtocol = FALSE;
-   BOOL isFeatureDisabled = TRUE;
 #endif
 
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP 
@@ -3716,10 +3716,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
          count = MAX_SYSCFG_ENTRIES;
       }
    }
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-   FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA TRUE);
-   isFeatureDisabled = FALSE;
-#endif
 
    for (idx=1 ; idx<=count ; idx++) {
       namespace[0] = '\0';
@@ -4123,13 +4119,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
 
    }
 PortRangeForwardNext:
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-      if (isFeatureDisabled == TRUE)
-      {
-          FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA FALSE);
-      }
-#endif
-
          FIREWALL_DEBUG("Exiting do_port_range_forwarding\n");
 
    return(0);
@@ -6324,7 +6313,6 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
   	char httpsport[64] = {0};
   	char tmpQuery[MAX_QUERY];
 		
-         FIREWALL_DEBUG("Entering remote_access_set_proto\n");   
         ret = syscfg_get(NULL, "mgmt_wan_httpport", httpport, sizeof(port));
 #if defined(CONFIG_CCSP_WAN_MGMT_PORT)
           tmpQuery[0] = '\0';
@@ -6365,7 +6353,6 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
         fprintf(filt_fp, "-A INPUT -i %s %s -p tcp -m tcp --dport %s -j ACCEPT\n", interface, src, port); 
       }
     }
-         FIREWALL_DEBUG("Exiting remote_access_set_proto\n");    
     return 0;
 }
 int wan_lan_webui_attack(FILE *fp, const char *interface)
@@ -9129,14 +9116,6 @@ static int do_parcon_device_cloud_mgmt(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
-static int validate_port(char* port_num)
-{
-   int port = atoi(port_num);
-   if ( port <= 0 || port > MAX_PORT )
-      return -1;
-
-   return 0;
-}
 /*
  * add parental control managed service(ports) rules
  */
@@ -9824,9 +9803,9 @@ static int prepare_host_detect(FILE * fp)
       char buf[1024];
       if (NULL != kh_fp) { 
          while (NULL != fgets(buf, sizeof(buf), kh_fp)) {
-            char ip[20];
-            char mac[20];
-            sscanf(buf, "%20s %20s", ip, mac);
+            char ip[BUFLEN_20 + 1];
+            char mac[BUFLEN_20 + 1];
+            sscanf(buf, "%" STR(BUFLEN_20) "s" "%" STR(BUFLEN_20) "s", ip, mac);
            fprintf(fp, "-A host_detect -i %s -s %s -j RETURN\n", lan_ifname, ip);
          }
          fclose(kh_fp);
@@ -10123,21 +10102,9 @@ static int do_lan2wan_misc(FILE *filter_fp)
         else if (strcmp(query,"ACCEPT") == 0) {
             fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 1723  -j ACCEPT\n");
         }
-        char sites_enabled[MAX_QUERY];
-        sites_enabled[0] = '\0';
-        syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
-        if (sites_enabled[0] != '\0' && sites_enabled[0] == '0') // managed site list enabled
-        {
-            syscfg_get("blockssl", "result", query, sizeof(query));
-            if (strcmp(query,"DROP") == 0) {
-                fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j DROP\n");
-                fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j DROP\n");
-            }
-            else if(strcmp(query,"ACCEPT") == 0) {
-                fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j ACCEPT\n");
-                fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j ACCEPT\n");
-            }
-        }
+
+        // Apply SSL blocking rule
+        do_ssl_blocking_rules(filter_fp, "lan2wan_misc");
     }
 #endif
 
@@ -12355,6 +12322,12 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #if defined(_PLATFORM_BANANAPI_R4_)
    fprintf(filter_fp, "-I OUTPUT -o %s -p tcp --sport 49153 -j ACCEPT\n",get_current_wan_ifname());
 #endif
+   char tr69_enabled[20];
+   memset(tr69_enabled, 0, sizeof(tr69_enabled));
+   syscfg_get(NULL, "EnableTR69Binary", tr69_enabled, sizeof(tr69_enabled));
+   if (!isComcastImage &&((tr69_enabled[0] == '\0') || (strcasecmp(tr69_enabled, "true") == 0))) {
+       fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 7547 -j ACCEPT\n",get_current_wan_ifname());
+   }
 #ifdef CONFIG_CISCO_FEATURE_CISCOCONNECT
    fprintf(filter_fp, ":%s - [0:0]\n", "pp_disabled");
    if(isGuestNetworkEnabled) {
