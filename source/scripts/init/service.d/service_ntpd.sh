@@ -181,19 +181,6 @@ wan_wait ()
                     WAN_IPv6=`ifconfig "$NTPD_IPV6_INTERFACE" | grep inet6 | grep Global | awk '/inet6/{print $3}' | grep -v 'fdd7' | grep -v "$ULAprefix" | cut -d '/' -f1 | head -n1`
                fi
                WAN_IPv6_UP=1
-		# SHARMAN-2301
-                #This change is for UK MAP-T SR213. When  NTP servers are IPv4 only and there is no IPv4 WAN IP on the interface we will use $NTPD_IPV6_INTERFACE(currently brlan0) ipv4 ip to sort ntpd daemon socket problems and routing.
-		if [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" == "true" ]; then
-		    MAPT_STATS=$(sysevent get mapt_config_flag)
-		    echo_t "SERVICE_NTPD : MAPT_STATS=$MAPT_STATS"
-		    if [ x"$MAPT_STATS" = x"set" ]; then
-			IPV4_CONN_STATE=$(sysevent get ipv4_connection_state)
-			echo_t "SERVICE_NTPD : IPV4_CONN_STATE=$IPV4_CONN_STATE"
-                        if [ x"$IPV4_CONN_STATE" != x"up" ]; then
-			    WAN_IPv4=`ifconfig "$NTPD_IPV6_INTERFACE" | grep inet\ \addr | cut -d ':' -f2 |cut -d ' ' -f1`
-			fi
-		    fi
-		fi
            fi
        else
            WAN_IPv6=`ifconfig "$WAN_INTERFACE" | grep inet6 | grep Global | awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1`
@@ -572,19 +559,6 @@ service_start ()
    echo "interface ignore wildcard" >> $NTP_CONF_TMP
    echo "interface listen 127.0.0.1" >> $NTP_CONF_TMP
    echo "interface listen ::1" >> $NTP_CONF_TMP
-   #SHARMAN-2301
-   #This change is for UK MAP-T SR213. Since we will not have any of the global IP on WAN interface, We need to add the IPv6 interface (currently brlan0) to the config file
-   if [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" = "true" ]; then
-       MAPT_STATS=$(sysevent get mapt_config_flag)
-       echo_t "SERVICE_NTPD : MAPT_STATS=$MAPT_STATS"
-       if [ x"$MAPT_STATS" = x"set" ]; then
-           IPV4_CONN_STATE=$(sysevent get ipv4_connection_state)
-           echo_t "SERVICE_NTPD : IPV4_CONN_STATE=$IPV4_CONN_STATE"
-           if [ x"$IPV4_CONN_STATE" != x"up" ]; then
-               echo "interface listen $NTPD_IPV6_INTERFACE" >> $NTP_CONF_TMP
-           fi
-       fi
-   fi
 
    if [ -n "$WAN_IP" ]; then
        echo "interface listen $WAN_IP" >> $NTP_CONF_TMP
