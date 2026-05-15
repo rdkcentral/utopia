@@ -162,7 +162,9 @@ case "$1" in
       fi
       ;;
    ipv4_*-status)
+   echo_t "LAN HANDLER : Received $1 event with status $2"
         if [ x"up" = x${2} ]; then
+            echo_t "LAN HANDLER : Handling LAN up event for instance ${1}"
             INST=${1#*_}
             INST=${INST%-*}
             RG_MODE=`syscfg get last_erouter_mode`
@@ -184,12 +186,14 @@ case "$1" in
 
 
     if [ xbrlan0 = x${LAN_IFNAME} ]; then
+        echo_t "LAN HANDLER : Handling LAN up event for brlan0, configuring IPv6 address if needed"
         SYSEVT_lan_ipaddr_v6_prev=`sysevent get lan_ipaddr_v6_prev`
 
         if [ "1" = "$(sysevent get ula_ipv6_enabled)" ] && [ "1" != "$(syscfg get Device_Mode)" ]; then
             SYSEVT_lan_ipaddr_v6=$(sysevent get ipv6_prefix_ula | cut -d "/" -f 1)
             SYSEVT_lan_ipaddr_v6=${SYSEVT_lan_ipaddr_v6}1
         else
+            echo_t "LAN HANDLER : Using global IPv6 address for LAN"
             SYSEVT_lan_ipaddr_v6=`sysevent get lan_ipaddr_v6`
         fi
         SYSEVT_lan_prefix_v6=`sysevent get lan_prefix_v6`
@@ -253,8 +257,10 @@ case "$1" in
                 fi
 
 	elif [ x"ready" != x`sysevent get start-misc` ] && ( [ "$MANUFACTURE" = "Technicolor" ] || [ "$MANUFACTURE" = "Sercomm" ] ) ; then
+                echo_t "LAN HANDLER : box is from Technicolor or Sercomm, setting lan-status to started"
                #TCH XBx/TCCBR based startup post.d scripts which includes Firewall restart and dhcp start.
                sysevent set lan-status started
+               echo_t "LAN HANDLER : lan status set to started"
                firewall
                if [ ! -f "$POSTD_START_FILE" ];
                 then
@@ -264,6 +270,7 @@ case "$1" in
 	   else
 		echo_t "LAN HANDLER : Triggering DHCP server using LAN status"
                 sysevent set lan-status started
+                echo_t "LAN HANDLER : lan status set to started"
 		echo_t "LAN HANDLER : Triggering RDKB_FIREWALL_RESTART"
 		t2CountNotify "RF_INFO_RDKB_FIREWALL_RESTART"
                 sysevent set firewall-restart
@@ -314,6 +321,8 @@ case "$1" in
         sysevent set firewall-restart
 	if [ -e "/usr/bin/print_uptime" ]; then
 	    /usr/bin/print_uptime "Laninit_complete"
+        echo_t "LAN HANDLER : Laninit_complete uptime: $(cut -d. -f1 /proc/uptime)"
+        echo_t "LAN HANDLER : Checking lan-status after lan init complete, lan-status = $(sysevent get lan-status)"
 	fi
 
         uptime=$(cut -d. -f1 /proc/uptime)
@@ -344,7 +353,7 @@ case "$1" in
    pnm-status | bring-lan)
 	if [ -e "/usr/bin/print_uptime" ]; then
             /usr/bin/print_uptime "Lan_init_start"
-        fi
+    fi
         uptime=$(cut -d. -f1 /proc/uptime)
 	if [ -e "/usr/bin/onboarding_log" ]; then
 	    /usr/bin/onboarding_log "Lan_init_start:$uptime"
@@ -353,7 +362,6 @@ case "$1" in
         eval `psmcli get -e INST dmsb.MultiLAN.PrimaryLAN_l3net L2INST dmsb.MultiLAN.PrimaryLAN_l2net BRPORT dmsb.MultiLAN.PrimaryLAN_brport HSINST dmsb.MultiLAN.HomeSecurity_l3net`
 	if [ -z "$INST" ]
 	    then
-		echo_t "THE INSTANT=$INST"
 		echo_t "THE INSTANT=$INST"
         #(use a simpler test than this -- but Hacky, since it assumes everything we want is not XB3!!)if [ "$BOX_TYPE" = "TCCBR" ] || [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Technicolor" ] || [ "$BOX_TYPE" = "XB7" -a "$MANUFACTURE" = "Technicolor" ] ; then
 	if ( [ "$BOX_TYPE" != "XB3" ] && ( [ "$MANUFACTURE" = "Technicolor" ] || [ "$MANUFACTURE" = "Sercomm" ] ) )  || [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]; then
@@ -371,7 +379,7 @@ case "$1" in
 				echo_t "THE COUNTER =$COUNTER"
 			done
 		else
-			echo_t "RDKB_SYSTEM_BOOT_UP_LOG : INST rerurned null, retrying"
+			echo_t "RDKB_SYSTEM_BOOT_UP_LOG : INST returned null, retrying"
 			INST=`psmcli get dmsb.MultiLAN.PrimaryLAN_l3net`
 		fi
 
