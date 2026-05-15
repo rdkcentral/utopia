@@ -409,6 +409,10 @@ void bring_lan_up()
                         sysevent_set(g_iSyseventfd, g_tSysevent_token, "homesecurity_lan_l3net", l_cHomeSecurity_L3net, 0);
 #endif
 		}
+        else
+		{
+			fprintf(g_fArmConsoleLog, "LAN HANDLER FAILURE : PrimaryLAN_l3net is empty after all PSM retries, LAN start cannot proceed\n");
+		}
 	}
 	else
 	{
@@ -449,6 +453,9 @@ void ipv4_status(int l3_inst, char *status)
 
     sysevent_get(g_iSyseventfd, g_tSysevent_token, "primary_lan_l3net",
                      primary_l3net, sizeof(primary_l3net));
+
+    fprintf(g_fArmConsoleLog, "LAN HANDLER DEBUG: ipv4_status entry - l3_inst=%d, status=%s, primary_lan_l3net=%s, is_primary=%d\n",
+            l3_inst, status, primary_l3net, (l3_inst == atoi(primary_l3net)));
 
 #if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
     int devMode=0, ulaEnable=0;
@@ -611,13 +618,14 @@ void ipv4_status(int l3_inst, char *status)
 		char l_cParcon_Nfq_Status[16] = {0};
 		sysevent_get(g_iSyseventfd, g_tSysevent_token, "parcon_nfq_status",
                      l_cParcon_Nfq_Status, sizeof(l_cParcon_Nfq_Status));
-
+        fprintf(g_fArmConsoleLog, "LAN HANDLER DEBUG: Decision inputs - last_erouter_mode=%s, start_misc=%s, current_wan_ipaddr=%s, parcon_nfq=%s\n",
+				l_cLast_Erouter_Mode, l_cStart_Misc, l_cCurrentWan_IpAddr, l_cParcon_Nfq_Status);
 
 		if ((!strncmp(l_cLast_Erouter_Mode, "2", 1)) && (strncmp(l_cStart_Misc, "ready", 5))) 
 		{
             		if ( l3_inst == atoi(primary_l3net))
             		{
-                		fprintf(g_fArmConsoleLog, "LAN HANDLER : Triggering DHCP server using LAN status based on RG_MODE:2");
+                		fprintf(g_fArmConsoleLog, "LAN HANDLER : Setting LAN start (Branch1-RG_MODE2) and Triggering DHCP server using LAN status based on RG_MODE:2\n");
                 		sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan-status", "started", 0);
             		}
             		system("firewall");
@@ -635,7 +643,7 @@ void ipv4_status(int l3_inst, char *status)
 
             		if ( l3_inst == atoi(primary_l3net))
             		{
-                		fprintf(g_fArmConsoleLog, "LAN HANDLER : Triggering DHCP server using LAN status based on start misc\n");
+                		fprintf(g_fArmConsoleLog, "LAN HANDLER : Starting LAN (primary l3net) and Triggering DHCP server using LAN status based on start misc\n");
                 		sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan-status", "started", 0);
             		}
 			if (strncmp(l_cParcon_Nfq_Status, "started", 7))
@@ -690,9 +698,11 @@ void ipv4_status(int l3_inst, char *status)
             }
         else
 	{
+            fprintf(g_fArmConsoleLog, "LAN HANDLER DEBUG: Entered ELSE/fallback branch - erouter_mode=%s, start_misc=%s, wan_ip=%s\n",
+					l_cLast_Erouter_Mode, l_cStart_Misc, l_cCurrentWan_IpAddr);
             if ( l3_inst == atoi(primary_l3net))
             {
-                fprintf(g_fArmConsoleLog, "LAN HANDLER : Triggering DHCP server using LAN status\n");
+                fprintf(g_fArmConsoleLog, "LAN HANDLER : setting lan-status=started, Triggering DHCP server using LAN status\n");
                 sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan-status", "started", 0);
             }
 			fprintf(g_fArmConsoleLog, "LAN HANDLER : Triggering RDKB_FIREWALL_RESTART\n");
@@ -704,8 +714,8 @@ void ipv4_status(int l3_inst, char *status)
 //        system("firewall_nfq_handler.sh &");
     	sysinfo(&l_sSysInfo);
 		snprintf(l_cLan_Uptime, sizeof(l_cLan_Uptime), "%ld", l_sSysInfo.uptime);
-		sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan_start_time", l_cLan_Uptime, 0);	
-          
+		sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan_start_time", l_cLan_Uptime, 0);
+        fprintf(g_fArmConsoleLog, "LAN HANDLER DEBUG: lan_start_time=%s, l3_inst=%d, setting ipv4_%d_status_configured\n", l_cLan_Uptime, l3_inst, l3_inst);
 		if (4 == l3_inst)
 		{  
 			sysevent_set(g_iSyseventfd, g_tSysevent_token, "ipv4_4_status_configured", "1", 0);
@@ -745,6 +755,7 @@ void ipv4_status(int l3_inst, char *status)
 	}	
     else
 	{
+        fprintf(g_fArmConsoleLog, "LAN HANDLER DEBUG: ipv4_status - status is NOT 'up' (status=%s), l3_inst=%d\n", status, l3_inst);
         if ( l3_inst == atoi(primary_l3net))
         {
             sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan-status",

@@ -2115,7 +2115,7 @@ STATIC int radv_start(struct serv_routed *sr)
     char aBridgeMode[8];
     syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
 
-    fprintf(logfptr, "%s: bridge_mode %s and LAN ready = %d \n", __FUNCTION__, aBridgeMode, sr->lan_ready);
+    fprintf(logfptr, "%s: bridge_mode %s and LAN ready = %d\n", __FUNCTION__, aBridgeMode, sr->lan_ready);
     if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
