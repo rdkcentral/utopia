@@ -745,8 +745,6 @@ int rfstatus;
  * For simplicity purposes we cap the number of syscfg entries within a
  * specific namespace. This cap is controlled by MAX_SYSCFG_ENTRIES
  */
-#define MAX_PORT 65535
-
 #define MAX_NAMESPACE 64
 
 #define MAX_SRC_IP_TABLE_ROW    10   /*RDKB-7145, CID-33123, defining max size for src_ip[MAX_SRC_IP_TABLE_ENTRY][]*/
@@ -870,7 +868,6 @@ void firewall_log( char* fmt, ...)
 #ifdef WAN_FAILOVER_SUPPORTED
 unsigned int Get_Device_Mode()
 {
-	FIREWALL_DEBUG("Inside Get_Device_Mode\n");
         syscfg_get(NULL, "Device_Mode", dev_type, sizeof(dev_type));
         unsigned int dev_mode = atoi(dev_type);
         Dev_Mode mode;
@@ -926,7 +923,6 @@ char* get_iface_ipaddr(const char* iface_name)
 
 bool isServiceNeeded()
 {
-        FIREWALL_DEBUG("Inside isServiceNeeded\n");
         if (Get_Device_Mode()==EXTENDER_MODE)
         {
 		FIREWALL_DEBUG("Service Not Needed\n");
@@ -945,7 +941,6 @@ bool isServiceNeeded()
 		}
         }
 
-      FIREWALL_DEBUG("returning true\n");
     return TRUE;
 }
 #endif
@@ -3313,7 +3308,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
            FIREWALL_DEBUG("Entering do_single_port_forwarding\n");
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
    BOOL isBothProtocol = FALSE;
-   BOOL isFeatureDisabled = TRUE;
 #endif
    query[0] = '\0';
    rc = syscfg_get(NULL, "SinglePortForwardCount", query, sizeof(query)); 
@@ -3328,12 +3322,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
          count = MAX_SYSCFG_ENTRIES;
       }
    }
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-   {
-       FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA TRUE);
-       isFeatureDisabled = FALSE;
-   }
-#endif
 
    for (idx=1 ; idx<=count ; idx++) {
       namespace[0] = '\0';
@@ -3685,12 +3673,6 @@ int do_single_port_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *f
 #endif
    }
 SinglePortForwardNext:
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-     if(isFeatureDisabled == TRUE)
-     {
-         FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA FALSE);
-     }
-#endif
            FIREWALL_DEBUG("Exiting do_single_port_forwarding\n");       
    return(0);
 }
@@ -3714,7 +3696,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
    int count;
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
    BOOL isBothProtocol = FALSE;
-   BOOL isFeatureDisabled = TRUE;
 #endif
 
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP 
@@ -3735,10 +3716,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
          count = MAX_SYSCFG_ENTRIES;
       }
    }
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-   FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA TRUE);
-   isFeatureDisabled = FALSE;
-#endif
 
    for (idx=1 ; idx<=count ; idx++) {
       namespace[0] = '\0';
@@ -4142,13 +4119,6 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
 
    }
 PortRangeForwardNext:
-#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
-      if (isFeatureDisabled == TRUE)
-      {
-          FIREWALL_DEBUG("PortMapping:Feature Enable %d\n" COMMA FALSE);
-      }
-#endif
-
          FIREWALL_DEBUG("Exiting do_port_range_forwarding\n");
 
    return(0);
@@ -6343,7 +6313,6 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
   	char httpsport[64] = {0};
   	char tmpQuery[MAX_QUERY];
 		
-         FIREWALL_DEBUG("Entering remote_access_set_proto\n");   
         ret = syscfg_get(NULL, "mgmt_wan_httpport", httpport, sizeof(port));
 #if defined(CONFIG_CCSP_WAN_MGMT_PORT)
           tmpQuery[0] = '\0';
@@ -6384,7 +6353,6 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
         fprintf(filt_fp, "-A INPUT -i %s %s -p tcp -m tcp --dport %s -j ACCEPT\n", interface, src, port); 
       }
     }
-         FIREWALL_DEBUG("Exiting remote_access_set_proto\n");    
     return 0;
 }
 int wan_lan_webui_attack(FILE *fp, const char *interface)
@@ -9148,14 +9116,6 @@ static int do_parcon_device_cloud_mgmt(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
-static int validate_port(char* port_num)
-{
-   int port = atoi(port_num);
-   if ( port <= 0 || port > MAX_PORT )
-      return -1;
-
-   return 0;
-}
 /*
  * add parental control managed service(ports) rules
  */
@@ -10142,21 +10102,9 @@ static int do_lan2wan_misc(FILE *filter_fp)
         else if (strcmp(query,"ACCEPT") == 0) {
             fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 1723  -j ACCEPT\n");
         }
-        char sites_enabled[MAX_QUERY];
-        sites_enabled[0] = '\0';
-        syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
-        if (sites_enabled[0] != '\0' && sites_enabled[0] == '0') // managed site list enabled
-        {
-            syscfg_get("blockssl", "result", query, sizeof(query));
-            if (strcmp(query,"DROP") == 0) {
-                fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j DROP\n");
-                fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j DROP\n");
-            }
-            else if(strcmp(query,"ACCEPT") == 0) {
-                fprintf(filter_fp, "-A lan2wan_misc -p udp --dport 443  -j ACCEPT\n");
-                fprintf(filter_fp, "-A lan2wan_misc -p tcp --dport 443  -j ACCEPT\n");
-            }
-        }
+
+        // Apply SSL blocking rule
+        do_ssl_blocking_rules(filter_fp, "lan2wan_misc");
     }
 #endif
 
@@ -12039,6 +11987,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
 #if defined (_PLATFORM_BANANAPI_R4_)
        isRawTableUsed = 1;
+       fprintf(raw_fp, "-F\n");
        fprintf(raw_fp, "-A OUTPUT -p udp --dport 69 -j CT --helper tftp\n");
 #endif
 
