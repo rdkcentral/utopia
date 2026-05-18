@@ -91,7 +91,7 @@ while true; do
         fi
         exit 0
     fi
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+    HTTP_CODE=$(curl -s --connect-timeout 3 --max-time 5 -o /dev/null -w "%{http_code}" "$URL")
     CURL_STATUS=$?
     uptime=$(cut -d. -f1 /proc/uptime)
     uptime_ms=$((uptime*1000))
