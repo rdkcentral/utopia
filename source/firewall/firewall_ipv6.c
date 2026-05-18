@@ -186,10 +186,9 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_BLOCKFRAGIPPKT   "v6_BlockFragIPPkts"
 #define V6_PORTSCANPROTECT  "v6_PortScanProtect"
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
-
-#ifdef _ONESTACK_PRODUCT_REQ_
-#define COSA_DML_DHCPV6_CLIENT_IFNAME                 "erouter0"
-#define COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME           "tr_"COSA_DML_DHCPV6_CLIENT_IFNAME"_dhcpv6_client_v6pref"
+#define IPV6_PREFIX_BUF_LEN 128
+#if defined (_ONESTACK_PRODUCT_REQ_)
+static char ipv6_delegation_prefix[IPV6_PREFIX_BUF_LEN+1] ={0};
 #endif
 /*
  ****************************************************************
@@ -270,8 +269,16 @@ int prepare_ipv6_firewall(const char *fw_file)
 		ret=-2;
 		goto clean_up_files;
 	}
-        
-       
+#if defined (_ONESTACK_PRODUCT_REQ_)
+	char sysEventName[256] ={0};
+	memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
+	if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+	{
+		snprintf(sysEventName, sizeof(sysEventName), "tr_%s_dhcpv6_client_v6pref", current_wan_ifname);
+		sysevent_get(sysevent_fd, sysevent_token, sysEventName, ipv6_delegation_prefix, sizeof(ipv6_delegation_prefix));
+	}
+#endif 
+
    #ifdef RDKB_EXTENDER_ENABLED  
 
    if (isExtProfile() == 0)
@@ -1249,7 +1256,7 @@ v6GPFirewallRuleNext:
       fprintf(fp, "-A FORWARD -d 0::/96  -j LOG_FORWARD_DROP\n");
 
       // Basic RPF check on the egress & ingress traffic
-      char prefix[129];
+      char prefix[IPV6_PREFIX_BUF_LEN+1];
       prefix[0] = 0;
 #ifdef FEATURE_MAPE
       char prev_prefix[MAX_QUERY] = {0};
@@ -1267,14 +1274,14 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-	  sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
+	  snprintf(prefix, sizeof(prefix), "%s", ipv6_delegation_prefix);
       }
       else
       {
-	  sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+	 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
       }
 #else
-	  sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+	 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
 #endif
       }
 
@@ -1282,7 +1289,7 @@ v6GPFirewallRuleNext:
 #ifdef _ONESTACK_PRODUCT_REQ_
       if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
-         sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
+	  snprintf(prefix, sizeof(prefix), "%s", ipv6_delegation_prefix);
       }
       else
       {
@@ -1304,7 +1311,7 @@ v6GPFirewallRuleNext:
 #if defined (_COSA_FOR_BCI_) || defined (_ONESTACK_PRODUCT_REQ_)
          /* adding forward rule for PD traffic */
 #ifdef _ONESTACK_PRODUCT_REQ_
-      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+      if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
       {
          fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
 	 if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
@@ -2125,8 +2132,8 @@ typedef enum{
 void applyRoutingRules(FILE* fp,ipv6_type type)
 {
        FIREWALL_DEBUG("Entering applyRoutingRules, ipv6_type is %d \n" COMMA type);
-         char prefix[64] ;
-         memset(prefix,0,sizeof(prefix));
+         char prefix[IPV6_PREFIX_BUF_LEN+1];
+	 memset(prefix,0,sizeof(prefix));
          int i ;
          if ( ULA_IPV6 == type)
 	 {
@@ -2134,22 +2141,22 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
 	 }
          else
 	 {
-#ifdef _ONESTACK_PRODUCT_REQ_
-	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+         #ifdef _ONESTACK_PRODUCT_REQ_
+	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
 	     {
-		 sysevent_get(sysevent_fd, sysevent_token, COSA_DML_DHCPV6C_PREF_SYSEVENT_NAME, prefix, sizeof(prefix));
+		 snprintf(prefix, sizeof(prefix), "%s", ipv6_delegation_prefix);
 	     }
 	     else
 	     {
 		 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
 	     }
-#else
+         #else
 	     sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
-#endif
+         #endif
 	 }
-	 if (strlen(prefix) != 0 )
+	 if (strlen(prefix) != 0)
          {
-      char *token_pref =NULL;
+		 char *token_pref =NULL;
          token_pref = strtok(prefix,"/");
                   for(i = 0; i < mesh_wan_ipv6_num; i++)
                   {
