@@ -462,7 +462,7 @@ case "$1" in
       #service_lanwan_status
       #;;
  wan-status)
-   if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$BOX_TYPE" = "WNXL11BWL" ]) ;then
+   if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ]) ;then
       echo_t "utopia: Need to handle the wan-status event."
       if [ -n "$CURRENT_WAN_STATUS" ]; then
         if [ "started" = "$CURRENT_WAN_STATUS" ]; then
