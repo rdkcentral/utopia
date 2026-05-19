@@ -47,6 +47,7 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "bridge-status|/etc/utopia/service.d/service_sshd.sh",
 #ifdef WAN_FAILOVER_SUPPORTED					
 					"current_wan_ifname|/etc/utopia/service.d/service_sshd.sh",
+					"current_wan_ipaddr|/etc/utopia/service.d/service_sshd.sh",
 #endif					
 #if defined(_ARRIS_XB6_PRODUCT_REQ_)
                                         "wan-status|/etc/utopia/service.d/service_sshd.sh",
