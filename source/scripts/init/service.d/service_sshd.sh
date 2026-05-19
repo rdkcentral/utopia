@@ -134,36 +134,6 @@ get_listen_params() {
     fi
 }
 
-# wait_for_iface_ip <interface>
-# Polls every 2 seconds up to 120 seconds for an IPv4 address on the given
-# interface, then triggers a sshd restart.  Must be called in the background.
-# A lock file prevents multiple concurrent pollers from running.
-WAIT_FOR_IP_LOCKFILE="/tmp/.sshd_wait_for_ip.lock"
-wait_for_iface_ip() {
-    local IFACE="$1"
-    # Bail out if a poller is already running
-    if [ -f "$WAIT_FOR_IP_LOCKFILE" ]; then
-        echo_t "[utopia] wait_for_iface_ip already running for $IFACE, skipping"
-        return 1
-    fi
-    touch "$WAIT_FOR_IP_LOCKFILE"
-    local RETRIES=0
-    local MAX_RETRIES=60   # 60 x 2s = 120s max wait
-    while [ $RETRIES -lt $MAX_RETRIES ]; do
-        sleep 2
-        WAITED_IP=`ip -4 addr show dev $IFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
-        if [ -n "$WAITED_IP" ]; then
-            echo_t "[utopia] $IFACE got IP $WAITED_IP, restarting ${SERVICE_NAME}"
-            rm -f "$WAIT_FOR_IP_LOCKFILE"
-            /etc/utopia/service.d/service_sshd.sh ${SERVICE_NAME}-restart
-            return 0
-        fi
-        RETRIES=$((RETRIES + 1))
-    done
-    rm -f "$WAIT_FOR_IP_LOCKFILE"
-    echo_t "[utopia] Timed out waiting for IP on $IFACE after $((MAX_RETRIES * 2)) seconds"
-}
-
 do_start() {
    #DIR_NAME=/tmp/home/admin
    #if [ ! -d $DIR_NAME ] ; then
@@ -232,14 +202,6 @@ do_start() {
 	    CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
         if [ ! -z $CM_IP ]; then
 	        commandString="$commandString -p [$CM_IP]:22"
-        else
-            DEVICE_MODE=`deviceinfo.sh -mode`
-            if [ "$DEVICE_MODE" = "Extender" ]; then
-                echo_t "[utopia] $CMINTERFACE has no IP yet (Extender mode), starting background wait for IP on $CMINTERFACE"
-                wait_for_iface_ip "$CMINTERFACE" &
-            else
-                echo_t "[utopia] $CMINTERFACE has no IP and device is not in Extender mode, skipping wait"
-            fi
 	    fi
         echo_t "[utopia] CM_IP $CM_IP "    
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
