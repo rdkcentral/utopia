@@ -763,7 +763,7 @@ int getFactoryPartnerId (char *pValue)
 	return -1;
 }
 
-static int validatePartnerId (char *PartnerID)
+static int validatePartnerId (char *PartnerID, size_t partnerIdBufLen)
 {
    int result = 0;
    char* ptr_etc_jsons = NULL;
@@ -783,7 +783,7 @@ static int validatePartnerId (char *PartnerID)
          else
          {
             printf("Partner ID NOT Found\n");
-            sprintf(PartnerID,"%s","unknown");
+            snprintf(PartnerID,partnerIdBufLen,"%s","unknown");
          }
          cJSON_Delete(root_etc_json);
       }
@@ -809,7 +809,7 @@ int get_PartnerID (char *PartnerID)
 		if( ( 0 == getFactoryPartnerId( PartnerID ) ) && ( PartnerID [ 0 ] != '\0' ) )
 		{
 			APPLY_PRINT("%s - PartnerID from HAL: %s\n",__FUNCTION__,PartnerID );
-			validatePartnerId ( PartnerID );
+			validatePartnerId ( PartnerID, PARTNER_ID_LEN );
 		}
 		else
 		{
@@ -866,7 +866,7 @@ int get_PartnerID (char *PartnerID)
 			 *pos = '\0';
 			sprintf( PartnerID, "%s", fileContent );
 			APPLY_PRINT("%s - PartnerID from File: %s\n",__FUNCTION__,PartnerID );
-			validatePartnerId ( PartnerID );
+			validatePartnerId ( PartnerID, PARTNER_ID_LEN );
 		}
 		unlink("/nvram/.partner_ID");
 	}
@@ -1025,7 +1025,7 @@ int PartnerId_FetchWithRetry(char *PartnerID ) {
         memset(PartnerID, 0, PARTNER_ID_LEN);
 
         if((0 == getFactoryPartnerId(PartnerID)) && (PartnerID[0] != '\0') &&
-            validatePartnerId(PartnerID) && (0 != strcasecmp (PartnerID, "Unknown"))) {
+            validatePartnerId(PartnerID, PARTNER_ID_LEN) && (0 != strcasecmp (PartnerID, "Unknown"))) {
             return 0;
         }
         else {
@@ -1036,7 +1036,7 @@ int PartnerId_FetchWithRetry(char *PartnerID ) {
                     strncpy(PartnerID, buf, strlen(buf));
                     PartnerID[strlen(buf)] = '\0';
 
-                    if(validatePartnerId(PartnerID) && (0 != strcasecmp(PartnerID, "Unknown") )) {
+                    if(validatePartnerId(PartnerID, PARTNER_ID_LEN) && (0 != strcasecmp(PartnerID, "Unknown") )) {
                         return 0;
                     }
                 }
@@ -1082,7 +1082,7 @@ int WritePartnerIDToFile(char* PartnerID) {
 }
 
 void CheckAndHandleInvalidPartnerIDRecoveryProcess(char *PartnerID) {
-    if( '\0' == PartnerID[0] || (0 == validatePartnerId(PartnerID)) || (0 == strcasecmp (PartnerID, "Unknown")) ) {
+    if( '\0' == PartnerID[0] || (0 == validatePartnerId(PartnerID, PARTNER_ID_LEN)) || (0 == strcasecmp (PartnerID, "Unknown")) ) {
         memset(PartnerID, 0, PARTNER_ID_LEN);
 
         APPLY_PRINT("%s - Current PartnerID value is Unknown/Invalid, So retrying to obtain valid PartnerID values. \n", __FUNCTION__);
