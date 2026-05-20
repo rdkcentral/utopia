@@ -41,7 +41,11 @@
 #define SERVER      "dnsmasq"
 #define PMON        "/etc/utopia/service.d/pmon.sh"
 #define RESOLV_CONF "/etc/resolv.conf"
+#if defined(_PLATFORM_GENERICARM_)
+#define DHCP_CONF   "/var/volatile/dnsmasq.conf"
+#else
 #define DHCP_CONF   "/var/dnsmasq.conf"
+#endif
 #define PID_FILE    "/var/run/dnsmasq.pid"
 #define RPC_CLIENT	"/usr/bin/rpcclient"
 #define XHS_IF_NAME "brlan1"

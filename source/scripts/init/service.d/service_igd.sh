@@ -46,7 +46,11 @@ SELF_NAME="`basename $0`"
 
 #IGD=/usr/sbin/IGD
 IGD=IGD
-IGD_TMP_DIR="/var/IGD"
+if ([ "$BOX_TYPE" = "genericarm" ]) ;then
+	IGD_TMP_DIR="/var/volatile/IGD"
+else
+	IGD_TMP_DIR="/var/IGD"
+fi
 UPNP_TMP=/var/tmp/upnp.ttl
 PRIVATE_LAN_IF="brlan0"
 
