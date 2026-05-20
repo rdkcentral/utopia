@@ -199,7 +199,6 @@ do_start() {
         echo_t "[utopia] devicemode `deviceinfo.sh -mode`"
         echo_t "[utopia] route `route -n`"
         echo_t "[utopia] CMINTERFACE $CMINTERFACE "
-        echo_t "[utopia] current_wan_ipaddr `sysevent get current_wan_ipaddr`"
 
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
 	    if [ ! -z "$CM_IPv6" ]; then
@@ -444,10 +443,6 @@ case "$1" in
       service_bridge_status
       ;;
   current_wan_ifname)
-      service_stop
-      service_start
-      ;;
-  current_wan_ipaddr)
       service_stop
       service_start
       ;;
