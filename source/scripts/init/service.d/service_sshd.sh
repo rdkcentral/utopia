@@ -200,18 +200,21 @@ do_start() {
         echo_t "[utopia] route `route -n`"
         echo_t "[utopia] CMINTERFACE $CMINTERFACE "
         echo_t "[utopia] current_wan_ipaddr `sysevent get current_wan_ipaddr`"
-	    CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-        if [ ! -z $CM_IP ]; then
-	        commandString="$commandString -p [$CM_IP]:22"
-	    fi
-        echo_t "[utopia] CM_IP $CM_IP "    
+
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-	    if [ ! -z $CM_IPv6 ]; then
+	    if [ ! -z "$CM_IPv6" ]; then
             commandString="$commandString -p [$CM_IPv6]:22"
 	    fi
 	    CM_IPv4=`ip -4 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-	    if [ ! -z $CM_IPv4 ]; then
+        if [ ! -z "$CM_IPv4" ]; then
             commandString="$commandString -p [$CM_IPv4]:22"
+        fi
+        if [ "$CMINTERFACE" != "wwan0" ]; then
+            CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+            if [ ! -z "$CM_IP" ]; then
+                commandString="$commandString -p [$CM_IP]:22"
+            fi
+            echo_t "[utopia] CM_IP $CM_IP "
         fi
         echo_t "[utopia] commandString $commandString"
     else
