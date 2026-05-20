@@ -208,18 +208,29 @@ do_start() {
              commandString="$commandString -p [$CM_IPV4]:22"
         fi
     elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
-	    CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-        if [ ! -z $CM_IP ]; then
-	        commandString="$commandString -p [$CM_IP]:22"
-	    fi
+        echo_t "[utopia] devicemode `deviceinfo.sh -mode`"
+        echo_t "[utopia] route `route -n`"
+        echo_t "[utopia] CMINTERFACE $CMINTERFACE "
+
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-	    if [ ! -z $CM_IPv6 ]; then
+	    if [ ! -z "$CM_IPv6" ]; then
             commandString="$commandString -p [$CM_IPv6]:22"
 	    fi
 	    CM_IPv4=`ip -4 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-	    if [ ! -z $CM_IPv4 ]; then
+        if [ ! -z "$CM_IPv4" ]; then
             commandString="$commandString -p [$CM_IPv4]:22"
         fi
+        if [ "$CMINTERFACE" != "wwan0" ]; then
+            CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+            if [ ! -z "$CM_IP" ]; then
+                commandString="$commandString -p [$CM_IP]:22"
+            else
+                echo_t "[utopia] $CMINTERFACE has no IP yet, will retry on remote_ssh_server_ip event"
+	    fi
+            echo_t "[utopia] CM_IP $CM_IP "
+        fi
+
+        echo_t "[utopia] commandString $commandString"
     else
         CM_IP=""
         if ([ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]) ;then
@@ -451,6 +462,12 @@ case "$1" in
   current_wan_ifname)
       service_stop
       service_start
+      ;;
+  remote_ssh_server_ip)
+      if [ "$BOX_TYPE" = "WNXL11BWL" ]; then
+          service_stop
+          service_start
+      fi
       ;;
 
   *)
