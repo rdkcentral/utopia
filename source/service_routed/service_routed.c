@@ -2075,6 +2075,7 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 #endif 
 STATIC int radv_start(struct serv_routed *sr)
 {
+    fprintf(logfptr, "%s: Entering\n", __FUNCTION__);
 
 #ifdef RDKB_EXTENDER_ENABLED
     int deviceMode = GetDeviceNetworkMode();
@@ -2114,6 +2115,7 @@ STATIC int radv_start(struct serv_routed *sr)
     char aBridgeMode[8];
     syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
 
+    fprintf(logfptr, "%s: bridge_mode %s and LAN ready = %d \n", __FUNCTION__, aBridgeMode, sr->lan_ready);
     if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
@@ -2177,6 +2179,7 @@ STATIC int radv_start(struct serv_routed *sr)
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
 #else
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
+    fprintf(logfptr, "%s: zebra started\n", __FUNCTION__);
 #endif
 
     return 0;
@@ -2411,11 +2414,17 @@ STATIC int serv_routed_init(struct serv_routed *sr)
 
     sysevent_get(sr->sefd, sr->setok, "wan-status", wan_st, sizeof(wan_st));
     if (strcmp(wan_st, "started") == 0)
+    {
         sr->wan_ready = true;
+        fprintf(logfptr, "%s: WAN is ready and value = %d\n", __FUNCTION__, sr->wan_ready);
+    }
     
     sysevent_get(sr->sefd, sr->setok, "lan-status", lan_st, sizeof(lan_st));
     if (strcmp(lan_st, "started") == 0)
+    {
         sr->lan_ready = true;
+        fprintf(logfptr, "%s: LAN is ready and value = %d\n", __FUNCTION__, sr->lan_ready);
+    }
 
     return 0;
 }
