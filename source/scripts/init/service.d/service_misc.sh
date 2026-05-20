@@ -75,11 +75,11 @@ if [ "$RG_MD" = "1" -o "$RG_MD" = "3" ]; then
 	/etc/utopia/service.d/service_igd.sh lan-status&
 fi
 
-if [ "$RG_MD" = "1" -o "$RG_MD" = "3" ]; then
+if [[ "$RG_MD" = "1" -o "$RG_MD" = "3" ]] && [ -f /etc/utopia/service.d/service_mcastproxy.sh ]; then
 	/etc/utopia/service.d/service_mcastproxy.sh lan-status&
 fi
 
-if [ "$RG_MD" = "2" -o "$RG_MD" = "3" ]; then
+if [[ "$RG_MD" = "2" -o "$RG_MD" = "3" ]] && [ -f /etc/utopia/service.d/service_mldproxy.sh ]; then
 	/etc/utopia/service.d/service_mldproxy.sh lan-status&
 fi
 
