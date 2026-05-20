@@ -53,6 +53,9 @@ const char* SERVICE_CUSTOM_EVENTS[] = {"wan-start|/etc/utopia/service.d/service_
 #else
 const char* SERVICE_CUSTOM_EVENTS[] = { NULL };
 #endif
+#elif defined (_PLATFORM_GENERICARM_)
+const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_bridge_arm.sh";
+const char* SERVICE_CUSTOM_EVENTS[] = { NULL };
 #elif defined (_PLATFORM_RASPBERRYPI_)
 const char* SERVICE_DEFAULT_HANDLER = "/etc/utopia/service.d/service_bridge_rpi.sh";
 const char* SERVICE_CUSTOM_EVENTS[] = { NULL };
