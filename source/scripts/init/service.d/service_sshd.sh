@@ -213,8 +213,8 @@ do_start() {
             if [ ! -z "$CM_IP" ]; then
                 commandString="$commandString -p [$CM_IP]:22"
             else
-                echo_t "[utopia] $CMINTERFACE has no IP yet, will retry on remote_ssh_server_ip event"
-	    fi
+                echo_t "[utopia] $CMINTERFACE has no IP yet, will retry on mesh_wan_linkstatus event"
+            fi
             echo_t "[utopia] CM_IP $CM_IP "
         fi
 
@@ -449,10 +449,17 @@ case "$1" in
       service_stop
       service_start
       ;;
-  remote_ssh_server_ip)
+  mesh_wan_linkstatus)
       if [ "$BOX_TYPE" = "WNXL11BWL" ]; then
-          service_stop
-          service_start
+      echo_t "mesh_wan_linkstatus_value $2"
+      echo_t "mesh_wan_linkstatus_sysevent `sysevent get mesh_wan_linkstatus`"
+          if [ "$2" = "up" ]; then
+              DEVICE_MODE=`deviceinfo.sh -mode`
+              if [ "$DEVICE_MODE" = "Extender" ]; then
+                  service_stop
+                  service_start
+              fi
+          fi
       fi
       ;;
 
