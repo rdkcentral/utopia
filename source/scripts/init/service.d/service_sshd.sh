@@ -134,6 +134,29 @@ get_listen_params() {
     fi
 }
 
+# wait_for_iface_ip <interface>
+# Blocks up to 300 seconds (150 x 2s) waiting for an IPv4 address on the
+# given interface.  Prints the IP to stdout on success; logs an error and
+# returns 1 on timeout.
+wait_for_iface_ip() {
+    local IFACE="$1"
+    local SLEEP_INTERVAL=2
+    local RETRIES=0
+    local MAX_RETRIES=150   # 150 x 2s = 300s max wait
+    while [ $RETRIES -lt $MAX_RETRIES ]; do
+        sleep $SLEEP_INTERVAL
+        WAITED_IP=`ip -4 addr show dev $IFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
+        if [ -n "$WAITED_IP" ]; then
+            echo_t "[utopia] $IFACE got IP $WAITED_IP after $((RETRIES * SLEEP_INTERVAL)) seconds"
+            echo "$WAITED_IP"
+            return 0
+        fi
+        RETRIES=$((RETRIES + 1))
+    done
+    echo_t "[utopia] ERROR: Timed out waiting for IP on $IFACE after $((MAX_RETRIES * SLEEP_INTERVAL)) seconds"
+    return 1
+}
+
 do_start() {
    #DIR_NAME=/tmp/home/admin
    #if [ ! -d $DIR_NAME ] ; then
@@ -225,8 +248,24 @@ do_start() {
             if [ ! -z "$CM_IP" ]; then
                 commandString="$commandString -p [$CM_IP]:22"
             else
-                echo_t "[utopia] $CMINTERFACE has no IP yet, will retry on mesh_wan_linkstatus event"
-            fi
+                DEVICE_MODE=`deviceinfo.sh -mode`
+                if [ "$DEVICE_MODE" = "Extender" ]; then
+                    MESH_WAN_STATUS=`sysevent get mesh_wan_linkstatus`
+                    if [ "$MESH_WAN_STATUS" = "up" ]; then
+                        echo_t "[utopia] $CMINTERFACE has no IP (Extender mode, mesh WAN up), waiting up to 300s"
+                        CM_IP=`wait_for_iface_ip "$CMINTERFACE"`
+                        if [ -n "$CM_IP" ]; then
+                            commandString="$commandString -p [$CM_IP]:22"
+                        else
+                            echo_t "[utopia] ERROR: $CMINTERFACE did not get an IP after 300s, dropbear will start without it"
+                        fi
+                    else
+                        echo_t "[utopia] $CMINTERFACE has no IP and mesh_wan_linkstatus is not up, skipping wait"
+                    fi
+                else
+                    echo_t "[utopia] $CMINTERFACE has no IP and device is not in Extender mode, skipping wait"
+                fi
+           fi
             echo_t "[utopia] CM_IP $CM_IP "
         fi
 
