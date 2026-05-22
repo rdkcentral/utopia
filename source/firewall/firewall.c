@@ -1301,37 +1301,39 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
         /* Start of port range parameters. */
         /* create rules */
 #if defined (_XB6_PRODUCT_REQ_)
-
-        for(i = start_i; i < a; i++)
+        if (offset != 0)
         {
-            for(j=0; j<(contiguous_port); j++)
-            {
-                port = (i << block_shift) + (psid << m) + j;
+          for(i = start_i; i < a; i++)
+          {
+              for(j = 0; j < contiguous_port; j++)
+              {
+                  port = (i << block_shift) + (psid << m) + j;
 
-                if(j == 0)
-                    initialPortValue = port;
-                if( j == contiguous_port - 1 )
-                    finalPortValue = port;
-            }
+                  if (j == 0)
+                      initialPortValue = port;
+                  if (j == contiguous_port - 1 )
+                      finalPortValue = port;
+              }
 
-            if(i == a-1)
-            {
-               fprintf(nat_fp, "-A %s -p tcp -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, ipaddress_str, initialPortValue,finalPortValue);
-               fprintf(nat_fp, "-A %s -p udp -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, ipaddress_str, initialPortValue,finalPortValue);
-            }
-            else if(i > a-4)
-            {
-               fprintf(nat_fp, "-A %s -p tcp -m hashlimit --hashlimit-name mapt_tcp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 45/second --hashlimit-burst 60 -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, i%5, ipaddress_str, initialPortValue,finalPortValue);
-               fprintf(nat_fp, "-A %s -p udp -m hashlimit --hashlimit-name mapt_udp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 100/second --hashlimit-burst 100 -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, i%5, ipaddress_str, initialPortValue,finalPortValue);
-            }
-            else
-            {
-               fprintf(nat_fp, "-A %s -p tcp -m hashlimit --hashlimit-name mapt_tcp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 30/second --hashlimit-burst 60 -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, i%5, ipaddress_str, initialPortValue,finalPortValue);
-               fprintf(nat_fp, "-A %s -p udp -m hashlimit --hashlimit-name mapt_udp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 60/second --hashlimit-burst 100 -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, i%5, ipaddress_str, initialPortValue,finalPortValue);
-            }
+              if (i == a-1)
+              {
+                 fprintf(nat_fp, "-A %s -p tcp -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, ipaddress_str, initialPortValue,finalPortValue);
+                 fprintf(nat_fp, "-A %s -p udp -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, ipaddress_str, initialPortValue,finalPortValue);
+              }
+              else if (i > a-4)
+              {
+                 fprintf(nat_fp, "-A %s -p tcp -m hashlimit --hashlimit-name mapt_tcp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 45/second --hashlimit-burst 60 -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, i%5, ipaddress_str, initialPortValue,finalPortValue);
+                 fprintf(nat_fp, "-A %s -p udp -m hashlimit --hashlimit-name mapt_udp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 100/second --hashlimit-burst 100 -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, i%5, ipaddress_str, initialPortValue,finalPortValue);
+              }
+              else
+              {
+                 fprintf(nat_fp, "-A %s -p tcp -m hashlimit --hashlimit-name mapt_tcp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 30/second --hashlimit-burst 60 -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, i%5, ipaddress_str, initialPortValue,finalPortValue);
+                 fprintf(nat_fp, "-A %s -p udp -m hashlimit --hashlimit-name mapt_udp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 60/second --hashlimit-burst 100 -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, i%5, ipaddress_str, initialPortValue,finalPortValue);
+              }
 
-            fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_ICMP, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
-            FIREWALL_DEBUG("MAPT Rule: Port range is initialPortValue=%d, finalPortValue=%d \n" COMMA initialPortValue COMMA finalPortValue);
+              fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_ICMP, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+              FIREWALL_DEBUG("MAPT Rule: Port range is initialPortValue=%d, finalPortValue=%d \n" COMMA initialPortValue COMMA finalPortValue);
+          }
         }
 #endif
         for(i = start_i; i < a; i++)
@@ -1356,23 +1358,32 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
             fprintf(nat_fp, "-A %s -p udp -m connlimit --connlimit-upto %d --connlimit-daddr -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
             fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
 #else
-            if(i == a-1)
+            if (offset == 0)
             {
                fprintf(nat_fp, "-A %s -p tcp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
                fprintf(nat_fp, "-A %s -p udp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
-            }
-            else if(i > a-4)
-            {
-               fprintf(nat_fp, "-A %s -p tcp -m hashlimit --hashlimit-name mapt_tcp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 45/second --hashlimit-burst 60 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, i%5, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
-               fprintf(nat_fp, "-A %s -p udp -m hashlimit --hashlimit-name mapt_udp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 100/second --hashlimit-burst 100 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, i%5, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+               fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_ICMP, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
             }
             else
             {
-               fprintf(nat_fp, "-A %s -p tcp -m hashlimit --hashlimit-name mapt_tcp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 30/second --hashlimit-burst 60 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, i%5, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
-               fprintf(nat_fp, "-A %s -p udp -m hashlimit --hashlimit-name mapt_udp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 60/second --hashlimit-burst 100 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, i%5, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
-            }
+               if (i == a-1)
+               {
+                   fprintf(nat_fp, "-A %s -p tcp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+                   fprintf(nat_fp, "-A %s -p udp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+               }
+               else if(i > a-4)
+               {
+                   fprintf(nat_fp, "-A %s -p tcp -m hashlimit --hashlimit-name mapt_tcp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 45/second --hashlimit-burst 60 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, i%5, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+                   fprintf(nat_fp, "-A %s -p udp -m hashlimit --hashlimit-name mapt_udp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 100/second --hashlimit-burst 100 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, i%5, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+               }
+               else
+               {
+                   fprintf(nat_fp, "-A %s -p tcp -m hashlimit --hashlimit-name mapt_tcp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 30/second --hashlimit-burst 60 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP, i%5, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+                   fprintf(nat_fp, "-A %s -p udp -m hashlimit --hashlimit-name mapt_udp_%d --hashlimit-mode srcip,dstip,dstport --hashlimit-upto 60/second --hashlimit-burst 100 -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP, i%5, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+               }
 
                fprintf(nat_fp, "-A %s -p icmp -m connlimit --connlimit-upto %d --connlimit-daddr-dport -j SNAT --to-source %s:%d-%d\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_ICMP, finalPortValue - initialPortValue + 1, ipaddress_str, initialPortValue,finalPortValue);
+            }
 #endif //_HUB4_PRODUCT_REQ_NO_DPORT_
 #endif //IVI_KERNEL_SUPPORT
             FIREWALL_DEBUG("MAPT Rule: Port range is initialPortValue=%u, finalPortValue=%u \n" COMMA initialPortValue COMMA finalPortValue);
