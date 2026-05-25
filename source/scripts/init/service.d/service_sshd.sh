@@ -144,7 +144,6 @@ wait_for_iface_ip() {
     local RETRIES=0
     local MAX_RETRIES=150   # 150 x 2s = 300s max wait
     while [ $RETRIES -lt $MAX_RETRIES ]; do
-        sleep $SLEEP_INTERVAL
         WAITED_IP=`ip -4 addr show dev $IFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
         if [ -n "$WAITED_IP" ]; then
             echo_t "[utopia] $IFACE got IP $WAITED_IP after $(((RETRIES + 1) * SLEEP_INTERVAL)) seconds"
@@ -152,6 +151,7 @@ wait_for_iface_ip() {
             return 0
         fi
         RETRIES=$((RETRIES + 1))
+        sleep $SLEEP_INTERVAL
     done
     echo_t "[utopia] ERROR: Timed out waiting for IP on $IFACE after $((MAX_RETRIES * SLEEP_INTERVAL)) seconds"
     return 1
@@ -486,15 +486,11 @@ case "$1" in
       service_start
       ;;
   mesh_wan_linkstatus)
-      if [ "$BOX_TYPE" = "WNXL11BWL" ]; then
-      echo_t "mesh_wan_linkstatus_value $2"
-      echo_t "mesh_wan_linkstatus_sysevent `sysevent get mesh_wan_linkstatus`"
-          if [ "$2" = "up" ]; then
-              DEVICE_MODE=`deviceinfo.sh -mode`
-              if [ "$DEVICE_MODE" = "Extender" ]; then
-                  service_stop
-                  service_start
-              fi
+      if [ "$BOX_TYPE" = "WNXL11BWL" ] && [ "$2" = "up" ]; then
+          DEVICE_MODE=`deviceinfo.sh -mode`
+          if [ "$DEVICE_MODE" = "Extender" ]; then
+              service_stop
+              service_start
           fi
       fi
       ;;
