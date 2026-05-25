@@ -147,14 +147,14 @@ wait_for_iface_ip() {
     while [ $RETRIES -lt $MAX_RETRIES ]; do
         WAITED_IP=`ip -4 addr show dev "$IFACE" scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
         if [ -n "$WAITED_IP" ]; then
-            echo_t "[utopia] $IFACE got IP $WAITED_IP after $(((RETRIES + 1) * SLEEP_INTERVAL)) seconds"
+            echo_t "[utopia] $IFACE got IP $WAITED_IP after $((RETRIES * SLEEP_INTERVAL)) seconds" >&2
             echo "$WAITED_IP"
             return 0
         fi
         RETRIES=$((RETRIES + 1))
         sleep $SLEEP_INTERVAL
     done
-    echo_t "[utopia] ERROR: Timed out waiting for IP on $IFACE after $((MAX_RETRIES * SLEEP_INTERVAL)) seconds"
+    echo_t "[utopia] ERROR: Timed out waiting for IP on $IFACE after $((MAX_RETRIES * SLEEP_INTERVAL)) seconds" >&2
     return 1
 }
 
@@ -220,7 +220,7 @@ do_start() {
 	    fi
         fi
     elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
-
+        commandString=""
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
 	    if [ ! -z "$CM_IPv6" ]; then
             commandString="$commandString -p [$CM_IPv6]:22"
@@ -230,7 +230,7 @@ do_start() {
             commandString="$commandString -p [$CM_IPv4]:22"
         fi
         if [ "$CMINTERFACE" != "wwan0" ]; then
-            CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+            CM_IP=`ip -4 addr show dev "$CMINTERFACE"  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
             if [ ! -z "$CM_IP" ]; then
                 commandString="$commandString -p [$CM_IP]:22"
             else
