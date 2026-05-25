@@ -494,7 +494,7 @@ case "$1" in
       ;;
 
   *)
-        echo "Usage: $SELF_NAME [${SERVICE_NAME}-start|${SERVICE_NAME}-stop|${SERVICE_NAME}-restart|ssh_server_restart|lan-status|wan-status|mesh_wan_linkstatus]" >&2
+        echo "Usage: $SELF_NAME [${SERVICE_NAME}-start|${SERVICE_NAME}-stop|${SERVICE_NAME}-restart|wan-status|bridge-status|current_wan_ifname|mesh_wan_linkstatus <status>]" >&2
         exit 3
         ;;
 esac
