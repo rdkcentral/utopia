@@ -145,9 +145,9 @@ wait_for_iface_ip() {
     local MAX_RETRIES=150   # 150 x 2s = 300s max wait
     while [ $RETRIES -lt $MAX_RETRIES ]; do
         sleep $SLEEP_INTERVAL
-        WAITED_IP=`ip -4 addr show dev $IFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
+        WAITED_IP=`ip -4 addr show dev $IFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
         if [ -n "$WAITED_IP" ]; then
-            echo_t "[utopia] $IFACE got IP $WAITED_IP after $((RETRIES * SLEEP_INTERVAL)) seconds"
+            echo_t "[utopia] $IFACE got IP $WAITED_IP after $(((RETRIES + 1) * SLEEP_INTERVAL)) seconds"
             echo "$WAITED_IP"
             return 0
         fi
@@ -219,9 +219,6 @@ do_start() {
 	    fi
         fi
     elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
-        echo_t "[utopia] devicemode `deviceinfo.sh -mode`"
-        echo_t "[utopia] route `route -n`"
-        echo_t "[utopia] CMINTERFACE $CMINTERFACE "
 
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
 	    if [ ! -z "$CM_IPv6" ]; then
@@ -503,7 +500,7 @@ case "$1" in
       ;;
 
   *)
-        echo "Usage: $SELF_NAME [${SERVICE_NAME}-start|${SERVICE_NAME}-stop|${SERVICE_NAME}-restart|ssh_server_restart|lan-status|wan-status]" >&2
+        echo "Usage: $SELF_NAME [${SERVICE_NAME}-start|${SERVICE_NAME}-stop|${SERVICE_NAME}-restart|ssh_server_restart|lan-status|wan-status|mesh_wan_linkstatus]" >&2
         exit 3
         ;;
 esac
