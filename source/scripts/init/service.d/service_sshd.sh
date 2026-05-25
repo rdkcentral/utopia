@@ -142,9 +142,10 @@ wait_for_iface_ip() {
     local IFACE="$1"
     local SLEEP_INTERVAL=2
     local RETRIES=0
-    local MAX_RETRIES=150   # 150 x 2s = 300s max wait
+    local MAX_RETRIES=150
+    local WAITED_IP
     while [ $RETRIES -lt $MAX_RETRIES ]; do
-        WAITED_IP=`ip -4 addr show dev $IFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+        WAITED_IP=`ip -4 addr show dev "$IFACE" scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
         if [ -n "$WAITED_IP" ]; then
             echo_t "[utopia] $IFACE got IP $WAITED_IP after $(((RETRIES + 1) * SLEEP_INTERVAL)) seconds"
             echo "$WAITED_IP"
@@ -251,10 +252,7 @@ do_start() {
                     echo_t "[utopia] $CMINTERFACE has no IP and device is not in Extender mode, skipping wait"
                 fi
            fi
-            echo_t "[utopia] CM_IP $CM_IP "
         fi
-
-        echo_t "[utopia] commandString $commandString"
     else
         CM_IP=""
         if ([ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ]) ;then
