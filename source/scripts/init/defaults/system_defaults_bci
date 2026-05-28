@@ -1244,8 +1244,8 @@ $DLCaStoreEnabled=false
 $low_queue_reboot_threshold=0
 
 #ocsp staple support
-$EnableOCSPStapling=false
-$EnableOCSPCA=false
+$EnableOCSPStapling=true
+$EnableOCSPCA=true
 
 #Use XPKI certificate for lnf
 $LnFUseXPKI_Enable=true
