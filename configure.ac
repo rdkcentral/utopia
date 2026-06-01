@@ -105,7 +105,7 @@ if test x"${MACHINE}" != x; then
                      [The machine type])
 fi
 
-AM_CONDITIONAL([MACHINE_SCXER10], [test "x$MACHINE" = "xscxer10" || test "x$MACHINE" = "xscxer10-sdk6.3"])
+AM_CONDITIONAL([MACHINE_SCXER10], [echo "$MACHINE" | grep -q "scxer10"])
 
 AM_CONDITIONAL([MULTILAN_FEATURE], [test "$MULTILAN_FEATURE" = "yes"])
 AM_CONDITIONAL([CPC_FIREWALL_ENABLE], [test "x$CPC_FIREWALL_ENABLE" = "xtrue"])
