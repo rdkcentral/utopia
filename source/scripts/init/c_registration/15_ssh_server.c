@@ -52,7 +52,7 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
                                         "wan-status|/etc/utopia/service.d/service_sshd.sh",
 #endif
 #if defined(_WNXL11BWL_PRODUCT_REQ_)
-                                        "mesh_wan_linkstatus|/etc/utopia/service.d/service_sshd.sh",
+                                        "ipv4_br-home_ipaddr|/etc/utopia/service.d/service_sshd.sh",
 #endif
                                         NULL 
                                       };

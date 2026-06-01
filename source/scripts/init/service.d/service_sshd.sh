@@ -230,6 +230,8 @@ do_start() {
             commandString="$commandString -p [$CM_IPv4]:22"
         fi
         if [ "$CMINTERFACE" != "wwan0" ]; then
+            BRHOME_IP=`sysevent get ipv4_br-home_ipaddr`
+            echo_t "BRHOME_IP = $BRHOME_IP"
             CM_IP=`ip -4 addr show dev "$CMINTERFACE"  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
             if [ ! -z "$CM_IP" ]; then
                 commandString="$commandString -p [$CM_IP]:22"
@@ -485,6 +487,17 @@ case "$1" in
       ;;
   mesh_wan_linkstatus)
       if [ "$BOX_TYPE" = "WNXL11BWL" ] && [ "$2" = "up" ]; then
+          DEVICE_MODE=`deviceinfo.sh -mode`
+          if [ "$DEVICE_MODE" = "Extender" ]; then
+              echo_t "commented out intentionall"
+              #service_stop
+              #service_start
+          fi
+      fi
+      ;;
+  ipv4_br-home_ipaddr)
+      if [ "$BOX_TYPE" = "WNXL11BWL" ]; then
+          echo_t "ipv4_br-home_ipaddr is set with $2"
           DEVICE_MODE=`deviceinfo.sh -mode`
           if [ "$DEVICE_MODE" = "Extender" ]; then
               service_stop
