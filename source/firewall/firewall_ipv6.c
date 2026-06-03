@@ -186,9 +186,9 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_BLOCKFRAGIPPKT   "v6_BlockFragIPPkts"
 #define V6_PORTSCANPROTECT  "v6_PortScanProtect"
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
-
+#define IPV6_PREFIX_BUF_LEN 128
 #if defined (_ONESTACK_PRODUCT_REQ_)
-static char ipv6_delegation_prefix[129] ={0};
+static char ipv6_delegation_prefix[IPV6_PREFIX_BUF_LEN+1] ={0};
 #endif
 /*
  ****************************************************************
@@ -269,17 +269,15 @@ int prepare_ipv6_firewall(const char *fw_file)
 		ret=-2;
 		goto clean_up_files;
 	}
-        
-    #if defined (_ONESTACK_PRODUCT_REQ_)
-	 char sysEventName[256] ={0};
+#if defined (_ONESTACK_PRODUCT_REQ_)
+	char sysEventName[256] ={0};
+	memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
 	if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
 	{
-	    snprintf(sysEventName, sizeof(sysEventName), "tr_%s_dhcpv6_client_v6pref", current_wan_ifname);
-	    memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
-	    memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
-	    sysevent_get(sysevent_fd, sysevent_token, sysEventName, ipv6_delegation_prefix, sizeof(ipv6_delegation_prefix));
+		snprintf(sysEventName, sizeof(sysEventName), "tr_%s_dhcpv6_client_v6pref", current_wan_ifname);
+		sysevent_get(sysevent_fd, sysevent_token, sysEventName, ipv6_delegation_prefix, sizeof(ipv6_delegation_prefix));
 	}
-   #endif
+#endif 
 
    #ifdef RDKB_EXTENDER_ENABLED  
 
@@ -422,6 +420,10 @@ int prepare_ipv6_firewall(const char *fw_file)
          }
 
    #endif
+
+#if defined (_PLATFORM_BANANAPI_R4_)
+        fprintf(fp, "*raw\n-F\n");
+#endif
 
 	/*add rules before this*/
 #if !defined(_BWG_PRODUCT_REQ_)
@@ -1254,7 +1256,7 @@ v6GPFirewallRuleNext:
       fprintf(fp, "-A FORWARD -d 0::/96  -j LOG_FORWARD_DROP\n");
 
       // Basic RPF check on the egress & ingress traffic
-      char prefix[129];
+      char prefix[IPV6_PREFIX_BUF_LEN+1];
       prefix[0] = 0;
 #ifdef FEATURE_MAPE
       char prev_prefix[MAX_QUERY] = {0};
@@ -1753,22 +1755,9 @@ v6GPFirewallRuleNext:
         fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 500  -j ACCEPT\n");
         fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 4500  -j ACCEPT\n");
     }
-    char sites_enabled[MAX_QUERY];
-    sites_enabled[0] = '\0';
-    syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
-    if (sites_enabled[0] != '\0' && sites_enabled[0] == '0') // managed site list enabled
-    {
-        queryv6[0] = '\0';
+    // Apply SSL blocking rules
+    do_ssl_blocking_rules(fp, "lan2wan_misc_ipv6");
 
-        if((0 == syscfg_get(NULL, "blockssl::result", queryv6, sizeof(queryv6))) && strcmp(queryv6,"DROP") == 0){
-            fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 443  -j DROP\n");
-            fprintf(fp, "-A lan2wan_misc_ipv6 -p tcp --dport 443  -j DROP\n");
-        }
-        else if(strcmp(queryv6,"ACCEPT") == 0){
-            fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 443  -j ACCEPT\n");
-            fprintf(fp, "-A lan2wan_misc_ipv6 -p tcp --dport 443  -j ACCEPT\n");
-        }
-    }
     queryv6[0] = '\0';
 
     if((0 == syscfg_get(NULL, "blockl2tp::result", queryv6, sizeof(queryv6))) && strcmp(queryv6,"DROP") == 0){
@@ -2143,8 +2132,8 @@ typedef enum{
 void applyRoutingRules(FILE* fp,ipv6_type type)
 {
        FIREWALL_DEBUG("Entering applyRoutingRules, ipv6_type is %d \n" COMMA type);
-         char prefix[64] ;
-         memset(prefix,0,sizeof(prefix));
+         char prefix[IPV6_PREFIX_BUF_LEN+1];
+	 memset(prefix,0,sizeof(prefix));
          int i ;
          if ( ULA_IPV6 == type)
 	 {
