@@ -436,11 +436,10 @@ case "$1" in
                                      sysevent set primary_lan_l3net $L3NET
                                 fi
                 fi
-	elif [ "$BOX_TYPE" = "TCCBR" ]; then
-		if [ -z "$INST" ]; then
-			echo "*****SET THE PRIMARY LAN ******" > /dev/null
-  			syseven set primary_lan_l3net 4
-		fi
+	fi
+	if [ -z "$INST" ] && [ "$BOX_TYPE" = "TCCBR" ]; then
+		echo_t "INST is empty on TCCBR; defaulting primary_lan_l3net to 4"
+		sysevent set primary_lan_l3net 4
 	fi
 
         fi
