@@ -96,9 +96,9 @@ service_start ()
       if [ "$MOCA_SUPPORTED" != "false" ]; then
           echo "1 */12 * * *  /usr/ccsp/pam/moca_status.sh" >> $CRONTAB_FILE
       fi
-#RDKB-17984: Runs every 12 hours and prints mesh status
+#RDKB-17984: Runs every 2 hours and prints mesh status
       if [ "$BOX_TYPE" != "XB3" ]; then
-       echo "1 */12 * * *  /usr/ccsp/wifi/mesh_status.sh" >> $CRONTAB_FILE
+       echo "1 */2 * * *  /usr/ccsp/wifi/mesh_status.sh" >> $CRONTAB_FILE
       fi
 
       if [ "$BOX_TYPE" == "XB3" ]; then
