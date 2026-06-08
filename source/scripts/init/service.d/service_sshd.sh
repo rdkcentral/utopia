@@ -229,31 +229,21 @@ do_start() {
         if [ ! -z "$CM_IPv4" ]; then
             commandString="$commandString -p [$CM_IPv4]:22"
         fi
-        if [ "$CMINTERFACE" != "wwan0" ]; then
-            BRHOME_IP=`sysevent get ipv4_br-home_ipaddr`
-            echo_t "BRHOME_IP = $BRHOME_IP"
-            CM_IP=`ip -4 addr show dev "$CMINTERFACE"  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-            if [ ! -z "$CM_IP" ]; then
+        if [ "$CMINTERFACE" = "br-home" ]; then
+            CM_IP=`sysevent get ipv4_br-home_dhcp_ipaddr`
+            echo_t "[utopia] ipv4_br-home_dhcp_ipaddr = $CM_IP"
+            if [ -n "$CM_IP" ] && [ "$CM_IP" != "0.0.0.0" ]; then
                 commandString="$commandString -p [$CM_IP]:22"
             else
-                DEVICE_MODE=`deviceinfo.sh -mode`
-                if [ "$DEVICE_MODE" = "Extender" ]; then
-                    MESH_WAN_STATUS=`sysevent get mesh_wan_linkstatus`
-                    if [ "$MESH_WAN_STATUS" = "up" ]; then
-                        echo_t "[utopia] $CMINTERFACE has no IP (Extender mode, mesh WAN up), waiting up to 300s"
-                        CM_IP=`wait_for_iface_ip "$CMINTERFACE"`
-                        if [ -n "$CM_IP" ]; then
-                            commandString="$commandString -p [$CM_IP]:22"
-                        else
-                            echo_t "[utopia] ERROR: $CMINTERFACE did not get an IP after 300s, dropbear will start without it"
-                        fi
-                    else
-                        echo_t "[utopia] $CMINTERFACE has no IP and mesh_wan_linkstatus is not up, skipping wait"
-                    fi
-                else
-                    echo_t "[utopia] $CMINTERFACE has no IP and device is not in Extender mode, skipping wait"
-                fi
-           fi
+                echo_t "[utopia] ipv4_br-home_dhcp_ipaddr not set or invalid ($CM_IP), skipping $CMINTERFACE listen address"
+            fi
+        else
+            CM_IP=`ip -4 addr show dev "$CMINTERFACE" scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+            if [ -n "$CM_IP" ]; then
+                commandString="$commandString -p [$CM_IP]:22"
+            else
+                echo_t "[utopia] $CMINTERFACE has no IPv4 address, skipping listen address"
+            fi
         fi
     else
         CM_IP=""
@@ -495,9 +485,9 @@ case "$1" in
           fi
       fi
       ;;
-  ipv4_br-home_ipaddr)
+  ipv4_br-home_dhcp_ipaddr)
       if [ "$BOX_TYPE" = "WNXL11BWL" ]; then
-          echo_t "ipv4_br-home_ipaddr is set with $2"
+          echo_t "ipv4_br-home_dhcp_ipaddr is set with $2"
           DEVICE_MODE=`deviceinfo.sh -mode`
           if [ "$DEVICE_MODE" = "Extender" ]; then
               service_stop
