@@ -1516,6 +1516,10 @@ $StageEnabled=false
 #RdkLogger Cron - RFC flag is enabled by default
 $RdkbLogCronEnable=true
 
+#RDKLogSuppressor - RFC flag is disabled by default (AC-4)
+$RDKLogSuppressorEnable=false
+$RDKLogSuppressorMaxPatternLength=10
+
 #Memory swap defaults
 $MemorySwapEnable=true
 $MemorySwapDiskSizeMB=300

@@ -1434,6 +1434,10 @@ $RemDeviceDetectionTimeout=60
 #Direct Download Enable default value
 $SWDLDirectEnable=true
 
+#RDKLogSuppressor - RFC flag is disabled by default (AC-4)
+$RDKLogSuppressorEnable=false
+$RDKLogSuppressorMaxPatternLength=10
+
 #Latency Measure factory default values
 $LatencyMeasure_IPv4Enable=false
 $LatencyMeasure_IPv6Enable=false
