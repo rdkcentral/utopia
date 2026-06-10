@@ -156,8 +156,8 @@ do_start() {
         #getting the IPV4 address for V4 CM SSH packets
         if [ "$WAN_INTERFACE" =  "$DEFAULT_WAN_INTERFACE" ] ; then
             if [ -f "/nvram/ETHWAN_ENABLE" ];then
-	#        CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
-	 #   else
+                CM_IPV4=`ip -4 addr show dev $CMINTERFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
+	    else
                 CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
             fi
         else
