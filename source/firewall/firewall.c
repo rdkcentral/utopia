@@ -1110,8 +1110,8 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
     char ipaddress_str[BUFLEN_32] = {0};
     char mapt_config_ratio_str[BUFLEN_64] = {0};
     char mapt_config_value[BUFLEN_8] = {0};
-    unsigned int contiguous_port = 0;
-    int ratio = 0;
+   unsigned int contiguous_port = 0;
+   int block_shift = 0;
     int port = 0;
     unsigned int i =0;
     unsigned int j = 0;
@@ -1263,16 +1263,22 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
 
         psidLen = atoi(sysevent_val);
 
-        if (offset == 0)
-            offset = 6;
-
         a = (1 << offset);
         m = 16 - (psidLen + offset);
         contiguous_port = (1 << m);
-        ratio = 16 - offset;
+        block_shift = 16 - offset;
 
-        // Exclude i=0 block as per original logic
-        total_ports = (a * contiguous_port) - contiguous_port;
+        // total ports
+        if (offset == 0)
+        {
+            /* Single contiguous block (psid = 0 will use the well-known ports) */
+            total_ports = a * contiguous_port;
+        }
+        else
+        {
+            /* Skip first block (well-known ports) as reserved ports */
+            total_ports = (a - 1) * contiguous_port;
+        }
         memset(sysevent_val, 0, sizeof(sysevent_val));
         snprintf(sysevent_val, sizeof(sysevent_val), "%u", total_ports);
         if(sysevent_set(sysevent_fd, sysevent_token, SYSEVENT_MAPT_TOTAL_PORTS, sysevent_val, 0) != 0)
@@ -1282,13 +1288,15 @@ int do_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp)
         FIREWALL_DEBUG("MAPT Info: offset=%u, psid=%u, psidLen=%u, port_blocks=%u, contiguous_port=%u, total_ports=%u \n" COMMA
             offset COMMA psid COMMA psidLen COMMA a COMMA  contiguous_port COMMA total_ports);
 
+        int start_i = (offset == 0) ? 0 : 1;
+
         /* Start of port range parameters. */
         /* create rules */
-        for(i=1; i< (a); i++)
+        for(i = start_i; i < a; i++)
         {
             for(j=0; j<(contiguous_port); j++)
             {
-                port = (i<<ratio) + (psid <<(m)) + j;
+               port = (i << block_shift) + (psid << m) + j;
 
                 if(j == 0)
                     initialPortValue = port;
@@ -11987,6 +11995,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
 #if defined (_PLATFORM_BANANAPI_R4_)
        isRawTableUsed = 1;
+       fprintf(raw_fp, "-F\n");
        fprintf(raw_fp, "-A OUTPUT -p udp --dport 69 -j CT --helper tftp\n");
 #endif
 

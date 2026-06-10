@@ -939,6 +939,7 @@ $Adv_AdvSecOTMRFCEnable=1
 $Adv_AdvSecUserSpaceRFCEnable=0
 $Adv_WifiDataCollectionRFCEnable=0
 $Adv_LevlRFCEnable=0
+$Adv_AdvSecNetworkIntelligenceRFCEnable=0
 $Adv_AdvSecAgentRFCEnable=1
 $Adv_AdvSecSafeBrowsingRFCEnable=1
 $Adv_AdvSecCujoTelemetryWiFiFPRFCEnable=0
@@ -946,6 +947,8 @@ $Adv_AdvSecCujoTracerRFCEnable=0
 $Adv_AdvSecCujoTelemetryRFCEnable=0
 $Adv_SATERFCEnable=0
 $Adv_TCPTrackerFilterDevicesRFCEnable=0
+$Adv_DoHBlockingRFCEnable=0
+$Adv_DNSECHBlockingRFCEnable=0
 $Adv_RaptrRFCEnable=1
 
 #Firewall log settings
@@ -1295,6 +1298,9 @@ $Advsecurity_RabidMacCacheSize=10000
 # Rabid dnscache size
 $Advsecurity_RabidDNSCacheSize=10000
 
+# cujo-ni memory limit
+$Advsecurity_NetworkIntelligenceMemoryLimit=15
+
 #Ethernet bhaul bridge migration for LnF
 $iot_brname=br106
 
@@ -1355,8 +1361,8 @@ $CredDwnld_Use=false
 $DLCaStoreEnabled=false
 
 #ocsp staple support
-$EnableOCSPStapling=false
-$EnableOCSPCA=false
+$EnableOCSPStapling=true
+$EnableOCSPCA=true
 
 #Defaults for XHFW
 $XHFW_Enable=true

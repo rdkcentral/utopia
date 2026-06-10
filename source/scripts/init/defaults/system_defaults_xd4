@@ -1340,8 +1340,8 @@ $CredDwnld_Use=false
 $DLCaStoreEnabled=false
 
 #ocsp staple support
-$EnableOCSPStapling=false
-$EnableOCSPCA=false
+$EnableOCSPStapling=true
+$EnableOCSPCA=true
 
 #Defaults for XHFW
 $XHFW_Enable=true
