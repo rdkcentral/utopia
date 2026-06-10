@@ -90,7 +90,15 @@ $$Version=14
 #@wl1_radio_type=dual      0x00000004
 #@wl1_radio_band="2.4g 5g" 0x00000004
 #@wl1_osifname=eth2        0x00000004
-
+@MeshWANInterface_UlaAddr=fd01:1010:b066:798e:5528:ef02:7af4:e28/64
+@MeshRemoteWANInterface_UlaAddr=fd01:1010:b066:798e:3465:bfff:fe1a:8f46/64
+@MeshWanInterface_UlaPref=fd01:1010:b066:798e::/64
+@ipv6_prefix_ula=fd01:646:8a00:bee0::/64
+@brlan1_ipaddr_v6_ula=fd01:646:8a00:bee4::/64
+@br106_ipaddr_v6_ula=fd01:646:8a00:bee5::/64
+@br403_ipaddr_v6_ula=fd01:646:8a00:bee6::/64
+@brlan10_ipaddr_v6_ula=fd01:646:8a00:bee7::/64
+@brlan15_ipaddr_v6_ula=fd01:646:8a00:bee8::/64
 
 #-------------------------------------------------------------------
 #     syscfg namespace
