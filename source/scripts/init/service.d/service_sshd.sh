@@ -64,11 +64,7 @@ else
    if [ -f "/nvram/ETHWAN_ENABLE" ];then
 	   CMINTERFACE=$WAN_INTERFACE
    else
-   	if [ "$WAN0_IS_DUMMY" = "true" ]; then
-            CMINTERFACE="privbr"
-        else
-            CMINTERFACE="wan0"
-        fi
+	   CMINTERFACE="wan0"
    fi
 fi
     
@@ -93,15 +89,9 @@ get_listen_params() {
     LISTEN_PARAMS=""
     #Get IPv4 address of wan0
     if ([ "$WAN_INTERFACE" =  "$DEFAULT_WAN_INTERFACE" ] && [ "$BOX_TYPE" != "VNTXER5" ] && [ "$BOX_TYPE" != "SCER11BEL" ] && [ "$BOX_TYPE" != "SCXF11BFL" ]) ; then
-        if [ "$WAN0_IS_DUMMY" = "true" ]; then
-	        CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
-		#Get IPv6 address of wan0
-        	CM_IP6=`ip -6 addr show dev privbr scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
-	else
-		CM_IP4=`ip -4 addr show dev wan0 scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
-		#Get IPv6 address of wan0
-		CM_IP6=`ip -6 addr show dev wan0 scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
-	fi
+        CM_IP4=`ip -4 addr show dev wan0 scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
+        #Get IPv6 address of wan0
+        CM_IP6=`ip -6 addr show dev wan0 scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
         
         #in dibbler client gobal addr is not added as "dynamic"
         Dibbler_Client_enabled=`syscfg get dibbler_client_enable_v2`
@@ -156,8 +146,8 @@ do_start() {
         #getting the IPV4 address for V4 CM SSH packets
         if [ "$WAN_INTERFACE" =  "$DEFAULT_WAN_INTERFACE" ] ; then
             if [ -f "/nvram/ETHWAN_ENABLE" ];then
-	#        CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
-	 #   else
+	        CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+	    else
                 CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
             fi
         else
@@ -229,7 +219,7 @@ do_start() {
        if [ -z "$CM_IP" ]
        then
           #wan0 should be in v4
-	  CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
+	  CM_IP=`ip -4 addr show dev $CMINTERFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
        fi
    fi
    DROPBEAR_PARAMS_1="/tmp/.dropbear/dropcfg1$$"
