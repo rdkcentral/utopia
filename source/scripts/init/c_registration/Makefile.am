@@ -33,7 +33,7 @@ AM_LDFLAGS = $(top_builddir)/source/util/utils/libutopiautil.la \
 LDFLAGS += -lsecure_wrapper
 
 if ONESTACK_PRODUCT_REQ
-AM_LDFLAGS += -ldevicemode
+AM_LIBADD =  -L${PKG_CONFIG_SYSROOT_DIR}$(libdir) -ltelemetry_msgsender -ldevicemode
 endif
 
 bin_PROGRAMS = \
@@ -137,5 +137,5 @@ if ENABLE_HOTSPOT_SERVICE
 15_hotspot_SOURCES = 15_hotspot.c
 endif
 if ONESTACK_PRODUCT_REQ
-LDFLAGS += -lrdkb_feature_mode_gate
+AM_LIBADD += -lrdkb_feature_mode_gate
 endif

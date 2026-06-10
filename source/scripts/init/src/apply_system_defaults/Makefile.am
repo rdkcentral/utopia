@@ -30,12 +30,13 @@ AM_LDFLAGS = $(top_builddir)/source/services/lib/libsrvmgr.la \
              $(top_builddir)/source/ulog/libulog.la \
              $(top_builddir)/source/utapi/lib/libutapi.la \
              $(top_builddir)/source/utctx/lib/libutctx.la \
-             -ltelemetry_msgsender \
              -lcjson \
 	         -lccsp_common $(DBUS_LIBS)
 
 if ONESTACK_PRODUCT_REQ
-AM_LDFLAGS += -L${PKG_CONFIG_SYSROOT_DIR}$(libdir) -ldevicemode -lonestack_syscfg -lonestack_log -lonestack_init
+AM_LIBADD =  -L${PKG_CONFIG_SYSROOT_DIR}$(libdir) -ltelemetry_msgsender -ldevicemode -lonestack_syscfg -lonestack_log -lonestack_init
+else
+AM_LDFLAGS += -ltelemetry_msgsender
 endif
 
 if PLATFORM_HAL_SYNDICATION
