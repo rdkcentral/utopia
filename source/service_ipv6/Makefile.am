@@ -38,5 +38,6 @@ service_ipv6_LDFLAGS = -lnet
 endif
 
 if ONESTACK_PRODUCT_REQ
-service_ipv6_LDADD += -lrdkb_feature_mode_gate -ltelemetry_msgsender
+service_ipv6_LDFLAGS = -L${PKG_CONFIG_SYSROOT_DIR}${libdir}
+service_ipv6_LDADD += -lrdkb_feature_mode_gate -ltelemetry_msgsender -lonestack_syscfg
 endif
