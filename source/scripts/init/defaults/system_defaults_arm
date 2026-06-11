@@ -1299,7 +1299,7 @@ $Advsecurity_RabidMacCacheSize=10000
 $Advsecurity_RabidDNSCacheSize=10000
 
 # cujo-ni memory limit
-$Advsecurity_NetworkIntelligenceMemoryLimit=15
+$Advsecurity_NetworkIntelligenceMemoryLimit=25
 
 #Ethernet bhaul bridge migration for LnF
 $iot_brname=br106
