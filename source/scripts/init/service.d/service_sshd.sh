@@ -134,6 +134,30 @@ get_listen_params() {
     fi
 }
 
+# wait_for_iface_ip <interface>
+# Blocks up to 300 seconds (150 x 2s) waiting for an IPv4 address on the
+# given interface.  Prints the IP to stdout on success; logs an error and
+# returns 1 on timeout.
+wait_for_iface_ip() {
+    local IFACE="$1"
+    local SLEEP_INTERVAL=2
+    local RETRIES=0
+    local MAX_RETRIES=150
+    local WAITED_IP
+    while [ $RETRIES -lt $MAX_RETRIES ]; do
+        WAITED_IP=`ip -4 addr show dev "$IFACE" scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+        if [ -n "$WAITED_IP" ]; then
+            echo_t "[utopia] $IFACE got IP $WAITED_IP after $((RETRIES * SLEEP_INTERVAL)) seconds" >&2
+            echo "$WAITED_IP"
+            return 0
+        fi
+        RETRIES=$((RETRIES + 1))
+        sleep $SLEEP_INTERVAL
+    done
+    echo_t "[utopia] ERROR: Timed out waiting for IP on $IFACE after $((MAX_RETRIES * SLEEP_INTERVAL)) seconds" >&2
+    return 1
+}
+
 do_start() {
    #DIR_NAME=/tmp/home/admin
    #if [ ! -d $DIR_NAME ] ; then
@@ -196,17 +220,38 @@ do_start() {
 	    fi
         fi
     elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
-	    CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-        if [ ! -z $CM_IP ]; then
-	        commandString="$commandString -p [$CM_IP]:22"
-	    fi
+        commandString=""
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-	    if [ ! -z $CM_IPv6 ]; then
+	    if [ ! -z "$CM_IPv6" ]; then
             commandString="$commandString -p [$CM_IPv6]:22"
 	    fi
 	    CM_IPv4=`ip -4 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-	    if [ ! -z $CM_IPv4 ]; then
+        if [ ! -z "$CM_IPv4" ]; then
             commandString="$commandString -p [$CM_IPv4]:22"
+        fi
+        if [ "$CMINTERFACE" != "wwan0" ]; then
+            CM_IP=`ip -4 addr show dev "$CMINTERFACE"  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+            if [ ! -z "$CM_IP" ]; then
+                commandString="$commandString -p [$CM_IP]:22"
+            else
+                DEVICE_MODE=`deviceinfo.sh -mode`
+                if [ "$DEVICE_MODE" = "Extender" ]; then
+                    MESH_WAN_STATUS=`sysevent get mesh_wan_linkstatus`
+                    if [ "$MESH_WAN_STATUS" = "up" ]; then
+                        echo_t "[utopia] $CMINTERFACE has no IP (Extender mode, mesh WAN up), waiting up to 300s"
+                        CM_IP=`wait_for_iface_ip "$CMINTERFACE"`
+                        if [ -n "$CM_IP" ]; then
+                            commandString="$commandString -p [$CM_IP]:22"
+                        else
+                            echo_t "[utopia] ERROR: $CMINTERFACE did not get an IP after 300s, dropbear will start without it"
+                        fi
+                    else
+                        echo_t "[utopia] $CMINTERFACE has no IP and mesh_wan_linkstatus is not up, skipping wait"
+                    fi
+                else
+                    echo_t "[utopia] $CMINTERFACE has no IP and device is not in Extender mode, skipping wait"
+                fi
+           fi
         fi
     else
         CM_IP=""
@@ -438,9 +483,18 @@ case "$1" in
       service_stop
       service_start
       ;;
+  mesh_wan_linkstatus)
+      if [ "$BOX_TYPE" = "WNXL11BWL" ] && [ "$2" = "up" ]; then
+          DEVICE_MODE=`deviceinfo.sh -mode`
+          if [ "$DEVICE_MODE" = "Extender" ]; then
+              service_stop
+              service_start
+          fi
+      fi
+      ;;
 
   *)
-        echo "Usage: $SELF_NAME [${SERVICE_NAME}-start|${SERVICE_NAME}-stop|${SERVICE_NAME}-restart|ssh_server_restart|lan-status|wan-status]" >&2
+        echo "Usage: $SELF_NAME [${SERVICE_NAME}-start|${SERVICE_NAME}-stop|${SERVICE_NAME}-restart|wan-status|bridge-status|current_wan_ifname|mesh_wan_linkstatus <status>]" >&2
         exit 3
         ;;
 esac

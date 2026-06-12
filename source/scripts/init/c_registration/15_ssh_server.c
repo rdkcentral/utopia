@@ -51,6 +51,9 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
 #if defined(_ARRIS_XB6_PRODUCT_REQ_)
                                         "wan-status|/etc/utopia/service.d/service_sshd.sh",
 #endif
+#if defined(_WNXL11BWL_PRODUCT_REQ_)
+                                        "mesh_wan_linkstatus|/etc/utopia/service.d/service_sshd.sh",
+#endif
                                         NULL 
                                       };
 
