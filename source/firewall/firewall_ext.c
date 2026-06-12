@@ -10,9 +10,6 @@
 #include<errno.h> 
 
 
-#define IPV4_TOTAL_HEADER_SIZE 40
-#define IPV6_TOTAL_HEADER_SIZE 60
-
 #define MTU_SIZE 1500
 #define PRIMARYLAN_L3NET "dmsb.MultiLAN.PrimaryLAN_l3net" 
 #define HOMESECURITY_L3NET "dmsb.MultiLAN.HomeSecurity_l3net"
