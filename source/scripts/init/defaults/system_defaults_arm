@@ -1368,9 +1368,6 @@ $EnableOCSPCA=true
 $XHFW_Enable=true
 $XHFW_Status="not activated"
 
-#Use XPKI certificate for lnf
-$LnFUseXPKI_Enable=true
-
 # Dynamic DNS
 $dynamic_dns_enable=0
 $ddns_service_providers_list=no-ip,dyndns,duckdns,afraid,easydns,changeip
