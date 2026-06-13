@@ -1448,3 +1448,6 @@ $FwDwld_AvlMem_RsrvThreshold=20
 
 #FwDwld_ImageProcMemPercent Default value
 $FwDwld_ImageProcMemPercent=0
+
+#devicemode default value to business
+$devicemode=business
