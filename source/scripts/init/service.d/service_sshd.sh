@@ -197,6 +197,7 @@ do_start() {
         fi
     elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
         commandString=""
+        CM_IP=""
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
 	    if [ ! -z "$CM_IPv6" ]; then
             commandString="$commandString -p [$CM_IPv6]:22"
