@@ -207,12 +207,17 @@ do_start() {
             commandString="$commandString -p [$CM_IPv4]:22"
         fi
         if [ "$CMINTERFACE" = "br-home" ]; then
-            CM_IP=`sysevent get ipv4_br-home_dhcp_ipaddr`
-            if [ -n "$CM_IP" ] && [ "$CM_IP" != "0.0.0.0" ]; then
-                commandString="$commandString -p [$CM_IP]:22"
+            DEVICE_MODE=`deviceinfo.sh -mode`
+            if [ "$DEVICE_MODE" = "Extender" ]; then
+                CM_IP=`sysevent get ipv4_br-home_dhcp_ipaddr`
+                if [ -n "$CM_IP" ] && [ "$CM_IP" != "0.0.0.0" ]; then
+                    commandString="$commandString -p [$CM_IP]:22"
+                else
+                    echo_t "[utopia] ipv4_br-home_dhcp_ipaddr not set or invalid ($CM_IP), skipping $CMINTERFACE listen address"
+                fi
             else
-                echo_t "[utopia] ipv4_br-home_dhcp_ipaddr not set or invalid ($CM_IP), skipping $CMINTERFACE listen address"
-            fi		
+                echo_t "[utopia] non-extender mode. Skipping $CMINTERFACE listen address"
+            fi
         fi
     else
         CM_IP=""
