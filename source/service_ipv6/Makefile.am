@@ -33,11 +33,12 @@ service_ipv6_LDADD = $(top_builddir)/source/util/utils/libutopiautil.la \
                      $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                      $(top_builddir)/source/ulog/libulog.la 
 
+service_ipv6_LDFLAGS =
 if CORE_NET_LIB_FEATURE_SUPPORT
-service_ipv6_LDFLAGS = -lnet
+service_ipv6_LDFLAGS += -lnet
 endif
 
 if ONESTACK_PRODUCT_REQ
-service_ipv6_LDFLAGS = -L${PKG_CONFIG_SYSROOT_DIR}${libdir}
+service_ipv6_LDFLAGS += -L${PKG_CONFIG_SYSROOT_DIR}${libdir}
 service_ipv6_LDADD += -lrdkb_feature_mode_gate -ltelemetry_msgsender -lonestack_syscfg
 endif
