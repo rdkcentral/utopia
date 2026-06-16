@@ -452,13 +452,17 @@ case "$1" in
   ipv4_br-home_dhcp_ipaddr)
       if [ "$BOX_TYPE" = "WNXL11BWL" ]; then
           echo_t "ipv4_br-home_dhcp_ipaddr is set with $2"
-          DEVICE_MODE=`deviceinfo.sh -mode`
-          if [ "$DEVICE_MODE" = "Extender" ]; then
-              service_stop
-              service_start
+          if [ -n "$2" ] && [ "$2" != "0.0.0.0" ]; then
+              DEVICE_MODE=`deviceinfo.sh -mode`
+              if [ "$DEVICE_MODE" = "Extender" ]; then
+                  service_stop
+                  service_start
+              else
+                  echo_t "non-extender mode. Skipping ipv4_br-home_dhcp_ipaddr sysevent"
+              fi
           else
-		      echo_t "non-extender mode. Skipping ipv4_br-home_dhcp_ipaddr sysevent"
-		  fi
+              echo_t "ipv4_br-home_dhcp_ipaddr not set or invalid ($2), skipping sshd restart"
+          fi
       fi
       ;;
 
