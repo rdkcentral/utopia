@@ -211,14 +211,7 @@ do_start() {
                 commandString="$commandString -p [$CM_IP]:22"
             else
                 echo_t "[utopia] ipv4_br-home_dhcp_ipaddr not set or invalid ($CM_IP), skipping $CMINTERFACE listen address"
-            fi
-        else
-            CM_IP=`ip -4 addr show dev "$CMINTERFACE" scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-            if [ -n "$CM_IP" ]; then
-                commandString="$commandString -p [$CM_IP]:22"
-            else
-                echo_t "[utopia] $CMINTERFACE has no IPv4 address, skipping listen address"
-            fi			
+            fi		
         fi
     else
         CM_IP=""
