@@ -134,6 +134,18 @@ get_listen_params() {
     fi
 }
 
+# is_valid_ipv4 <ip>
+# Returns 0 if <ip> is a valid, non-unspecified IPv4 address (a.b.c.d, each
+# octet 0-255, not 0.0.0.0); returns 1 otherwise.
+is_valid_ipv4() {
+    local ip="$1"
+    local valid_octet='(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+    if [[ ! $ip =~ ^${valid_octet}\.${valid_octet}\.${valid_octet}\.${valid_octet}$ ]] || [ "$ip" = "0.0.0.0" ]; then
+        return 1
+    fi
+    return 0
+}
+
 do_start() {
    #DIR_NAME=/tmp/home/admin
    #if [ ! -d $DIR_NAME ] ; then
@@ -197,7 +209,6 @@ do_start() {
         fi
     elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
         commandString=""
-        CM_IP=""
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
 	    if [ ! -z "$CM_IPv6" ]; then
             commandString="$commandString -p [$CM_IPv6]:22"
@@ -209,14 +220,22 @@ do_start() {
         if [ "$CMINTERFACE" = "br-home" ]; then
             DEVICE_MODE=`deviceinfo.sh -mode`
             if [ "$DEVICE_MODE" = "Extender" ]; then
-                CM_IP=`sysevent get ipv4_br-home_dhcp_ipaddr`
-                if [ -n "$CM_IP" ] && [ "$CM_IP" != "0.0.0.0" ]; then
+                CM_IP=$(sysevent get ipv4_br-home_dhcp_ipaddr)
+                echo_t "[utopia] ipv4_br-home_dhcp_ipaddr is set with $CM_IP"
+                if is_valid_ipv4 "$CM_IP"; then
                     commandString="$commandString -p [$CM_IP]:22"
                 else
                     echo_t "[utopia] ipv4_br-home_dhcp_ipaddr not set or invalid ($CM_IP), skipping $CMINTERFACE listen address"
                 fi
             else
-                echo_t "[utopia] non-extender mode. Skipping $CMINTERFACE listen address"
+                echo_t "[utopia] non-extender mode, skipping $CMINTERFACE listen address"
+            fi
+        elif [ "$CMINTERFACE" != "wwan0" ]; then
+            CM_IP=$(ip -4 addr show dev "$CMINTERFACE" scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1)
+            if [ -n "$CM_IP" ]; then
+                commandString="$commandString -p [$CM_IP]:22"
+            else
+                echo_t "[utopia] $CMINTERFACE has no IPv4 address, skipping listen address"
             fi
         fi
     else
@@ -451,8 +470,7 @@ case "$1" in
       ;;
   ipv4_br-home_dhcp_ipaddr)
       if [ "$BOX_TYPE" = "WNXL11BWL" ]; then
-          echo_t "ipv4_br-home_dhcp_ipaddr is set with $2"
-          if [ -n "$2" ] && [ "$2" != "0.0.0.0" ]; then
+          if is_valid_ipv4 "$2"; then
               DEVICE_MODE=`deviceinfo.sh -mode`
               if [ "$DEVICE_MODE" = "Extender" ]; then
                   service_stop
