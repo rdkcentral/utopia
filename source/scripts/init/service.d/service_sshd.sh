@@ -211,23 +211,28 @@ do_start() {
     elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
         commandString=""
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-	    if [ ! -z "$CM_IPv6" ]; then
+        if [ ! -z "$CM_IPv6" ]; then
             commandString="$commandString -p [$CM_IPv6]:22"
-	    fi
-	    CM_IPv4=`ip -4 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+        fi
+        CM_IPv4=`ip -4 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
         if [ ! -z "$CM_IPv4" ]; then
             commandString="$commandString -p [$CM_IPv4]:22"
         fi
         if [ "$DEVICE_MODE" = "Extender" ]; then
             CM_IP=$(ip -4 addr show dev "$CMINTERFACE" scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1)
-            if ! is_valid_ipv4 "$CM_IP"; then
-                CM_IP=$(sysevent get ipv4_br-home_dhcp_ipaddr)
-                echo_t "[utopia] $CMINTERFACE has no IP via ip command, falling back to sysevent ipv4_br-home_dhcp_ipaddr=$CM_IP"
-            fi
             if is_valid_ipv4 "$CM_IP"; then
                 commandString="$commandString -p [$CM_IP]:22"
+            elif [ -n "$BRHOME_DHCP_IP" ]; then
+                echo_t "[utopia] $CMINTERFACE has no IP via ip command, using pre-validated ipv4_br-home_dhcp_ipaddr=$BRHOME_DHCP_IP"
+                commandString="$commandString -p [$BRHOME_DHCP_IP]:22"
             else
-                echo_t "[utopia] no valid IP for $CMINTERFACE ($CM_IP), skipping listen address"
+                CM_IP=$(sysevent get ipv4_br-home_dhcp_ipaddr)
+                echo_t "[utopia] $CMINTERFACE has no IP via ip command, falling back to sysevent ipv4_br-home_dhcp_ipaddr=$CM_IP"
+                if is_valid_ipv4 "$CM_IP"; then
+                    commandString="$commandString -p [$CM_IP]:22"
+                else
+                    echo_t "[utopia] no valid IP for $CMINTERFACE ($CM_IP), skipping listen address"
+                fi
             fi
         fi
     else
@@ -462,8 +467,8 @@ case "$1" in
       ;;
   ipv4_br-home_dhcp_ipaddr)
       if is_valid_ipv4 "$2"; then
-
           if [ "$DEVICE_MODE" = "Extender" ]; then
+              BRHOME_DHCP_IP="$2"
               service_stop
               service_start
           else
