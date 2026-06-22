@@ -55,6 +55,22 @@
 
 #define POSTD_START_FILE "/tmp/.postd_started"
 
+#include <time.h>
+#define LOG_FILE_ROUTED "/tmp/lan_handler.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE_ROUTED , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 extern int g_iSyseventfd;
 extern token_t g_tSysevent_token;
 
@@ -268,6 +284,7 @@ void find_active_brg_instances()
 
 void bring_lan_up()
 {
+    APPLY_PRINT("Inside %s\n", __FUNCTION__);
     fprintf(g_fArmConsoleLog, "Inside %s\n",__FUNCTION__);
 
 	char l_cAsyncId[16] = {0}, l_cPsm_Parameter[255] = {0};
@@ -290,24 +307,29 @@ void bring_lan_up()
 	if (0 == l_cAsyncId[0])
 	{
 		//L3 Instance
+        APPLY_PRINT("%s : Getting Primary LAN L3Net instance from PSM\n", __FUNCTION__);
 		snprintf(l_cPsm_Parameter, sizeof(l_cPsm_Parameter), "dmsb.MultiLAN.PrimaryLAN_l3net");
 	    l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
     	if (CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
-	    {    
+	    {
+            APPLY_PRINT("%s : Primary LAN L3Net instance returned null, retrying\n", __FUNCTION__);
     	    fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L3INST returned null, retrying\n");
 	        l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
     	    if(CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
         	{
+                APPLY_PRINT("%s : Primary LAN L3Net instance returned null even after retry, no more retries\n", __FUNCTION__);
 	            fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L3INST returned null even after retry, no more retries\n");
     	    }
         	else
 	        {
+                APPLY_PRINT("%s : Primary LAN L3Net instance is:%s\n", __FUNCTION__, l_cpPsm_Get);
     	        strncpy(l_cPrimaryLan_L3Net, l_cpPsm_Get, sizeof(l_cPrimaryLan_L3Net));
         	    fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L3INST is:%s\n", l_cPrimaryLan_L3Net);
 	        }
     	}    
 	    else 
-    	{    
+    	{
+            APPLY_PRINT("%s : Primary LAN L3Net instance is:%s\n", __FUNCTION__, l_cpPsm_Get);
 	        strncpy(l_cPrimaryLan_L3Net, l_cpPsm_Get, sizeof(l_cPrimaryLan_L3Net));
     	    fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L3INST is:%s\n", l_cPrimaryLan_L3Net);
 		}
@@ -317,20 +339,24 @@ void bring_lan_up()
 		l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
         if (CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
         {
+            APPLY_PRINT("%s : Return val check, Primary LAN L2Net instance returned null, retrying\n", __FUNCTION__);
             fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L2INST returned null, retrying\n");
             l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
             if(CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
             {
+                APPLY_PRINT("%s : Primary LAN L2Net instance returned null even after retry, no more retries\n", __FUNCTION__);
                 fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L2INST returned null even after retry, no more retries\n");
             }
             else
             {
+                APPLY_PRINT("%s : Primary LAN L2Net instance is:%s\n", __FUNCTION__, l_cpPsm_Get);
                 strncpy(l_cL2Inst, l_cpPsm_Get, sizeof(l_cL2Inst));
                 fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L2INST is:%s\n", l_cL2Inst);
             }
         }
         else
         {
+            APPLY_PRINT("%s : Primary LAN L2Net instance is:%s\n", __FUNCTION__, l_cpPsm_Get);
             strncpy(l_cL2Inst, l_cpPsm_Get, sizeof(l_cL2Inst));
             fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : L2INST is:%s\n", l_cL2Inst);
         }		
@@ -364,30 +390,36 @@ void bring_lan_up()
         if (CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
         {
             fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : HSINST returned null, retrying\n");
+            APPLY_PRINT("%s : HSINST returned null, retrying\n", __FUNCTION__);
             l_iRet_Val = PSM_VALUE_GET_STRING(l_cPsm_Parameter, l_cpPsm_Get);
             if(CCSP_SUCCESS != l_iRet_Val || l_cpPsm_Get == NULL)
             {
                 fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : HSINST returned null even after retry, no more retries\n");
+                APPLY_PRINT("%s : HSINST returned null even after retry, no more retries\n", __FUNCTION__);
             } 
             else
             {
                 strncpy(l_cHomeSecurity_L3net, l_cpPsm_Get, sizeof(l_cHomeSecurity_L3net));
                 fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : HSINST is:%s\n", l_cHomeSecurity_L3net);
+                APPLY_PRINT("%s : HSINST is:%s\n", __FUNCTION__, l_cHomeSecurity_L3net);
             }
         }
         else
         {
             strncpy(l_cHomeSecurity_L3net, l_cpPsm_Get, sizeof(l_cHomeSecurity_L3net));
             fprintf(g_fArmConsoleLog, "RDKB_SYSTEM_BOOT_UP_LOG : HSINST is:%s\n", l_cHomeSecurity_L3net);
+            APPLY_PRINT("%s : HSINST is:%s\n", __FUNCTION__, l_cHomeSecurity_L3net);
         }
 		
 
 		if (0 != l_cPrimaryLan_L3Net[0])
 		{
+            APPLY_PRINT("%s : Setting sysevent callback for Primary LAN L3Net instance %s\n", __FUNCTION__, l_cPrimaryLan_L3Net);
 			snprintf(l_cEvent_Name, sizeof(l_cEvent_Name), "ipv4_%s-status", l_cPrimaryLan_L3Net);
 			sysevent_setcallback(g_iSyseventfd, g_tSysevent_token, ACTION_FLAG_NONE,
                              	 l_cEvent_Name, THIS, 1, l_cParam, &l_sAsyncID);
             fprintf(g_fArmConsoleLog, "setting sysevent callback for %s\n",l_cEvent_Name);
+            APPLY_PRINT("%s : Setting sysevent callback for %s\n", __FUNCTION__, l_cEvent_Name);
 
 			snprintf(l_cAsyncId, sizeof(l_cAsyncId), "%d %d", l_sAsyncID.action_id, l_sAsyncID.trigger_id);
 			sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan_handler_async", l_cAsyncId, 0);
@@ -413,6 +445,7 @@ void bring_lan_up()
 	else
 	{
 		fprintf(g_fArmConsoleLog, "lan_handler_async is not empty returning from bring_lan_up\n");
+        APPLY_PRINT("%s : lan_handler_async is not empty returning from bring_lan_up\n", __FUNCTION__);
 	}
 
     syscfg_get(NULL, "MULTILAN_FEATURE", l_multilan_feature, sizeof(l_multilan_feature));
@@ -421,6 +454,7 @@ void bring_lan_up()
     {
         find_active_brg_instances();
         fprintf(g_fArmConsoleLog, "Calling find_active_brg_instances\n");
+        APPLY_PRINT("%s : Calling find_active_brg_instances\n", __FUNCTION__);
     }
 }
 
