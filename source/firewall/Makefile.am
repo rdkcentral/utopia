@@ -27,7 +27,7 @@ else
 bin_PROGRAMS = firewall nfq_handler
 endif
 
-firewall_SOURCES = firewall_ipv6.c firewall.c firewall_priv.c firewall_interface.c  firewall_ext.c
+firewall_SOURCES = firewall_ipv6.c firewall.c firewall_priv.c firewall_interface.c  firewall_ext.c firewall_utils.c
 if CPC_FIREWALL_ENABLE
 firewall_SOURCES += firewall_lib.c firewall_dsl.c rabid.c
 AM_LDFLAGS += -lrdkconfig

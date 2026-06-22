@@ -1730,7 +1730,15 @@ STATIC int gen_dibbler_conf(struct serv_ipv6 *si6)
         if (get_dhcpv6s_pool_cfg(si6, &dhcpv6s_pool_cfg) != 0)
             continue;
 
-        if (!dhcpv6s_pool_cfg.enable || dhcpv6s_pool_cfg.ia_prefix[0] == '\0') continue;
+        if (!dhcpv6s_pool_cfg.enable || dhcpv6s_pool_cfg.ia_prefix[0] == '\0') {
+            if (dhcpv6s_pool_cfg.opts != NULL) {
+                free(dhcpv6s_pool_cfg.opts);
+                dhcpv6s_pool_cfg.opts = NULL;
+                dhcpv6s_pool_cfg.opt_num = 0;
+            }
+            continue;
+        }
+
     	syscfg_get(NULL, "bridge_mode", bridge_mode, sizeof(bridge_mode));
         if (strcmp(bridge_mode, "2") || strcmp(dhcpv6s_pool_cfg.interface, "brlan0")) {
 

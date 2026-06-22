@@ -922,10 +922,11 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         "!log stdout\n"
         "log file /var/tmp/zebra.log errors\n"
         "table 255\n";
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     int i = 0;
-    unsigned int l2_insts[4] = {0};
     unsigned int enabled_iface_num = 0;
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    bool multilan_pd_enabled = false;
+    unsigned int l2_insts[4] = {0};
     char evt_name[64] = {0};
 #endif
     int  StaticDNSServersEnabled = 0;
@@ -950,7 +951,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     char default_wan_interface[64] = {0};
     char wan_interface[64] = {0};
 #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
-    char mesh_wan_ifname[32];
+    char mesh_wan_ifname[32] = {0};
     char *pStr = NULL;
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME,pStr);
     if(return_status == CCSP_SUCCESS && pStr != NULL){
@@ -1166,34 +1167,38 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     syscfg_get(NULL, "last_erouter_mode", rtmod, sizeof(rtmod));
 
 
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined (_ONESTACK_PRODUCT_REQ_)
-    int multilan_enabled = 0;
-    int pd_enabled = 0;
-
-#if defined(MULTILAN_FEATURE)
-    multilan_enabled = 1;
-#endif
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
-    pd_enabled = 1;
-#endif
-
-    #ifdef _ONESTACK_PRODUCT_REQ_
-        pd_enabled = isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION);
-    #endif
-
-    if (pd_enabled || multilan_enabled)
-    {
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     get_active_lanif(sefd, setok, l2_insts, &enabled_iface_num);
+    #ifdef _ONESTACK_PRODUCT_REQ_
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    {
+        multilan_pd_enabled = true;   // runtime-controlled
+    }
+    else
+    {
+        enabled_iface_num = 1;            // single execution
+    }
+    #else
+        multilan_pd_enabled = true;       // Cisco/MULTILAN → always enabled
+    #endif //_ONESTACK_PRODUCT_REQ_
+#else 
+    enabled_iface_num = 1;            // single execution
+#endif 
+
     for (i = 0; i < enabled_iface_num; i++)
     {
-        snprintf(evt_name, sizeof(evt_name), "multinet_%d-name", l2_insts[i]);
-        sysevent_get(sefd, setok, evt_name, lan_if, sizeof(lan_if));
-        snprintf(evt_name, sizeof(evt_name), "ipv6_%s-prefix", lan_if);
-        sysevent_get(sefd, setok, evt_name, prefix, sizeof(prefix));
-        snprintf(evt_name, sizeof(evt_name), "ipv6_%s-addr", lan_if);
-        sysevent_get(sefd, setok, evt_name, lan_addr, sizeof(lan_addr));
-#endif
-//RDKB-47758
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+	if (multilan_pd_enabled )
+	{
+	    snprintf(evt_name, sizeof(evt_name), "multinet_%d-name", l2_insts[i]);
+	    sysevent_get(sefd, setok, evt_name, lan_if, sizeof(lan_if));
+	    snprintf(evt_name, sizeof(evt_name), "ipv6_%s-prefix", lan_if);
+	    sysevent_get(sefd, setok, evt_name, prefix, sizeof(prefix));
+	    snprintf(evt_name, sizeof(evt_name), "ipv6_%s-addr", lan_if);
+	    sysevent_get(sefd, setok, evt_name, lan_addr, sizeof(lan_addr));
+	}
+#endif 
+	//RDKB-47758
 #ifdef WAN_FAILOVER_SUPPORTED
 	if (gIpv6AddrAssignment == ULA_IPV6)
     {
@@ -1776,10 +1781,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     fprintf(fp, "interface %s\n", lan_if);
     fprintf(fp, "   ip irdp multicast\n");
 
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     } //for (i = 0; i < enabled_iface_num; i++)
-    }
-#endif
 
 #if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
 #ifdef _ONESTACK_PRODUCT_REQ_

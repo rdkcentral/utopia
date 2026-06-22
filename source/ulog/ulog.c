@@ -295,7 +295,7 @@ int ulog_GetProcId(size_t size, char *name, pid_t *pid)
        The name will be extracted with a final ')' which needs to be dropped
        before writing the final result to "name".
     */
-    sscanf(buf, "%*d (%1023s", str);
+    sscanf(buf, "%*d (%63s", str);
 
     len = strlen(str);
     if (len > 0)
