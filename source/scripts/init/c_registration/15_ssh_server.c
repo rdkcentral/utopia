@@ -51,6 +51,9 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
 #if defined(_ARRIS_XB6_PRODUCT_REQ_)
                                         "wan-status|/etc/utopia/service.d/service_sshd.sh",
 #endif
+#if defined(_WNXL11BWL_PRODUCT_REQ_)
+                                        "ipv4_br-home_dhcp_ipaddr|/etc/utopia/service.d/service_sshd.sh|NULL|"TUPLE_FLAG_EVENT,
+#endif
                                         NULL 
                                       };
 
