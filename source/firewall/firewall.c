@@ -10766,7 +10766,6 @@ static int do_wan2lan(FILE *fp)
  * Return Values  :
  *    0              : Success
  */
-#ifdef SKY
 static int do_block_lan_access_to_wan_ssh(FILE *fp)
 {
    FIREWALL_DEBUG("Entering do_block_lan_access_to_wan_ssh\n");
@@ -10775,7 +10774,6 @@ static int do_block_lan_access_to_wan_ssh(FILE *fp)
    FIREWALL_DEBUG("Exiting do_block_lan_access_to_wan_ssh\n");
    return(0);
 }
-#endif
 
 /*
  ==========================================================================
@@ -13876,10 +13874,8 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_lan2wan(mangle_fp, filter_fp, nat_fp); 
    do_wan2lan(filter_fp);
    do_filter_table_general_rules(filter_fp);
-#ifdef SKY
    if(isWanReady)
         do_block_lan_access_to_wan_ssh(filter_fp);
-#endif
 #if defined(SPEED_BOOST_SUPPORTED)
 WAN_FAILOVER_SUPPORT_CHECK
    if(isWanServiceReady)
