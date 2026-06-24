@@ -10772,7 +10772,6 @@ static int do_block_lan_access_to_wan_ssh(FILE *fp)
    FIREWALL_DEBUG("Entering do_block_lan_access_to_wan_ssh\n");
    fprintf(fp, "-I INPUT 1 -i %s -d %s -p tcp --dport 10022 -j REJECT\n", lan_ifname, current_wan_ipaddr);
    fprintf(fp, "-I INPUT 2 -i %s -d %s -p tcp --dport 10022 -j ACCEPT\n", lan_ifname, lan_ipaddr);
-   v_secure_system("ip6tables -I INPUT 1 -p tcp --dport 10022 -j DROP");
    FIREWALL_DEBUG("Exiting do_block_lan_access_to_wan_ssh\n");
    return(0);
 }
