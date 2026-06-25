@@ -49,12 +49,16 @@ DEFAULT_WAN_INTERFACE="erouter0"
 LANIPV6Support=`sysevent get LANIPv6GUASupport`
 DEVICE_MODE=`deviceinfo.sh -mode`
 DEVICETYPE=$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Identity.DeviceType | grep value | cut -d ":" -f 3 | tr -d ' ' | tr -s ' ' | tr '[:lower:]' '[:upper:]')
-if [ "$DEVICETYPE" = "TEST" ] && [ "$USE_DYNAMICKEYING" = "TRUE" ]; then
-    USE_DEVKEYS="-f authorized_keys_dev"
-    echo_t "[utopia]: dropbear using dev authorization keys"
+if [ $BUILD_TYPE = "prod" ]; then
+    if [ $DEVICETYPE = "TEST" ] && [ $USE_DYNAMICKEYING = "TRUE" ]; then
+        USE_DEVKEYS="-f authorized_keys_dev"
+        echo_t "[utopia]: dropbear using dev authorization keys"
+    else
+        USE_DEVKEYS=""
+        echo_t "[utopia]: dropbear using prod authorization keys"
+    fi
 else
-    USE_DEVKEYS=""
-    echo_t "[utopia]: dropbear using prod authorization keys"
+    USE_DEVKEYS="-f authorized_keys_dev"
 fi
 
 if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" = "SR213" ] ||  [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ] || [ "$BOX_TYPE" == "XER2" ]; then
