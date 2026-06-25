@@ -25,7 +25,6 @@ bin_PROGRAMS = firewall nfq_handler
 
 if ONESTACK_PRODUCT_REQ
 AM_LDFLAGS += -lrdkb_feature_mode_gate
-AM_LDFLAGS += -ldevicemode
 endif
 
 firewall_SOURCES = firewall_ipv6.c firewall.c firewall_priv.c firewall_interface.c  firewall_ext.c firewall_utils.c
@@ -40,6 +39,10 @@ firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                  $(top_builddir)/source/sysevent/lib/libsysevent.la \
                  $(top_builddir)/source/ulog/libulog.la \
                  $(top_builddir)/source/util/utils/libutopiautil.la
+
+if ONESTACK_PRODUCT_REQ
+firewall_LDADD += -ldevicemode
+endif
 
 nfq_handler_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                     $(top_builddir)/source/sysevent/lib/libsysevent.la \
