@@ -3610,6 +3610,16 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
                        compare_partner_json_param( ptr_nvram_bkup_json, ptr_etc_json, PartnerID );
                        free(ptr_nvram_bkup_json);
                    }
+                   else
+                   {
+                       APPLY_PRINT("%s-%d %s is empty, initializing bootstrap\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE_BACKUP);
+                       ptr_nvram_json = json_file_parse( PARTNERS_INFO_FILE );
+                       init_bootstrap_json( ptr_nvram_json, ptr_etc_json, PartnerID );
+                       if ( ptr_nvram_json )
+                       {
+                          free( ptr_nvram_json );
+                       }
+                   }
                }
            }
            else
