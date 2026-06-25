@@ -111,7 +111,7 @@ service_start ()
         echo "* * * * *   /etc/sky/set_dscp_lan.sh" >> $CRONTAB_FILE
       fi
 
-      if [ "$BOX_TYPE" == "SCXF11BFL" ]; then
+      if [ "$BOX_TYPE" == "SCXF11BFL" ] || [ "$BOX_TYPE" == "XER2" ]; then
 	      echo "* * * * *   /etc/comcast/set_dscp_lan.sh" >> $CRONTAB_FILE
       fi
 
@@ -222,7 +222,7 @@ service_start ()
           addCron "48 * * * *  sh /etc/sky/monitor_dhd_dump.sh &"
       fi
 
-      if [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "SCER11BEL" ] && [ "$BOX_TYPE" != "SCXF11BFL" ]; then
+      if [ "$BOX_TYPE" != "SR300" ] && [ "$BOX_TYPE" != "SE501" ] && [ "$BOX_TYPE" != "WNXL11BWL" ] && [ "$BOX_TYPE" != "SCER11BEL" ] && [ "$BOX_TYPE" != "SCXF11BFL" ] || [ "$BOX_TYPE" != "XER2" ]; then
          #RDKB-43895 log the firmware bank informations in selfheal log
          echo "5 */12  * * *  /usr/bin/FwBankInfo" >> $CRONTAB_FILE
       fi

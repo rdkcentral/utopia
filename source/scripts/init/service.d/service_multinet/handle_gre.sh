@@ -265,7 +265,7 @@ create_tunnel () {
         fi
     fi
     ifconfig $2 up
-    if [ ! -f /tmp/.gre_flowmanager_enable ] && [ "$BOX_TYPE" != "VNTXER5" ] && [ "$BOX_TYPE" != "SCER11BEL" ] && [ "$BOX_TYPE" != "SCXF11BFL" ]
+    if [ ! -f /tmp/.gre_flowmanager_enable ] && [ "$BOX_TYPE" != "VNTXER5" ] && [ "$BOX_TYPE" != "SCER11BEL" ] && [ "$BOX_TYPE" != "SCXF11BFL" ] || [ "$BOX_TYPE" != "XER2" ]
     then
           echo addif $2 wan > /proc/driver/flowmgr/cmd
 	  touch /tmp/.gre_flowmanager_enable
