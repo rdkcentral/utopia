@@ -25,6 +25,7 @@ bin_PROGRAMS = firewall nfq_handler
 
 if ONESTACK_PRODUCT_REQ
 AM_LDFLAGS += -lrdkb_feature_mode_gate
+AM_LDFLAGS += -ldevicemode
 endif
 
 firewall_SOURCES = firewall_ipv6.c firewall.c firewall_priv.c firewall_interface.c  firewall_ext.c firewall_utils.c

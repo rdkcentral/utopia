@@ -1503,7 +1503,7 @@ void do_webui_attack_filter(FILE *filter_fp)
 #if defined(_CBR2_PRODUCT_REQ_)
    fprintf(filter_fp, "-I UPLOAD_ATTACK_FILTER -p tcp -m string --algo bm --string \"%s\" --to 65535 -j RETURN \n", "POST /restoreConfig.jst");
 #elif defined(_ONESTACK_PRODUCT_REQ_)
-   if (isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
+   if (is_devicemode_business())
    {
       fprintf(filter_fp, "-I UPLOAD_ATTACK_FILTER -p tcp -m string --algo bm --string \"%s\" --to 65535 -j RETURN \n", "POST /restoreConfig.jst");
    }
