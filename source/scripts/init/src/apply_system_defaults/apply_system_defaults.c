@@ -3599,26 +3599,26 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
        {
            if (access(BOOTSTRAP_INFO_FILE_BACKUP, F_OK) == 0)
            {
-               //If backup file exists, compare and copy it to /opt/secure/bootstrap.json
-               if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
+               char *ptr_nvram_bkup_json = NULL;
+               ptr_nvram_bkup_json = json_file_parse(BOOTSTRAP_INFO_FILE_BACKUP);
+               if (ptr_nvram_bkup_json)
                {
-                   char *ptr_nvram_bkup_json = NULL;
-                   ptr_nvram_bkup_json = json_file_parse(BOOTSTRAP_INFO_FILE_BACKUP);
-                   if (ptr_nvram_bkup_json)
-                   {
+                  //If backup file exists, compare and copy it to /opt/secure/bootstrap.json
+                  if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
+                  {
                        APPLY_PRINT("%s-%d Comparing %s and %s\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE_BACKUP, PARTNERS_INFO_FILE_ETC);
                        compare_partner_json_param( ptr_nvram_bkup_json, ptr_etc_json, PartnerID );
-                       free(ptr_nvram_bkup_json);
                    }
-                   else
+                   free(ptr_nvram_bkup_json);
+               }
+               else
+               {
+                   APPLY_PRINT("%s-%d %s is empty, initializing bootstrap\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE_BACKUP);
+                   ptr_nvram_json = json_file_parse( PARTNERS_INFO_FILE );
+                   init_bootstrap_json( ptr_nvram_json, ptr_etc_json, PartnerID );
+                   if ( ptr_nvram_json )
                    {
-                       APPLY_PRINT("%s-%d %s is empty, initializing bootstrap\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE_BACKUP);
-                       ptr_nvram_json = json_file_parse( PARTNERS_INFO_FILE );
-                       init_bootstrap_json( ptr_nvram_json, ptr_etc_json, PartnerID );
-                       if ( ptr_nvram_json )
-                       {
-                          free( ptr_nvram_json );
-                       }
+                       free( ptr_nvram_json );
                    }
                }
            }
