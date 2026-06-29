@@ -371,7 +371,6 @@ NOT_DEF:
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <rdkb_feature_mode_gate.h>
-#include <devicemode.h>
 #endif
 
 #ifdef FEATURE_464XLAT

@@ -40,9 +40,6 @@ firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                  $(top_builddir)/source/ulog/libulog.la \
                  $(top_builddir)/source/util/utils/libutopiautil.la
 
-if ONESTACK_PRODUCT_REQ
-firewall_LDADD += -ldevicemode
-endif
 
 nfq_handler_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                     $(top_builddir)/source/sysevent/lib/libsysevent.la \
