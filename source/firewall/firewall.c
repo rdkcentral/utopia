@@ -1567,6 +1567,14 @@ void do_webui_attack_filter(FILE *filter_fp)
    fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".pi");
    fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".sh");
    fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", ".py");
+#if defined(_CBR2_PRODUCT_REQ_) || defined(_ONESTACK_PRODUCT_REQ_)
+   #ifdef _ONESTACK_PRODUCT_REQ_
+        if(isFeatureSupportedInCurrentMode(FEATURE_SAVE_RESTORE))
+   #endif
+    {
+   fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -p tcp -m string --algo bm --from 0 --to 64 --string \"%s\" -j RETURN \n", "POST /restoreConfig.jst HTTP");
+    }
+#endif
    fprintf(filter_fp, "-A UPLOAD_ATTACK_FILTER -m string --algo bm --string \"%s\" -j DROP \n", "multipart/form-data");
    FIREWALL_DEBUG("Exiting do_webui_attack_filter\n");
 }
