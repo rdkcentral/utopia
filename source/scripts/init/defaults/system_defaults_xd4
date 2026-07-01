@@ -1171,7 +1171,7 @@ $WebUIEnable=1
 $SyndicationFlowControlEnable=false
 $DSCP_InitialForwardedMark=
 $DSCP_InitialOutputMark=
-$dmesglogsync_interval=900
+$dmesglogsync_interval=60
 
 #Enable log and core file encryption at S3 Amazon
 $encryptcloudupload=0
@@ -1186,8 +1186,8 @@ $SNMP_RestartMaintenanceEnable=true
 $DeferFWDownloadReboot=290
 
 #SelfHeal Log Backup
-$log_backup_enable=false
-$log_backup_threshold=0
+$log_backup_enable=true
+$log_backup_threshold=3
 
 #EthAgent Logging default values
 $eth_log_enabled=false
@@ -1340,15 +1340,12 @@ $CredDwnld_Use=false
 $DLCaStoreEnabled=false
 
 #ocsp staple support
-$EnableOCSPStapling=false
-$EnableOCSPCA=false
+$EnableOCSPStapling=true
+$EnableOCSPCA=true
 
 #Defaults for XHFW
 $XHFW_Enable=true
 $XHFW_Status="not activated"
-
-#Use XPKI certificate for lnf
-$LnFUseXPKI_Enable=true
 
 # Dynamic DNS
 $dynamic_dns_enable=0
