@@ -2383,18 +2383,9 @@ static int prepare_globals_from_configuration(void)
    sysevent_get(sysevent_fd, sysevent_token, "wan_ifname", default_wan_ifname, sizeof(default_wan_ifname));
    sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_ifname, sizeof(current_wan_ifname));
 #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
-        char wanInterface[BUFLEN_64] = {'\0'};
-        wanmgr_get_wan_interface(wanInterface);
-        logtofile("aishwarya in firewall\n");
-        if (wanInterface != NULL && wanInterface[0] != '\0')
-                snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", wanInterface);
-        else
-        {
-              memset(wanInterface,0,sizeof(wanInterface));
-              syscfg_get(NULL, "wan_physical_ifname", wanInterface, sizeof(wanInterface));
-              snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", wanInterface);
-
-        }
+   char wanInterface[BUFLEN_64] = {0};
+   wanmgr_get_wan_interface(wanInterface);
+   snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", wanInterface);
 #else
    if ('\0' == current_wan_ifname[0]) {
       if ('\0' == default_wan_ifname[0]) {
