@@ -12573,7 +12573,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    {
            //ETH WAN is TC XB6 exclusive feature
 	       #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
-                if (current_wan_ifname != NULL && current_wan_ifname[0] != '\0')
+                if (current_wan_ifname[0] != '\0')
                    fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", current_wan_ifname);
                 else
                    fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", default_wan_ifname);	         
