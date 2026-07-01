@@ -654,6 +654,13 @@ char *json_file_parse (char *path)
 static int writeToJson(char *data, char *file)
 {
     FILE 	*fp;
+
+    if (!data || strlen(data) == 0)
+    {
+        APPLY_PRINT("%s-%d : Empty data, skipping write to %s\n", __FUNCTION__, __LINE__, file);
+        return -1;
+    }
+
     fp = fopen(file, "w");
     if (fp == NULL) 
     {
