@@ -50,6 +50,7 @@ bin_PROGRAMS = \
     09_xdns \
     10_firewall \
     10_ntpd \
+    10_chronyd \
     15_ccsphs \
     15_ddnsclient \
     15_dhcp_server \
@@ -102,6 +103,7 @@ endif
 10_fpm_SOURCES = 10_fpm.c
 10_ntpclient_SOURCES = 10_ntpclient.c
 10_ntpd_SOURCES = 10_ntpd.c
+10_chronyd_SOURCES = 10_chronyd.c
 10_sysevent_proxy_SOURCES = 10_sysevent_proxy.c
 10_time_sync_peer_SOURCES = 10_time_sync_peer.c
 15_ccsphs_SOURCES = 15_ccsphs.c
