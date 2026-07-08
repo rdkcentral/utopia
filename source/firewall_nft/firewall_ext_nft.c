@@ -174,7 +174,7 @@ void calculate_network_address(const char *ip_start, const char *netmask, char *
     inet_ntop(AF_INET, &addr_network, network_str, INET_ADDRSTRLEN);
 
     // Print the result in CIDR notation
-    printf("Network Address: %s/%d\n", network_str, mask_bits);
+   // printf("Network Address: %s/%d\n", network_str, mask_bits);
     snprintf(subnet, len, "%s/%d", network_str, mask_bits);
 }
 
@@ -480,7 +480,7 @@ int service_start_ext_mode ()
 
    /*  ipv4 */
    prepare_ipv4_firewall(filename1);
-   v_secure_system("nft -f /tmp/.ipt_ext 2> /tmp/.nftv4table_ext_error");
+   v_secure_system("nft -f /tmp/.nft_ext 2> /tmp/.nftv4table_ext_error");
 
 
    prepare_ipv6_firewall(filename2);

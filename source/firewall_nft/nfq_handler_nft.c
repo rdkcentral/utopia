@@ -209,22 +209,22 @@ void handle_dns_query(struct nfq_data *pkt)
 #if _NFQ_DEBUG_LEVEL == 1
         printf("system: flush chain ip filter pp_disabled_%u\n", insNum);
 #endif
-        v_secure_system("flush chain ip filter pp_disabled_%u", insNum);
+        v_secure_system(" nft flush chain ip filter pp_disabled_%u", insNum);
 
 #if _NFQ_DEBUG_LEVEL == 1
         printf("system: add rule ip filter pp_disabled_%u dst %s tcp sport { 80, 443 } ct state established connbytes 0-5 packets counter jump GWMETA comment \"dis-pp\"", insNum, ipAddr);
 #endif
-        v_secure_system("add rule ip filter pp_disabled_%u dst %s tcp sport { 80, 443 } ct state established connbytes 0-5 packets counter jump GWMETA comment \"dis-pp\"", insNum, ipAddr);
+        v_secure_system("nft add rule ip filter pp_disabled_%u dst %s tcp sport { 80, 443 } ct state established connbytes 0-5 packets counter jump GWMETA comment \"dis-pp\"", insNum, ipAddr);
 
 #if _NFQ_DEBUG_LEVEL == 1
         printf("system: flush chain ip filter device_%u_container\n", insNum);
 #endif
-        v_secure_system("flush chain ip filter device_%u_container", insNum);
+        v_secure_system("nft flush chain ip filter device_%u_container", insNum);
         
 #if _NFQ_DEBUG_LEVEL == 1
         printf("system: add rule ip filter device_%u_container ip daddr %s jump wan2lan_dnsr_nfqueue_%u", insNum, ipAddr, insNum);
 #endif
-        v_secure_system("add rule ip filter device_%u_container ip daddr %s jump wan2lan_dnsr_nfqueue_%u", insNum, ipAddr, insNum);
+        v_secure_system("nft add rule ip filter device_%u_container ip daddr %s jump wan2lan_dnsr_nfqueue_%u", insNum, ipAddr, insNum);
     }
     else
         fprintf(stderr, "nfq_handler: error during nfq_get_payload() in %s\n", __FUNCTION__);

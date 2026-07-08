@@ -7653,11 +7653,12 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
 					{
 					v_secure_system("nft %s rule ip nat prerouting_fromlan ip saddr %s ip daddr %s tcp dport %s counter dnat to %s%s",
 						(ciptableOprationCode == 'A') ? "add" : "delete", external_ip, natip4, external_dest_port, toip, port_modifier);
+					}
 #else
 					v_secure_system("iptables -t nat -%c prerouting_fromlan -p tcp -m tcp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
 						ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
 #endif
-				}
+				
 #ifdef NFT_ENABLE
 				if (atoi(nft_enable) == 0)
 				{
@@ -7668,12 +7669,12 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
 				{
 					v_secure_system("nft %s rule ip nat postrouting_tolan ip saddr %s.0/%s ip daddr %s tcp dport %s counter snat to %s",
 							(ciptableOprationCode == 'A') ? "add" : "delete", lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
+				}
 #else
 				v_secure_system("iptables -t nat -%c postrouting_tolan -s %s.0/%s -p tcp -m tcp -d %s --dport %s -j SNAT --to-source %s",
 						ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
 #endif
 
-			}
 		}
 
 		/*  it will applicable during router mode */
@@ -7687,8 +7688,8 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
 		    }
                     else
                     {
-						v_secure_system("nft %s rule ip filter wan2lan_forwarding_accept ip saddr %s ip daddr %s tcp dport %s counter jump xlog_accept_wan2lan",
-							(ciptableOprationCode == 'A') ? "add" : "delete", external_ip, toip, dport);
+			v_secure_system("nft %s rule ip filter wan2lan_forwarding_accept ip saddr %s ip daddr %s tcp dport %s counter jump xlog_accept_wan2lan",
+				(ciptableOprationCode == 'A') ? "add" : "delete", external_ip, toip, dport);
                     }
 #else
                     v_secure_system("iptables -t filter -%c wan2lan_forwarding_accept -p tcp -m tcp -s %s -d %s --dport %s -j xlog_accept_wan2lan",
@@ -7715,11 +7716,12 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
              {
 					v_secure_system("nft %s rule ip nat prerouting_fromwan ip saddr %s ip daddr %s udp dport %s counter dnat to %s%s",
 						(ciptableOprationCode == 'A') ? "add" : "delete", external_ip, natip4, external_dest_port, toip, port_modifier);
+	     }
 #else
              v_secure_system("iptables -t nat -%c prerouting_fromwan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
                 ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
 #endif
-         }
+  
 
         if ( !isNatRedirectionBlocked )
         {
@@ -7735,6 +7737,7 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
                {
 					v_secure_system("nft %s rule ip nat prerouting_fromlan ip saddr %s ip daddr %s udp dport %s counter dnat to %s%s",
 						(ciptableOprationCode == 'A') ? "add" : "delete", external_ip, lan_ipaddr, external_dest_port, toip, port_modifier);
+	       }
 #else
                v_secure_system("iptables -t nat -%c prerouting_fromlan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
                   ciptableOprationCode,lan_ipaddr, external_dest_port, external_ip, toip, port_modifier);
@@ -7752,11 +7755,13 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
 		  {
 					v_secure_system("nft %s rule ip nat prerouting_fromlan ip saddr %s ip daddr %s udp dport %s counter dnat to %s%s",
 						(ciptableOprationCode == 'A') ? "add" : "delete", external_ip, natip4, external_dest_port, toip, port_modifier);
+		  }
+
 #else
 		  v_secure_system("iptables -t nat -%c prerouting_fromlan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
 		     ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
 #endif
-               }
+               
 #ifdef NFT_ENABLE
                if (atoi(nft_enable) == 0)
                {
@@ -7767,11 +7772,12 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
                {
 					v_secure_system("nft %s rule ip nat postrouting_tolan ip saddr %s.0/%s ip daddr %s udp dport %s counter snat to %s",
 						(ciptableOprationCode == 'A') ? "add" : "delete", lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
+	       }
 #else
                v_secure_system("iptables -t nat -%c postrouting_tolan -s %s.0/%s -p udp -m udp -d %s --dport %s -j SNAT --to-source %s",
                    ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
 #endif
-             }
+             
         }
 
 	/*  it will applicable during router mode */
@@ -7787,11 +7793,11 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
             {
 					v_secure_system("nft %s rule ip filter wan2lan_forwarding_accept ip saddr %s ip daddr %s udp dport %s counter jump xlog_accept_wan2lan",
 						(ciptableOprationCode == 'A') ? "add" : "delete", external_ip, toip, dport);
+	    }
 #else
             v_secure_system("iptables -t filter -%c wan2lan_forwarding_accept -p udp -m udp -s %s -d %s --dport %s -j xlog_accept_wan2lan",
                 ciptableOprationCode,external_ip, toip, dport);
 #endif
-	}
 	WAN_FAILOVER_SUPPORT_CHECk_END
      }
  
