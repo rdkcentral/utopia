@@ -203,7 +203,7 @@ service_start() {
     # RFC guard — only run if flag is present
     if [ ! -f "$RFC_FLAG" ]; then
         echo_t "SERVICE_CHRONYD : RFC flag absent — chrony path inactive" >> $NTPD_LOG_NAME
-        return 0
+      #  return 0   - TBD
     fi
 
     if [ -n "$SYSCFG_ntp_enabled" ] && [ "0" = "$SYSCFG_ntp_enabled" ]; then
