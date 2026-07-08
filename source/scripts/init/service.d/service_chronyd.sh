@@ -252,7 +252,7 @@ service_start() {
     wan_wait WAN_IP
 
     # Build chrony.conf
-    build_chrony_conf "$WAN_IP"
+    #build_chrony_conf "$WAN_IP"
     local rc=$?
     if [ "$rc" -ne 0 ]; then
         sysevent set ${SERVICE_NAME}-status "error"
