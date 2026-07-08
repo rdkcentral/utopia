@@ -39,6 +39,21 @@
 #include "safec_lib_common.h"
 #include "secure_wrapper.h"
 
+#define LOG_FILE_ROUTED "/tmp/utopia_service_dslite.txt"
+#define APPLY_PRINT(fmt ...) {\
+FILE *logfp = fopen(LOG_FILE_ROUTED , "a+");\
+if (logfp){\
+time_t s = time(NULL);\
+struct tm* current_time = localtime(&s);\
+fprintf(logfp, "[%02d:%02d:%02d] ",\
+current_time->tm_hour,\
+current_time->tm_min,\
+current_time->tm_sec);\
+fprintf(logfp, fmt);\
+fclose(logfp);\
+}\
+}\
+
 #define PROG_NAME       "SERVICE-DSLITE"
 #define ER_NETDEVNAME   "erouter0"
 #define TNL_NETDEVNAME  "ipip6tun0"
@@ -284,6 +299,7 @@ static void wan_dhcp_stop (void)
 
 static void restart_zebra (struct serv_dslite *sd)
 {
+    APPLY_PRINT("%s: Restarting zebra \n", __FUNCTION__);
     FILE *zebra_pid_fd;
     FILE *zebra_cmdline_fd;
     char pid_str[10];
@@ -309,6 +325,7 @@ static void restart_zebra (struct serv_dslite *sd)
             {
                 if (strstr(cmdline_buf, "zebra"))
                 {
+                    APPLY_PRINT("%s: Zebra is running, no need to restart\n", __FUNCTION__);
                     restart_needed = 0;
                 }
             }
@@ -318,6 +335,7 @@ static void restart_zebra (struct serv_dslite *sd)
 
     if (restart_needed)
     {
+        APPLY_PRINT("%s: Zebra is not running, need to restart\n", __FUNCTION__);
         sysevent_set (sd->sefd, sd->setok, "zebra-restart", "", 0);
     }
 }
