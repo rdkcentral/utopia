@@ -1121,7 +1121,7 @@ $unique_telemetry_interval=0
 
 #SNMPv3 control default values
 $V3Support=false
-$dmesglogsync_interval=900
+$dmesglogsync_interval=60
 
 #ForwardSSH is enabled by default
 $ForwardSSH=true
@@ -1148,8 +1148,8 @@ $SNMP_RestartMaintenanceEnable=true
 $DeferFWDownloadReboot=290
 
 #SelfHeal Log Backup
-$log_backup_enable=false
-$log_backup_threshold=0
+$log_backup_enable=true
+$log_backup_threshold=3
 
 #EthAgent Logging default values
 $eth_log_enabled=false
@@ -1254,9 +1254,6 @@ $low_queue_reboot_threshold=0
 #ocsp staple support
 $EnableOCSPStapling=true
 $EnableOCSPCA=true
-
-#Use XPKI certificate for lnf
-$LnFUseXPKI_Enable=true
 
 # Dynamic DNS
 $dynamic_dns_enable=0
