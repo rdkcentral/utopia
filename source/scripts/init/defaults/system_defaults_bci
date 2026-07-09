@@ -1244,8 +1244,8 @@ $DLCaStoreEnabled=false
 $low_queue_reboot_threshold=0
 
 #ocsp staple support
-$EnableOCSPStapling=true
-$EnableOCSPCA=true
+$EnableOCSPStapling=false
+$EnableOCSPCA=false
 
 # Dynamic DNS
 $dynamic_dns_enable=0
