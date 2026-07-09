@@ -37,6 +37,8 @@ if [ -z "$NTPD_LOG_NAME" ]; then
     NTPD_LOG_NAME=/rdklogs/logs/chrony.log
 fi
 
+CONNCHECK_FILE="/tmp/connectivity_check_done"
+
 LANIPV6Support=$(sysevent get LANIPv6GUASupport)
 CURRENT_WAN_STATUS=$(sysevent get wan-status)
 WAN_INTERFACE=$(getWanInterfaceName)
@@ -196,6 +198,34 @@ set_chrony_sync_status() {
     exit 0
 }
 
+waitForConnChkFile()
+{ 
+       echo_t "SERVICE_NTPD CONNCHK: Waiting for connection check for  completion..." >> $NTPD_LOG_NAME
+    TIMEOUT=120
+    INTERVAL=1
+
+    # Get system uptime in seconds at start
+    START_TIME=$(cut -d. -f1 /proc/uptime)
+
+    echo_t "SERVICE_NTPD CONNCHK: Waiting for $CONNCHECK_FILE (max ${TIMEOUT}s)..." >> $NTPD_LOG_NAME
+
+    while true; do
+        if [ -f "$CONNCHECK_FILE" ]; then
+            echo_t "SERVICE_NTPD CONNCHK: File $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
+            return 0
+        fi
+
+        CURRENT_TIME=$(cut -d. -f1 /proc/uptime)
+        ELAPSED=$((CURRENT_TIME - START_TIME))
+
+        if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo_t "SERVICE_NTPD CONNCHK: Timeout ${TIMEOUT}s expired - file $CONNCHECK_FILE not found" >> $NTPD_LOG_NAME
+            return 1
+        fi
+
+        sleep "$INTERVAL"
+    done
+}
 # ──────────────────────────────────────────────────────────────────────────────
 # service_start: main start path
 # ──────────────────────────────────────────────────────────────────────────────
@@ -206,6 +236,17 @@ service_start() {
       #  return 0   - TBD
     fi
 
+   # Wait for connectivitycheck to complete
+   if [ -f $CONNCHECK_FILE ]; then
+       echo_t "SERVICE_NTPD CONNCHK: connectivity success $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
+   else
+       # Exclude XLE device from connectivity check. TODO
+       if [ "$BOX_TYPE" != "WNXL11BWL" ];then
+           echo_t "SERVICE_NTPD CONNCHK: start connectivity check waiting for $CONNCHECK_FILE file" >> $NTPD_LOG_NAME
+           waitForConnChkFile
+	   fi
+   fi
+   
     if [ -n "$SYSCFG_ntp_enabled" ] && [ "0" = "$SYSCFG_ntp_enabled" ]; then
         syscfg set ntp_status 2
         sysevent set ${SERVICE_NAME}-status "stopped"
