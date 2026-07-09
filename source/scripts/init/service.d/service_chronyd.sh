@@ -304,7 +304,7 @@ service_start() {
     echo_t "SERVICE_CHRONYD : starting chronyd daemon" >> $NTPD_LOG_NAME
     systemctl start chronyd
     rc=$?
-    if [ "$ret_val" -eq 0 ]; then
+    if [ "$rc" -eq 0 ]; then
            if [ -e "/usr/bin/print_uptime" ] && [ ! -f "/tmp/ntp_boot_uptime_logged" ]; then
                /usr/bin/print_uptime "boot_to_chrony_uptime"
                touch /tmp/ntp_boot_uptime_logged
