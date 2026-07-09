@@ -263,12 +263,19 @@ service_start() {
     echo_t "SERVICE_CHRONYD : starting chronyd daemon" >> $NTPD_LOG_NAME
     systemctl start chronyd
     rc=$?
+    if [ "$ret_val" -eq 0 ]; then
+           if [ -e "/usr/bin/print_uptime" ] && [ ! -f "/tmp/ntp_boot_uptime_logged" ]; then
+               /usr/bin/print_uptime "boot_to_chrony_uptime"
+               touch /tmp/ntp_boot_uptime_logged
+           fi
+    fi
     if [ "$rc" -ne 0 ]; then
         echo_t "SERVICE_CHRONYD : systemctl start chronyd failed (rc=$rc)" >> $NTPD_LOG_NAME
         sysevent set ${SERVICE_NAME}-status "error"
         return 1
     fi
 
+   
     sysevent set ${SERVICE_NAME}-status "started"
     echo_t "SERVICE_CHRONYD : chronyd started — monitoring sync in background" >> $NTPD_LOG_NAME
 
