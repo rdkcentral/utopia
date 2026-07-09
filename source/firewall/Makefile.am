@@ -41,7 +41,7 @@ firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                  $(top_builddir)/source/util/utils/libutopiautil.la
 
 if ONESTACK_PRODUCT_REQ
-firewall_LDADD += -lrdkb_feature_mode_gate -lonestack_syscfg
+firewall_LDADD += -lrdkb_feature_mode_gate
 endif
 
 nfq_handler_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
@@ -49,7 +49,7 @@ nfq_handler_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                     $(top_builddir)/source/ulog/libulog.la
 
 if ONESTACK_PRODUCT_REQ
-nfq_handler_LDADD += -lrdkb_feature_mode_gate -lonestack_syscfg
+nfq_handler_LDADD += -lrdkb_feature_mode_gate 
 endif
 
 if CORE_NET_LIB_FEATURE_SUPPORT

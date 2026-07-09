@@ -138,5 +138,5 @@ if ENABLE_HOTSPOT_SERVICE
 15_hotspot_SOURCES = 15_hotspot.c
 endif
 if ONESTACK_PRODUCT_REQ
-LDADD += -lrdkb_feature_mode_gate -lonestack_syscfg
+LDADD += -lrdkb_feature_mode_gate
 endif
