@@ -243,7 +243,7 @@ service_start() {
        # Exclude XLE device from connectivity check. TODO
        if [ "$BOX_TYPE" != "WNXL11BWL" ];then
            echo_t "SERVICE_NTPD CONNCHK: start connectivity check waiting for $CONNCHECK_FILE file" >> $NTPD_LOG_NAME
-           waitForConnChkFile
+           #waitForConnChkFile
 	   fi
    fi
    
