@@ -26,7 +26,7 @@ source /etc/device.properties
 
 SERVICE_NAME="chronyd"
 SELF_NAME="`basename "$0"`"
-CHRONY_CONF_TMP=/tmp/chrony.conf
+CHRONY_CONF_TMP=/etc/rdk_chrony.conf
 CHRONY_BIN=chronyd
 LOCKFILE=/var/tmp/service_chronyd.pid
 RFC_FLAG=/nvram/chrony_enabled
@@ -110,12 +110,9 @@ wan_wait() {
 # build_chrony_conf: construct /tmp/chrony.conf from syscfg NTP servers
 # ──────────────────────────────────────────────────────────────────────────────
 build_chrony_conf() {
-    local WAN_IP="$1"
-    local WAN_IPv4=""
-    local WAN_IPv6=""
 
-    rm -f "$CHRONY_CONF_TMP"
-
+   local WAN_IFACE="$1"
+   rm -f "$CHRONY_CONF_TMP"
 
     # NTP servers from syscfg
     if [ "$NTP_SERVER_URL_RESTORE" = "false" ]; then
@@ -124,7 +121,7 @@ build_chrony_conf() {
             for srv in "$SYSCFG_ntp_server1" "$SYSCFG_ntp_server2" "$SYSCFG_ntp_server3" \
                        "$SYSCFG_ntp_server4" "$SYSCFG_ntp_server5"; do
                 if [ -n "$srv" ] && [ "$srv" != "no_ntp_address" ]; then
-                    echo "pool $srv iburst maxsources 3 minpoll 10 maxpoll 12" >> $CHRONY_CONF_TMP
+                    echo "pool $srv iburst maxsources 2 minpoll 10 maxpoll 12" >> $CHRONY_CONF_TMP
                 fi
             done
         else
@@ -143,23 +140,12 @@ build_chrony_conf() {
         fi
     fi
 
-    # Fast initial step-correction
-    echo "makestep 1.0 3" >> $CHRONY_CONF_TMP
-
-    # Drift file
-    echo "driftfile /var/lib/chrony/drift" >> $CHRONY_CONF_TMP
-
     # Bind acquisition (outgoing NTP client) sockets to the WAN interface by name,
     # covering both IPv4 and IPv6 without needing to extract individual IPs.
-    if [ -n "$WAN_IP" ]; then
+    if [ -n "$WAN_IFACE" ]; then
         echo "bindacqdevice $WAN_INTERFACE" >> $CHRONY_CONF_TMP
         echo_t "SERVICE_CHRONYD : binding acquisition sockets to interface $WAN_INTERFACE" >> $NTPD_LOG_NAME
     fi
-
-    if [ "$MULTI_CORE" = "yes" ] && [ "$NTPD_IMMED_PEER_SYNC" != "true" ]; then
-        echo "bindaddress $HOST_INTERFACE_IP" >> $CHRONY_CONF_TMP
-    fi
-
 
     echo_t "SERVICE_CHRONYD : chrony.conf built at $CHRONY_CONF_TMP" >> $NTPD_LOG_NAME
     return 0
@@ -288,12 +274,11 @@ service_start() {
         sleep 2
     fi
 
-    # Wait for WAN IP
-    local WAN_IP=""
-    wan_wait WAN_IP
+  # Refresh WAN interface name — guaranteed available after wait_for_connectivity
+    WAN_INTERFACE=$(getWanInterfaceName)
 
     # Build chrony.conf
-    #build_chrony_conf "$WAN_IP"
+    build_chrony_conf "$WAN_INTERFACE"
     local rc=$?
     if [ "$rc" -ne 0 ]; then
         sysevent set ${SERVICE_NAME}-status "error"
