@@ -115,7 +115,6 @@ build_chrony_conf() {
    rm -f "$CHRONY_CONF_TMP"
 
     # NTP servers from syscfg
-    if [ "$NTP_SERVER_URL_RESTORE" = "false" ]; then
         if [ "$SYSCFG_new_ntp_enabled" = "true" ]; then
             # Multi-server pool (new_ntp_enabled mode)
             for srv in "$SYSCFG_ntp_server1" "$SYSCFG_ntp_server2" "$SYSCFG_ntp_server3" \
@@ -138,7 +137,6 @@ build_chrony_conf() {
             fi
             echo "pool $SRV iburst maxsources 2 minpoll 10 maxpoll 12" >> $CHRONY_CONF_TMP
         fi
-    fi
 
     # Bind acquisition (outgoing NTP client) sockets to the WAN interface by name,
     # covering both IPv4 and IPv6 without needing to extract individual IPs.
