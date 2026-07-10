@@ -34,7 +34,7 @@ SYNC_FILE=/tmp/clock-event
 NTP_SYNCED_FILE=/tmp/.ntp_time_synced
 
 if [ -z "$NTPD_LOG_NAME" ]; then
-    NTPD_LOG_NAME=/rdklogs/logs/chrony.log
+    NTPD_LOG_NAME=/rdklogs/logs/ntpLog.log
 fi
 
 CONNCHECK_FILE="/tmp/connectivity_check_done"
