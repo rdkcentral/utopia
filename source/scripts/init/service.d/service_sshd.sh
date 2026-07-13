@@ -47,6 +47,7 @@ source /etc/waninfo.sh
 WAN_INTERFACE=$(getWanInterfaceName)
 DEFAULT_WAN_INTERFACE="erouter0"
 LANIPV6Support=`sysevent get LANIPv6GUASupport`
+DEVICE_MODE=`deviceinfo.sh -mode`
 DEVICETYPE=$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Identity.DeviceType | grep value | cut -d ":" -f 3 | tr -d ' ' | tr -s ' ' | tr '[:lower:]' '[:upper:]')
 if [ "$DEVICETYPE" = "TEST" ] && [ "$USE_DYNAMICKEYING" = "TRUE" ]; then
     USE_DEVKEYS="-f authorized_keys_dev"
@@ -134,6 +135,18 @@ get_listen_params() {
     fi
 }
 
+# is_valid_ipv4 <ip>
+# Returns 0 if <ip> is a valid, non-unspecified IPv4 address (a.b.c.d, each
+# octet 0-255, not 0.0.0.0); returns 1 otherwise.
+is_valid_ipv4() {
+    local ip="$1"
+    local valid_octet='(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+    if [[ ! $ip =~ ^${valid_octet}\.${valid_octet}\.${valid_octet}\.${valid_octet}$ ]] || [ "$ip" = "0.0.0.0" ]; then
+        return 1
+    fi
+    return 0
+}
+
 do_start() {
    #DIR_NAME=/tmp/home/admin
    #if [ ! -d $DIR_NAME ] ; then
@@ -156,8 +169,8 @@ do_start() {
         #getting the IPV4 address for V4 CM SSH packets
         if [ "$WAN_INTERFACE" =  "$DEFAULT_WAN_INTERFACE" ] ; then
             if [ -f "/nvram/ETHWAN_ENABLE" ];then
-	#        CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
-	 #   else
+                CM_IPV4=`ip -4 addr show dev $CMINTERFACE scope global | awk '/inet/{print $2}' | cut -d '/' -f1`
+	    else
                 CM_IPV4=`ifconfig privbr:0 | grep "inet addr" | awk '/inet/{print $2}'  | cut -f2 -d:`
             fi
         else
@@ -196,17 +209,31 @@ do_start() {
 	    fi
         fi
     elif [ "$BOX_TYPE" = "WNXL11BWL" ]; then
-	    CM_IP=`ip -4 addr show dev $CMINTERFACE  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-        if [ ! -z $CM_IP ]; then
-	        commandString="$commandString -p [$CM_IP]:22"
-	    fi
+        commandString=""
         CM_IPv6=`ip -6 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-	    if [ ! -z $CM_IPv6 ]; then
+        if [ ! -z "$CM_IPv6" ]; then
             commandString="$commandString -p [$CM_IPv6]:22"
-	    fi
-	    CM_IPv4=`ip -4 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
-	    if [ ! -z $CM_IPv4 ]; then
+        fi
+        CM_IPv4=`ip -4 addr show dev wwan0  scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1`
+        if [ ! -z "$CM_IPv4" ]; then
             commandString="$commandString -p [$CM_IPv4]:22"
+        fi
+        if [ "$DEVICE_MODE" = "Extender" ]; then
+            CM_IP=$(ip -4 addr show dev "$CMINTERFACE" scope global | awk '/inet/{print $2}' | cut -d '/' -f1 | head -n1)
+            if is_valid_ipv4 "$CM_IP"; then
+                commandString="$commandString -p [$CM_IP]:22"
+            elif [ -n "$BRHOME_DHCP_IP" ]; then
+                echo_t "[utopia] $CMINTERFACE has no IP via ip command, using pre-validated ipv4_br-home_dhcp_ipaddr=$BRHOME_DHCP_IP"
+                commandString="$commandString -p [$BRHOME_DHCP_IP]:22"
+            else
+                CM_IP=$(sysevent get ipv4_br-home_dhcp_ipaddr)
+                echo_t "[utopia] $CMINTERFACE has no IP via ip command, falling back to sysevent ipv4_br-home_dhcp_ipaddr=$CM_IP"
+                if is_valid_ipv4 "$CM_IP"; then
+                    commandString="$commandString -p [$CM_IP]:22"
+                else
+                    echo_t "[utopia] no valid IP for $CMINTERFACE ($CM_IP), skipping listen address"
+                fi
+            fi
         fi
     else
         CM_IP=""
@@ -438,9 +465,22 @@ case "$1" in
       service_stop
       service_start
       ;;
+  ipv4_br-home_dhcp_ipaddr)
+      if is_valid_ipv4 "$2"; then
+          if [ "$DEVICE_MODE" = "Extender" ]; then
+              BRHOME_DHCP_IP="$2"
+              service_stop
+              service_start
+          else
+              echo_t "non-extender mode. Skipping ipv4_br-home_dhcp_ipaddr sysevent"
+          fi
+      else
+          echo_t "ipv4_br-home_dhcp_ipaddr not set or invalid ($2), skipping sshd restart"
+      fi
+      ;;
 
   *)
-        echo "Usage: $SELF_NAME [${SERVICE_NAME}-start|${SERVICE_NAME}-stop|${SERVICE_NAME}-restart|ssh_server_restart|lan-status|wan-status]" >&2
+        echo "Usage: $SELF_NAME [${SERVICE_NAME}-start|${SERVICE_NAME}-stop|${SERVICE_NAME}-restart|wan-status|bridge-status|current_wan_ifname|ipv4_br-home_dhcp_ipaddr <ip>]" >&2
         exit 3
         ;;
 esac

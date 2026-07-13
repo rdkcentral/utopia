@@ -33,7 +33,8 @@ AM_LDFLAGS = $(top_builddir)/source/util/utils/libutopiautil.la \
 LDFLAGS += -lsecure_wrapper
 
 if ONESTACK_PRODUCT_REQ
-AM_LDFLAGS += -ldevicemode
+LDFLAGS +=  -L${PKG_CONFIG_SYSROOT_DIR}$(libdir)
+LDADD = -ldevicemode -ltelemetry_msgsender
 endif
 
 bin_PROGRAMS = \
@@ -49,8 +50,6 @@ bin_PROGRAMS = \
     03_connectcheck \
     09_xdns \
     10_firewall \
-    10_mcastproxy \
-    10_mldproxy \
     10_ntpd \
     15_ccsphs \
     15_ddnsclient \
@@ -67,6 +66,10 @@ bin_PROGRAMS = \
 
 if FEATURE_RDKB_EXTENDER
 bin_PROGRAMS += 02_devicemode
+endif
+
+if ENABLE_MCAST_SERVICE
+bin_PROGRAMS += 10_mcastproxy 10_mldproxy
 endif
 
 if ENABLE_POTD_SERVICE
@@ -98,9 +101,6 @@ endif
 10_bootstrap_dns_SOURCES = 10_bootstrap_dns.c
 10_firewall_SOURCES = 10_firewall.c
 10_fpm_SOURCES = 10_fpm.c
-10_mcastproxy_SOURCES = 10_mcastproxy.c
-10_mcastsnooper_SOURCES = 10_mcastsnooper.c
-10_mldproxy_SOURCES = 10_mldproxy.c
 10_ntpclient_SOURCES = 10_ntpclient.c
 10_ntpd_SOURCES = 10_ntpd.c
 10_sysevent_proxy_SOURCES = 10_sysevent_proxy.c
@@ -130,6 +130,11 @@ endif
 if FEATURE_RDKB_EXTENDER
 02_devicemode_SOURCES = 02_devicemode.c
 endif
+if ENABLE_MCAST_SERVICE
+10_mcastproxy_SOURCES = 10_mcastproxy.c
+10_mcastsnooper_SOURCES = 10_mcastsnooper.c
+10_mldproxy_SOURCES = 10_mldproxy.c
+endif
 if ENABLE_POTD_SERVICE
 26_potd_SOURCES = 26_potd.c
 endif
@@ -137,5 +142,5 @@ if ENABLE_HOTSPOT_SERVICE
 15_hotspot_SOURCES = 15_hotspot.c
 endif
 if ONESTACK_PRODUCT_REQ
-LDFLAGS += -lrdkb_feature_mode_gate
+LDADD += -lrdkb_feature_mode_gate
 endif
