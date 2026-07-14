@@ -33,11 +33,17 @@
 const char* SERVICE_CUSTOM_EVENTS[] = {
     "wan-status|/etc/utopia/service.d/service_chronyd.sh",
     "ipv6_connection_state|/etc/utopia/service.d/service_chronyd.sh",
+    "chrony-start|/etc/utopia/service.d/service_chronyd.sh",
+    "chrony-stop|/etc/utopia/service.d/service_chronyd.sh",
+    "chrony-restart|/etc/utopia/service.d/service_chronyd.sh",
     NULL
 };
 #else
 const char* SERVICE_CUSTOM_EVENTS[] = {
     "wan-status|/etc/utopia/service.d/service_chronyd.sh",
+    "chrony-start|/etc/utopia/service.d/service_chronyd.sh",
+    "chrony-stop|/etc/utopia/service.d/service_chronyd.sh",
+    "chrony-restart|/etc/utopia/service.d/service_chronyd.sh",
     NULL
 };
 #endif
