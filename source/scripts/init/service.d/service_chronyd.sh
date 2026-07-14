@@ -137,7 +137,9 @@ build_chrony_conf() {
             fi
             echo "pool $SRV iburst maxsources 2 minpoll 10 maxpoll 12" >> $CHRONY_CONF_TMP
         fi
-
+		
+    echo "makestep 1.0 3" >> $CHRONY_CONF_TMP
+	
     # Bind acquisition (outgoing NTP client) sockets to the WAN interface by name,
     # covering both IPv4 and IPv6 without needing to extract individual IPs.
     if [ -n "$WAN_IFACE" ]; then
