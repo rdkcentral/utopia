@@ -280,7 +280,7 @@ service_start() {
     fi
 
   # Refresh WAN interface name — guaranteed available after wait_for_connectivity
-    WAN_INTERFACE=$(getWanInterfaceName)
+    #WAN_INTERFACE=$(getWanInterfaceName)
 
     # Build chrony.conf
     #build_chrony_conf "$WAN_INTERFACE"
