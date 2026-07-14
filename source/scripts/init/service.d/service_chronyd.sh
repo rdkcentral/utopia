@@ -33,6 +33,11 @@ RFC_FLAG=/nvram/chrony_enabled
 SYNC_FILE=/tmp/clock-event
 NTP_SYNCED_FILE=/tmp/.ntp_time_synced
 
+# /rdklogs is a tmpfs that starts empty on every boot; the logs/ subdirectory
+# may not exist yet when this script fires early in the boot sequence.
+# Ensure it exists before any echo_t write so no log lines are silently dropped.
+mkdir -p /rdklogs/logs
+
 if [ -z "$NTPD_LOG_NAME" ]; then
     NTPD_LOG_NAME=/rdklogs/logs/ntpLog.log
 fi
@@ -278,7 +283,7 @@ service_start() {
     WAN_INTERFACE=$(getWanInterfaceName)
 
     # Build chrony.conf
-    build_chrony_conf "$WAN_INTERFACE"
+    #build_chrony_conf "$WAN_INTERFACE"
     local rc=$?
     if [ "$rc" -ne 0 ]; then
         sysevent set ${SERVICE_NAME}-status "error"
@@ -325,6 +330,48 @@ service_stop() {
     sysevent set ${SERVICE_NAME}-status "stopped"
 }
 
+service_restart() {
+    # RFC guard — only run if chrony path is active
+    if [ ! -f "$RFC_FLAG" ]; then
+        echo_t "SERVICE_CHRONYD : chrony-restart — RFC flag absent, skipping" >> $NTPD_LOG_NAME
+        return 0
+    fi
+
+    # WAN gate — do not restart if WAN is down
+    local WAN_STATUS
+    WAN_STATUS=$(sysevent get wan-status)
+    if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || \
+       [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || \
+       [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" = "true" ]; then
+        local WAN_IPV6_STATUS
+        WAN_IPV6_STATUS=$(sysevent get ipv6_connection_state)
+        if [ "started" != "$WAN_STATUS" ] && [ "up" != "$WAN_IPV6_STATUS" ]; then
+            echo_t "SERVICE_CHRONYD : chrony-restart deferred — WAN is down" >> $NTPD_LOG_NAME
+            return 0
+        fi
+    else
+        if [ "started" != "$WAN_STATUS" ]; then
+            echo_t "SERVICE_CHRONYD : chrony-restart deferred — WAN is down" >> $NTPD_LOG_NAME
+            return 0
+        fi
+    fi
+
+    echo_t "SERVICE_CHRONYD : chrony-restart — stopping chronyd" >> $NTPD_LOG_NAME
+	systemctl stop chronyd 2>/dev/null
+
+    # ExecStartPre in chronyd.service rebuilds rdk_chrony.conf with current RFC values
+    echo_t "SERVICE_CHRONYD : chrony-restart — starting chronyd (ExecStartPre rebuilds config)" >> $NTPD_LOG_NAME
+    systemctl start chronyd
+    local rc=$?
+    if [ "$rc" -ne 0 ]; then
+        echo_t "SERVICE_CHRONYD : chrony-restart — systemctl start failed (rc=$rc)" >> $NTPD_LOG_NAME
+        sysevent set ${SERVICE_NAME}-status "error"
+        return 1
+    fi
+    sysevent set ${SERVICE_NAME}-status "started"
+    echo_t "SERVICE_CHRONYD : chrony-restart — chronyd restarted successfully" >> $NTPD_LOG_NAME
+}
+	
 # ──────────────────────────────────────────────────────────────────────────────
 # Script entry point — serialise concurrent invocations via lockfile
 # ──────────────────────────────────────────────────────────────────────────────
