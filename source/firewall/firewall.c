@@ -2386,11 +2386,18 @@ static int prepare_globals_from_configuration(void)
     if ('\0' == current_wan_ifname[0]) {
 	  char wanInterface[BUFLEN_64] = {'\0'};	
       syscfg_get(NULL, "wan_physical_ifname", wanInterface, sizeof(wanInterface));
-	  if(wanInterface[0] != '\0')     
+	  if(wanInterface[0] != '\0'){     
         snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", wanInterface);
-      else
+        snprintf(ecm_wan_ifname, sizeof(ecm_wan_ifname), "%s",wanInterface);
+	  }
+      else{
 	     snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", default_wan_ifname);
-	}	
+		 snprintf(ecm_wan_ifname, sizeof(ecm_wan_ifname), "%s",default_wan_ifname);
+	  }	  
+	}
+	else {
+      snprintf(ecm_wan_ifname, sizeof(ecm_wan_ifname), "%s", current_wan_ifname);
+    }
 #else	
    if ('\0' == current_wan_ifname[0]) {
       if ('\0' == default_wan_ifname[0]) {
@@ -2496,8 +2503,9 @@ static int prepare_globals_from_configuration(void)
 
    syscfg_get(NULL, "firewall_level", firewall_level, sizeof(firewall_level));
    syscfg_get(NULL, "firewall_levelv6", firewall_levelv6, sizeof(firewall_levelv6));
-
+#ifndef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
    syscfg_get(NULL, "ecm_wan_ifname", ecm_wan_ifname, sizeof(ecm_wan_ifname));
+#endif
 #if !defined (NO_MTA_FEATURE_SUPPORT)
    syscfg_get(NULL, "emta_wan_ifname", emta_wan_ifname, sizeof(emta_wan_ifname));
 #endif
