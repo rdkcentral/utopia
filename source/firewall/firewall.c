@@ -11091,7 +11091,7 @@ static void prepare_ipc_filter(FILE *filter_fp) {
 //zqiu<<
 #endif
 
-#if (defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)) && !defined(_HUB4_PRODUCT_REQ_) || defined(_PLATFORM_GENERICARM_)
+#if (defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_PLATFORM_GENERICARM_)) && !defined(_HUB4_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif

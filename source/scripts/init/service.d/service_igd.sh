@@ -46,7 +46,7 @@ SELF_NAME="`basename $0`"
 
 #IGD=/usr/sbin/IGD
 IGD=IGD
-if ([ "$BOX_TYPE" = "genericarm" ]) ;then
+if [ "$BOX_TYPE" = "genericarm" ] ;then
 	IGD_TMP_DIR="/var/volatile/IGD"
 else
 	IGD_TMP_DIR="/var/IGD"

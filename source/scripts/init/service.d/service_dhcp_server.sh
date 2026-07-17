@@ -59,10 +59,10 @@ UTOPIA_PATH="/etc/utopia/service.d"
 SERVICE_NAME="dhcp_server"
 
 #DHCP_CONF=/etc/dnsmasq.conf
-if ([ "$BOX_TYPE" = "genericarm" ]) ;then
+if [ "$BOX_TYPE" = "genericarm" ] ;then
 	DHCP_CONF=/var/volatile/dnsmasq.conf
 else
-DHCP_CONF=/var/dnsmasq.conf
+	DHCP_CONF=/var/dnsmasq.conf
 fi
 RESOLV_CONF=/etc/resolv.conf
 BIN=dnsmasq
