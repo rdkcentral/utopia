@@ -11436,7 +11436,7 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     fprintf(filter_fp, "-A INPUT -i br403 -s 192.168.245.0/24 -p tcp -m tcp --dport 8883 -j ACCEPT\n");
 #endif
 
-#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_)) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_GENERICARM_)
+#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_PLATFORM_GENERICARM_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_)) || defined (_CBR2_PRODUCT_REQ_)
     fprintf(filter_fp, "-A INPUT -i br403 -d 192.168.245.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i br403 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
 #endif
@@ -12968,7 +12968,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, "-I FORWARD 3 -i %s -o br403 -j ACCEPT\n", current_wan_ifname);
 #endif
 
-#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_)) || defined (_CBR2_PRODUCT_REQ_) || defined(_PLATFORM_GENERICARM_)
+#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_PLATFORM_GENERICARM_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_)) || defined (_CBR2_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif
@@ -13027,7 +13027,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       //zqiu: R5337
       //do_lan2wan_IoT_Allow(filter_fp);
       do_wan2lan_IoT_Allow(filter_fp);
-#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_)) || defined(_PLATFORM_GENERICARM_)// ARRIS XB6 ATOM, TCXB6
+#if defined (INTEL_PUMA7) || ((defined (_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_PLATFORM_GENERICARM_) || defined(_COSA_QCA_ARM_)) && !defined(_CBR_PRODUCT_REQ_))// ARRIS XB6 ATOM, TCXB6
       // Block forwarding between bridges.
       fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", lan_ifname, iot_ifName);
       fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", XHS_IF_NAME, iot_ifName);
