@@ -224,7 +224,7 @@ service_start() {
     # RFC guard — only run if flag is present
     if [ ! -f "$RFC_FLAG" ]; then
         echo_t "SERVICE_CHRONYD : RFC flag absent — chrony path inactive" >> $NTPD_LOG_NAME
-      #  return 0   - TBD
+        return 0   
     fi
 
    # Wait for connectivitycheck to complete
