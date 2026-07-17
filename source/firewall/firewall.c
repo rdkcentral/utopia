@@ -14207,6 +14207,9 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 #if defined (FEATURE_SUPPORT_MAPT_NAT46)
    if (isMAPTReady)
    {
+       fprintf(nat_fp, ":%s - [0:0]\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_TCP);
+       fprintf(nat_fp, ":%s - [0:0]\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_UDP);
+       fprintf(nat_fp, ":%s - [0:0]\n", MAPT_NAT_IPV4_POST_ROUTING_TABLE_ICMP);
        fprintf(nat_fp, "-A POSTROUTING -o %s -j %s\n", NAT46_INTERFACE, MAPT_NAT_IPV4_POST_ROUTING_TABLE);
    }
    else
