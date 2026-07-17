@@ -483,6 +483,7 @@ char cellular_ifname[32];
 #define SYSEVENT_MAPT_PSID_VALUE "mapt_psid_value"
 #define SYSEVENT_MAPT_PSID_LENGTH "mapt_psid_length"
 #define SYSEVENT_MAPT_TOTAL_PORTS "mapt_total_ports"
+#define SYSEVENT_LANSSHPORT_SUPPORT "LanSshNewPortSupport"
 
 BOOL isMAPTSet(void);
 static int do_wan_nat_lan_clients_mapt(FILE *fp);
@@ -10833,6 +10834,21 @@ static int do_wan2lan(FILE *fp)
    return(0);
 }
 
+int isLanSshPortSupportEnabled()
+{
+    char LanSshPortVal[7] = {'\0'};
+    if (sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_LANSSHPORT_SUPPORT, LanSshPortVal, sizeof(LanSshPortVal)) != 0)
+    {
+        FIREWALL_DEBUG("ERROR: Failed to get LanSshPortSupport value from sysevent\n");
+        return RET_ERR;
+    }
+    if (strcmp(LanSshPortVal, "true") == 0)
+        return 1;
+    else
+        return 0;
+}
+
+
 /*
  *  Procedure     : do_block_lan_access_to_wan_ssh
  *  Purpose       : To block SSH using WAN IP from LAN client
@@ -10841,7 +10857,6 @@ static int do_wan2lan(FILE *fp)
  * Return Values  :
  *    0              : Success
  */
-#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
 static int do_block_lan_access_to_wan_ssh(FILE *fp)
 {
    FIREWALL_DEBUG("Entering do_block_lan_access_to_wan_ssh\n");
@@ -10849,7 +10864,6 @@ static int do_block_lan_access_to_wan_ssh(FILE *fp)
    FIREWALL_DEBUG("Exiting do_block_lan_access_to_wan_ssh\n");
    return(0);
 }
-#endif
 
 /*
  ==========================================================================
@@ -13954,10 +13968,12 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_lan2wan(mangle_fp, filter_fp, nat_fp); 
    do_wan2lan(filter_fp);
    do_filter_table_general_rules(filter_fp);
-#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
-   if(isWanReady)
-        do_block_lan_access_to_wan_ssh(filter_fp);
-#endif
+   int LanSshPortSupport_ret = isLanSshPortSupportEnabled();
+   if( LanSshPortSupport_ret == 1)
+   { 
+      if(isWanReady)
+         do_block_lan_access_to_wan_ssh(filter_fp);
+   }
 #if defined(SPEED_BOOST_SUPPORTED)
 WAN_FAILOVER_SUPPORT_CHECK
    if(isWanServiceReady)
