@@ -58,105 +58,6 @@ service_init() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
-# wan_wait: poll WAN interface until IPv4 or IPv6 address is available
-#   $1 — name of variable to receive the WAN IP
-# ──────────────────────────────────────────────────────────────────────────────
-wan_wait() {
-    local WAN_UP=""
-    local WAN_IPv4=""
-    local WAN_IPv6=""
-    local retry=0
-    local MAX_RETRY=20
-
-    while [ -z "$WAN_UP" ]; do
-        retry=$((retry + 1))
-        WAN_IPv4=$(ifconfig -a "$WAN_INTERFACE" | grep inet | grep -v inet6 \
-                   | tr -s " " | cut -d ":" -f2 | cut -d " " -f1 | head -n1)
-
-        if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || \
-           [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || \
-           [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$LANIPV6Support" = "true" ]; then
-            CURRENT_WAN_IPV6_STATUS=$(sysevent get ipv6_connection_state)
-            if [ "up" = "$CURRENT_WAN_IPV6_STATUS" ]; then
-                ULAprefix=$(sysevent get ula_address | cut -d ':' -f1)
-                if [ -z "$ULAprefix" ]; then
-                    WAN_IPv6=$(ifconfig "$NTPD_IPV6_INTERFACE" | grep inet6 | grep Global \
-                               | awk '/inet6/{print $3}' | grep -v 'fdd7' \
-                               | cut -d '/' -f1 | head -n1)
-                else
-                    WAN_IPv6=$(ifconfig "$NTPD_IPV6_INTERFACE" | grep inet6 | grep Global \
-                               | awk '/inet6/{print $3}' | grep -v 'fdd7' \
-                               | grep -v "$ULAprefix" | cut -d '/' -f1 | head -n1)
-                fi
-            fi
-        else
-            WAN_IPv6=$(ifconfig "$WAN_INTERFACE" | grep inet6 | grep Global \
-                       | awk '/inet6/{print $3}' | cut -d '/' -f1 | head -n1)
-        fi
-
-        if [ -n "$WAN_IPv4" ] || [ -n "$WAN_IPv6" ]; then
-            WAN_UP="$WAN_INTERFACE"
-            break
-        fi
-
-        sleep 6
-        WAN_INTERFACE=$(getWanInterfaceName)
-
-        if [ "$retry" -ge "$MAX_RETRY" ]; then
-            echo_t "SERVICE_CHRONYD : WAN IP not acquired after max retries. Exiting" >> $NTPD_LOG_NAME
-            break
-        fi
-    done
-
-    eval "$1=\$WAN_UP"
-}
-
-# ──────────────────────────────────────────────────────────────────────────────
-# build_chrony_conf: construct /tmp/chrony.conf from syscfg NTP servers
-# ──────────────────────────────────────────────────────────────────────────────
-build_chrony_conf() {
-
-   local WAN_IFACE="$1"
-   rm -f "$CHRONY_CONF_TMP"
-
-    # NTP servers from syscfg
-        if [ "$SYSCFG_new_ntp_enabled" = "true" ]; then
-            # Multi-server pool (new_ntp_enabled mode)
-            for srv in "$SYSCFG_ntp_server1" "$SYSCFG_ntp_server2" "$SYSCFG_ntp_server3" \
-                       "$SYSCFG_ntp_server4" "$SYSCFG_ntp_server5"; do
-                if [ -n "$srv" ] && [ "$srv" != "no_ntp_address" ]; then
-                    echo "pool $srv iburst maxsources 2 minpoll 10 maxpoll 12" >> $CHRONY_CONF_TMP
-                fi
-            done
-        else
-            # Legacy single-server mode
-            local SRV="$SYSCFG_ntp_server1"
-            if [ -z "$SRV" ] || [ "$SRV" = "no_ntp_address" ]; then
-                if [ -f "/nvram/ETHWAN_ENABLE" ] || [ -z "$PARTNER_ID" ]; then
-                    SRV="time1.google.com"
-                    echo_t "SERVICE_CHRONYD : NTP server not configured, using default" >> $NTPD_LOG_NAME
-                else
-                    echo_t "SERVICE_CHRONYD : NTP server not configured and PartnerID set — aborting" >> $NTPD_LOG_NAME
-                    return 1
-                fi
-            fi
-            echo "pool $SRV iburst maxsources 2 minpoll 10 maxpoll 12" >> $CHRONY_CONF_TMP
-        fi
-		
-    echo "makestep 1.0 3" >> $CHRONY_CONF_TMP
-	
-    # Bind acquisition (outgoing NTP client) sockets to the WAN interface by name,
-    # covering both IPv4 and IPv6 without needing to extract individual IPs.
-    if [ -n "$WAN_IFACE" ]; then
-        echo "bindacqdevice $WAN_INTERFACE" >> $CHRONY_CONF_TMP
-        echo_t "SERVICE_CHRONYD : binding acquisition sockets to interface $WAN_INTERFACE" >> $NTPD_LOG_NAME
-    fi
-
-    echo_t "SERVICE_CHRONYD : chrony.conf built at $CHRONY_CONF_TMP" >> $NTPD_LOG_NAME
-    return 0
-}
-
-# ──────────────────────────────────────────────────────────────────────────────
 # set_chrony_sync_status: background monitor — polls chronyc until Leap=Normal
 # ──────────────────────────────────────────────────────────────────────────────
 set_chrony_sync_status() {
@@ -278,12 +179,6 @@ service_start() {
         killall ntpd 2>/dev/null
         sleep 2
     fi
-
-  # Refresh WAN interface name — guaranteed available after wait_for_connectivity
-    #WAN_INTERFACE=$(getWanInterfaceName)
-
-    # Build chrony.conf
-    #build_chrony_conf "$WAN_INTERFACE"
     local rc=$?
     if [ "$rc" -ne 0 ]; then
         sysevent set ${SERVICE_NAME}-status "error"
@@ -291,6 +186,7 @@ service_start() {
     fi
 
     # Start chronyd — only reaches here when no instance is running
+	# start chronyd will populate the config based on latest RFC configuration
     echo_t "SERVICE_CHRONYD : starting chronyd daemon" >> $NTPD_LOG_NAME
     systemctl start chronyd
     rc=$?
@@ -328,48 +224,6 @@ service_stop() {
     systemctl stop chronyd 2>/dev/null
     killall chronyd 2>/dev/null
     sysevent set ${SERVICE_NAME}-status "stopped"
-}
-
-service_restart() {
-    # RFC guard — only run if chrony path is active
-    if [ ! -f "$RFC_FLAG" ]; then
-        echo_t "SERVICE_CHRONYD : chrony-restart — RFC flag absent, skipping" >> $NTPD_LOG_NAME
-        return 0
-    fi
-
-    # WAN gate — do not restart if WAN is down
-    local WAN_STATUS
-    WAN_STATUS=$(sysevent get wan-status)
-    if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || \
-       [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || \
-       [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" = "true" ]; then
-        local WAN_IPV6_STATUS
-        WAN_IPV6_STATUS=$(sysevent get ipv6_connection_state)
-        if [ "started" != "$WAN_STATUS" ] && [ "up" != "$WAN_IPV6_STATUS" ]; then
-            echo_t "SERVICE_CHRONYD : chrony-restart deferred — WAN is down" >> $NTPD_LOG_NAME
-            return 0
-        fi
-    else
-        if [ "started" != "$WAN_STATUS" ]; then
-            echo_t "SERVICE_CHRONYD : chrony-restart deferred — WAN is down" >> $NTPD_LOG_NAME
-            return 0
-        fi
-    fi
-
-    echo_t "SERVICE_CHRONYD : chrony-restart — stopping chronyd" >> $NTPD_LOG_NAME
-	systemctl stop chronyd 2>/dev/null
-
-    # ExecStartPre in chronyd.service rebuilds rdk_chrony.conf with current RFC values
-    echo_t "SERVICE_CHRONYD : chrony-restart — starting chronyd (ExecStartPre rebuilds config)" >> $NTPD_LOG_NAME
-    systemctl start chronyd
-    local rc=$?
-    if [ "$rc" -ne 0 ]; then
-        echo_t "SERVICE_CHRONYD : chrony-restart — systemctl start failed (rc=$rc)" >> $NTPD_LOG_NAME
-        sysevent set ${SERVICE_NAME}-status "error"
-        return 1
-    fi
-    sysevent set ${SERVICE_NAME}-status "started"
-    echo_t "SERVICE_CHRONYD : chrony-restart — chronyd restarted successfully" >> $NTPD_LOG_NAME
 }
 	
 # ──────────────────────────────────────────────────────────────────────────────
