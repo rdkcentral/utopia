@@ -216,8 +216,8 @@ service_start() {
 service_stop() {
 
     # RFC guard — if chrony is not the active client, nothing to stop
-    if [ ! -f "$RFC_FLAG" ]; then
-        echo_t "SERVICE_CHRONYD : RFC flag absent — skipping chronyd stop" >> $NTPD_LOG_NAME
+     if ! systemctl is-active --quiet chronyd; then
+        echo_t "SERVICE_CHRONYD : chronyd is not running — skipping chronyd stop" >> $NTPD_LOG_NAME
         return 0
     fi
     echo_t "SERVICE_CHRONYD : stopping chronyd" >> $NTPD_LOG_NAME
