@@ -897,6 +897,26 @@ static int get_PartnerID (char *PartnerID)
      */
 
     FilePtr = fopen( PARTNERID_FILE, "r" );
+#ifdef _ONESTACK_PRODUCT_REQ_
+    /*
+     * On OneStack the /nvram/.partner_ID file is emptied (not removed) during
+     * migration. Treat an empty file the same as an absent one so the PartnerID
+     * is derived from the HAL instead of being read back as a blank value.
+     */
+    if ( FilePtr != NULL )
+    {
+        int firstChar = fgetc( FilePtr );
+        if ( firstChar == EOF )
+        {
+            fclose( FilePtr );
+            FilePtr = NULL;
+        }
+        else
+        {
+            rewind( FilePtr );
+        }
+    }
+#endif
     if ( NULL == FilePtr )
     {
         APPLY_PRINT("%s - %s is not there\n", __FUNCTION__, PARTNERID_FILE );
@@ -3498,6 +3518,26 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 		{
 			isMigrationReq = 1;
 			APPLY_PRINT("%s -  devicemode is empty, Migration Required\n", __FUNCTION__ )
+			/*
+			 * Migrating from a non-OneStack image. OneStack keeps /nvram/.partner_ID
+			 * across boots (get_PartnerID() skips the unlink), so a stale file carried
+			 * over from the previous firmware would make get_PartnerID() read the old
+			 * PartnerID from the file instead of fetching it from the HAL. Empty the
+			 * file here so the PartnerID (and devicemode) are derived freshly from the HAL.
+			 */
+			if ( access( PARTNERID_FILE, F_OK ) == 0 )
+			{
+				FILE *pPartnerFp = fopen( PARTNERID_FILE, "w" );
+				if ( pPartnerFp != NULL )
+				{
+					fclose( pPartnerFp );
+					APPLY_PRINT("%s - Emptied stale %s so PartnerID is fetched from HAL\n", __FUNCTION__, PARTNERID_FILE );
+				}
+				else
+				{
+					APPLY_PRINT("%s - Failed to empty %s\n", __FUNCTION__, PARTNERID_FILE );
+				}
+			}
 		}
 	}
 #endif
