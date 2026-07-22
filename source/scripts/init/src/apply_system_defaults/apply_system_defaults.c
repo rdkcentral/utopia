@@ -3508,6 +3508,11 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 	  isMigrationReq = 1;
 	  APPLY_PRINT("%s - Device in FR mode :%s\n", __FUNCTION__, PARTNER_DEFAULT_APPLY_FILE );
           t2_event_d("SYS_INFO_FRMode", 1);
+#ifdef _ONESTACK_PRODUCT_REQ_
+          // OneStack keeps /nvram/.partner_ID across boots (get_PartnerID skips unlink);
+          // remove it on FR so a stale PartnerID does not persist after factory reset.
+          unlink( PARTNERID_FILE );
+#endif
   }
   
   if( (1 == isNeedToApplyPartnersDefault)||(isMigrationReq == 1) )  
