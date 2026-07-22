@@ -142,11 +142,7 @@ dnsmasq_server_start ()
                 PARTNER_ID=$(syscfg get PartnerID)
                 EDNS_PACKET_SIZE=$(syscfg get edns_packet_size)
                 EDNS_PACKET_SIZE=${EDNS_PACKET_SIZE:-1232}
-                if [ "$PARTNER_ID" != "comcast" ]; then
-                    $SERVER -P $EDNS_PACKET_SIZE -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
-                else
-                    $SERVER -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
-                fi
+                $SERVER -P $EDNS_PACKET_SIZE -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
          fi
 
 }
