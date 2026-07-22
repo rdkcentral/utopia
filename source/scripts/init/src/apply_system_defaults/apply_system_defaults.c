@@ -3497,7 +3497,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 		if ( !((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0')) )
 		{
 			isMigrationReq = 1;
-			APPLY_PRINT("%s - Device in Reboot mode, devicemode is empty, Migration Required\n", __FUNCTION__ )
+			APPLY_PRINT("%s -  devicemode is empty, Migration Required\n", __FUNCTION__ )
 		}
 	}
 #endif
