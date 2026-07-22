@@ -71,7 +71,7 @@
 #define MODULE_NUMBER               "SR203"
 #define MODULE_URL                  "http://www.sky.com/"
 #define UPC                         "SR203"
-#elif defined(_HUB4_PRODUCT_REQ_)
+#elif defined(_XER2_PRODUCT_REQ_)
 #define MANUFACTURER                "Arcadyan"
 #define MANUFACTURER_URL            "https://www.arcadyan.com"
 #define MODULE_DESCRIPTION          "Xfinity Ethernet Router"

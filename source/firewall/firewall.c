@@ -10172,7 +10172,7 @@ static void do_add_TCP_MSS_rules(FILE *mangle_fp)
 static int do_lan2wan(FILE *mangle_fp, FILE *filter_fp, FILE *nat_fp)
 {
    FIREWALL_DEBUG("Entering do_lan2wan\n");
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_) && !defined(PON_GATEWAY)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_)
    if (isNatReady)
    {
        FILE *f = NULL;
@@ -13949,7 +13949,7 @@ WAN_FAILOVER_SUPPORT_CHECk_END
    prepare_MoCA_bridge_firewall(raw_fp, mangle_fp, nat_fp, filter_fp);
 #endif
 
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_) && !defined(PON_GATEWAY)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_)
  /* To avoid open ssh connection to CM IP TCXB6-2879*/
    if (!isBridgeMode)
    {
@@ -14314,7 +14314,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    lan_http_access(filter_fp);
    #endif
 
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_) && !defined(PON_GATEWAY)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_)
    if (isBridgeMode)
    {
        FILE *f = NULL;

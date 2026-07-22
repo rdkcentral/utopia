@@ -578,8 +578,10 @@ STATIC int route_set(struct serv_routed *sr)
     }
 #endif
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_)    
     if ( TRUE == IsThisCurrentPartnerID("sky-") )
+#endif /* _SCER11BEL_PRODUCT_REQ_ */	    
     {
         /*Clean 'iif brlan0 table erouter' if exist already*/
 #ifdef CORE_NET_LIB
@@ -1050,12 +1052,14 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     else
     {
     #endif
-        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)  || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+        #if defined(_SCER11BEL_PRODUCT_REQ_)	    
             if ( FALSE == IsThisCurrentPartnerID("sky-") )
             {
                 sysevent_get(sefd, setok, "lan_prefix", prefix, sizeof(prefix));
             }
             else
+        #endif /** _SCER11BEL_PRODUCT_REQ_ */		    
             {
                 sysevent_get(sefd, setok, "ipv6_prefix", prefix, sizeof(prefix));
             }
@@ -1067,12 +1071,14 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
     if (gModeSwitched == ULA_IPV6)
     {
-        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+        #if defined(_SCER11BEL_PRODUCT_REQ_)	    
             if ( FALSE == IsThisCurrentPartnerID("sky-") )
             {
                 sysevent_get(sefd, setok, "lan_prefix", last_broadcasted_prefix, sizeof(last_broadcasted_prefix));
             }
             else
+        #endif /** _SCER11BEL_PRODUCT_REQ_ */		    
             {
                 sysevent_get(sefd, setok, "ipv6_prefix", last_broadcasted_prefix, sizeof(last_broadcasted_prefix));
             }
@@ -1240,9 +1246,11 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 	{
 		char val_DNSServersEnabled[ 32 ];
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
         if ( TRUE == IsThisCurrentPartnerID("sky-") )
         {
+#endif /** _SCER11BEL_PRODUCT_REQ_ || _XER2_PRODUCT_REQ_ */		
             syscfg_get(NULL, "dhcpv6s00::servertype", server_type, sizeof(server_type));
             if (strncmp(server_type, "1", 1) == 0) {
                 syscfg_set(NULL, "router_managed_flag", "1");
@@ -1377,16 +1385,16 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
                 fprintf(fp, "   ipv6 nd ra-interval 30\n"); //Set ra-interval to default 30 secs as per Erouter Specs.
             }
 #else
-#if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_) ) || defined (_WNXL11BWL_PRODUCT_REQ_) 
+#if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_) ) || defined (_WNXL11BWL_PRODUCT_REQ_)
         fprintf(fp, "   ipv6 nd ra-interval 3\n");
 #else
-#if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
         if ( FALSE == IsThisCurrentPartnerID("sky-") )
         {
             fprintf(fp, "   ipv6 nd ra-interval 3\n");
         }
         else
-#endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
+#endif /** _SCER11BEL_PRODUCT_REQ_ , _XER2_PRODUCT_REQ_ */
         {
             fprintf(fp, "   ipv6 nd ra-interval 180\n");
         }
@@ -1725,7 +1733,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 			for (start = name_servs; (tok = strtok_r(start, " ", &sp)); start = NULL)
 			{
 			// Modifying rdnss value to fix the zebra config.
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)				
                         if( TRUE == IsThisCurrentPartnerID("sky-") ) 
                         {
                             if (0 == strncmp(lan_addr, tok, strlen(lan_addr)))
@@ -1737,6 +1746,13 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
                         {
                             fprintf(fp, "   ipv6 nd rdnss %s %d\n", tok, rdnsslft);
                         }
+#else
+                        if (0 == strncmp(lan_addr, tok, strlen(lan_addr)))
+                        {
+                            fprintf(fp, "   ipv6 nd rdnss %s %d\n", tok, rdnsslft);
+
+                        }
+#endif /** _SCER11BEL_PRODUCT_REQ_, _XER2_PRODUCT_REQ_ */			 
 #else
                         fprintf(fp, "   ipv6 nd rdnss %s %d\n", tok, rdnsslft);
 #endif
@@ -2136,8 +2152,10 @@ STATIC int radv_start(struct serv_routed *sr)
         return -1;
     }
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_)  || defined(_XER2_PRODUCT_REQ_)    
     if( TRUE == IsThisCurrentPartnerID("sky-") ) 
+#endif /** _SCER11BEL_PRODUCT_REQ_ , _XER2_PRODUCT_REQ_ */
     {
         /*
         *   signal zebra to update configuration
