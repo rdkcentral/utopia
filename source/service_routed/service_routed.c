@@ -579,9 +579,9 @@ STATIC int route_set(struct serv_routed *sr)
 #endif
 
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_)    
+#if defined(_SCER11BEL_PRODUCT_REQ_)
     if ( TRUE == IsThisCurrentPartnerID("sky-") )
-#endif /* _SCER11BEL_PRODUCT_REQ_ */	    
+#endif /* _SCER11BEL_PRODUCT_REQ_ */
     {
         /*Clean 'iif brlan0 table erouter' if exist already*/
 #ifdef CORE_NET_LIB
@@ -1059,7 +1059,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
                 sysevent_get(sefd, setok, "lan_prefix", prefix, sizeof(prefix));
             }
             else
-        #endif /** _SCER11BEL_PRODUCT_REQ_ */		    
+        #endif /** _SCER11BEL_PRODUCT_REQ_ */
             {
                 sysevent_get(sefd, setok, "ipv6_prefix", prefix, sizeof(prefix));
             }
@@ -1072,13 +1072,13 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     if (gModeSwitched == ULA_IPV6)
     {
         #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
-        #if defined(_SCER11BEL_PRODUCT_REQ_)	    
+        #if defined(_SCER11BEL_PRODUCT_REQ_)
             if ( FALSE == IsThisCurrentPartnerID("sky-") )
             {
                 sysevent_get(sefd, setok, "lan_prefix", last_broadcasted_prefix, sizeof(last_broadcasted_prefix));
             }
             else
-        #endif /** _SCER11BEL_PRODUCT_REQ_ */		    
+        #endif /** _SCER11BEL_PRODUCT_REQ_ */
             {
                 sysevent_get(sefd, setok, "ipv6_prefix", last_broadcasted_prefix, sizeof(last_broadcasted_prefix));
             }
@@ -2153,7 +2153,7 @@ STATIC int radv_start(struct serv_routed *sr)
     }
 
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_)  || defined(_XER2_PRODUCT_REQ_)    
+#if defined(_SCER11BEL_PRODUCT_REQ_)  || defined(_XER2_PRODUCT_REQ_)
     if( TRUE == IsThisCurrentPartnerID("sky-") ) 
 #endif /** _SCER11BEL_PRODUCT_REQ_ , _XER2_PRODUCT_REQ_ */
     {
