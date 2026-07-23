@@ -90,6 +90,74 @@ set_chrony_sync_status() {
     exit 0
 }
 
+# ───────────────────────────────────────────────────────────────────────────────────────────
+# chrony_sources_reachable: return 0 if at least one chrony source is reachable
+#   Reachability register (reach) is a non-zero octal value once a source has
+#   answered at least one recent poll.
+# ──────────────────────────────────────────────────────────────────────────────────────────
+chrony_sources_reachable() {
+    chronyc -n sources 2>/dev/null | awk '
+        NR>2 && NF>=7 {
+            if ($(NF-3) != "0" && $(NF-3) != "") { found=1 }
+        }
+        END { exit (found?0:1) }
+    '
+}
+
+# ────────────────────────────────────────────────────────────────────────────────────────────
+# chrony_offset_exceeds_threshold: return 0 if |Last offset| > 1.0s
+# ──────────────────────────────────────────────────────────────────────────────────────────
+chrony_offset_exceeds_threshold() {
+    local offset
+    offset=$(chronyc tracking 2>/dev/null | awk -F: '/Last offset/ {print $2}' | awk '{print $1}')
+    [ -n "$offset" ] || return 1
+    awk -v o="$offset" 'BEGIN { if (o<0) o=-o; exit (o>1.0?0:1) }'
+}
+
+# ──────────────────────────────────────────────────────────────────────────────────────────
+# chrony_fast_resync: on network reconnect (chronyd already running and a prior
+#   sync happened this boot), bring the clock up to date quickly without
+#   restarting chronyd. Uses chronyc control commands only.
+#     - Sources unreachable : online -> burst -> waitsync (bounded) -> makestep
+#     - Sources reachable    : makestep only when |offset| > 1.0s
+# ──────────────────────────────────────────────────────────────────────────────────────────
+chrony_fast_resync() {
+    # Reconnect only: require chronyd running and a prior sync this boot
+    if ! pidof "$CHRONY_BIN" > /dev/null 2>&1; then
+        return 0
+    fi
+    if [ ! -f "$NTP_SYNCED_FILE" ]; then
+        # First sync has not happened this boot — let the normal start path handle it
+        return 0
+    fi
+
+    if chrony_sources_reachable; then
+        # Sources already reachable — a recent measurement exists; step only if needed
+        if chrony_offset_exceeds_threshold; then
+            echo_t "SERVICE_CHRONYD : fast-resync — sources reachable, offset > 1.0s, stepping" >> $NTPD_LOG_NAME
+            chronyc makestep > /dev/null 2>&1
+        else
+            echo_t "SERVICE_CHRONYD : fast-resync — sources reachable, offset <= 1.0s, no step" >> $NTPD_LOG_NAME
+        fi
+        return 0
+    fi
+
+    # Sources unreachable — re-acquire, force a fresh measurement, then step
+    echo_t "SERVICE_CHRONYD : fast-resync — sources unreachable, online+burst+waitsync" >> $NTPD_LOG_NAME
+    chronyc online > /dev/null 2>&1
+    chronyc burst 4/4 > /dev/null 2>&1
+    # Bounded wait: max 10 tries, no max-correction limit (0). Backgrounded so the
+    # sysevent dispatcher and lockfile are not held for the wait duration.
+    (
+        if chronyc waitsync 10 0 > /dev/null 2>&1; then
+            echo_t "SERVICE_CHRONYD : fast-resync — waitsync succeeded, stepping" >> $NTPD_LOG_NAME
+            chronyc makestep > /dev/null 2>&1
+        else
+            echo_t "SERVICE_CHRONYD : fast-resync — waitsync timed out, no step (chronyd continues)" >> $NTPD_LOG_NAME
+        fi
+    ) &
+}
+
 waitForConnChkFile()
 { 
        echo_t "SERVICE_NTPD CONNCHK: Waiting for connection check for  completion..." >> $NTPD_LOG_NAME
@@ -257,9 +325,15 @@ case "$1" in
         ;;
     wan-status)
         if [ "started" = "$CURRENT_WAN_STATUS" ]; then
-            # service_start() already guards against duplicate instances via pidof
-            echo_t "SERVICE_CHRONYD : wan-status=started, calling service_start" >> $NTPD_LOG_NAME
-            service_start
+            if pidof "$CHRONY_BIN" > /dev/null 2>&1 && [ -f "$NTP_SYNCED_FILE" ]; then
+                # Reconnect after a prior sync — fast-resync without restarting chronyd
+                echo_t "SERVICE_CHRONYD : wan-status=started (reconnect), running fast-resync" >> $NTPD_LOG_NAME
+                chrony_fast_resync
+            else
+                # First sync this boot — service_start() guards against duplicate instances via pidof
+                echo_t "SERVICE_CHRONYD : wan-status=started, calling service_start" >> $NTPD_LOG_NAME
+                service_start
+            fi
         fi
         ;;
     *)
