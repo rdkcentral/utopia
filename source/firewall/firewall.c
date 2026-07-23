@@ -9562,9 +9562,24 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                     /* Use explicit port if given (e.g. :8443), otherwise default to 443.
                      * SNI -- Server Name indication  */
                     const char *pServerNameIndiDport = (nstdPort[0] != '\0') ? nstdPort : "443";
-                    fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport %s "
-                        "-m string --string \"%s\" --algo kmp --to 2048 --icase "
-                        "-j %s\n", pServerNameIndiDport, pMatchStr, cRejectLog);
+                    /* Validate hostname before embedding into iptables-restore:
+                     * allow only RFC-valid hostname chars (alnum, dot, hyphen) to prevent
+                     * quote/injection issues.  Also skip for port 80 — TLS SNI is not
+                     * present in plain HTTP traffic. */
+                    int iValidSniHost = (pMatchStr[0] != '\0') &&
+                                        (strcmp(pServerNameIndiDport, "80") != 0);
+                    const unsigned char *pSch;
+                    for (pSch = (const unsigned char *)pMatchStr;
+                         iValidSniHost && *pSch != '\0'; ++pSch) {
+                        if (!(isalnum((int)*pSch) || *pSch == '.' || *pSch == '-')) {
+                            iValidSniHost = 0;
+                        }
+                    }
+                    if (iValidSniHost) {
+                        fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport %s "
+                            "-m string --string \"%s\" --algo kmp --to 2048 --icase "
+                            "-j %s\n", pServerNameIndiDport, pMatchStr, cRejectLog);
+                    }
                 }
             }
             else if (strncasecmp(method, "KEYWD", 5)==0)
