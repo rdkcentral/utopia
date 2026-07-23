@@ -2384,7 +2384,7 @@ static int prepare_globals_from_configuration(void)
    sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_ifname, sizeof(current_wan_ifname));
 #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
     if ('\0' == current_wan_ifname[0]) {
-	  char wanInterface[BUFLEN_64] = {'\0'};	
+	  char wanInterface[20] = {'\0'};	
       syscfg_get(NULL, "wan_physical_ifname", wanInterface, sizeof(wanInterface));
 	  if(wanInterface[0] != '\0'){     
         snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", wanInterface);
