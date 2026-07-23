@@ -2148,10 +2148,10 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
 	     }
 	     else
 	     {
-		 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+		 sysevent_get(sysevent_fd, sysevent_token, "lan_prefix", prefix, sizeof(prefix));
 	     }
          #else
-	     sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+	     sysevent_get(sysevent_fd, sysevent_token, "lan_prefix", prefix, sizeof(prefix));
          #endif
 	 }
 	 if (strlen(prefix) != 0)

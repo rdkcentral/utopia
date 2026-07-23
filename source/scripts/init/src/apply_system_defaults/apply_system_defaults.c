@@ -635,6 +635,12 @@ static char *json_file_parse (char *path)
 static int writeToJson(char *data, char *file)
 {
     FILE 	*fp;
+    if (!data || strlen(data) == 0)
+    {
+        APPLY_PRINT("%s-%d : Empty data, skipping write to %s\n", __FUNCTION__, __LINE__, file);
+        return -1;
+    }
+
     fp = fopen(file, "w");
     if (fp == NULL) 
     {
@@ -3490,7 +3496,18 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 		isMigrationReq = 1;
 		APPLY_PRINT("%s - Device in Reboot mode, Syndication Migration Required\n", __FUNCTION__ )
 	}
-	
+#ifdef _ONESTACK_PRODUCT_REQ_
+	else // For OneStack, an empty devicemode indicates migration is required
+	{
+		char deviceMode[16] = {0};
+		if ( !((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0')) )
+		{
+			isMigrationReq = 1;
+			APPLY_PRINT("%s -  devicemode is empty, Migration Required\n", __FUNCTION__ )
+		}
+	}
+#endif
+
   }
   else
   {
@@ -3599,16 +3616,26 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
        {
            if (access(BOOTSTRAP_INFO_FILE_BACKUP, F_OK) == 0)
            {
-               //If backup file exists, compare and copy it to /opt/secure/bootstrap.json
-               if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
+               char *ptr_nvram_bkup_json = NULL;
+               ptr_nvram_bkup_json = json_file_parse(BOOTSTRAP_INFO_FILE_BACKUP);
+               if (ptr_nvram_bkup_json)
                {
-                   char *ptr_nvram_bkup_json = NULL;
-                   ptr_nvram_bkup_json = json_file_parse(BOOTSTRAP_INFO_FILE_BACKUP);
-                   if (ptr_nvram_bkup_json)
-                   {
+                  //If backup file exists, compare and copy it to /opt/secure/bootstrap.json
+                  if ((flags & NVRAM_BOOTSTRAP_CLEARED) == 0)
+                  {
                        APPLY_PRINT("%s-%d Comparing %s and %s\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE_BACKUP, PARTNERS_INFO_FILE_ETC);
                        compare_partner_json_param( ptr_nvram_bkup_json, ptr_etc_json, PartnerID );
-                       free(ptr_nvram_bkup_json);
+                   }
+                   free(ptr_nvram_bkup_json);
+               }
+               else
+               {
+                   APPLY_PRINT("%s-%d %s is empty, initializing bootstrap\n", __FUNCTION__, __LINE__, BOOTSTRAP_INFO_FILE_BACKUP);
+                   ptr_nvram_json = json_file_parse( PARTNERS_INFO_FILE );
+                   init_bootstrap_json( ptr_nvram_json, ptr_etc_json, PartnerID );
+                   if ( ptr_nvram_json )
+                   {
+                       free( ptr_nvram_json );
                    }
                }
            }
