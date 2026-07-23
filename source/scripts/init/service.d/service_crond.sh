@@ -96,9 +96,9 @@ service_start ()
       if [ "$MOCA_SUPPORTED" != "false" ]; then
           echo "1 */12 * * *  /usr/ccsp/pam/moca_status.sh" >> $CRONTAB_FILE
       fi
-#RDKB-17984: Runs every 12 hours and prints mesh status
+#RDKB-17984: Runs every 2 hours and prints mesh status
       if [ "$BOX_TYPE" != "XB3" ]; then
-       echo "1 */12 * * *  /usr/ccsp/wifi/mesh_status.sh" >> $CRONTAB_FILE
+       echo "1 */2 * * *  /usr/ccsp/wifi/mesh_status.sh" >> $CRONTAB_FILE
       fi
 
       if [ "$BOX_TYPE" == "XB3" ]; then
@@ -187,14 +187,9 @@ service_start ()
             RESOURCE_MONITOR_INTERVAL=15
          fi
          echo "*/$RESOURCE_MONITOR_INTERVAL * * * * /usr/ccsp/tad/resource_monitor.sh" >> $CRONTAB_FILE
-	  	   
-        # Monitor self_heal_connectivity_test.sh based on syscfg value 
-         SELFHEAL_PING_INTERVAL=$(syscfg get ConnTest_PingInterval)
-         if [ -z "$SELFHEAL_PING_INTERVAL" ]; then
-            SELFHEAL_PING_INTERVAL=60
-         fi
-         echo "*/$SELFHEAL_PING_INTERVAL * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE 
-	      echo_t "Selfheal cron jobs are started"
+
+         echo "*/10 * * * * /usr/ccsp/tad/self_heal_connectivity_test.sh" >> $CRONTAB_FILE 
+	     echo_t "Selfheal cron jobs are started"
    
       else
 	      echo_t "Selfheal cron is disabled"
@@ -327,10 +322,37 @@ service_start ()
 			echo_t "This Device WAN TYPE is not DOCSIS, Needed DOCSIS type Device for WANLinkHeal"
 		fi
 
+        MEMSWAP_ENABLE=`syscfg get MemorySwapEnable`
+        if [ "$MEMSWAP_ENABLE" = "true" ]; then
+            MEMSWAP_INTERVAL=`syscfg get MemorySwapStatsIntervalMinutes`
+            if [ -n "$MEMSWAP_INTERVAL" ] && [ "$MEMSWAP_INTERVAL" -gt 0 ]; then
+                case "$MEMSWAP_INTERVAL" in
+                    10|12|15|20|30)
+                        # Run every MEMSWAP_INTERVAL minutes
+                        cron_minute="*/$MEMSWAP_INTERVAL"
+                        cron_hour="*"
+                        ;;
+                    60)
+                        # Run every hour at minute 0
+                        cron_minute="0"
+                        cron_hour="*"
+                        ;;
+                    120)
+                        # Run every 2 hours at minute 0
+                        cron_minute="0"
+                        cron_hour="*/2"
+                        ;;
+                    *)
+                        echo_t "Invalid MemorySwapStatsIntervalMinutes value: $MEMSWAP_INTERVAL. Please set it to one of the following values: 10, 12, 15, 20, 30, 60, or 120."
+                        ;;
+                esac
+
+                if [ -n "$cron_minute" ] && [ -n "$cron_hour" ]; then
+                    echo "$cron_minute $cron_hour * * * /usr/ccsp/tad/zram_stats.sh" >> $CRONTAB_FILE
+                fi
+            fi
+        fi
    fi
- 
-
-
  
    # start the cron daemon
    # echo "[utopia][registration] Starting cron daemon"

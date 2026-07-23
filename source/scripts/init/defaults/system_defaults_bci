@@ -90,7 +90,15 @@ $$Version=14
 #@wl1_radio_type=dual      0x00000004
 #@wl1_radio_band="2.4g 5g" 0x00000004
 #@wl1_osifname=eth2        0x00000004
-
+@MeshWANInterface_UlaAddr=fd01:1010:b066:798e:5528:ef02:7af4:e28/64
+@MeshRemoteWANInterface_UlaAddr=fd01:1010:b066:798e:3465:bfff:fe1a:8f46/64
+@MeshWanInterface_UlaPref=fd01:1010:b066:798e::/64
+@ipv6_prefix_ula=fd01:646:8a00:bee0::/64
+@brlan1_ipaddr_v6_ula=fd01:646:8a00:bee4::/64
+@br106_ipaddr_v6_ula=fd01:646:8a00:bee5::/64
+@br403_ipaddr_v6_ula=fd01:646:8a00:bee6::/64
+@brlan10_ipaddr_v6_ula=fd01:646:8a00:bee7::/64
+@brlan15_ipaddr_v6_ula=fd01:646:8a00:bee8::/64
 
 #-------------------------------------------------------------------
 #     syscfg namespace
@@ -1074,7 +1082,8 @@ $PeriodicFWCheck_Enable=false
 
 #Minimum memory threshold value
 $MinMemoryThreshold_Value=10
-
+#Target uptime to run memory compaction
+$MemCompactionDelaySecs=900
 #ipv6 pd
 $lan_pd_interfaces=brlan0
 @erouter_topology-mode=1
@@ -1112,7 +1121,7 @@ $unique_telemetry_interval=0
 
 #SNMPv3 control default values
 $V3Support=false
-$dmesglogsync_interval=900
+$dmesglogsync_interval=60
 
 #ForwardSSH is enabled by default
 $ForwardSSH=true
@@ -1139,8 +1148,8 @@ $SNMP_RestartMaintenanceEnable=true
 $DeferFWDownloadReboot=290
 
 #SelfHeal Log Backup
-$log_backup_enable=false
-$log_backup_threshold=0
+$log_backup_enable=true
+$log_backup_threshold=3
 
 #EthAgent Logging default values
 $eth_log_enabled=false
@@ -1243,11 +1252,8 @@ $DLCaStoreEnabled=false
 $low_queue_reboot_threshold=0
 
 #ocsp staple support
-$EnableOCSPStapling=false
-$EnableOCSPCA=false
-
-#Use XPKI certificate for lnf
-$LnFUseXPKI_Enable=true
+$EnableOCSPStapling=true
+$EnableOCSPCA=true
 
 # Dynamic DNS
 $dynamic_dns_enable=0
@@ -1312,7 +1318,7 @@ $DscpEnabledList_2=
 $DscpSleepInterval_2=0
 
 #Direct Download Enable default value
-$SWDLDirectEnable=false
+$SWDLDirectEnable=true
 
 #DeviceType default value
 $DeviceType=PROD
@@ -1355,3 +1361,11 @@ $StageEnabled=false
 
 #RdkLogger Cron - RFC flag is enabled by default
 $RdkbLogCronEnable=true
+
+#Memory swap defaults
+$MemorySwapEnable=true
+$MemorySwapDiskSizeMB=300
+$MemorySwapStatsIntervalMinutes=30
+$MemorySwapTunablesSwappiness=200
+$MemorySwapTunablesWatermarkScaleFactor=80
+$MemorySwapTunablesPageCluster=0

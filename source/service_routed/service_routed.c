@@ -50,6 +50,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
+#include <sys/time.h>
 #include <net/if.h>
 #include <signal.h>
 #include "safec_lib_common.h"
@@ -164,6 +166,20 @@ STATIC int IsFileExists(char *file_name)
 #define LOG_FILE_NAME "/rdklogs/logs/Consolelog.txt.0"
 FILE *logfptr=NULL;
 
+#define ROUTED_LOG(fmt, ...) \
+    do { \
+        FILE *_fp = logfptr ? logfptr : stderr; \
+        struct timeval _tv; \
+        struct tm _tm_buf; \
+        gettimeofday(&_tv, NULL); \
+        if (localtime_r(&_tv.tv_sec, &_tm_buf)) \
+            fprintf(_fp, "%02d%02d%02d-%02d:%02d:%02d.%06ld " fmt, \
+                _tm_buf.tm_year % 100, _tm_buf.tm_mon + 1, _tm_buf.tm_mday, \
+                _tm_buf.tm_hour, _tm_buf.tm_min, _tm_buf.tm_sec, \
+                (long)_tv.tv_usec, ##__VA_ARGS__); \
+        else \
+            fprintf(_fp, fmt, ##__VA_ARGS__); \
+    } while (0)
 
 #ifdef WAN_FAILOVER_SUPPORTED
 enum ipv6_mode {
@@ -922,10 +938,11 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         "!log stdout\n"
         "log file /var/tmp/zebra.log errors\n"
         "table 255\n";
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     int i = 0;
-    unsigned int l2_insts[4] = {0};
     unsigned int enabled_iface_num = 0;
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+    bool multilan_pd_enabled = false;
+    unsigned int l2_insts[4] = {0};
     char evt_name[64] = {0};
 #endif
     int  StaticDNSServersEnabled = 0;
@@ -950,7 +967,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     char default_wan_interface[64] = {0};
     char wan_interface[64] = {0};
 #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
-    char mesh_wan_ifname[32];
+    char mesh_wan_ifname[32] = {0};
     char *pStr = NULL;
     int return_status = PSM_VALUE_GET_STRING(PSM_MESH_WAN_IFNAME,pStr);
     if(return_status == CCSP_SUCCESS && pStr != NULL){
@@ -1166,34 +1183,38 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     syscfg_get(NULL, "last_erouter_mode", rtmod, sizeof(rtmod));
 
 
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined (_ONESTACK_PRODUCT_REQ_)
-    int multilan_enabled = 0;
-    int pd_enabled = 0;
-
-#if defined(MULTILAN_FEATURE)
-    multilan_enabled = 1;
-#endif
-#if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
-    pd_enabled = 1;
-#endif
-
-    #ifdef _ONESTACK_PRODUCT_REQ_
-        pd_enabled = isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION);
-    #endif
-
-    if (pd_enabled || multilan_enabled)
-    {
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     get_active_lanif(sefd, setok, l2_insts, &enabled_iface_num);
+    #ifdef _ONESTACK_PRODUCT_REQ_
+    if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+    {
+        multilan_pd_enabled = true;   // runtime-controlled
+    }
+    else
+    {
+        enabled_iface_num = 1;            // single execution
+    }
+    #else
+        multilan_pd_enabled = true;       // Cisco/MULTILAN → always enabled
+    #endif //_ONESTACK_PRODUCT_REQ_
+#else 
+    enabled_iface_num = 1;            // single execution
+#endif 
+
     for (i = 0; i < enabled_iface_num; i++)
     {
-        snprintf(evt_name, sizeof(evt_name), "multinet_%d-name", l2_insts[i]);
-        sysevent_get(sefd, setok, evt_name, lan_if, sizeof(lan_if));
-        snprintf(evt_name, sizeof(evt_name), "ipv6_%s-prefix", lan_if);
-        sysevent_get(sefd, setok, evt_name, prefix, sizeof(prefix));
-        snprintf(evt_name, sizeof(evt_name), "ipv6_%s-addr", lan_if);
-        sysevent_get(sefd, setok, evt_name, lan_addr, sizeof(lan_addr));
-#endif
-//RDKB-47758
+#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
+	if (multilan_pd_enabled )
+	{
+	    snprintf(evt_name, sizeof(evt_name), "multinet_%d-name", l2_insts[i]);
+	    sysevent_get(sefd, setok, evt_name, lan_if, sizeof(lan_if));
+	    snprintf(evt_name, sizeof(evt_name), "ipv6_%s-prefix", lan_if);
+	    sysevent_get(sefd, setok, evt_name, prefix, sizeof(prefix));
+	    snprintf(evt_name, sizeof(evt_name), "ipv6_%s-addr", lan_if);
+	    sysevent_get(sefd, setok, evt_name, lan_addr, sizeof(lan_addr));
+	}
+#endif 
+	//RDKB-47758
 #ifdef WAN_FAILOVER_SUPPORTED
 	if (gIpv6AddrAssignment == ULA_IPV6)
     {
@@ -1776,10 +1797,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     fprintf(fp, "interface %s\n", lan_if);
     fprintf(fp, "   ip irdp multicast\n");
 
-#if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     } //for (i = 0; i < enabled_iface_num; i++)
-    }
-#endif
 
 #if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
 #ifdef _ONESTACK_PRODUCT_REQ_
@@ -2073,6 +2091,7 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 #endif 
 STATIC int radv_start(struct serv_routed *sr)
 {
+    ROUTED_LOG("%s: Entering\n", __FUNCTION__);
 
 #ifdef RDKB_EXTENDER_ENABLED
     int deviceMode = GetDeviceNetworkMode();
@@ -2109,9 +2128,10 @@ STATIC int radv_start(struct serv_routed *sr)
     }
 #else
 
-    char aBridgeMode[8];
+    char aBridgeMode[8] = {0};
     syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
 
+    ROUTED_LOG("%s: bridge_mode %s and LAN ready = %d\n", __FUNCTION__, aBridgeMode, sr->lan_ready);
     if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
@@ -2175,6 +2195,7 @@ STATIC int radv_start(struct serv_routed *sr)
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
 #else
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
+    ROUTED_LOG("%s: zebra started\n", __FUNCTION__);
 #endif
 
     return 0;
@@ -2409,11 +2430,17 @@ STATIC int serv_routed_init(struct serv_routed *sr)
 
     sysevent_get(sr->sefd, sr->setok, "wan-status", wan_st, sizeof(wan_st));
     if (strcmp(wan_st, "started") == 0)
+    {
         sr->wan_ready = true;
+        ROUTED_LOG("%s: WAN is ready and value = %d\n", __FUNCTION__, sr->wan_ready);
+    }
     
     sysevent_get(sr->sefd, sr->setok, "lan-status", lan_st, sizeof(lan_st));
     if (strcmp(lan_st, "started") == 0)
+    {
         sr->lan_ready = true;
+        ROUTED_LOG("%s: LAN is ready and value = %d\n", __FUNCTION__, sr->lan_ready);
+    }
 
     return 0;
 }

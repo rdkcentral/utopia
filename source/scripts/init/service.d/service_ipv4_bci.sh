@@ -321,12 +321,13 @@ load_static_l3 () {
 #args: l3 instance
 #envin: LOWER
 teardown_instance () {
-    if [ x != x"$LOWER" ] || [ x != x"`sysevent get ${SERVICE_NAME}_"${1}"-lower`" ]; then
-        async="`sysevent get ${SERVICE_NAME}_"${1}"-l2async`"
-        sysevent rm_async "$async"
-        remove_config "$1"
-        sysevent set ${SERVICE_NAME}_"${1}"-l2async
-        sysevent set ${SERVICE_NAME}_"${1}"-lower
+    INST_LOWER=$(sysevent get ${SERVICE_NAME}_${1}-lower)
+    if [ x != x"$LOWER" ] || [ x != x"$INST_LOWER" ]; then
+        async=$(sysevent get ${SERVICE_NAME}_${1}-l2async)
+        sysevent rm_async $async
+        remove_config $1
+        sysevent set ${SERVICE_NAME}_${1}-l2async
+        sysevent set ${SERVICE_NAME}_${1}-lower
         
         ACTIVE_INST="`sysevent get ${SERVICE_NAME}-instances`"
         ACTIVE_INST="`echo "$ACTIVE_INST" | sed 's/ *\<'"$1"'\> */ /'`"

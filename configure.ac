@@ -105,7 +105,7 @@ if test x"${MACHINE}" != x; then
                      [The machine type])
 fi
 
-AM_CONDITIONAL([MACHINE_SCXER10], [test "x$MACHINE" = "xscxer10"])
+AM_CONDITIONAL([MACHINE_SCXER10], [echo "$MACHINE" | grep -q "scxer10"])
 
 AM_CONDITIONAL([MULTILAN_FEATURE], [test "$MULTILAN_FEATURE" = "yes"])
 AM_CONDITIONAL([CPC_FIREWALL_ENABLE], [test "x$CPC_FIREWALL_ENABLE" = "xtrue"])
@@ -240,6 +240,18 @@ AC_ARG_ENABLE([hotspot],
            ],
         [enable_hotspot=true])
 AM_CONDITIONAL([ENABLE_HOTSPOT_SERVICE], [test x$enable_hotspot = xtrue])
+
+AC_ARG_ENABLE([igmpmld],
+         AS_HELP_STRING([--enable-igmpmld],[Enable igmpmld]),
+        [
+          case "${enableval}" in
+            yes) enable_igmpmld=true ;;
+            no) enable_igmpmld=false ;;
+            *) AC_MSG_ERROR([bad value ${enableval} for --enable-igmpmld]) ;;
+          esac
+           ],
+        [enable_igmpmld=true])
+AM_CONDITIONAL([ENABLE_MCAST_SERVICE], [test x$enable_igmpmld = xtrue])
 
 AC_CONFIG_FILES(
 	Makefile
