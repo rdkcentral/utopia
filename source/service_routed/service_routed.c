@@ -1385,7 +1385,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
                 fprintf(fp, "   ipv6 nd ra-interval 30\n"); //Set ra-interval to default 30 secs as per Erouter Specs.
             }
 #else
-#if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_) ) || defined (_WNXL11BWL_PRODUCT_REQ_)
+#if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_) ) || defined (_WNXL11BWL_PRODUCT_REQ_)
         fprintf(fp, "   ipv6 nd ra-interval 3\n");
 #else
 #if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
