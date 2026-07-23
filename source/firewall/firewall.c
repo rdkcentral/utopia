@@ -9412,13 +9412,8 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
             fprintf(fp, ":LOG_SiteBlocked_%d_DROP - [0:0]\n", idx);
             fprintf(fp, "-A LOG_SiteBlocked_%d_DROP -m limit --limit 1/minute --limit-burst 1  -j LOG --log-prefix LOG_SiteBlocked_%d_DROP --log-level %d\n", idx, idx, syslog_level);
 
-            /* Parallel REJECT chain used by the SNI string match rule.
-             * The existing DROP chain ends with DROP (or NFQUEUE for walled garden),
-             * which causes TCP retransmit cycles that can bypass the string match via
-             * segment fragmentation.  This REJECT chain terminates with
-             * REJECT --reject-with tcp-reset so the client receives an immediate RST
-             * and never retransmits, while still going through the same rate-limited
-             * LOG path as the DROP chain for consistent logging. */
+            /* Parallel REJECT chain for SNI string match — uses REJECT instead of DROP
+             * to send an immediate RST and prevent TCP retransmit-induced SNI fragmentation bypass. */
             char cRejectLog[64];
             snprintf(cRejectLog, sizeof(cRejectLog), "LOG_SiteBlocked_%d_REJECT", idx);
             fprintf(fp, ":%s - [0:0]\n", cRejectLog);
@@ -9556,65 +9551,20 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 
                 block_url_by_ipaddr(fp, query + host_name_offset, drop_log, iptype, ins_num, nstdPort);
 
-                 /* WHY xt_string instead of httphost:
-                 *   The existing httphost module inspects the unencrypted HTTP/1.1 Host header
-                 *   (port 80 only). For HTTPS/443 the Host header is inside the encrypted
-                 *   payload.  However, the TLS ClientHello SNI extension is sent in plaintext
-                 *   before the handshake completes, making it visible to xt_string.
-                 *
-                 * WHY the per-IP rule alone is not sufficient:
-                 *   block_url_by_ipaddr() resolves the domain once at firewall-restart and
-                 *   caches the result.  CDN providers (Cloudflare, Vercel, Meta, Akamai) serve
-                 *   sites from anycast pools; the IP returned by DNS at test time often differs
-                 *   from the cached IP.  The per-IP UDP/443 rule covers the cached IP; the
-                 *   xt_string rule covers ALL destination IPs because it matches on SNI content,
-                 *   not on destination address.
-                 *
-                 * WHY REJECT --reject-with tcp-reset instead of DROP:
-                 *   DROP silently discards the packet.  The client does not know the packet was
-                 *   lost and retransmits.  After ~8 retransmit cycles TCP congestion control
-                 *   shrinks the window until the MSS is smaller than the SNI string (12 bytes
-                 *   for "facebook.com").  The TLS ClientHello is then split across two TCP
-                 *   segments; xt_string is per-packet and cannot reassemble streams, so neither
-                 *   half-segment matches and the connection succeeds.  REJECT sends an immediate
-                 *   RST, the client tears down the connection instantly with no retransmits, and
-                 *   the fragmentation bypass never occurs.
-                 *
-                 * KNOWN LIMITATIONS (tested July 16-23, 2026):
-                 *   - Blocks TCP only.  QUIC (UDP/443) carries its own TLS ClientHello; the
-                 *     xt_string module does not parse QUIC framing so this rule has no effect
-                 *     on QUIC traffic.  QUIC is addressed separately by the per-IP UDP rule in
-                 *     block_url_by_ipaddr(), but only for the cached IP.
-                 *   - QUIC to CDN IPs not cached at firewall-restart bypasses both rules.
-                 *   - iCloud Private Relay (iOS) tunnels all traffic through Apple relay
-                 *     servers; the gateway never sees the destination SNI.
-                 *
-                 * RULE SCOPE:
-                 *   Only applied for TEXT_URL (hostname-based) entries on standard ports.
-                 *   Strip leading "www." so the pattern covers all subdomains generically:
-                 *   "www.facebook.com" -> match string "facebook.com" catches m.facebook.com,
-                 *   graph.facebook.com, edge-star-mini6-shv-01-sjc6.facebook.com, etc. */
-                if (urlType == TEXT_URL && nstdPort[0] == '\0') {
+                /* Block TCP/443 by matching the TLS ClientHello SNI via xt_string.
+                 * Strips leading "www.", covers all subdomains, uses REJECT to prevent fragmentation bypass.
+                 * Limitation: TCP only — QUIC and iCloud Private Relay bypass this rule. */
+                if (urlType == TEXT_URL) {
                     const char *pMatchStr = query + host_name_offset;
                     if (strncasecmp(pMatchStr, "www.", 4) == 0) {
                         pMatchStr += 4;
                     }
-                    /* NOTE (PR review): xt_string performs a substring match, so
-                     * matching "facebook.com" will also match any SNI that contains
-                     * that string as a substring (e.g. "notfacebook.com").  In
-                     * practice this is not a concern because end users configure
-                     * specific domains they intend to block and browsers always send
-                     * the exact destination hostname as the SNI.  Using --hex-string
-                     * with the TLS SNI length prefix would add exact-host semantics
-                     * but would require computing a per-domain hex pattern and is
-                     * fragile across TLS versions; the substring match is accepted.
-                     *
-                     * This rule targets LOG_SiteBlocked_%d_REJECT (not DROP) so that
-                     * blocking is logged consistently with the other managed-site rules
-                     * while using REJECT to prevent the TCP fragmentation bypass. */
-                    fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 "
-                        "-m string --string \"%s\" --algo kmp --to 65535 --icase "
-                        "-j %s\n", pMatchStr, cRejectLog);
+                    /* Use explicit port if given (e.g. :8443), otherwise default to 443.
+                     * SNI -- Server Name indication  */
+                    const char *pServerNameIndiDport = (nstdPort[0] != '\0') ? nstdPort : "443";
+                    fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport %s "
+                        "-m string --string \"%s\" --algo kmp --to 2048 --icase "
+                        "-j %s\n", pServerNameIndiDport, pMatchStr, cRejectLog);
                 }
             }
             else if (strncasecmp(method, "KEYWD", 5)==0)
