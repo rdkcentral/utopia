@@ -3496,7 +3496,18 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 		isMigrationReq = 1;
 		APPLY_PRINT("%s - Device in Reboot mode, Syndication Migration Required\n", __FUNCTION__ )
 	}
-	
+#ifdef _ONESTACK_PRODUCT_REQ_
+	else // For OneStack, an empty devicemode indicates migration is required
+	{
+		char deviceMode[16] = {0};
+		if ( !((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0')) )
+		{
+			isMigrationReq = 1;
+			APPLY_PRINT("%s -  devicemode is empty, Migration Required\n", __FUNCTION__ )
+		}
+	}
+#endif
+
   }
   else
   {
