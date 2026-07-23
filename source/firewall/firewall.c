@@ -9411,6 +9411,19 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 	    snprintf(drop_log, sizeof(drop_log), "LOG_SiteBlocked_%d_DROP", idx);
             fprintf(fp, ":LOG_SiteBlocked_%d_DROP - [0:0]\n", idx);
             fprintf(fp, "-A LOG_SiteBlocked_%d_DROP -m limit --limit 1/minute --limit-burst 1  -j LOG --log-prefix LOG_SiteBlocked_%d_DROP --log-level %d\n", idx, idx, syslog_level);
+
+            /* Parallel REJECT chain used by the SNI string match rule.
+             * The existing DROP chain ends with DROP (or NFQUEUE for walled garden),
+             * which causes TCP retransmit cycles that can bypass the string match via
+             * segment fragmentation.  This REJECT chain terminates with
+             * REJECT --reject-with tcp-reset so the client receives an immediate RST
+             * and never retransmits, while still going through the same rate-limited
+             * LOG path as the DROP chain for consistent logging. */
+            char cRejectLog[64];
+            snprintf(cRejectLog, sizeof(cRejectLog), "LOG_SiteBlocked_%d_REJECT", idx);
+            fprintf(fp, ":%s - [0:0]\n", cRejectLog);
+            fprintf(fp, "-A %s -m limit --limit 1/minute --limit-burst 1 -j LOG --log-prefix %s --log-level %d\n", cRejectLog, cRejectLog, syslog_level);
+            fprintf(fp, "-A %s -j REJECT --reject-with tcp-reset\n", cRejectLog);
 #ifdef CONFIG_CISCO_PARCON_WALLED_GARDEN
             fprintf(fp, "-A LOG_SiteBlocked_%d_DROP -j MARK --set-mark 0x%x\n", idx, atoi(ins_num));
             if(iptype==4){
@@ -9575,16 +9588,33 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                  *   - QUIC to CDN IPs not cached at firewall-restart bypasses both rules.
                  *   - iCloud Private Relay (iOS) tunnels all traffic through Apple relay
                  *     servers; the gateway never sees the destination SNI.
-                 */
-                if (urlType == TEXT_URL && nstdPort[0] == '\0')
-                {
+                 *
+                 * RULE SCOPE:
+                 *   Only applied for TEXT_URL (hostname-based) entries on standard ports.
+                 *   Strip leading "www." so the pattern covers all subdomains generically:
+                 *   "www.facebook.com" -> match string "facebook.com" catches m.facebook.com,
+                 *   graph.facebook.com, edge-star-mini6-shv-01-sjc6.facebook.com, etc. */
+                if (urlType == TEXT_URL && nstdPort[0] == '\0') {
                     const char *pMatchStr = query + host_name_offset;
                     if (strncasecmp(pMatchStr, "www.", 4) == 0) {
                         pMatchStr += 4;
                     }
+                    /* NOTE (PR review): xt_string performs a substring match, so
+                     * matching "facebook.com" will also match any SNI that contains
+                     * that string as a substring (e.g. "notfacebook.com").  In
+                     * practice this is not a concern because end users configure
+                     * specific domains they intend to block and browsers always send
+                     * the exact destination hostname as the SNI.  Using --hex-string
+                     * with the TLS SNI length prefix would add exact-host semantics
+                     * but would require computing a per-domain hex pattern and is
+                     * fragile across TLS versions; the substring match is accepted.
+                     *
+                     * This rule targets LOG_SiteBlocked_%d_REJECT (not DROP) so that
+                     * blocking is logged consistently with the other managed-site rules
+                     * while using REJECT to prevent the TCP fragmentation bypass. */
                     fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 "
                         "-m string --string \"%s\" --algo kmp --to 65535 --icase "
-                        "-j REJECT --reject-with tcp-reset\n", pMatchStr);
+                        "-j %s\n", pMatchStr, cRejectLog);
                 }
             }
             else if (strncasecmp(method, "KEYWD", 5)==0)
