@@ -8627,6 +8627,13 @@ void block_url_by_ipaddr(FILE *fp, char *url, char *dropLog, int ipver, char *in
                 {
                     fprintf(fp, "-A lan2wan_pc_site -d %s -p tcp -m tcp --dport 80 -m comment --comment \"host match %s \" -j %s\n", ipAddr, url, dropLog);
                     fprintf(fp, "-A lan2wan_pc_site -d %s -p tcp -m tcp --dport 443 -m comment --comment \"host match %s \" -j %s\n", ipAddr, url, dropLog);
+                    /* Block QUIC (HTTP/3 over UDP/443) for every IP that
+                     * getaddrinfo() resolves for this domain.  getaddrinfo() returns
+                     * all IPs in the DNS response in one call (the linked list via
+                     * p->ai_next), so this loop already covers all of them — e.g.
+                     * saq.com returns 3-4 Akamai IPs and each gets a UDP/443 rule.
+                     * Per-domain TCP SNI REJECT handles any CDN IPs not captured here. */
+                    fprintf(fp, "-A lan2wan_pc_site -d %s -p udp -m udp --dport 443 -m comment --comment \"host match %s QUIC\" -j %s\n", ipAddr, url, dropLog);
                 }
                 else
                     fprintf(fp, "-A lan2wan_pc_site -d %s -p tcp -m tcp --dport %s -m comment --comment \"host match %s \" -j %s\n", ipAddr, nstdPort, url, dropLog);
@@ -9535,6 +9542,50 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 }
 
                 block_url_by_ipaddr(fp, query + host_name_offset, drop_log, iptype, ins_num, nstdPort);
+
+                 /* WHY xt_string instead of httphost:
+                 *   The existing httphost module inspects the unencrypted HTTP/1.1 Host header
+                 *   (port 80 only). For HTTPS/443 the Host header is inside the encrypted
+                 *   payload.  However, the TLS ClientHello SNI extension is sent in plaintext
+                 *   before the handshake completes, making it visible to xt_string.
+                 *
+                 * WHY the per-IP rule alone is not sufficient:
+                 *   block_url_by_ipaddr() resolves the domain once at firewall-restart and
+                 *   caches the result.  CDN providers (Cloudflare, Vercel, Meta, Akamai) serve
+                 *   sites from anycast pools; the IP returned by DNS at test time often differs
+                 *   from the cached IP.  The per-IP UDP/443 rule covers the cached IP; the
+                 *   xt_string rule covers ALL destination IPs because it matches on SNI content,
+                 *   not on destination address.
+                 *
+                 * WHY REJECT --reject-with tcp-reset instead of DROP:
+                 *   DROP silently discards the packet.  The client does not know the packet was
+                 *   lost and retransmits.  After ~8 retransmit cycles TCP congestion control
+                 *   shrinks the window until the MSS is smaller than the SNI string (12 bytes
+                 *   for "facebook.com").  The TLS ClientHello is then split across two TCP
+                 *   segments; xt_string is per-packet and cannot reassemble streams, so neither
+                 *   half-segment matches and the connection succeeds.  REJECT sends an immediate
+                 *   RST, the client tears down the connection instantly with no retransmits, and
+                 *   the fragmentation bypass never occurs.
+                 *
+                 * KNOWN LIMITATIONS (tested July 16-23, 2026):
+                 *   - Blocks TCP only.  QUIC (UDP/443) carries its own TLS ClientHello; the
+                 *     xt_string module does not parse QUIC framing so this rule has no effect
+                 *     on QUIC traffic.  QUIC is addressed separately by the per-IP UDP rule in
+                 *     block_url_by_ipaddr(), but only for the cached IP.
+                 *   - QUIC to CDN IPs not cached at firewall-restart bypasses both rules.
+                 *   - iCloud Private Relay (iOS) tunnels all traffic through Apple relay
+                 *     servers; the gateway never sees the destination SNI.
+                 */
+                if (urlType == TEXT_URL && nstdPort[0] == '\0')
+                {
+                    const char *pMatchStr = query + host_name_offset;
+                    if (strncasecmp(pMatchStr, "www.", 4) == 0) {
+                        pMatchStr += 4;
+                    }
+                    fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport 443 "
+                        "-m string --string \"%s\" --algo kmp --to 65535 --icase "
+                        "-j REJECT --reject-with tcp-reset\n", pMatchStr);
+                }
             }
             else if (strncasecmp(method, "KEYWD", 5)==0)
             {
