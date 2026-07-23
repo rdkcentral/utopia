@@ -262,32 +262,6 @@ case "$1" in
             service_start
         fi
         ;;
-    ipv6_connection_state)
-        # HUB4/SKY and ntpHealthCheck-enabled platforms only
-        ntpHealthCheck=$(sysevent get NTPHealthCheckSupport)
-        if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || \
-           [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || \
-           [ "$BOX_TYPE" = "SR213" ] || [ "$ntpHealthCheck" = "true" ]; then
-            CHRONY_PID=$(pidof $CHRONY_BIN)
-            NTP_STATUS=$(syscfg get ntp_status)
-            if [ "$NTP_STATUS" = "3" ] && [ -n "$CHRONY_PID" ]; then
-                # Already synced — signal chrony to re-acquire sources, no restart needed
-                echo_t "SERVICE_CHRONYD : IPv6 state change, running chronyc online" >> $NTPD_LOG_NAME
-                chronyc online > /dev/null 2>&1
-            else
-                WAN_IPV6_STATUS=$(sysevent get ipv6_connection_state)
-                if [ "up" = "$WAN_IPV6_STATUS" ]; then
-                    CURRENT_WAN_V6_PREFIX=$(syscfg get ipv6_prefix_address)
-                    NTP_PREFIX=$(sysevent get ntp_prefix)
-                    if [ -n "$CURRENT_WAN_V6_PREFIX" ] && [ "$NTP_PREFIX" != "$CURRENT_WAN_V6_PREFIX" ]; then
-                        echo_t "SERVICE_CHRONYD : IPv6 prefix changed, restarting" >> $NTPD_LOG_NAME
-                        sysevent set ntp_prefix "$CURRENT_WAN_V6_PREFIX"
-                        service_start
-                    fi
-                fi
-            fi
-        fi
-        ;;
     *)
         echo "Usage: $SELF_NAME [ ${SERVICE_NAME}-start | ${SERVICE_NAME}-stop | ${SERVICE_NAME}-restart | wan-status | ipv6_connection_state ]" >&2
         rm -f "$LOCKFILE"
