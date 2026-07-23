@@ -1249,8 +1249,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
 #if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
         if ( TRUE == IsThisCurrentPartnerID("sky-") )
-        {
 #endif /** _SCER11BEL_PRODUCT_REQ_ || _XER2_PRODUCT_REQ_ */		
+        {
             syscfg_get(NULL, "dhcpv6s00::servertype", server_type, sizeof(server_type));
             if (strncmp(server_type, "1", 1) == 0) {
                 syscfg_set(NULL, "router_managed_flag", "1");
@@ -2152,7 +2152,7 @@ STATIC int radv_start(struct serv_routed *sr)
         return -1;
     }
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
 #if defined(_SCER11BEL_PRODUCT_REQ_)  || defined(_XER2_PRODUCT_REQ_)
     if( TRUE == IsThisCurrentPartnerID("sky-") ) 
 #endif /** _SCER11BEL_PRODUCT_REQ_ , _XER2_PRODUCT_REQ_ */
