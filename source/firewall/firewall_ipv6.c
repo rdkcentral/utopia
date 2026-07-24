@@ -519,6 +519,12 @@ void do_ipv6_filter_table(FILE *fp){
    fprintf(fp, ":lan2wan_pc_service - [0:0]\n");
    fprintf(fp, ":wan2lan - [0:0]\n");
 
+#if defined(_SR213_PRODUCT_REQ_)
+   if (strcmp ( devicePartnerId, "sky-uk") == 0 || strcmp ( devicePartnerId, "sky-italia") == 0)
+   {
+        do_block_lan_access_to_wan_ssh_ipv6(fp);
+   }
+#endif
 #if defined (_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (HUB4_BFD_FEATURE_ENABLED) || defined (IHC_FEATURE_ENABLED)
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
