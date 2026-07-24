@@ -13948,7 +13948,7 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    if (strcmp ( devicePartnerId, "sky-uk") == 0 || strcmp ( devicePartnerId, "sky-italia") == 0)
    {
         if(isWanReady)
-             do_block_lan_access_to_wan_ssh(filter_fp);
+             do_block_lan_access_to_wan_ssh(filter_fp, lan_ifname, current_wan_ipaddr);
    }
 #endif
 #if defined(SPEED_BOOST_SUPPORTED)

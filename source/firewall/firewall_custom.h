@@ -321,7 +321,7 @@ int do_hub4_bfd_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp);
 *
 */
 
-int do_block_lan_access_to_wan_ssh(FILE *filter_fp);
+int do_block_lan_access_to_wan_ssh(FILE *filter_fp, char* lan_ifname, char* current_wan_ipaddr);
 /**
 * @brief Blocks SSH connection from WAN IPv6 and  LANIPv6 address
 *
