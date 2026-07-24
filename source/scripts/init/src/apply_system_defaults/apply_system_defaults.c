@@ -897,14 +897,7 @@ static int get_PartnerID (char *PartnerID)
 
 #ifdef _ONESTACK_PRODUCT_REQ_
     /*
-     * Handle non-onestack -> onestack firmware upgrade and factory-reset:
-     * If devicemode is empty (not yet set by onestack firmware) and the partner ID
-     * file exists (carried over from non-onestack firmware), compare the file value
-     * against the factory partner ID case-insensitively (so a file value of
-     * "comcastbusiness" matches the HAL value "comcastBusiness", and all other
-     * partners match their identical HAL strings). If they differ (e.g. a stale
-     * "comcast" file on a commercial device whose HAL returns "comcastBusiness"),
-     * remove the file to force re-derivation from HAL and correct devicemode detection.
+     * Handle non-onestack -> onestack firmware upgrade and factory-reset
      */
     {
         char devicemode[32] = {0};
