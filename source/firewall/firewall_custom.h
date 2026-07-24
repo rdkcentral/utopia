@@ -310,6 +310,7 @@ int do_hub4_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp);
 */
 int do_hub4_bfd_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp);
 
+#if defined(_SR213_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
 /**
 * @brief Blocks SSH connection from WAN IP through brlan0
 *
@@ -332,6 +333,7 @@ int do_block_lan_access_to_wan_ssh(FILE *filter_fp);
 */
 
 int do_block_lan_access_to_wan_ssh_ipv6(FILE *filter_fp);
+#endif
 /**
 * @brief Apply HUB4 voice IPv4 filter rules.
 *
