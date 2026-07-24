@@ -2386,17 +2386,22 @@ static int prepare_globals_from_configuration(void)
     if ('\0' == current_wan_ifname[0]) {
 	  char wanInterface[20] = {'\0'};	
       syscfg_get(NULL, "wan_physical_ifname", wanInterface, sizeof(wanInterface));
-	  if(wanInterface[0] != '\0'){     
-        snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", wanInterface);
-        snprintf(ecm_wan_ifname, sizeof(ecm_wan_ifname), "%s",wanInterface);
+	  if(wanInterface[0] != '\0'){   
+	     safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),wanInterface);
+		 ERR_CHK(safec_rc);
+		 safec_rc=strcpy_s(ecm_wan_ifname, sizeof(ecm_wan_ifname),wanInterface);
+		 ERR_CHK(safec_rc);  
 	  }
       else{
-	     snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", default_wan_ifname);
-		 snprintf(ecm_wan_ifname, sizeof(ecm_wan_ifname), "%s",default_wan_ifname);
+		 safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),default_wan_ifname); 
+		 ERR_CHK(safec_rc);
+		 safec_rc=strcpy_s(ecm_wan_ifname, sizeof(current_wan_ifname),default_wan_ifname);  
+		 ERR_CHK(safec_rc);
 	  }	  
 	}
 	else {
-      snprintf(ecm_wan_ifname, sizeof(ecm_wan_ifname), "%s", current_wan_ifname);
+	  safec_rc=strcpy_s(ecm_wan_ifname, sizeof(current_wan_ifname),current_wan_ifname);	
+	  ERR_CHK(safec_rc);
     }
 #else	
    if ('\0' == current_wan_ifname[0]) {
