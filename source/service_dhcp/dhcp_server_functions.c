@@ -432,6 +432,36 @@ void calculate_dhcp_range (FILE *local_dhcpconf_file, char *prefix)
         syscfg_set(NULL, "dhcp_end", l_cDhcp_End);
 	}
 
+	/* RDKB-61673: Recalculate and persist dhcp_num from the validated start/end addresses.
+	 * Without this, shrinking the pool via dmcli (Device.DHCPv4.Server.Pool.1.MaxAddress)
+	 * leaves dhcp_num at its provisioned default (e.g. 252). The dhcp-lease-max directive
+	 * in dnsmasq.conf is then too large, allowing stale leases from the old wider range to
+	 * occupy all slots in the new smaller pool, causing dnsmasq to silently drop DHCP
+	 * Discover frames from clients that cannot find a free lease. */
+	{
+		struct in_addr l_sStartAddr, l_sEndAddr;
+		if ((inet_pton(AF_INET, l_cDhcp_Start, &l_sStartAddr) == 1) &&
+		    (inet_pton(AF_INET, l_cDhcp_End,   &l_sEndAddr)   == 1))
+		{
+			uint32_t l_uStartIP = ntohl(l_sStartAddr.s_addr);
+			uint32_t l_uEndIP   = ntohl(l_sEndAddr.s_addr);
+			int l_iNewDhcpNum   = (l_uEndIP >= l_uStartIP) ?
+			                      (int)(l_uEndIP - l_uStartIP) + 1 : 0;
+
+			snprintf(l_cDhcp_Num, sizeof(l_cDhcp_Num), "%d", l_iNewDhcpNum);
+			syscfg_set_commit(NULL, "dhcp_num", l_cDhcp_Num);
+			fprintf(g_fArmConsoleLog,
+			        "DHCP_SERVER: dhcp_num recalculated to %d from range %s-%s\n",
+			        l_iNewDhcpNum, l_cDhcp_Start, l_cDhcp_End);
+		}
+		else
+		{
+			fprintf(g_fArmConsoleLog,
+			        "DHCP_SERVER: dhcp_num recalculation skipped - invalid IP start:%s end:%s\n",
+			        l_cDhcp_Start, l_cDhcp_End);
+		}
+	}
+
 	if (!strncmp(g_cDhcp_Lease_Time, "-1", 2))
     {
     	fprintf(local_dhcpconf_file, "%sdhcp-range=%s,%s,%s,infinite\n", prefix, 
