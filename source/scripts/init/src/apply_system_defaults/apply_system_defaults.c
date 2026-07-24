@@ -896,6 +896,50 @@ static int get_PartnerID (char *PartnerID)
     //int isValidPartner = 0;
 
     /*
+#ifdef _ONESTACK_PRODUCT_REQ_
+    /*
+     * Handle non-onestack -> onestack firmware upgrade and factory-reset:
+     * If devicemode is empty (not yet set by onestack firmware) and the partner ID
+     * file exists (carried over from non-onestack firmware), compare the file value
+     * against the factory partner ID case-insensitively (so a file value of
+     * "comcastbusiness" matches the HAL value "comcastBusiness", and all other
+     * partners match their identical HAL strings). If they differ (e.g. a stale
+     * "comcast" file on a commercial device whose HAL returns "comcastBusiness"),
+     * remove the file to force re-derivation from HAL and correct devicemode detection.
+     */
+    {
+        char devicemode[32] = {0};
+
+        onestackutils_get_syscfg_devicemode(devicemode, sizeof(devicemode));
+        if ('\0' == devicemode[0])
+        {
+            FILE *pPartnerIdFile = fopen(PARTNERID_FILE, "r");
+            if (NULL != pPartnerIdFile)
+            {
+                char filePartnerId[PARTNER_ID_LEN] = {0};
+                char factoryPartnerId[PARTNER_ID_LEN] = {0};
+                char *nl = NULL;
+
+                if (NULL != fgets(filePartnerId, sizeof(filePartnerId), pPartnerIdFile))
+                {
+                    if ((nl = strchr(filePartnerId, '\n')) != NULL)
+                        *nl = '\0';
+                }
+                fclose(pPartnerIdFile);
+                pPartnerIdFile = NULL;
+
+                if ((0 == getFactoryPartnerId(factoryPartnerId)) && (factoryPartnerId[0] != '\0') &&
+                    (0 != strcasecmp(filePartnerId, factoryPartnerId)))
+                {
+                    APPLY_PRINT("%s - devicemode is empty and partner ID file value '%s' does not match factory partner ID '%s', removing %s\n",
+                                __FUNCTION__, filePartnerId, factoryPartnerId, PARTNERID_FILE);
+                    unlink(PARTNERID_FILE);
+                }
+            }
+        }
+    }
+#endif // _ONESTACK_PRODUCT_REQ_
+
      *  Check whether /nvram/.partner_ID file is available or not.
      *  If available then read it and apply defaults based on new partnerID
      *  If not available then read it from HAL and create the /nvram/.partner_ID file
