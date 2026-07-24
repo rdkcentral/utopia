@@ -3544,7 +3544,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 			APPLY_PRINT("%s -  devicemode is empty, Migration Required\n", __FUNCTION__ )
 		}
 	}
-#endif
+#endif // _ONESTACK_PRODUCT_REQ_
 
   }
   else
