@@ -311,6 +311,28 @@ int do_hub4_mapt_rules_v4(FILE *nat_fp, FILE *filter_fp);
 int do_hub4_bfd_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp);
 
 /**
+* @brief Blocks SSH connection from WAN IP through brlan0
+*
+* @param[in] filter_fp - Pointer to the FILE stream for writing filter table rules.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+*
+*/
+
+int do_block_lan_access_to_wan_ssh(FILE *filter_fp);
+/**
+* @brief Blocks SSH connection from WAN IPv6 and  LANIPv6 address
+*
+* @param[in] filter_fp - Pointer to the FILE stream for writing filter table rules.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+*
+*/
+
+int do_block_lan_access_to_wan_ssh_ipv6(FILE *filter_fp);
+/**
 * @brief Apply HUB4 voice IPv4 filter rules.
 *
 * @param[in] filter_fp - Pointer to the FILE stream for writing filter table rules.
@@ -319,26 +341,7 @@ int do_hub4_bfd_rules_v4(FILE *nat_fp, FILE *filter_fp, FILE *mangle_fp);
 * @retval 0 on success.
 *
 */
-int do_block_lan_access_to_wan_ssh(FILE *filter_fp);
-/**
-* @brief Blocks SSH connection from WAN IP through brlan0
-*
-* @param[in] filter_fp - Pointer to the FILE stream for writing filter table rules.
-*
-* @return The status of the operation.
-* @retval 0 on success.
-*
-*/
-int do_block_lan_access_to_wan_ssh_ipv6(FILE *filter_fp);
-/**
-* @brief Blocks SSH connection from WAN IP through brlan0
-*
-* @param[in] filter_fp - Pointer to the FILE stream for writing filter table rules.
-*
-* @return The status of the operation.
-* @retval 0 on success.
-*
-*/
+
 int do_hub4_voice_rules_v4(FILE *filter_fp);
 
 /**
