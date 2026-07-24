@@ -519,6 +519,12 @@ void do_ipv6_filter_table(FILE *fp){
    fprintf(fp, ":lan2wan_pc_service - [0:0]\n");
    fprintf(fp, ":wan2lan - [0:0]\n");
 
+   int LanSshPortSupport_ret = isLanSshPortSupportEnabled();
+   if( LanSshPortSupport_ret == 1)
+   {
+      fprintf(fp, "-I INPUT 1 -p tcp --dport 10022 -j DROP\n");
+   }
+
 #if defined (_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (HUB4_BFD_FEATURE_ENABLED) || defined (IHC_FEATURE_ENABLED)
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)

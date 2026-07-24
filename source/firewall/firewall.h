@@ -121,6 +121,9 @@ int prepare_ipv4_firewall(const char *fw_file);
 *
 */
 int prepare_ipv6_firewall(const char *fw_file);
+
+/* isLanSshPortSupportEnabled function is to check if the product can support LAN SSH through the port 10022 */
+int isLanSshPortSupportEnabled();
 #define CCSP_SUBSYS "eRT."
 
 #define IF_IPV6ADDR_MAX 16
