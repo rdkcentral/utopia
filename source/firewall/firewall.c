@@ -9411,14 +9411,6 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 	    snprintf(drop_log, sizeof(drop_log), "LOG_SiteBlocked_%d_DROP", idx);
             fprintf(fp, ":LOG_SiteBlocked_%d_DROP - [0:0]\n", idx);
             fprintf(fp, "-A LOG_SiteBlocked_%d_DROP -m limit --limit 1/minute --limit-burst 1  -j LOG --log-prefix LOG_SiteBlocked_%d_DROP --log-level %d\n", idx, idx, syslog_level);
-
-            /* Parallel REJECT chain for SNI string match — uses REJECT instead of DROP
-             * to send an immediate RST and prevent TCP retransmit-induced SNI fragmentation bypass. */
-            char cRejectLog[64];
-            snprintf(cRejectLog, sizeof(cRejectLog), "LOG_SiteBlocked_%d_REJECT", idx);
-            fprintf(fp, ":%s - [0:0]\n", cRejectLog);
-            fprintf(fp, "-A %s -m limit --limit 1/minute --limit-burst 1 -j LOG --log-prefix %s --log-level %d\n", cRejectLog, cRejectLog, syslog_level);
-            fprintf(fp, "-A %s -j REJECT --reject-with tcp-reset\n", cRejectLog);
 #ifdef CONFIG_CISCO_PARCON_WALLED_GARDEN
             fprintf(fp, "-A LOG_SiteBlocked_%d_DROP -j MARK --set-mark 0x%x\n", idx, atoi(ins_num));
             if(iptype==4){
@@ -9578,7 +9570,8 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                     if (iValidSniHost) {
                         fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport %s "
                             "-m string --string \"%s\" --algo kmp --to 2048 --icase "
-                            "-j %s\n", pServerNameIndiDport, pMatchStr, cRejectLog);
+                            "-j REJECT --reject-with tcp-reset\n",
+                            pServerNameIndiDport, pMatchStr);
                     }
                 }
             }
