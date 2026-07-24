@@ -895,7 +895,6 @@ static int get_PartnerID (char *PartnerID)
     memset(buf, 0, sizeof(buf));
     //int isValidPartner = 0;
 
-    /*
 #ifdef _ONESTACK_PRODUCT_REQ_
     /*
      * Handle non-onestack -> onestack firmware upgrade and factory-reset:
@@ -940,6 +939,8 @@ static int get_PartnerID (char *PartnerID)
     }
 #endif // _ONESTACK_PRODUCT_REQ_
 
+	
+    /*
      *  Check whether /nvram/.partner_ID file is available or not.
      *  If available then read it and apply defaults based on new partnerID
      *  If not available then read it from HAL and create the /nvram/.partner_ID file
