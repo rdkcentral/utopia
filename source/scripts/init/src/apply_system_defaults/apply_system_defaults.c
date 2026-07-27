@@ -895,6 +895,44 @@ static int get_PartnerID (char *PartnerID)
     memset(buf, 0, sizeof(buf));
     //int isValidPartner = 0;
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+    /*
+     * Handle non-onestack -> onestack firmware upgrade and factory-reset
+     */
+    {
+        char devicemode[32] = {0};
+
+        onestackutils_get_syscfg_devicemode(devicemode, sizeof(devicemode));
+        if ('\0' == devicemode[0])
+        {
+            FILE *pPartnerIdFile = fopen(PARTNERID_FILE, "r");
+            if (NULL != pPartnerIdFile)
+            {
+                char filePartnerId[PARTNER_ID_LEN] = {0};
+                char factoryPartnerId[PARTNER_ID_LEN] = {0};
+                char *nl = NULL;
+
+                if (NULL != fgets(filePartnerId, sizeof(filePartnerId), pPartnerIdFile))
+                {
+                    if ((nl = strchr(filePartnerId, '\n')) != NULL)
+                        *nl = '\0';
+                }
+                fclose(pPartnerIdFile);
+                pPartnerIdFile = NULL;
+
+                if ((0 == getFactoryPartnerId(factoryPartnerId)) && (factoryPartnerId[0] != '\0') &&
+                    (0 != strcasecmp(filePartnerId, factoryPartnerId)))
+                {
+                    APPLY_PRINT("%s - devicemode is empty and partner ID file value '%s' does not match factory partner ID '%s', removing %s\n",
+                                __FUNCTION__, filePartnerId, factoryPartnerId, PARTNERID_FILE);
+                    unlink(PARTNERID_FILE);
+                }
+            }
+        }
+    }
+#endif // _ONESTACK_PRODUCT_REQ_
+
+	
     /*
      *  Check whether /nvram/.partner_ID file is available or not.
      *  If available then read it and apply defaults based on new partnerID
@@ -3496,7 +3534,18 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 		isMigrationReq = 1;
 		APPLY_PRINT("%s - Device in Reboot mode, Syndication Migration Required\n", __FUNCTION__ )
 	}
-	
+#ifdef _ONESTACK_PRODUCT_REQ_
+	else // For OneStack, an empty devicemode indicates migration is required
+	{
+		char deviceMode[16] = {0};
+		if ( !((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0')) )
+		{
+			isMigrationReq = 1;
+			APPLY_PRINT("%s -  devicemode is empty, Migration Required\n", __FUNCTION__ )
+		}
+	}
+#endif
+
   }
   else
   {
