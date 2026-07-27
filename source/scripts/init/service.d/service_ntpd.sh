@@ -335,7 +335,7 @@ service_start ()
 {
    if [ -f "$RFC_FLAG" ]; then
         echo_t "SERVICE_NTPD : RFC flag Present — chrony is the active NTP client" >> $NTPD_LOG_NAME
-        return 0   - TBD
+        return 0  
     fi
 
    local NTP_SERVER_URL_RESTORE="false"
