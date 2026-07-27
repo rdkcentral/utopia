@@ -95,11 +95,9 @@ set_chrony_sync_status() {
 #   Reachability register (reach) is a non-zero octal value once a source has
 #   answered at least one recent poll.
 # ──────────────────────────────────────────────────────────────────────────────────────────
-chrony_sources_reachable() {
+chrony_selectable_source_available() {
     chronyc -n sources 2>/dev/null | awk '
-        NR>2 && NF>=7 {
-            if ($(NF-3) != "0" && $(NF-3) != "") { found=1 }
-        }
+        /^.[*+]/ { found=1 }
         END { exit (found?0:1) }
     '
 }
@@ -118,8 +116,8 @@ chrony_offset_exceeds_threshold() {
 # chrony_fast_resync: on network reconnect (chronyd already running and a prior
 #   sync happened this boot), bring the clock up to date quickly without
 #   restarting chronyd. Uses chronyc control commands only.
-#     - Sources unreachable : online -> burst -> waitsync (bounded) -> makestep
-#     - Sources reachable    : makestep only when |offset| > 1.0s
+#     - No selectable source : online -> burst -> waitsync (bounded) -> makestep
+#     - Selectable source     : makestep only when |offset| > 1.0s
 # ──────────────────────────────────────────────────────────────────────────────────────────
 chrony_fast_resync() {
     # Reconnect only: require chronyd running and a prior sync this boot
@@ -131,13 +129,13 @@ chrony_fast_resync() {
         return 0
     fi
 
-    if chrony_sources_reachable; then
+    if chrony_selectable_source_available; then
         # Sources already reachable — a recent measurement exists; step only if needed
         if chrony_offset_exceeds_threshold; then
-            echo_t "SERVICE_CHRONYD : fast-resync — sources reachable, offset > 1.0s, stepping" >> $NTPD_LOG_NAME
+            echo_t "SERVICE_CHRONYD : fast-resync — selectable sources, offset > 1.0s, stepping" >> $NTPD_LOG_NAME
             chronyc makestep > /dev/null 2>&1
         else
-            echo_t "SERVICE_CHRONYD : fast-resync — sources reachable, offset <= 1.0s, no step" >> $NTPD_LOG_NAME
+            echo_t "SERVICE_CHRONYD : fast-resync — selectable sources, offset <= 1.0s, no step" >> $NTPD_LOG_NAME
         fi
         return 0
     fi
