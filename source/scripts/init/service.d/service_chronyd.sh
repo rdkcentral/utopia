@@ -175,14 +175,9 @@ service_start() {
     # Stop ntpd if running — mutual exclusivity with chrony
     if pidof ntpd > /dev/null 2>&1; then
         echo_t "SERVICE_CHRONYD : stopping ntpd for mutual exclusivity" >> $NTPD_LOG_NAME
-        systemctl stop ntpd
+        systemctl stop ntpd 2>/dev/null
         killall ntpd 2>/dev/null
         sleep 2
-    fi
-    local rc=$?
-    if [ "$rc" -ne 0 ]; then
-        sysevent set ${SERVICE_NAME}-status "error"
-        return 1
     fi
 
     # Start chronyd — only reaches here when no instance is running
