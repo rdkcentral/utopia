@@ -22,7 +22,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/source/include -I$(top_srcdir)/source/util/utils $
 AM_LDFLAGS = -lccsp_common -lsecure_wrapper -lnetfilter_queue -lnfnetlink $(DBUS_LIBS) -pthread -lrt
 
 if ONESTACK_PRODUCT_REQ
-AM_LDFLAGS += -lrdkb_feature_mode_gate
+AM_LDFLAGS += -L${PKG_CONFIG_SYSROOT_DIR}$(libdir)
 endif
 
 if FIREWALL_NFT
@@ -49,9 +49,17 @@ firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                  $(top_builddir)/source/ulog/libulog.la \
                  $(top_builddir)/source/util/utils/libutopiautil.la
 
+if ONESTACK_PRODUCT_REQ
+firewall_LDADD += -lrdkb_feature_mode_gate
+endif
+
 nfq_handler_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                     $(top_builddir)/source/sysevent/lib/libsysevent.la \
                     $(top_builddir)/source/ulog/libulog.la
+
+if ONESTACK_PRODUCT_REQ
+nfq_handler_LDADD += -lrdkb_feature_mode_gate 
+endif
 
 if CORE_NET_LIB_FEATURE_SUPPORT
 AM_LDFLAGS += -lnet

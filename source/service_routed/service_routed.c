@@ -50,6 +50,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
+#include <sys/time.h>
 #include <net/if.h>
 #include <signal.h>
 #include "safec_lib_common.h"
@@ -164,6 +166,20 @@ STATIC int IsFileExists(char *file_name)
 #define LOG_FILE_NAME "/rdklogs/logs/Consolelog.txt.0"
 FILE *logfptr=NULL;
 
+#define ROUTED_LOG(fmt, ...) \
+    do { \
+        FILE *_fp = logfptr ? logfptr : stderr; \
+        struct timeval _tv; \
+        struct tm _tm_buf; \
+        gettimeofday(&_tv, NULL); \
+        if (localtime_r(&_tv.tv_sec, &_tm_buf)) \
+            fprintf(_fp, "%02d%02d%02d-%02d:%02d:%02d.%06ld " fmt, \
+                _tm_buf.tm_year % 100, _tm_buf.tm_mon + 1, _tm_buf.tm_mday, \
+                _tm_buf.tm_hour, _tm_buf.tm_min, _tm_buf.tm_sec, \
+                (long)_tv.tv_usec, ##__VA_ARGS__); \
+        else \
+            fprintf(_fp, fmt, ##__VA_ARGS__); \
+    } while (0)
 
 #ifdef WAN_FAILOVER_SUPPORTED
 enum ipv6_mode {
@@ -578,8 +594,8 @@ STATIC int route_set(struct serv_routed *sr)
     }
 #endif
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
-#if defined(_SCER11BEL_PRODUCT_REQ_) 
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_)
     if ( TRUE == IsThisCurrentPartnerID("sky-") )
 #endif /* _SCER11BEL_PRODUCT_REQ_ */
     {
@@ -1052,8 +1068,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     else
     {
     #endif
-        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
-        #if defined(_SCER11BEL_PRODUCT_REQ_) 
+        #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
+        #if defined(_SCER11BEL_PRODUCT_REQ_)	    
             if ( FALSE == IsThisCurrentPartnerID("sky-") )
             {
                 sysevent_get(sefd, setok, "lan_prefix", prefix, sizeof(prefix));
@@ -1246,10 +1262,10 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 	{
 		char val_DNSServersEnabled[ 32 ];
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
         if ( TRUE == IsThisCurrentPartnerID("sky-") )
-#endif /** _SCER11BEL_PRODUCT_REQ_ */
+#endif /** _SCER11BEL_PRODUCT_REQ_ || _XER2_PRODUCT_REQ_ */		
         {
             syscfg_get(NULL, "dhcpv6s00::servertype", server_type, sizeof(server_type));
             if (strncmp(server_type, "1", 1) == 0) {
@@ -1385,16 +1401,16 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
                 fprintf(fp, "   ipv6 nd ra-interval 30\n"); //Set ra-interval to default 30 secs as per Erouter Specs.
             }
 #else
-#if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_) ) || defined (_WNXL11BWL_PRODUCT_REQ_) 
+#if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_) ) || defined (_WNXL11BWL_PRODUCT_REQ_)
         fprintf(fp, "   ipv6 nd ra-interval 3\n");
 #else
-#if defined(_SCER11BEL_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
         if ( FALSE == IsThisCurrentPartnerID("sky-") )
         {
             fprintf(fp, "   ipv6 nd ra-interval 3\n");
         }
         else
-#endif /** _SCER11BEL_PRODUCT_REQ_ */
+#endif /** _SCER11BEL_PRODUCT_REQ_ , _XER2_PRODUCT_REQ_ */
         {
             fprintf(fp, "   ipv6 nd ra-interval 180\n");
         }
@@ -1733,8 +1749,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 			for (start = name_servs; (tok = strtok_r(start, " ", &sp)); start = NULL)
 			{
 			// Modifying rdnss value to fix the zebra config.
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_)
-#if defined(_SCER11BEL_PRODUCT_REQ_) 
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)				
                         if( TRUE == IsThisCurrentPartnerID("sky-") ) 
                         {
                             if (0 == strncmp(lan_addr, tok, strlen(lan_addr)))
@@ -1750,8 +1766,9 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
                         if (0 == strncmp(lan_addr, tok, strlen(lan_addr)))
                         {
                             fprintf(fp, "   ipv6 nd rdnss %s %d\n", tok, rdnsslft);
+
                         }
-#endif /** _SCER11BEL_PRODUCT_REQ_ */
+#endif /** _SCER11BEL_PRODUCT_REQ_, _XER2_PRODUCT_REQ_ */			 
 #else
                         fprintf(fp, "   ipv6 nd rdnss %s %d\n", tok, rdnsslft);
 #endif
@@ -2075,6 +2092,7 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 #endif 
 STATIC int radv_start(struct serv_routed *sr)
 {
+    ROUTED_LOG("%s: Entering\n", __FUNCTION__);
 
 #ifdef RDKB_EXTENDER_ENABLED
     int deviceMode = GetDeviceNetworkMode();
@@ -2111,9 +2129,10 @@ STATIC int radv_start(struct serv_routed *sr)
     }
 #else
 
-    char aBridgeMode[8];
+    char aBridgeMode[8] = {0};
     syscfg_get(NULL, "bridge_mode", aBridgeMode, sizeof(aBridgeMode));
 
+    ROUTED_LOG("%s: bridge_mode %s and LAN ready = %d\n", __FUNCTION__, aBridgeMode, sr->lan_ready);
     if ((!strcmp(aBridgeMode, "0")) && (!sr->lan_ready)) {
         fprintf(logfptr, "%s: LAN is not ready !\n", __FUNCTION__);
         return -1;
@@ -2151,10 +2170,10 @@ STATIC int radv_start(struct serv_routed *sr)
         return -1;
     }
 
-#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) 
-#if defined(_SCER11BEL_PRODUCT_REQ_) 
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
+#if defined(_SCER11BEL_PRODUCT_REQ_)  || defined(_XER2_PRODUCT_REQ_)
     if( TRUE == IsThisCurrentPartnerID("sky-") ) 
-#endif /** _SCER11BEL_PRODUCT_REQ_ */
+#endif /** _SCER11BEL_PRODUCT_REQ_ , _XER2_PRODUCT_REQ_ */
     {
         /*
         *   signal zebra to update configuration
@@ -2177,6 +2196,7 @@ STATIC int radv_start(struct serv_routed *sr)
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
 #else
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
+    ROUTED_LOG("%s: zebra started\n", __FUNCTION__);
 #endif
 
     return 0;
@@ -2411,11 +2431,17 @@ STATIC int serv_routed_init(struct serv_routed *sr)
 
     sysevent_get(sr->sefd, sr->setok, "wan-status", wan_st, sizeof(wan_st));
     if (strcmp(wan_st, "started") == 0)
+    {
         sr->wan_ready = true;
+        ROUTED_LOG("%s: WAN is ready and value = %d\n", __FUNCTION__, sr->wan_ready);
+    }
     
     sysevent_get(sr->sefd, sr->setok, "lan-status", lan_st, sizeof(lan_st));
     if (strcmp(lan_st, "started") == 0)
+    {
         sr->lan_ready = true;
+        ROUTED_LOG("%s: LAN is ready and value = %d\n", __FUNCTION__, sr->lan_ready);
+    }
 
     return 0;
 }
