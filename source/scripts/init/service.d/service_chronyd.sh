@@ -99,11 +99,11 @@ waitForConnChkFile()
     # Get system uptime in seconds at start
     START_TIME=$(cut -d. -f1 /proc/uptime)
 
-    echo_t "SERVICE_CHRONYD CONNCHK: Waiting for $CONNCHECK_FILE (max ${TIMEOUT}s)..." >> $NTPD_LOG_NAME
+    echo_t "SERVICE_CHRONYD : Waiting for $CONNCHECK_FILE (max ${TIMEOUT}s)..." >> $NTPD_LOG_NAME
 
     while true; do
         if [ -f "$CONNCHECK_FILE" ]; then
-            echo_t "SERVICE_CHRONYD CONNCHK: File $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
+            echo_t "SERVICE_CHRONYD : File $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
             return 0
         fi
 
@@ -111,7 +111,7 @@ waitForConnChkFile()
         ELAPSED=$((CURRENT_TIME - START_TIME))
 
         if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-            echo_t "SERVICE_NTPD CONNCHK: Timeout ${TIMEOUT}s expired - file $CONNCHECK_FILE not found" >> $NTPD_LOG_NAME
+            echo_t "SERVICE_CHRONYD : Timeout ${TIMEOUT}s expired - file $CONNCHECK_FILE not found" >> $NTPD_LOG_NAME
             return 1
         fi
 
@@ -130,11 +130,11 @@ service_start() {
 
    # Wait for connectivitycheck to complete
    if [ -f $CONNCHECK_FILE ]; then
-       echo_t "SERVICE_NTPD CONNCHK: connectivity success $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
+       echo_t "SERVICE_CHRONYD : connectivity success $CONNCHECK_FILE present" >> $NTPD_LOG_NAME
    else
        # Exclude XLE device from connectivity check. TODO
        if [ "$BOX_TYPE" != "WNXL11BWL" ];then
-           echo_t "SERVICE_NTPD CONNCHK: start connectivity check waiting for $CONNCHECK_FILE file" >> $NTPD_LOG_NAME
+           echo_t "SERVICE_CHRONYD : start connectivity check waiting for $CONNCHECK_FILE file" >> $NTPD_LOG_NAME
            waitForConnChkFile
 	   fi
    fi
