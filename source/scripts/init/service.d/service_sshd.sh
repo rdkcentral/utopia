@@ -149,19 +149,11 @@ do_start() {
       #chgrp admin $DIR_NAME
       #chmod 755 $DIR_NAME
    #fi
+    USE_DEVKEYS="-f authorized_keys_dev"
     DEVICETYPE=$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Identity.DeviceType | grep value | cut -d ":" -f 3 | tr -d ' ' | tr -s ' ' | tr '[:lower:]' '[:upper:]')
-    if [ $BUILD_TYPE = "prod" ]; then
-        if [ $DEVICETYPE = "TEST" ] && [ $USE_DYNAMICKEYING = "TRUE" ]; then
-            USE_DEVKEYS="-f authorized_keys_dev"
-            echo_t "[utopia]: dropbear using dev authorization keys"
-        else
-            USE_DEVKEYS=""
-            echo_t "[utopia]: dropbear using prod authorization keys"
-        fi
-    else
-        USE_DEVKEYS="-f authorized_keys_dev"
+    if [ "$BUILD_TYPE" = "prod" -a "DEVICETYPE" = "PROD" ]; then
+	        USE_DEVKEYS=""
     fi
-
 
     if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ] || [ "$BOX_TYPE" == "XER2" ]) ;then
     	get_listen_params
