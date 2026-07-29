@@ -2501,7 +2501,15 @@ static int prepare_globals_from_configuration(void)
        bAmenityEnabled = TRUE;
 #endif
    memset(current_wan_ip6_addr, 0, sizeof(current_wan_ip6_addr)); 
+#if defined(_SCXF11BFL_PRODUCT_REQ_)
+   /* On XF10, the WAN interface is veip0.0. DHCPMGR sets
+    * tr_<wan_ifname>_dhcpv6_client_v6addr (e.g. tr_veip0.0_dhcpv6_client_v6addr).*/
+   char wan_v6_sysevent[BUFLEN_64] = {'\0'};
+   snprintf(wan_v6_sysevent, sizeof(wan_v6_sysevent), "tr_%s_dhcpv6_client_v6addr", current_wan_ifname);
+   sysevent_get(sysevent_fd, sysevent_token, wan_v6_sysevent, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
+#else
    sysevent_get(sysevent_fd, sysevent_token, "tr_erouter0_dhcpv6_client_v6addr", current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
+#endif
 
    if ( ('\0' == current_wan_ip6_addr[0] ) && ( 0 == strlen(current_wan_ip6_addr) ) ) {
 #ifndef CORE_NET_LIB
