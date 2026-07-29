@@ -135,7 +135,7 @@ service_start() {
        # Exclude XLE device from connectivity check. TODO
        if [ "$BOX_TYPE" != "WNXL11BWL" ];then
            echo_t "SERVICE_NTPD CONNCHK: start connectivity check waiting for $CONNCHECK_FILE file" >> $NTPD_LOG_NAME
-           #waitForConnChkFile
+           waitForConnChkFile
 	   fi
    fi
    
@@ -154,23 +154,13 @@ service_start() {
     syscfg set ntp_status 2
     sysevent set ${SERVICE_NAME}-status "starting"
 
-    # WAN check
-    if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || \
-       [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || \
-       [ "$BOX_TYPE" = "SR213" ] || [ "$LANIPV6Support" = "true" ]; then
-        WAN_IPV6_STATUS=$(sysevent get ipv6_connection_state)
-        if [ "started" != "$CURRENT_WAN_STATUS" ] && [ "up" != "$WAN_IPV6_STATUS" ]; then
+  
+    if [ "started" != "$CURRENT_WAN_STATUS" ]; then
             syscfg set ntp_status 2
             sysevent set ${SERVICE_NAME}-status "wan-down"
             return 0
-        fi
-    else
-        if [ "started" != "$CURRENT_WAN_STATUS" ]; then
-            syscfg set ntp_status 2
-            sysevent set ${SERVICE_NAME}-status "wan-down"
-            return 0
-        fi
     fi
+
 
     # Stop ntpd if running — mutual exclusivity with chrony
     if pidof ntpd > /dev/null 2>&1; then
