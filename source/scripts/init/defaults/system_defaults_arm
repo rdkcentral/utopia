@@ -1513,6 +1513,12 @@ $StageEnabled=false
 #RdkLogger Cron - RFC flag is enabled by default
 $RdkbLogCronEnable=true
 
+#MemTrace Defaults
+$MemTrace_Enable=0
+$MemTrace_Interval=300
+$MemTrace_RSSThreshold=2048
+$MemTrace_InitialSnapshotUptime=900
+
 #Memory swap defaults
 $MemorySwapEnable=true
 $MemorySwapDiskSizeMB=300
