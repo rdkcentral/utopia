@@ -149,6 +149,7 @@ do_start() {
       #chgrp admin $DIR_NAME
       #chmod 755 $DIR_NAME
    #fi
+    # Use prod keys only when both the build and deviceType RFC are prod; dev keys otherwise
     USE_DEVKEYS="-f authorized_keys_dev"
     DEVICETYPE=$(dmcli eRT getv Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Identity.DeviceType | grep value | cut -d ":" -f 3 | tr -d ' ' | tr -s ' ' | tr '[:lower:]' '[:upper:]')
     if [ "$BUILD_TYPE" = "prod" -a "$DEVICETYPE" = "PROD" ]; then
