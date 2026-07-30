@@ -158,7 +158,7 @@ do_start() {
       #chmod 755 $DIR_NAME
    #fi
 
-    if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ] || [ "$BOX_TYPE" == "XER2" ]) ;then
+    if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ] || [ "$BOX_TYPE" = "XER2" ]) ;then
     	get_listen_params
 	CMINTERFACE=$WAN_INTERFACE
     fi
@@ -264,7 +264,7 @@ do_start() {
    getConfigFile $DROPBEAR_PARAMS_1
    getConfigFile $DROPBEAR_PARAMS_2
 
-   if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ] || [ "$BOX_TYPE" == "XER2" ]) ;then
+   if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ] || [ "$BOX_TYPE" = "XER2" ]) ;then
        dropbear -E -s -b /etc/sshbanner.txt -a -r $DROPBEAR_PARAMS_1 -r $DROPBEAR_PARAMS_2 $LISTEN_PARAMS -P $PID_FILE $USE_DEVKEYS 2>>$CONSOLEFILE
     if [ -z "$LISTEN_PARAMS" ] ; then
         echo_t "[utopia]: dropbear was not started for erouter0 interface with valid params."
@@ -328,7 +328,7 @@ service_start() {
     echo_t "[utopia] starting ${SERVICE_NAME} service"
 	ulog ${SERVICE_NAME} status "starting ${SERVICE_NAME} service"
 
-   if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ]) ;then
+   if ([ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] || [ "$MODEL_NUM" = "INTEL_PUMA" ] || [ "$BOX_TYPE" = "VNTXER5" ] || [ "$BOX_TYPE" = "SCER11BEL" -a "$LANIPV6Support" != "true" ] || [ "$BOX_TYPE" = "SCXF11BFL" ] || [ "$BOX_TYPE" = "XER2" ]) ;then
 	   CMINTERFACE=$WAN_INTERFACE
       ifconfig $CMINTERFACE | grep Global
       ret=$?
