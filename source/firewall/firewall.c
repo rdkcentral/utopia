@@ -8635,6 +8635,13 @@ void block_url_by_ipaddr(FILE *fp, char *url, char *dropLog, int ipver, char *in
                 {
                     fprintf(fp, "-A lan2wan_pc_site -d %s -p tcp -m tcp --dport 80 -m comment --comment \"host match %s \" -j %s\n", ipAddr, url, dropLog);
                     fprintf(fp, "-A lan2wan_pc_site -d %s -p tcp -m tcp --dport 443 -m comment --comment \"host match %s \" -j %s\n", ipAddr, url, dropLog);
+                    /* Block QUIC (HTTP/3 over UDP/443) for every IP that
+                     * getaddrinfo() resolves for this domain.  getaddrinfo() returns
+                     * all IPs in the DNS response in one call (the linked list via
+                     * p->ai_next), so this loop already covers all of them — e.g.
+                     * saq.com returns 3-4 Akamai IPs and each gets a UDP/443 rule.
+                     * Per-domain TCP SNI REJECT handles any CDN IPs not captured here. */
+                    fprintf(fp, "-A lan2wan_pc_site -d %s -p udp -m udp --dport 443 -m comment --comment \"host match %s QUIC\" -j %s\n", ipAddr, url, dropLog);
                 }
                 else
                     fprintf(fp, "-A lan2wan_pc_site -d %s -p tcp -m tcp --dport %s -m comment --comment \"host match %s \" -j %s\n", ipAddr, nstdPort, url, dropLog);
@@ -9543,6 +9550,38 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 }
 
                 block_url_by_ipaddr(fp, query + host_name_offset, drop_log, iptype, ins_num, nstdPort);
+
+                /* Block TCP/443 by matching the TLS ClientHello SNI via xt_string.
+                 * Strips leading "www.", covers all subdomains, uses REJECT to prevent fragmentation bypass.
+                 * Limitation: TCP only — QUIC and iCloud Private Relay bypass this rule. */
+                if (urlType == TEXT_URL) {
+                    const char *pMatchStr = query + host_name_offset;
+                    if (strncasecmp(pMatchStr, "www.", 4) == 0) {
+                        pMatchStr += 4;
+                    }
+                    /* Use explicit port if given (e.g. :8443), otherwise default to 443.
+                     * SNI -- Server Name indication  */
+                    const char *pServerNameIndiDport = (nstdPort[0] != '\0') ? nstdPort : "443";
+                    /* Validate hostname before embedding into iptables-restore:
+                     * allow only RFC-valid hostname chars (alnum, dot, hyphen) to prevent
+                     * quote/injection issues.  Also skip for port 80 — TLS SNI is not
+                     * present in plain HTTP traffic. */
+                    int iValidSniHost = (pMatchStr[0] != '\0') &&
+                                        (strcmp(pServerNameIndiDport, "80") != 0);
+                    const unsigned char *pSch;
+                    for (pSch = (const unsigned char *)pMatchStr;
+                         iValidSniHost && *pSch != '\0'; ++pSch) {
+                        if (!(isalnum((int)*pSch) || *pSch == '.' || *pSch == '-')) {
+                            iValidSniHost = 0;
+                        }
+                    }
+                    if (iValidSniHost) {
+                        fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport %s "
+                            "-m string --string \"%s\" --algo kmp --to 2048 --icase "
+                            "-j REJECT --reject-with tcp-reset\n",
+                            pServerNameIndiDport, pMatchStr);
+                    }
+                }
             }
             else if (strncasecmp(method, "KEYWD", 5)==0)
             {
