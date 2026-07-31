@@ -2355,9 +2355,8 @@ int do_blockfragippktsv6(FILE *fp)
     if (enable)
     {
         /* Creating New Chain */
+        fprintf(fp, "add chain ip6 filter FRAG_DROP\n");
         fprintf(fp, "flush chain ip6 filter FRAG_DROP\n");
-        fprintf(fp, "flush chain ip6 filter FRAG_DROP\n");
-        /*Adding rules in new chain */
         fprintf(fp, "insert rule ip6 filter FORWARD ip fragmore fragid 0x0-0xffffffff jump FRAG_DROP\n");
         fprintf(fp, "insert rule ip6 filter INPUT ip fragmore fragid 0x0-0xffffffff jump FRAG_DROP\n");
         fprintf(fp, "add rule ip6 filter FRAG_DROP drop\n");
