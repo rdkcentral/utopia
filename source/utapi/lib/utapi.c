@@ -7676,6 +7676,8 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
 #endif
 
 		}
+			}
+		}
 
 		/*  it will applicable during router mode */
 		if( 0 == isBridgeMode )
