@@ -553,6 +553,14 @@ void do_ipv6_filter_table(FILE *fp){
    fprintf(fp, "-A FORWARD -i a-mux -j ACCEPT\n");
 #endif
 
+   /* WireGuard IPv6 (mirror IPv4): handshake + tunnel forward.
+    * INPUT UDP must beat wan2self's "-p udp -j DROP". */
+   if (wireguard_enabled[0] == '1') {
+      fprintf(fp, "-I FORWARD -i wg0 -j ACCEPT\n");
+      fprintf(fp, "-I FORWARD -o wg0 -j ACCEPT\n");
+      fprintf(fp, "-I INPUT -i erouter0 -p udp --dport %s -j ACCEPT\n", wireguard_port);
+   }
+
    fprintf(fp, ":%s - [0:0]\n", "LOG_INPUT_DROP");
    fprintf(fp, ":%s - [0:0]\n", "LOG_FORWARD_DROP");
    if(isComcastImage) {
@@ -2375,6 +2383,12 @@ void do_ipv6_nat_table(FILE* fp)
 #ifdef _PLATFORM_BANANAPI_R4_
    fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
 #endif
+
+   /* WireGuard: NAT tunnel traffic to WAN so full-tunnel clients reach internet */
+   if (wireguard_enabled[0] == '1' && wireguard_local_ipv6[0] != '\0') {
+       fprintf(fp, "-I POSTROUTING -o erouter0 -s %s/64 -j MASQUERADE\n",
+               wireguard_local_ipv6);
+   }
 
    FIREWALL_DEBUG("Exiting do_ipv6_nat_table \n");
 }

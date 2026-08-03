@@ -647,8 +647,9 @@ static char transparent_cache_state[10]; // state of the transparent http cache
 static char byoi_bridge_mode[10]; // whether or not byoi is in bridge mode
 static char cmdiag_enabled[20];   // If eCM diagnostic Interface Enabled
 static char firewall_level[20];   // None, Low, Medium, High, or Custom
-static char wireguard_enabled[4]; // Wireguard configuration
-static char wireguard_port[8];
+char wireguard_enabled[4]; // Wireguard configuration
+char wireguard_port[8];
+char wireguard_local_ipv6[128];
 static char natip4[20];
 static char captivePortalEnabled[50]; //to ccheck captive portal is enabled or not
 
@@ -3111,7 +3112,9 @@ static int prepare_globals_from_configuration(void)
    rc = syscfg_get(NULL, "Wireguard_Port", wireguard_port, sizeof(wireguard_port));
    if (0 != rc || '\0' == wireguard_port[0]) {
        snprintf(wireguard_port, sizeof(wireguard_port), "53280");
-   } 
+   }
+   wireguard_local_ipv6[0] = '\0';
+   syscfg_get(NULL, "wireguard_local_ipv6", wireguard_local_ipv6, sizeof(wireguard_local_ipv6));
    
    /* Get DSCP value for gre */
    if(bus_handle != NULL){
