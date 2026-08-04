@@ -49,11 +49,10 @@ CURRENT_WAN_STATUS=$(sysevent get wan-status)
 WAN_INTERFACE=$(getWanInterfaceName)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# service_init: load syscfg NTP server values into environment
+# service_init: load syscfg ntp_enabled into environment
 # ──────────────────────────────────────────────────────────────────────────────
 service_init() {
-    FOO=$(utctx_cmd get ntp_server1 ntp_server2 ntp_server3 ntp_server4 ntp_server5 \
-                       ntp_enabled new_ntp_enabled)
+    FOO=$(utctx_cmd get ntp_enabled)
     eval "$FOO"
 }
 
