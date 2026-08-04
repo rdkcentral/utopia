@@ -2501,7 +2501,15 @@ static int prepare_globals_from_configuration(void)
        bAmenityEnabled = TRUE;
 #endif
    memset(current_wan_ip6_addr, 0, sizeof(current_wan_ip6_addr)); 
+#if defined(_SCXF11BFL_PRODUCT_REQ_)
+   /* On XF10, the WAN interface is veip0.0. DHCPMGR sets
+    * tr_<wan_ifname>_dhcpv6_client_v6addr (e.g. tr_veip0.0_dhcpv6_client_v6addr).*/
+   char wan_v6_sysevent[BUFLEN_64] = {'\0'};
+   snprintf(wan_v6_sysevent, sizeof(wan_v6_sysevent), "tr_%s_dhcpv6_client_v6addr", current_wan_ifname);
+   sysevent_get(sysevent_fd, sysevent_token, wan_v6_sysevent, current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
+#else
    sysevent_get(sysevent_fd, sysevent_token, "tr_erouter0_dhcpv6_client_v6addr", current_wan_ip6_addr, sizeof(current_wan_ip6_addr));
+#endif
 
    if ( ('\0' == current_wan_ip6_addr[0] ) && ( 0 == strlen(current_wan_ip6_addr) ) ) {
 #ifndef CORE_NET_LIB
@@ -8627,6 +8635,13 @@ void block_url_by_ipaddr(FILE *fp, char *url, char *dropLog, int ipver, char *in
                 {
                     fprintf(fp, "-A lan2wan_pc_site -d %s -p tcp -m tcp --dport 80 -m comment --comment \"host match %s \" -j %s\n", ipAddr, url, dropLog);
                     fprintf(fp, "-A lan2wan_pc_site -d %s -p tcp -m tcp --dport 443 -m comment --comment \"host match %s \" -j %s\n", ipAddr, url, dropLog);
+                    /* Block QUIC (HTTP/3 over UDP/443) for every IP that
+                     * getaddrinfo() resolves for this domain.  getaddrinfo() returns
+                     * all IPs in the DNS response in one call (the linked list via
+                     * p->ai_next), so this loop already covers all of them — e.g.
+                     * saq.com returns 3-4 Akamai IPs and each gets a UDP/443 rule.
+                     * Per-domain TCP SNI REJECT handles any CDN IPs not captured here. */
+                    fprintf(fp, "-A lan2wan_pc_site -d %s -p udp -m udp --dport 443 -m comment --comment \"host match %s QUIC\" -j %s\n", ipAddr, url, dropLog);
                 }
                 else
                     fprintf(fp, "-A lan2wan_pc_site -d %s -p tcp -m tcp --dport %s -m comment --comment \"host match %s \" -j %s\n", ipAddr, nstdPort, url, dropLog);
@@ -9535,6 +9550,38 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 }
 
                 block_url_by_ipaddr(fp, query + host_name_offset, drop_log, iptype, ins_num, nstdPort);
+
+                /* Block TCP/443 by matching the TLS ClientHello SNI via xt_string.
+                 * Strips leading "www.", covers all subdomains, uses REJECT to prevent fragmentation bypass.
+                 * Limitation: TCP only — QUIC and iCloud Private Relay bypass this rule. */
+                if (urlType == TEXT_URL) {
+                    const char *pMatchStr = query + host_name_offset;
+                    if (strncasecmp(pMatchStr, "www.", 4) == 0) {
+                        pMatchStr += 4;
+                    }
+                    /* Use explicit port if given (e.g. :8443), otherwise default to 443.
+                     * SNI -- Server Name indication  */
+                    const char *pServerNameIndiDport = (nstdPort[0] != '\0') ? nstdPort : "443";
+                    /* Validate hostname before embedding into iptables-restore:
+                     * allow only RFC-valid hostname chars (alnum, dot, hyphen) to prevent
+                     * quote/injection issues.  Also skip for port 80 — TLS SNI is not
+                     * present in plain HTTP traffic. */
+                    int iValidSniHost = (pMatchStr[0] != '\0') &&
+                                        (strcmp(pServerNameIndiDport, "80") != 0);
+                    const unsigned char *pSch;
+                    for (pSch = (const unsigned char *)pMatchStr;
+                         iValidSniHost && *pSch != '\0'; ++pSch) {
+                        if (!(isalnum((int)*pSch) || *pSch == '.' || *pSch == '-')) {
+                            iValidSniHost = 0;
+                        }
+                    }
+                    if (iValidSniHost) {
+                        fprintf(fp, "-A lan2wan_pc_site -p tcp -m tcp --dport %s "
+                            "-m string --string \"%s\" --algo kmp --to 2048 --icase "
+                            "-j REJECT --reject-with tcp-reset\n",
+                            pServerNameIndiDport, pMatchStr);
+                    }
+                }
             }
             else if (strncasecmp(method, "KEYWD", 5)==0)
             {
@@ -10832,24 +10879,6 @@ static int do_wan2lan(FILE *fp)
    FIREWALL_DEBUG("Exiting do_wan2lan\n"); 	  
    return(0);
 }
-
-/*
- *  Procedure     : do_block_lan_access_to_wan_ssh
- *  Purpose       : To block SSH using WAN IP from LAN client
- *  Parameters    :
- *    fp             : An open file to write rules to block SSH using WAN IP in LAN client
- * Return Values  :
- *    0              : Success
- */
-#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
-static int do_block_lan_access_to_wan_ssh(FILE *fp)
-{
-   FIREWALL_DEBUG("Entering do_block_lan_access_to_wan_ssh\n");
-   fprintf(fp, "-I INPUT 1 -i %s -d %s -p tcp --dport 10022 -j REJECT\n", lan_ifname, current_wan_ipaddr);
-   FIREWALL_DEBUG("Exiting do_block_lan_access_to_wan_ssh\n");
-   return(0);
-}
-#endif
 
 /*
  ==========================================================================
@@ -13954,9 +13983,12 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_lan2wan(mangle_fp, filter_fp, nat_fp); 
    do_wan2lan(filter_fp);
    do_filter_table_general_rules(filter_fp);
-#if defined(_SR213_PRODUCT_REQ_) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
-   if(isWanReady)
-        do_block_lan_access_to_wan_ssh(filter_fp);
+#if defined(_SR213_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
+   if (strcmp ( devicePartnerId, "sky-uk") == 0 || strcmp ( devicePartnerId, "sky-italia") == 0)
+   {
+        if(isWanReady)
+             do_block_lan_access_to_wan_ssh(filter_fp, lan_ifname, current_wan_ipaddr);
+   }
 #endif
 #if defined(SPEED_BOOST_SUPPORTED)
 WAN_FAILOVER_SUPPORT_CHECK
