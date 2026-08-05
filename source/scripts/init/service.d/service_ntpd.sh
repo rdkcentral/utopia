@@ -52,7 +52,6 @@ LOCKFILE=/var/tmp/service_ntpd.pid
 BIN=ntpd
 QUICK_SYNC_PID=""
 QUICK_SYNC_DONE=0
-RFC_FLAG=/nvram/chrony_enabled
 
 STATIC_INTERFACE=$NTPD_INTERFACE
 WAN_INTERFACE=$(getWanInterfaceName)
@@ -333,7 +332,7 @@ set_ntp_driftsync_status ()
 
 service_start ()
 {
-   if [ -f "$RFC_FLAG" ]; then
+    if [ "$(syscfg get chrony_enabled)" = "true" ]; then
         echo_t "SERVICE_NTPD : RFC flag Present — chrony is the active NTP client" >> $NTPD_LOG_NAME
         sysevent set ${SERVICE_NAME}-status "stopped"
         if pidof "$BIN" > /dev/null 2>&1; then
