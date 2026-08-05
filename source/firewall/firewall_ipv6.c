@@ -2279,9 +2279,9 @@ void do_ipv6_nat_table(FILE* fp)
 	fprintf(fp, ":%s - [0:0]\n", "prerouting_redirect");
 
 #ifdef WAN_FAILOVER_SUPPORTED
-#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_)
+#if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_) && !defined(_PLATFORM_GENERICARM_)
       redirect_dns_to_extender(fp,AF_INET6);
-#endif //_PLATFORM_RASPBERRYPI_ && _PLATFORM_BANANAPI_R4_
+#endif // none of (_PLATFORM_RASPBERRYPI_, _PLATFORM_BANANAPI_R4_, _PLATFORM_GENERICARM_)
 #endif 
 
 #if defined(_WNXL11BWL_PRODUCT_REQ_) 
