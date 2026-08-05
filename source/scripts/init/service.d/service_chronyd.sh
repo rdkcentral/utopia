@@ -29,7 +29,6 @@ SELF_NAME="`basename "$0"`"
 CHRONY_CONF_TMP=/etc/rdk_chrony.conf
 CHRONY_BIN=chronyd
 LOCKFILE=/var/tmp/service_chronyd.pid
-RFC_FLAG=/nvram/chrony_enabled
 SYNC_FILE=/tmp/clock-event
 NTP_SYNCED_FILE=/tmp/.ntp_time_synced
 
@@ -37,6 +36,12 @@ NTP_SYNCED_FILE=/tmp/.ntp_time_synced
 # may not exist yet when this script fires early in the boot sequence.
 # Ensure it exists before any echo_t write so no log lines are silently dropped.
 mkdir -p /rdklogs/logs
+
+# chrony_rfc_enabled: returns 0 (true) when the chrony RFC path is active.
+# Single source of the RFC check so all gates stay consistent.
+chrony_rfc_enabled() {
+    [ "$(syscfg get chrony_enabled)" = "true" ]
+}
 
 if [ -z "$NTPD_LOG_NAME" ]; then
     NTPD_LOG_NAME=/rdklogs/logs/ntpLog.log
@@ -122,7 +127,7 @@ waitForConnChkFile()
 # ──────────────────────────────────────────────────────────────────────────────
 service_start() {
     # RFC guard — only run if flag is present
-    if [ ! -f "$RFC_FLAG" ]; then
+     if ! chrony_rfc_enabled; then
         echo_t "SERVICE_CHRONYD : RFC flag absent — chrony path inactive" >> $NTPD_LOG_NAME
         return 0   
     fi
