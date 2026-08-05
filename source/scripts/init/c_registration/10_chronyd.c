@@ -32,12 +32,13 @@
 #ifdef _HUB4_PRODUCT_REQ_
 const char* SERVICE_CUSTOM_EVENTS[] = {
     "wan-status|/etc/utopia/service.d/service_chronyd.sh",
-    "ipv6_connection_state|/etc/utopia/service.d/service_chronyd.sh",
+    "current_wan_ifname|/etc/utopia/service.d/service_chronyd.sh|NULL|"TUPLE_FLAG_EVENT,
     NULL
 };
 #else
 const char* SERVICE_CUSTOM_EVENTS[] = {
     "wan-status|/etc/utopia/service.d/service_chronyd.sh",
+    "current_wan_ifname|/etc/utopia/service.d/service_chronyd.sh|NULL|"TUPLE_FLAG_EVENT,
     NULL
 };
 #endif
