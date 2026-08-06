@@ -6895,7 +6895,7 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
 
 #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) || defined(_PLATFORM_GENERICARM_)
     // RDKB-21814 
-    // Drop only remote managment port(8080,8181) in bridge_mode 
+    // Drop only remote management port(8080,8181) in bridge_mode
     // because port 80, 443 will be used to access MSO page / local admin page.
 
     rc = syscfg_get(NULL, "mgmt_wan_httpaccess", query, sizeof(query));
