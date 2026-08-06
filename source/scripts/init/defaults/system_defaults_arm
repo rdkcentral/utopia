@@ -1235,6 +1235,9 @@ $CpuMemFrag_Interval=4
 #Partner support for NTP FQDN
 $new_ntp_enabled=true
 
+#Chrony RFC enable state (false = ntpd active, true = chrony active)
+$chrony_enabled=false
+
 #Enable PresenceDetect
 $PresenceDetectEnabled=false
 

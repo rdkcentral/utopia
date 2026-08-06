@@ -332,6 +332,15 @@ set_ntp_driftsync_status ()
 
 service_start ()
 {
+    if [ "$(syscfg get chrony_enabled)" = "true" ]; then
+        echo_t "SERVICE_NTPD : RFC flag Present — chrony is the active NTP client" >> $NTPD_LOG_NAME
+        sysevent set ${SERVICE_NAME}-status "stopped"
+        if pidof "$BIN" > /dev/null 2>&1; then
+            echo_t "SERVICE_NTPD : stopping ntpd because chrony is enabled" >> $NTPD_LOG_NAME
+            service_stop
+        fi
+        return 0
+    fi
 
    local NTP_SERVER_URL_RESTORE="false"
    # Wait for connectivitycheck to complete
