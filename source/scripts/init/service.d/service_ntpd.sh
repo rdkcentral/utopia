@@ -293,7 +293,7 @@ set_ntp_driftsync_status ()
             ntpq_value=`ntpq -4 -c rv`
         fi
         if [ -n "$ntpq_value" ]; then
-            sync_status=`"$ntpq_value" | grep "stratum=16"`
+            sync_status=$(echo "$ntpq_value" | grep "stratum=16")
             if [ -z "$sync_status" ]; then
             echo_t "SERVICE_NTPD : ntpd time synced , setting the status" >> $NTPD_LOG_NAME
             syscfg set ntp_status 3
