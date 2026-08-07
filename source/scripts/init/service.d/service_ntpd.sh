@@ -538,7 +538,11 @@ service_start ()
            else
                MASK=$(ifconfig $SOURCE_PING_INTF | sed -rn '2s/ .*:(.*)$/\1/p')
            fi
-           echo "restrict $PEER_INTERFACE_IP mask $MASK nomodify notrap" >> $NTP_CONF_TMP
+           if [ -n "$MASK" ]; then
+               echo "restrict $PEER_INTERFACE_IP mask $MASK nomodify notrap" >> $NTP_CONF_TMP
+           else
+               echo "restrict $PEER_INTERFACE_IP nomodify notrap" >> $NTP_CONF_TMP
+           fi
        fi
    fi
 
