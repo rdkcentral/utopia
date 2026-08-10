@@ -276,7 +276,7 @@ fi
         return 1
     fi
 
-   
+   systemctl start ntp-metrics.service
     sysevent set ${SERVICE_NAME}-status "started"
     echo_t "SERVICE_CHRONYD : chronyd started [pid=$(pidof $CHRONY_BIN)]" >> $NTPD_LOG_NAME
 
