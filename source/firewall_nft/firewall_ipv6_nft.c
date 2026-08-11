@@ -1277,8 +1277,9 @@ v6GPFirewallRuleNext:
             }
          }
 #endif
-         fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr != %s iifname %s log drop\n", prefix, lan_ifname);
-         fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr %s iifname %s  counter jump LOG_FORWARD_DROP\n", prefix, wan6_ifname);
+	 //TODO
+         //fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr != %s iifname %s log drop\n", prefix, lan_ifname);
+         //fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr %s iifname %s  counter jump LOG_FORWARD_DROP\n", prefix, wan6_ifname);
       }
 
 /* From community: utopia/generic */

@@ -7675,7 +7675,7 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
 						ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
 #endif
 
-		}
+		                }
 			}
 		}
 
@@ -7723,7 +7723,7 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
              v_secure_system("iptables -t nat -%c prerouting_fromwan -p udp -m udp -d %s --dport %s -s %s -j DNAT --to-destination %s%s",
                 ciptableOprationCode,natip4, external_dest_port, external_ip, toip, port_modifier);
 #endif
-  
+	}  
 
         if ( !isNatRedirectionBlocked )
         {
@@ -7779,8 +7779,9 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
                v_secure_system("iptables -t nat -%c postrouting_tolan -s %s.0/%s -p udp -m udp -d %s --dport %s -j SNAT --to-source %s",
                    ciptableOprationCode,lan_3_octets, lan_netmask, toip, dport, lan_ipaddr);
 #endif
-             
-        }
+             }
+	 }
+	}
 
 	/*  it will applicable during router mode */
 	if( 0 == isBridgeMode )
@@ -7800,9 +7801,10 @@ int Utopia_IPRule_ephemeral_port_forwarding( portMapDyn_t *pmap, boolean_t isCal
             v_secure_system("iptables -t filter -%c wan2lan_forwarding_accept -p udp -m udp -s %s -d %s --dport %s -j xlog_accept_wan2lan",
                 ciptableOprationCode,external_ip, toip, dport);
 #endif
+	}
 	WAN_FAILOVER_SUPPORT_CHECk_END
      }
- 
+
   return SUCCESS;
 }
 
