@@ -2737,8 +2737,13 @@ static int handle_message_from_client(const int fd)
       }
       case (SE_MSG_NONE): 
       {
-         CLI_MGR_handle_client_error_by_fd(fd);
-         return(0);
+          /* SE_MSG_NONE = EOF: client process exited without calling sysevent_close
+          * (e.g. shell scripts using sysevent CLI one-shot). Close immediately
+          * instead of waiting for MAX_ERRORS_BEFORE_DISCONNECTION iterations,
+          * which leaves fd=-1 entries in the client table flooding select() loop.
+          */
+         CLI_MGR_remove_client_by_fd(fd, TOKEN_NULL, 1);
+	 return(0);
          break;
       }
       case (SE_MSG_ERRORED): {
@@ -3068,10 +3073,12 @@ void *worker_thread_main(void *arg)
             cur_fd = (global_clients.clients)[i].fd;
             if (0 == is_valid_fd(cur_fd)) {
                SE_INC_LOG(ERROR,
-		   printf("Thread id %d line %d main select got used client with a bad fd. Ignoring cur_fd = %d\n",thread_get_id(worker_data_key), __LINE__, cur_fd);
+		printf("Thread id %d line %d main select got used client with a bad fd. Removing\n", thread_get_id(worker_data_key), __LINE__);			      
                )
               incr_stat_info(STAT_WORKER_MAIN_SELECT_BAD_FD);
-            } else {
+	      /* Safety net: remove stale client entry to stop flooding select() loop */
+              CLI_MGR_remove_client_by_fd(cur_fd, TOKEN_NULL, 1);
+	    } else {
                FD_SET(cur_fd, &rd_set);
                if (cur_fd > maxfd) {
                   maxfd = cur_fd;
