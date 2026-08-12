@@ -68,42 +68,6 @@ service_init() {
     eval "$FOO"
 }
 
-# ──────────────────────────────────────────────────────────────────────────────
-# set_chrony_sync_status: background monitor — polls chronyc until Leap=Normal
-# ──────────────────────────────────────────────────────────────────────────────
-set_chrony_sync_status() {
-    local retry=1
-    local MAX_RETRY=12   # 12 × 10s = 120s max wait
-
-    while true; do
-        if [ "$retry" -gt "$MAX_RETRY" ]; then
-            echo_t "SERVICE_CHRONYD : sync not confirmed within 120s — daemon still running" >> $NTPD_LOG_NAME
-            break
-        fi
-
-        leap=$(chronyc tracking 2>/dev/null | grep "Leap status" | awk '{print $NF}')
-        if [ "$leap" = "Normal" ]; then
-		    uptime=$(cut -d. -f1 /proc/uptime)
-            uptime_ms=$((uptime*1000))
-            echo_t "SERVICE_CHRONYD : NTP Sync succeeded at $uptime_ms ms" >> $NTPD_LOG_NAME
-			t2ValNotify  "SYS_INFO_NTP_SYNC_split" $uptime_ms
-            syscfg set ntp_status 3
-            sysevent set ntp_time_sync 1
-            touch "$SYNC_FILE"
-            touch "$NTP_SYNCED_FILE"
-            DEVICEFIRSTUSEDATE=$(syscfg get device_first_use_date)
-            if [ -z "$DEVICEFIRSTUSEDATE" ] || [ "0" = "$DEVICEFIRSTUSEDATE" ]; then
-                syscfg set device_first_use_date "$(date +%Y-%m-%dT%H:%M:%S)"
-            fi
-            break
-        fi
-
-        retry=$((retry + 1))
-        sleep 10
-    done
-    exit 0
-}
-
 waitForConnChkFile()
 { 
     echo_t "SERVICE_CHRONYD CONNCHK: Waiting for connection check completion..." >> $NTPD_LOG_NAME
@@ -276,12 +240,10 @@ fi
         return 1
     fi
 
-   systemctl start ntp-metrics.service
+   #Service to Monitor the NTP sync and NTP Metrics
+    systemctl start ntp-metrics.service
     sysevent set ${SERVICE_NAME}-status "started"
     echo_t "SERVICE_CHRONYD : chronyd started [pid=$(pidof $CHRONY_BIN)]" >> $NTPD_LOG_NAME
-
-    # Background sync monitor
-    set_chrony_sync_status &
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
