@@ -316,7 +316,7 @@ service_stop() {
 # ──────────────────────────────────────────────────────────────────────────────
 service_wan_iface_change() {
     # RFC guard — only act if the chrony path is active
-    if [ ! -f "$RFC_FLAG" ]; then
+   if ! chrony_rfc_enabled; then 
         echo_t "SERVICE_CHRONYD : current_wan_ifname — RFC flag absent, skipping" >> $NTPD_LOG_NAME
         return 0
         
