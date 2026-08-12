@@ -1566,7 +1566,7 @@ v6GPFirewallRuleNext:
          fprintf(fp, "add rule ip6 filter wan2lan tcp dport 113 counter return\n"); // IDENT
          fprintf(fp, "add rule ip6 filter wan2lan icmpv6 type echo-request counter return\n"); // ICMP PING
 
-         fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 1214 counter return  RETURN\n"); // Kazaa
+         fprintf(fp, "add rule ip6 filter wan2lan tcp dport 1214 counter return\n"); // Kazaa
          fprintf(fp, "add rule ip6 filter wan2lan  udp dport 1214 counter return\n"); // Kazaa
          fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 6881:6999 counter return\n"); // Bittorrent
          fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 6346 counter return\n"); // Gnutella
