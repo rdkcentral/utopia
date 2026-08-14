@@ -266,6 +266,8 @@ service_stop() {
     systemctl stop chronyd 2>/dev/null
     killall chronyd 2>/dev/null
     sysevent set ${SERVICE_NAME}-status "stopped"
+	#Stop the chrony NTP metrics collection service
+	systemctl stop ntp-metrics.service
 }
 
 
