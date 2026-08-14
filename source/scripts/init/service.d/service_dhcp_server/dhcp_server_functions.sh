@@ -1080,6 +1080,13 @@ fi
    echo "expand-hosts" >> $LOCAL_DHCP_CONF
    echo "address=/.c.f.ip6.arpa/" >> $LOCAL_DHCP_CONF
 
+   # Set dns-forward-max if configured via TR-181
+   DNS_FORWARD_MAX=`syscfg get dnsmasq_forward_max`
+   if [ -n "$DNS_FORWARD_MAX" ] && [ "$DNS_FORWARD_MAX" != "0" ]; then
+       echo "dns-forward-max=$DNS_FORWARD_MAX" >> $LOCAL_DHCP_CONF
+       echo_t "DHCP_SERVER : Setting dns-forward-max=$DNS_FORWARD_MAX"
+   fi
+
       LOG_LEVEL=`syscfg get log_level`
    if [ -z "$LOG_LEVEL" ] ; then
        LOG_LEVEL=1
