@@ -209,17 +209,16 @@ fi
 
     # Stop ntpd if running — mutual exclusivity with chrony
     if pidof ntpd > /dev/null 2>&1; then
-        echo_t "SERVICE_CHRONYD : stopping ntpd for mutual exclusivity" >> $NTPD_LOG_NAME
-        systemctl stop ntpd 2>/dev/null
-        killall ntpd 2>/dev/null
-        sleep 2
-    fi
-
-    local rc=$?
+    echo_t "SERVICE_CHRONYD : stopping ntpd for mutual exclusivity" >> "$NTPD_LOG_NAME"
+    systemctl stop ntpd 2>/dev/null
+    rc=$?
     if [ "$rc" -ne 0 ]; then
+        echo_t "SERVICE_CHRONYD : failed to stop ntpd (rc=$rc), not starting chronyd" >> "$NTPD_LOG_NAME"
         sysevent set ${SERVICE_NAME}-status "error"
         return 1
     fi
+    sleep 2
+   fi
     # Start chronyd — only reaches here when no instance is running
 	# start chronyd will populate the config based on latest RFC configuration
     uptime=$(cut -d. -f1 /proc/uptime)
