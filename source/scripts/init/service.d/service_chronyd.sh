@@ -243,11 +243,15 @@ fi
     sysevent set ${SERVICE_NAME}-status "started"
     echo_t "SERVICE_CHRONYD : chronyd started [pid=$(pidof $CHRONY_BIN)]" >> $NTPD_LOG_NAME
 
-   #Service to Monitor the NTP sync and NTP Metrics when chrony is the active NTP client
-    systemctl start ntp-metrics.service
-	
-   #Stop the metrics collector service for ntpd
-	systemctl stop ntp-data-collector.service
+   # Service to monitor NTP sync and metrics when chrony is the active NTP client
+   if ! systemctl is-active --quiet ntp-metrics.service; then
+       systemctl start ntp-metrics.service
+   fi
+
+   # Stop the metrics collector service for ntpd if it is running
+   if systemctl is-active --quiet ntp-data-collector.service; then
+       systemctl stop ntp-data-collector.service
+   fi
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
