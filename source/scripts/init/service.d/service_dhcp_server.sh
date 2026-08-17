@@ -120,26 +120,35 @@ dnsserver_start_lxc ()
 
 dnsmasq_server_start ()
 {
+         # Read DNS forward max value from syscfg for TR-181 support
+         DNS_FORWARD_MAX=`syscfg get dnsmasq_forward_max`
+         if [ -n "$DNS_FORWARD_MAX" ] && [ "$DNS_FORWARD_MAX" != "0" ]; then
+             DNS_FORWARD_MAX_ARG="--dns-forward-max=$DNS_FORWARD_MAX"
+             echo_t "DHCP_SERVER : Starting dnsmasq with --dns-forward-max=$DNS_FORWARD_MAX"
+         else
+             DNS_FORWARD_MAX_ARG=""
+         fi
+
          if [ "$XDNS_ENABLE" = "true" ]; then
                 SYSCFG_XDNS_FLAG=`syscfg get X_RDKCENTRAL-COM_XDNS`
                 SYSCFG_DNSSEC_FLAG=`syscfg get XDNS_DNSSecEnable`
                 SYSCFG_XDNSREFAC_FLAG=`syscfg get XDNS_RefacCodeEnable`
                 if ([ "$MODEL_NUM" = "CGA4131COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [ "$MODEL_NUM" = "CGM601TCOM" ] || [ "$MODEL_NUM" = "SG417DBCT" ]) && [ -n "$SYSCFG_XDNS_FLAG" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ] && [ "$SYSCFG_DNSSEC_FLAG" = "1" ] ; then
                         if [ "$SYSCFG_XDNSREFAC_FLAG" = "1" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ] ; then
-                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --proxy-dnssec --cache-size=0 --xdns-refac-code  #--enable-dbus
+                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG --proxy-dnssec --cache-size=0 --xdns-refac-code  #--enable-dbus
                         else
-                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
+                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
                         fi
 
                 else
                         if [ "$SYSCFG_XDNSREFAC_FLAG" = "1" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ]; then
-                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
+                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
                         else
-                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
+                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
                         fi
                 fi
          else
-                $SERVER -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
+                $SERVER -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG  #--enable-dbus
          fi
 
 }
