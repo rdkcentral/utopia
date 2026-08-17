@@ -121,20 +121,6 @@ dnsserver_start_lxc ()
 dnsmasq_server_start ()
 {
          echo_t "DEBUG: dnsmasq_server_start() CALLED"
-         
-         # Read DNS forward max value from syscfg for TR-181 support
-         DNS_FORWARD_MAX=`syscfg get dnsmasq_forward_max`
-         echo_t "DEBUG: DNS_FORWARD_MAX='$DNS_FORWARD_MAX'"
-         
-         if [ -n "$DNS_FORWARD_MAX" ] && [ "$DNS_FORWARD_MAX" != "0" ]; then
-             DNS_FORWARD_MAX_ARG="--dns-forward-max=$DNS_FORWARD_MAX"
-             echo_t "DEBUG: Setting DNS_FORWARD_MAX_ARG='$DNS_FORWARD_MAX_ARG'"
-             echo_t "DHCP_SERVER : Starting dnsmasq with --dns-forward-max=$DNS_FORWARD_MAX"
-         else
-             DNS_FORWARD_MAX_ARG=""
-             echo_t "DEBUG: DNS_FORWARD_MAX_ARG is EMPTY"
-         fi
-
          echo_t "DEBUG: XDNS_ENABLE='$XDNS_ENABLE'"
          if [ "$XDNS_ENABLE" = "true" ]; then
                 SYSCFG_XDNS_FLAG=`syscfg get X_RDKCENTRAL-COM_XDNS`

@@ -245,6 +245,23 @@ int dnsmasq_server_start()
 {
     char l_cSystemCmd[255] = {0};
     errno_t safec_rc = -1;
+     char l_cDnsForwardMax[16] = {0};
+    char l_cDnsForwardMaxArg[32] = {0};
+ 
+    /* Read dns-forward-max from syscfg (set via TR-181 X_RDKCENTRAL-COM_DNSForwardMax) */
+    syscfg_get(NULL, "dnsmasq_forward_max", l_cDnsForwardMax, sizeof(l_cDnsForwardMax));
+    if (l_cDnsForwardMax[0] != '\0' && strncmp(l_cDnsForwardMax, "0", 1) != 0)
+    {
+        safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
+                             " --dns-forward-max=%s", l_cDnsForwardMax);
+        if (safec_rc < EOK)
+        {
+            ERR_CHK(safec_rc);
+            l_cDnsForwardMaxArg[0] = '\0';
+        }
+        fprintf(g_fArmConsoleLog, "\n%s DNS forward max set to %s\n",
+                __FUNCTION__, l_cDnsForwardMax);
+    }
 
     getRFC_Value (dnsOption);
     dnsOption[sizeof(dnsOption) - 1] = '\0'; // CID 340940 : String not null terminated (STRING_NULL)
