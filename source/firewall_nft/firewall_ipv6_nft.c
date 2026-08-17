@@ -1260,7 +1260,7 @@ v6GPFirewallRuleNext:
       #else
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
       #endif
-      if ( '\0' != prefix[0] ) {
+      if ( '\0' != prefix[0] && '/' != prefix[0] ) {
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j LOG --log-level %d --log-prefix \"UTOPIA: FW. IPv6 FORWARD anti-spoofing\"\n", prefix, lan_ifname,syslog_level);
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j REJECT --reject-with icmp6-adm-prohibited\n", prefix, lan_ifname);
 #ifdef _COSA_FOR_BCI_
@@ -1277,9 +1277,8 @@ v6GPFirewallRuleNext:
             }
          }
 #endif
-	 //TODO
-         //fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr != %s iifname %s log drop\n", prefix, lan_ifname);
-         //fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr %s iifname %s  counter jump LOG_FORWARD_DROP\n", prefix, wan6_ifname);
+       fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr != %s iifname %s log drop\n", prefix, lan_ifname);
+       fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr %s iifname %s  counter jump LOG_FORWARD_DROP\n", prefix, wan6_ifname);
       }
 
 /* From community: utopia/generic */
@@ -1568,10 +1567,10 @@ v6GPFirewallRuleNext:
 
          fprintf(fp, "add rule ip6 filter wan2lan tcp dport 1214 counter return\n"); // Kazaa
          fprintf(fp, "add rule ip6 filter wan2lan  udp dport 1214 counter return\n"); // Kazaa
-         fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 6881:6999 counter return\n"); // Bittorrent
+         fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 6881-6999 counter return\n"); // Bittorrent
          fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 6346 counter return\n"); // Gnutella
          fprintf(fp, "add rule ip6 filter wan2lan  udp dport 6346 counter return\n"); // Gnutella
-         fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 49152:65534 counter return\n"); // Vuze
+         fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 49152-65534 counter return\n"); // Vuze
          fprintf(fp, "add rule ip6 filter wan2lan counter accept\n");
       }
       else if (strncasecmp(firewall_levelv6, "Low", strlen("Low")) == 0)
@@ -1605,7 +1604,7 @@ v6GPFirewallRuleNext:
          }
 
          if(isMulticastBlockedV6) {
-            fprintf(fp, "add rule ip6 filter wan2lan -p 2  counter return\n"); // IGMP
+            fprintf(fp, "add rule ip6 filter wan2lan meta l4proto ipv6-icmp icmpv6 type { 130, 131, 132, 143 } counter return\n"); // MLD (IPv6 multicast group management)
          }
 
          fprintf(fp, "add rule ip6 filter wan2lan counter accept\n");

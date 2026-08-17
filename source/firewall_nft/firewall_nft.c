@@ -4582,16 +4582,16 @@ static int do_nonat(FILE *filter_fp)
          }
          if (isPingBlocked)
          {
-            fprintf(filter_fp, "add rule ip filter wan2lan_nonat icmp icmp type echo-request return\n"); // ICMP PING
+            fprintf(filter_fp, "add rule ip filter wan2lan_nonat icmp type echo-request counter return\n"); // ICMP PING
          }
          if (isP2pBlocked)
          {
             fprintf(filter_fp, "add rule ip filter wan2lan_nonat tcp dport 1214 counter return\n"); // Kazaa
             fprintf(filter_fp, "add rule ip filter wan2lan_nonat udp dport 1214 counter return\n"); // Kazaa
-            fprintf(filter_fp, "add rule ip filter wan2lan_nonat tcp dport 6881:6999 counter return\n"); // Bittorrent
+            fprintf(filter_fp, "add rule ip filter wan2lan_nonat tcp dport 6881-6999 counter return\n"); // Bittorrent
             fprintf(filter_fp, "add rule ip filter wan2lan_nonat tcp dport 6346 counter return\n"); // Gnutella
             fprintf(filter_fp, "add rule ip filter wan2lan_nonat udp dport 6346 counter return\n"); // Gnutella
-            fprintf(filter_fp, "add rule ip filter wan2lan_nonat tcp dport 49152:65534 counter return\n"); // Vuze
+            fprintf(filter_fp, "add rule ip filter wan2lan_nonat tcp dport 49152-65534 counter return\n"); // Vuze
 
          }
       }
@@ -8308,11 +8308,11 @@ static int do_parcon_mgmt_service(FILE *fp, int iptype, FILE *cron_fp)
          fprintf(fp, "add rule ip filter LOG_ServiceBlocked_%d_DROP counter drop\n", idx);
 #endif
          if (0 == proto || 1 ==  proto) {
-            fprintf(fp, "add rule ip filter lan2wan_pc_service tcp dport { %s..%s } counter jump LOG_ServiceBlocked_%d_DROP\n", sdport, edport, idx);
+            fprintf(fp, "add rule ip filter lan2wan_pc_service tcp dport %s-%s counter jump LOG_ServiceBlocked_%d_DROP\n", sdport, edport, idx);
          }
 
          if (0 == proto || 2 ==  proto) {
-            fprintf(fp, "add rule ip filter lan2wan_pc_service udp dport { %s..%s } counter jump LOG_ServiceBlocked_%d_DROP\n", sdport, edport, idx);
+            fprintf(fp, "add rule ip filter lan2wan_pc_service udp dport %s-%s counter jump LOG_ServiceBlocked_%d_DROP\n", sdport, edport, idx);
          }
       }
    }
@@ -11976,9 +11976,9 @@ fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"brlan112
    fprintf(filter_fp, "add rule ip filter wan2self ct state related,established counter accept\n");
 #ifdef INTEL_PUMA7
    // accept Vonage packets --  ARRISXB6-3881
-   fprintf(filter_fp, "add rule ip filter wan2self udp dport 10000:20000 counter accept\n");
+   fprintf(filter_fp, "add rule ip filter wan2self udp dport 10000-20000 counter accept\n");
    // accept Teams packets --  INTCS-114
-   fprintf(filter_fp,"add rule ip filter wan2se/lf ip saddr 52.112.0.0/12 ct state new counter accept\n");
+   fprintf(filter_fp,"add rule ip filter wan2self ip saddr 52.112.0.0/12 ct state new counter accept\n");
 #endif
    fprintf(filter_fp, "add rule ip filter wan2self counter jump xlog_drop_wan2self\n");
 
@@ -12201,18 +12201,18 @@ int do_block_ports(FILE *filter_fp, const char *version)
    {
       if(strcmp("1", strValue) == 0)
       {
-	 fprintf(filter_fp, "add rule ip filter INPUT iifname brlan0 tcp dport 9869 counter accept\n");
-         fprintf(filter_fp, "add rule ip filter INPUT tcp dport 9869 counter jump drop\n");
-         fprintf(filter_fp, "add rule ip filter INPUT iifname != brlan0 tcp dport 9869 counter drop\n");
-         fprintf(filter_fp, "add rule ip filter INPUT iifname != brlan0 udp dport 9869 counter drop\n");
+	 fprintf(filter_fp, "add rule %s filter INPUT iifname brlan0 tcp dport 9869 counter accept\n", version);
+         fprintf(filter_fp, "add rule %s filter INPUT tcp dport 9869 counter jump drop\n", version);
+         fprintf(filter_fp, "add rule %s filter INPUT iifname != brlan0 tcp dport 9869 counter drop\n", version);
+         fprintf(filter_fp, "add rule %s filter INPUT iifname != brlan0 udp dport 9869 counter drop\n", version);
          AnscFreeMemory(strValue);
          strValue = NULL;
       }
    }
 #ifdef FEATURE_MATTER_ENABLED
-   fprintf(filter_fp, "add rule ip filter INPUT iifname %s tcp dport 5540 counter accept\n", lan_ifname);
-   fprintf(filter_fp, "add rule ip filter INPUT iifname %s udp dport 5540 counter accept\n", lan_ifname);
-   fprintf(filter_fp, "add rule ip filter INPUT iifname %s udp dport 5353 counter accept\n", lan_ifname);
+   fprintf(filter_fp, "add rule %s filter INPUT iifname %s tcp dport 5540 counter accept\n", version, lan_ifname);
+   fprintf(filter_fp, "add rule %s filter INPUT iifname %s udp dport 5540 counter accept\n", version, lan_ifname);
+   fprintf(filter_fp, "add rule %s filter INPUT iifname %s udp dport 5353 counter accept\n", version, lan_ifname);
 #endif
    return 0;
 }
@@ -13460,31 +13460,31 @@ void RmConntrackEntry(char *IPaddr)
 {
     if(isIPv6Addr(IPaddr))
     {
-        v_secure_system("nft delete rule ip6 filter INPUT ip6 saddr %s", IPaddr);
-        v_secure_system("nft delete rule ip6 filter INPUT ip6 daddr %s", IPaddr);
+        v_secure_system("conntrack -D -f ipv6 -s %s", IPaddr);
+        v_secure_system("conntrack -D -f ipv6 -d %s", IPaddr);
 
 /*Mamidi:12042017:Fix for ARRISXB6-5237 and ARRISXB6-6256*/
 #if !defined (INTEL_PUMA7)
         v_secure_system("nft insert rule ip6 filter FORWARD ip6 saddr %s drop", IPaddr);
         v_secure_system("nft insert rule ip6 filter FORWARD ip6 saddr %s ct state established drop", IPaddr);
 #endif
-        v_secure_system("nft insert rule ip6 filter FORWARD ip6 saddr %s udp drop", IPaddr);
+        v_secure_system("nft insert rule ip6 filter FORWARD ip6 saddr %s meta l4proto udp drop", IPaddr);
         v_secure_system("nft insert rule ip6 filter FORWARD ip6 saddr %s udp dport 53 accept", IPaddr);
         v_secure_system("nft insert rule ip6 filter FORWARD ip6 daddr %s udp dport 53 accept", IPaddr);
-        v_secure_system("nft insert rule ip6 filter FORWARD ip6 saddr %s tcp ct state new accept", IPaddr);
+        v_secure_system("nft insert rule ip6 filter FORWARD ip6 saddr %s meta l4proto tcp ct state new accept", IPaddr);
     }
     else
     {
-        v_secure_system("nft insert rule ip filter conntrack delete ip saddr %s", IPaddr);
+        v_secure_system("conntrack -D --orig-src %s", IPaddr);
 /*Mamidi:12042017:Fix for ARRISXB6-5237 and ARRISXB6-6256*/
 #if !defined (INTEL_PUMA7)
         v_secure_system("nft insert rule ip filter FORWARD ip saddr %s drop", IPaddr);
         v_secure_system("nft insert rule ip filter FORWARD ip saddr %s ct state established drop", IPaddr);
 #endif
-        v_secure_system("nft insert rule ip filter FORWARD ip saddr %s udp drop", IPaddr);
+        v_secure_system("nft insert rule ip filter FORWARD ip saddr %s meta l4proto udp drop", IPaddr);
         v_secure_system("nft insert rule ip filter FORWARD ip saddr %s udp dport 53 accept", IPaddr);
         v_secure_system("nft insert rule ip filter FORWARD ip daddr %s udp dport 53 accept", IPaddr);
-        v_secure_system("nft insert rule ip filter FORWARD ip saddr %s tcp ct state new accept", IPaddr);
+        v_secure_system("nft insert rule ip filter FORWARD ip saddr %s meta l4proto tcp ct state new accept", IPaddr);
     }
 }
 
@@ -13525,7 +13525,7 @@ int CleanIPConntrack(char *physAddress)
     for (int i = 0; i < neigh_data->neigh_count; i++) {
          snprintf(output, sizeof(output), "%s", neigh_data->neigh_arr[i].local);
          printf("Output: neighbour list %s\n",output);
-            if (!strstr(output, "fe80:")) {
+            if (output[0] != '\0' && 0 != strcmp(output, "none") && !strstr(output, "fe80:")) {
             RmConntrackEntry(output);
             }
     }
