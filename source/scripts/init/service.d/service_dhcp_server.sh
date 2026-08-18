@@ -120,44 +120,28 @@ dnsserver_start_lxc ()
 
 dnsmasq_server_start ()
 {
-         echo_t "DEBUG: dnsmasq_server_start() CALLED"
-         echo_t "DEBUG: XDNS_ENABLE='$XDNS_ENABLE'"
          if [ "$XDNS_ENABLE" = "true" ]; then
                 SYSCFG_XDNS_FLAG=`syscfg get X_RDKCENTRAL-COM_XDNS`
                 SYSCFG_DNSSEC_FLAG=`syscfg get XDNS_DNSSecEnable`
                 SYSCFG_XDNSREFAC_FLAG=`syscfg get XDNS_RefacCodeEnable`
-                echo_t "DEBUG: XDNS_FLAG='$SYSCFG_XDNS_FLAG' DNSSEC='$SYSCFG_DNSSEC_FLAG' REFAC='$SYSCFG_XDNSREFAC_FLAG'"
-                echo_t "DEBUG: MODEL_NUM='$MODEL_NUM'"
                 
                 if ([ "$MODEL_NUM" = "CGA4131COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [ "$MODEL_NUM" = "CGM601TCOM" ] || [ "$MODEL_NUM" = "SG417DBCT" ]) && [ -n "$SYSCFG_XDNS_FLAG" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ] && [ "$SYSCFG_DNSSEC_FLAG" = "1" ] ; then
                         if [ "$SYSCFG_XDNSREFAC_FLAG" = "1" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ] ; then
-                                echo_t "DEBUG: PATH 1 - DNSSEC + REFAC"
-                                echo_t "DEBUG: Command: $SERVER -q --clear-on-reload ... $DNS_FORWARD_MAX_ARG --proxy-dnssec ..."
                                 $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG --proxy-dnssec --cache-size=0 --xdns-refac-code  #--enable-dbus
                         else
-                                echo_t "DEBUG: PATH 2 - DNSSEC only"
-                                echo_t "DEBUG: Command: $SERVER -q --clear-on-reload ... $DNS_FORWARD_MAX_ARG --proxy-dnssec ..."
                                 $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
                         fi
 
                 else
                         if [ "$SYSCFG_XDNSREFAC_FLAG" = "1" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ]; then
-                                echo_t "DEBUG: PATH 3 - REFAC only"
-                                echo_t "DEBUG: Command: $SERVER -q --clear-on-reload ... $DNS_FORWARD_MAX_ARG --xdns-refac-code ..."
                                 $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
                         else
-                                echo_t "DEBUG: PATH 4 - Standard XDNS"
-                                echo_t "DEBUG: Command: $SERVER -q --clear-on-reload ... $DNS_ADDITIONAL_OPTION='$DNS_ADDITIONAL_OPTION' $DNS_FORWARD_MAX_ARG='$DNS_FORWARD_MAX_ARG' ..."
                                 $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
                         fi
                 fi
          else
-                echo_t "DEBUG: PATH 5 - NO XDNS"
-                echo_t "DEBUG: Command: $SERVER -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG"
                 $SERVER -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION $DNS_FORWARD_MAX_ARG  #--enable-dbus
          fi
-         
-         echo_t "DEBUG: dnsmasq_server_start() COMPLETE"
 }
 
 

@@ -259,13 +259,10 @@ int dnsmasq_server_start()
             ERR_CHK(safec_rc);
             l_cDnsForwardMaxArg[0] = '\0';
         }
-        fprintf(g_fArmConsoleLog, "\n%s DNS forward max set to %s\n",
-                __FUNCTION__, l_cDnsForwardMax);
     }
 
     getRFC_Value (dnsOption);
     dnsOption[sizeof(dnsOption) - 1] = '\0'; // CID 340940 : String not null terminated (STRING_NULL)
-    fprintf(g_fArmConsoleLog, "\n%s Adding DNSMASQ Option: %s\n",__FUNCTION__, dnsOption);
     strtok(dnsOption,"\n");
     char l_cXdnsRefacCodeEnable[8] = {0};
     char l_cXdnsEnable[8] = {0};
