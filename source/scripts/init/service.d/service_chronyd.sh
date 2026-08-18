@@ -68,6 +68,39 @@ service_init() {
     eval "$FOO"
 }
 
+# ──────────────────────────────────────────────────────────────────────────────
+# set_chrony_sync_status: background monitor — polls chronyc until Leap=Normal
+# ──────────────────────────────────────────────────────────────────────────────
+set_chrony_sync_status() {
+    local retry=1
+    local MAX_RETRY=12   # 12 × 10s = 120s max wait
+
+    while true; do
+        if [ "$retry" -gt "$MAX_RETRY" ]; then
+            echo_t "SERVICE_CHRONYD : sync not confirmed within 120s — daemon still running" >> $NTPD_LOG_NAME
+            break
+        fi
+
+        leap=$(chronyc tracking 2>/dev/null | grep "Leap status" | awk '{print $NF}')
+        if [ "$leap" = "Normal" ]; then
+            echo_t "SERVICE_CHRONYD : time sync confirmed (Leap status Normal)" >> $NTPD_LOG_NAME
+            syscfg set ntp_status 3
+            sysevent set ntp_time_sync 1
+            touch "$SYNC_FILE"
+            touch "$NTP_SYNCED_FILE"
+            DEVICEFIRSTUSEDATE=$(syscfg get device_first_use_date)
+            if [ -z "$DEVICEFIRSTUSEDATE" ] || [ "0" = "$DEVICEFIRSTUSEDATE" ]; then
+                syscfg set device_first_use_date "$(date +%Y-%m-%dT%H:%M:%S)"
+            fi
+            break
+        fi
+
+        retry=$((retry + 1))
+        sleep 10
+    done
+    exit 0
+}
+
 waitForConnChkFile()
 { 
     echo_t "SERVICE_CHRONYD CONNCHK: Waiting for connection check completion..." >> $NTPD_LOG_NAME
@@ -243,14 +276,15 @@ fi
     echo_t "SERVICE_CHRONYD : chronyd started [pid=$(pidof $CHRONY_BIN)]" >> $NTPD_LOG_NAME
 
    # Service to monitor NTP sync and metrics when chrony is the active NTP client
-   if ! systemctl is-active --quiet ntp-metrics.service; then
-       systemctl start ntp-metrics.service
+   if ! systemctl is-active --quiet chrony-ntp-metrics.service; then
+       systemctl start chrony-ntp-metrics.service
    fi
 
    # Stop the metrics collector service for ntpd if it is running
    if systemctl is-active --quiet ntp-data-collector.service; then
        systemctl stop ntp-data-collector.service
    fi
+   set_chrony_sync_status &
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -270,7 +304,7 @@ service_stop() {
     killall chronyd 2>/dev/null
     sysevent set ${SERVICE_NAME}-status "stopped"
 	#Stop the chrony NTP metrics collection service
-	systemctl stop ntp-metrics.service
+	systemctl stop chrony-ntp-metrics.service
 }
 
 
