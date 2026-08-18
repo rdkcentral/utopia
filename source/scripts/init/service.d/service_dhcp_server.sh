@@ -125,6 +125,8 @@ dnsmasq_server_start ()
          DNS_FORWARD_MAX_ARG=""
          if [ -n "$DNS_FORWARD_MAX" ] && [ "$DNS_FORWARD_MAX" != "0" ]; then
                  DNS_FORWARD_MAX_ARG="--dns-forward-max=$DNS_FORWARD_MAX"
+         else
+                 DNS_FORWARD_MAX_ARG="--dns-forward-max=600"
          fi
 
          if [ "$XDNS_ENABLE" = "true" ]; then
