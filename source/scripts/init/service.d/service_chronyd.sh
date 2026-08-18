@@ -1,4 +1,4 @@
-#!/bin/sh
+F#!/bin/sh
 #######################################################################o
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -98,7 +98,7 @@ set_chrony_sync_status() {
                 syscfg set device_first_use_date "$(date +%Y-%m-%dT%H:%M:%S)"
             fi
 			offset=$(echo "$tracking" | awk '/^Last offset/ {print $4}')
-	        echo_t "SERVICE_CHRONYD :Initial Offset: $offset"  >> $NTPD_LOG_NAME
+	        echo_t "SERVICE_CHRONYD : Initial Offset: $offset"  >> $NTPD_LOG_NAME
             break
         fi
 
