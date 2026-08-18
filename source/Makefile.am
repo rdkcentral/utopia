@@ -19,6 +19,7 @@
 SUBDIRS = ulog syscfg sysevent services utctx utapi util firewall firewall_log newhost macclone pal pmon services service_wan trigger igd service_routed service_ipv6 scripts service_multinet service_udhcpc
 
 #SUBDIRS += dhcpproxy
+SUBDIRS += mtrace_watcher
 
 if DSLITE_FEATURE_SUPPORT
 SUBDIRS += service_dslite

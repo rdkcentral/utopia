@@ -257,6 +257,7 @@ AC_CONFIG_FILES(
 	Makefile
 	source/Makefile
 	source/dhcpproxy/Makefile
+	source/mtrace_watcher/Makefile
 	source/firewall/Makefile
 	source/firewall_log/Makefile
 	source/igd/Makefile
