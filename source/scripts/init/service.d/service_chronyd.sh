@@ -1,9 +1,5 @@
 #!/bin/sh
-##########################################################################
-# If not stated otherwise in this file or this component's Licenses.txt
-# file the following copyright and licenses apply:
-#
-# Copyright 2015 RDK Management
+#######################################################################o
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -102,7 +98,7 @@ set_chrony_sync_status() {
                 syscfg set device_first_use_date "$(date +%Y-%m-%dT%H:%M:%S)"
             fi
 			offset=$(echo "$tracking" | awk '/^Last offset/ {print $4}')
-	        echo "Offset during sync: $offset"
+	        echo "Offset during NTP Sync: $offset"  >> $NTPD_LOG_NAME
             break
         fi
 
