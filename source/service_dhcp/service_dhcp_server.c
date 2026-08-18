@@ -1342,7 +1342,7 @@ int service_dhcp_init()
 	char l_cPropagate_Ns[8] = {0}, l_cPropagate_Dom[8] = {0};
 	char l_cSlow_Start[8] = {0}, l_cByoi_Enabled[8] = {0};
     char l_cWan_IpAddr[16] = {0}, l_cPrim_Temp_Ip_Prefix[16] = {0}, l_cCurrent_Hsd_Mode[16] = {0};
-    //	char l_cTemp_Dhcp_Lease[8] = {0}, l_cDhcp_Slow_start_Quanta[8] = {0}; UNUSED VARIABLE
+    //	char l_cTemp_Dhcp_Lease[8] = {0}, l_cDhcp_Slow_Start_Quanta[8] = {0}; UNUSED VARIABLE
     //char l_cDhcpSlowStartQuanta[8] = {0};  UNUSED VARIABLE
 
 	syscfg_get(NULL, "dhcp_server_propagate_wan_nameserver", l_cPropagate_Ns, sizeof(l_cPropagate_Ns));
@@ -1355,7 +1355,7 @@ int service_dhcp_init()
 	syscfg_get(NULL, "dhcp_server_propagate_wan_domain", l_cPropagate_Dom, sizeof(l_cPropagate_Dom));
 
 	// Is dhcp slow start feature enabled
-	// int l_iSlow_start_Needed; UNUSED Variable
+	// int l_iSlow_Start_Needed; UNUSED Variable
 	syscfg_get(NULL, "dhcp_server_slow_start", l_cSlow_Start, sizeof(l_cSlow_Start));
 
 	syscfg_get(NULL, "byoi_enabled", l_cByoi_Enabled, sizeof(l_cByoi_Enabled));
@@ -1375,26 +1375,26 @@ int service_dhcp_init()
             /* DEADCODE
 	        if (!strncmp(l_cWan_IpAddr, "0.0.0.0", 7))
     	    {
-        	    l_iSlow_start_Needed = 1;
+        	    l_iSlow_Start_Needed = 1;
 	        }
     	    if ((!strncmp(l_cByoi_Enabled, "1", 1)) && (!strncmp(l_cCurrent_Hsd_Mode, "primary", 7)) &&
         	    (!strncmp(l_cPrim_Temp_Ip_Prefix, "2", 1))) //TODO complete this if statement
 	            //[ "$primary_temp_ip_prefix" = ${wan_ipaddr:0:${#primary_temp_ip_prefix}} ] ; then
     	    {
-        	    l_iSlow_start_Needed = 1;
+        	    l_iSlow_Start_Needed = 1;
 	        }
 	    */
     	}
 	}
 
 	// Disable this to alway pick lease value from syscfg.db
-	// l_iSlow_start_Needed = 0; DEADCODE
+	// l_iSlow_Start_Needed = 0; DEADCODE
 
 	// DHCP_LEASE_TIME is the number of seconds or minutes or hours to give as a lease
 	syscfg_get(NULL, "dhcp_lease_time", g_cDhcp_Lease_Time, sizeof(g_cDhcp_Lease_Time));
 
 	/* DEADCODE
-	if (1 == l_iSlow_start_Needed)
+	if (1 == l_iSlow_Start_Needed)
 	{
 	    int l_iDhcpSlowQuanta;
     	syscfg_get(NULL, "temp_dhcp_lease_length", l_cTemp_Dhcp_Lease, sizeof(l_cTemp_Dhcp_Lease));
@@ -1411,7 +1411,7 @@ int service_dhcp_init()
 	        l_iDhcpSlowQuanta = atoi(l_cTemp_Dhcp_Lease);
     	}
 
-	    if (0 == l_cDhcp_Slow_start_Quanta[0])
+	    if (0 == l_cDhcp_Slow_Start_Quanta[0])
     	{
 	        l_iDhcpSlowQuanta = 1;
     	    strncpy(g_cTime_File, DHCP_SLOW_START_1_FILE, sizeof(g_cTime_File));
@@ -1435,7 +1435,7 @@ int service_dhcp_init()
 	        }
     	    else
         	{
-	            l_iDhcpSlowQuanta = atoi(g_cDhcp_Lease_time);
+	            l_iDhcpSlowQuanta = atoi(g_cDhcp_Lease_Time);
     	        strncpy(g_cTime_File, DHCP_SLOW_START_3_FILE, sizeof(g_cTime_File));
         	}
     	}
@@ -1445,9 +1445,9 @@ int service_dhcp_init()
 	        l_iDhcpSlowQuanta = 60;
     	}
 		
-		snprintf(l_cDhcp_Slow_start_Quanta, sizeof(l_cDhcp_Slow_start_Quanta), "%d", l_iDhcpSlowQuanta);
-	    sysevent_set(g_iSyseventfd, g_tSysevent_token, "dhcp_slow_start_quanta", l_cDhcp_Slow_start_Quanta, 0);
-		snprintf(g_cDhcp_Lease_time, sizeof(g_cDhcp_Lease_time), "%d", l_iDhcpSlowQuanta);
+		snprintf(l_cDhcp_Slow_Start_Quanta, sizeof(l_cDhcp_Slow_Start_Quanta), "%d", l_iDhcpSlowQuanta);
+	    sysevent_set(g_iSyseventfd, g_tSysevent_token, "dhcp_slow_start_quanta", l_cDhcp_Slow_Start_Quanta, 0);
+		snprintf(g_cDhcp_Lease_Time, sizeof(g_cDhcp_Lease_Time), "%d", l_iDhcpSlowQuanta);
 	}
 	else
 	*/
