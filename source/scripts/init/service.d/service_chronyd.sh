@@ -264,7 +264,7 @@ fi
     uptime=$(cut -d. -f1 /proc/uptime)
     uptime_ms=$((uptime*1000))
     echo_t "SERVICE_CHRONYD : starting chronyd daemon at $uptime_ms ms" >> $NTPD_LOG_NAME
-	t2ValNotify "SYS_INFO_NTP_START_split" $uptime_ms
+	t2ValNotify "SYS_INFO_NTPSTART_split" $uptime_ms
     systemctl start chronyd
     rc=$?
     if [ "$rc" -eq 0 ]; then
