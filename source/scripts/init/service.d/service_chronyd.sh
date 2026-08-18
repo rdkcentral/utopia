@@ -101,14 +101,14 @@ set_chrony_sync_status() {
             if [ -z "$DEVICEFIRSTUSEDATE" ] || [ "0" = "$DEVICEFIRSTUSEDATE" ]; then
                 syscfg set device_first_use_date "$(date +%Y-%m-%dT%H:%M:%S)"
             fi
+			offset=$(echo "$tracking" | awk '/^Last offset/ {print $4}')
+	        echo "Offset during sync: $offset"
             break
         fi
 
         retry=$((retry + 1))
         sleep 10
     done
-	offset=$(echo "$tracking" | awk '/^Last offset/ {print $4}')
-	echo "Offset during sync: $offset"
     exit 0
 }
 
