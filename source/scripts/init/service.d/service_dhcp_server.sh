@@ -120,6 +120,13 @@ dnsserver_start_lxc ()
 
 dnsmasq_server_start ()
 {
+         # Read DNS forward max from syscfg (set via TR-181 X_RDKCENTRAL-COM_DNSForwardMax)
+         DNS_FORWARD_MAX=`syscfg get dnsmasq_forward_max`
+         DNS_FORWARD_MAX_ARG=""
+         if [ -n "$DNS_FORWARD_MAX" ] && [ "$DNS_FORWARD_MAX" != "0" ]; then
+                 DNS_FORWARD_MAX_ARG="--dns-forward-max=$DNS_FORWARD_MAX"
+         fi
+
          if [ "$XDNS_ENABLE" = "true" ]; then
                 SYSCFG_XDNS_FLAG=`syscfg get X_RDKCENTRAL-COM_XDNS`
                 SYSCFG_DNSSEC_FLAG=`syscfg get XDNS_DNSSecEnable`
