@@ -1363,7 +1363,7 @@ int service_dhcp_init()
 	if ((!strncmp(l_cPropagate_Ns, "1", 1)) || (!strncmp(l_cPropagate_Dom, "1", 1)) ||
 	    (!strncmp(l_cByoi_Enabled, "1", 1)))
 	{
-	    if (!strncmp(l_cSlow_start, "1", 1))
+	    if (!strncmp(l_cSlow_Start, "1", 1))
 	    {
 	        sysevent_get(g_iSyseventfd, g_tSysevent_token, "current_wan_ipaddr", 
 						 l_cWan_IpAddr, sizeof(l_cWan_IpAddr));
@@ -1455,10 +1455,10 @@ int service_dhcp_init()
 		//Setting the dhcp_slow_start_quanta to empty / NULL
     	sysevent_set(g_iSyseventfd, g_tSysevent_token, "dhcp_slow_start_quanta", "", 0);
 	}
-	if(0 == g_cDhcp_Lease_time[0])
+	if(0 == g_cDhcp_Lease_Time[0])
 	{
 		fprintf(g_fArmConsoleLog, "DHCP Lease time is empty, set to default value 24h\n");
-	    strncpy(g_cDhcp_Lease_time, "24h", sizeof(g_cDhcp_Lease_time));
+	    strncpy(g_cDhcp_Lease_Time, "24h", sizeof(g_cDhcp_Lease_Time));
 	}
 
 	get_device_props();
