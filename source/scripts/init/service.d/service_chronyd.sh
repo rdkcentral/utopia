@@ -81,9 +81,18 @@ set_chrony_sync_status() {
             break
         fi
 
-        leap=$(chronyc tracking 2>/dev/null | grep "Leap status" | awk '{print $NF}')
+        tracking=$(chronyc tracking 2>/dev/null)
+        if [ -z "$tracking" ]; then
+           echo_t "chronyc tracking failed or returned no output, skipping this sample"
+           return 1
+        fi
+		
+        leap=$(echo "$tracking" | awk '/^Leap status/ {print $NF}')
         if [ "$leap" = "Normal" ]; then
-            echo_t "SERVICE_CHRONYD : time sync confirmed (Leap status Normal)" >> $NTPD_LOG_NAME
+		    uptime=$(cut -d. -f1 /proc/uptime)
+            uptime_ms=$((uptime*1000))
+            echo_t "SERVICE_CHRONYD : NTP synchronization is successful at $uptime_ms ms" >> $NTPD_LOG_NAME
+			t2ValNotify "SYS_INFO_NTP_SYNC_split" $uptime_ms
             syscfg set ntp_status 3
             sysevent set ntp_time_sync 1
             touch "$SYNC_FILE"
@@ -98,6 +107,8 @@ set_chrony_sync_status() {
         retry=$((retry + 1))
         sleep 10
     done
+	offset=$(echo "$tracking" | awk '/^Last offset/ {print $4}')
+	echo "Offset during sync: $offset"
     exit 0
 }
 
