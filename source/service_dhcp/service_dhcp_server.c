@@ -205,8 +205,8 @@ int get_PSM_VALUES_FOR_POOL(char *cmd,char *arr)
         if (l_cpPsm_Get != NULL)
         {
             snprintf(arr, 16, "%s", l_cpPsm_Get);
-            Ansc_FreeMemory_Callback(l_cpPsm_get);
-            l_cpPsm_get = NULL;
+            Ansc_FreeMemory_Callback(l_cpPsm_Get);
+            l_cpPsm_Get = NULL;
         }
         else
         {
@@ -216,7 +216,7 @@ int get_PSM_VALUES_FOR_POOL(char *cmd,char *arr)
     }
     else
     {
-        fprintf(g_fArmConsoleLog, "\nError:%d while getting parameter:%s\n",l_iRet_val, cmd);
+        fprintf(g_fArmConsoleLog, "\nError:%d while getting parameter:%s\n",l_iRet_Val, cmd);
         return -1;
     }
     return 0;
@@ -886,7 +886,7 @@ int dhcp_server_start (char *input)
 	            sleep(5);
 				l_iSystem_Res = dnsmasq_server_start(); //dnsmasq command
                             fprintf(g_fArmConsoleLog, "\n%s dnsmasq_server_start returns %d .......\n", __FUNCTION__,l_iSystem_Res);
-			    if (0 == l_iSystem_res)
+			    if (0 == l_iSystem_Res)
 			    {
     				fprintf(g_fArmConsoleLog, "%s process started successfully\n", SERVER);
 					break;
@@ -1356,7 +1356,7 @@ int service_dhcp_init()
 
 	// Is dhcp slow start feature enabled
 	// int l_iSlow_start_Needed; UNUSED Variable
-	syscfg_get(NULL, "dhcp_server_slow_start", l_cSlow_start, sizeof(l_cSlow_start));
+	syscfg_get(NULL, "dhcp_server_slow_start", l_cSlow_Start, sizeof(l_cSlow_Start));
 
 	syscfg_get(NULL, "byoi_enabled", l_cByoi_Enabled, sizeof(l_cByoi_Enabled));
 
@@ -1391,7 +1391,7 @@ int service_dhcp_init()
 	// l_iSlow_start_Needed = 0; DEADCODE
 
 	// DHCP_LEASE_TIME is the number of seconds or minutes or hours to give as a lease
-	syscfg_get(NULL, "dhcp_lease_time", g_cDhcp_Lease_time, sizeof(g_cDhcp_Lease_time));
+	syscfg_get(NULL, "dhcp_lease_time", g_cDhcp_Lease_Time, sizeof(g_cDhcp_Lease_Time));
 
 	/* DEADCODE
 	if (1 == l_iSlow_start_Needed)
@@ -1503,7 +1503,7 @@ void lan_status_change(char *input)
         fprintf(g_fArmConsoleLog, "SERVICE DHCP : Start dhcp-server from lan status change");
            
 	    l_iSystem_Res = dnsmasq_server_start(); //dnsmasq command
-    	if (0 == l_iSystem_res)
+    	if (0 == l_iSystem_Res)
 	    {
     	    fprintf(g_fArmConsoleLog, "%s process started successfully\n", SERVER);
 	    }
