@@ -342,6 +342,10 @@ service_start ()
         return 0
     fi
 
+   # stop chrony metrics collection timer when NTPd is the active NTP client
+   if systemctl is-active --quiet chrony-ntp-metrics.timer; then
+       systemctl stop chrony-ntp-metrics.timer
+   fi
    local NTP_SERVER_URL_RESTORE="false"
    # Wait for connectivitycheck to complete
    if [ -f $CONNCHECK_FILE ]; then
