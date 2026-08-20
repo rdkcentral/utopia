@@ -924,6 +924,8 @@ $rlog_port=514
 # Device Fingerprint Enable
 $$Advsecurity_DeviceFingerPrint=1
 $$Advsecurity_LogLevel=3
+$$Adv_RaptrRFCEnable=1
+$$Adv_AdvSecUserSpaceRFCEnable=1
 
 $Advsecurity_SafeBrowsing=0
 $Advsecurity_Softflowd=0
@@ -936,7 +938,6 @@ $Adv_PCRFCEnable=1
 $Adv_DFICMPv6RFCEnable=1
 $Adv_WSDisAnaRFCEnable=1
 $Adv_AdvSecOTMRFCEnable=1
-$Adv_AdvSecUserSpaceRFCEnable=0
 $Adv_WifiDataCollectionRFCEnable=0
 $Adv_LevlRFCEnable=0
 $Adv_AdvSecNetworkIntelligenceRFCEnable=0
@@ -949,7 +950,11 @@ $Adv_SATERFCEnable=0
 $Adv_TCPTrackerFilterDevicesRFCEnable=0
 $Adv_DoHBlockingRFCEnable=0
 $Adv_DNSECHBlockingRFCEnable=0
-$Adv_RaptrRFCEnable=1
+$Adv_LevlMLORFCEnable=0
+$Adv_DFLastSeenRFCEnable=0
+$Adv_DFDNSSafeSearchRFCEnable=0
+$Adv_DFLocalHTTPUARFCEnable=0
+$Adv_CpeProtectionNetworkRFCEnable=0
 
 #Firewall log settings
 $$FW_LOG_COMPRESSED_FILE_SIZE=10
