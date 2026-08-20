@@ -1324,7 +1324,7 @@ $AggressiveInterval=5
 
 #MultiProcessDetect default configuration
 $MultiProcDetectEnable=true
-$MultiProcDetectExcludeDefaultList=sleep,dropbear,sh,ash,ssh,stunnel
+$MultiProcDetectExcludeDefaultList=sleep,dropbear,sh,ash,ssh,stunnel,resource_monitor.sh
 $MultiProcDetectInterval=15
 
 #DSLite
