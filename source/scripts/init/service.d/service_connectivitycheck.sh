@@ -40,7 +40,7 @@ connectivityCheckLog()
 CURRENT_WAN_STATE=`sysevent get current_wan_state`
 CURRENT_WAN_STATUS=`sysevent get wan-status`
 if [ "x$CURRENT_WAN_STATE" = "xup" ] || [ "x$CURRENT_WAN_STATUS" = "xstarted" ]; then
-    connectivityCheckLog "WAN is up. Continuing with connectivity check..."
+    connectivityCheckLog "WAN-UP EVENT. Continuing with connectivity check..."
     connectivityCheckLog "CURRENT_WAN_STATE=$CURRENT_WAN_STATE and CURRENT_WAN_STATUS=$CURRENT_WAN_STATUS"
     if [ -f $LOCKFILE ]; then
         connectivityCheckLog "Already One Instance Of connectivity check is in progress or completed"
@@ -51,7 +51,9 @@ if [ "x$CURRENT_WAN_STATE" = "xup" ] || [ "x$CURRENT_WAN_STATUS" = "xstarted" ];
     fi
     # Your main script logic goes here
 else
-    connectivityCheckLog "WAN is not up (status: $CURRENT_WAN_STATUS and $CURRENT_WAN_STATE). Exiting."
+    rm -rf $LOCKFILE
+    rm -rf $CONNCHECK_FILE
+    connectivityCheckLog "WAN-DOWN EVENT: (WAN-STATE=$CURRENT_WAN_STATE and WAN-STATUS=$CURRENT_WAN_STATUS).Exiting"
     exit 1
 fi
 if [ -n "$CONNECTIVITY_CHECK_URL" ]; then
