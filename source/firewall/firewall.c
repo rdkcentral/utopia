@@ -1596,7 +1596,7 @@ void do_webui_rate_limit (FILE *filter_fp)
 #else
    fprintf(filter_fp, "-A webui_limit -p tcp -m tcp  --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 10/sec --limit-burst 20 -j ACCEPT\n");
 #endif
-   fprintf(filter_fp, "-A webui_limit -m limit --limit 1/sec --limit-burst 1 -j LOG --log-prefix \"WebUI Rate Limited: \" --log-level 6\n");
+   fprintf(filter_fp, "-A webui_limit -m limit --limit 6/hour --limit-burst 1 -j LOG --log-prefix \"WebUI Rate Limited: \" --log-level 6\n");
    fprintf(filter_fp, "-A webui_limit -j DROP\n"); 
    FIREWALL_DEBUG("Exiting do_webui_rate_limit\n");
 }
