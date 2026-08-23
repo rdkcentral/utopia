@@ -1,9 +1,5 @@
 #!/bin/sh
 ##########################################################################
-# If not stated otherwise in this file or this component's Licenses.txt
-# file the following copyright and licenses apply:
-#
-# Copyright 2015 RDK Management
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,6 +27,13 @@ CHRONY_BIN=chronyd
 LOCKFILE=/var/tmp/service_chronyd.pid
 SYNC_FILE=/tmp/clock-event
 NTP_SYNCED_FILE=/tmp/.ntp_time_synced
+
+# Marker recording the WAN interface the running chronyd is bound to (bindacqdevice).
+# Written solely by build_chrony_conf.sh at config-build time; read-only here.
+WAN_IFACE_MARKER=/tmp/chrony_last_wan_ifname
+if [ -f /lib/rdk/t2Shared_api.sh ]; then
+      source /lib/rdk/t2Shared_api.sh
+fi
 
 # /rdklogs is a tmpfs that starts empty on every boot; the logs/ subdirectory
 # may not exist yet when this script fires early in the boot sequence.
@@ -74,9 +77,18 @@ set_chrony_sync_status() {
             break
         fi
 
-        leap=$(chronyc tracking 2>/dev/null | grep "Leap status" | awk '{print $NF}')
+        tracking=$(chronyc tracking 2>/dev/null)
+        if [ -z "$tracking" ]; then
+           echo_t "chronyc tracking failed or returned no output, skipping this sample"
+           return 1
+        fi
+		
+        leap=$(echo "$tracking" | awk '/^Leap status/ {print $NF}')
         if [ "$leap" = "Normal" ]; then
-            echo_t "SERVICE_CHRONYD : time sync confirmed (Leap status Normal)" >> $NTPD_LOG_NAME
+		    uptime=$(cut -d. -f1 /proc/uptime)
+            uptime_ms=$((uptime*1000))
+            echo_t "SERVICE_CHRONYD : NTP synchronization is successful at $uptime_ms ms" >> $NTPD_LOG_NAME
+			t2ValNotify "SYS_INFO_NTP_SYNC_split" $uptime_ms
             syscfg set ntp_status 3
             sysevent set ntp_time_sync 1
             touch "$SYNC_FILE"
@@ -85,6 +97,8 @@ set_chrony_sync_status() {
             if [ -z "$DEVICEFIRSTUSEDATE" ] || [ "0" = "$DEVICEFIRSTUSEDATE" ]; then
                 syscfg set device_first_use_date "$(date +%Y-%m-%dT%H:%M:%S)"
             fi
+			offset=$(echo "$tracking" | awk '/^Last offset/ {print $4}')
+	        echo_t "SERVICE_CHRONYD : Initial Offset: $offset"  >> $NTPD_LOG_NAME
             break
         fi
 
@@ -122,10 +136,77 @@ waitForConnChkFile()
         sleep "$INTERVAL"
     done
 }
+
+# ───────────────────────────────────────────────────────────────────────────────────────────
+# chrony_sources_reachable: return 0 if at least one chrony source is reachable
+#   Reachability register (reach) is a non-zero octal value once a source has
+#   answered at least one recent poll.
+# ──────────────────────────────────────────────────────────────────────────────────────────
+chrony_selectable_source_available() {
+    chronyc -n sources 2>/dev/null | awk '
+        /^.[*+]/ { found=1 }
+        END { exit (found?0:1) }
+    '
+}
+# ────────────────────────────────────────────────────────────────────────────────────────────
+# chrony_offset_exceeds_threshold: return 0 if |Last offset| > 1.0s
+# ──────────────────────────────────────────────────────────────────────────────────────────
+chrony_offset_exceeds_threshold() {
+    local offset
+    offset=$(chronyc tracking 2>/dev/null | awk -F: '/Last offset/ {print $2}' | awk '{print $1}')
+    [ -n "$offset" ] || return 1
+    awk -v o="$offset" 'BEGIN { if (o<0) o=-o; exit (o>1.0?0:1) }'
+}
+# ──────────────────────────────────────────────────────────────────────────────────────────
+# chrony_fast_resync: on network reconnect (chronyd already running and a prior
+#   sync happened this boot), bring the clock up to date quickly without
+#   restarting chronyd. Uses chronyc control commands only.
+#     - No selectable source : online -> burst -> waitsync (bounded) -> makestep
+#     - Selectable source     : makestep only when |offset| > 1.0s
+# ──────────────────────────────────────────────────────────────────────────────────────────
+chrony_fast_resync() {
+    # Reconnect only: require chronyd running and a prior sync this boot
+    if ! pidof "$CHRONY_BIN" > /dev/null 2>&1; then
+        return 0
+    fi
+    if [ ! -f "$NTP_SYNCED_FILE" ]; then
+        # First sync has not happened this boot — let the normal start path handle it
+        return 0
+    fi
+    if chrony_selectable_source_available; then
+        # Sources already reachable — a recent measurement exists; step only if needed
+        if chrony_offset_exceeds_threshold; then
+            echo_t "SERVICE_CHRONYD : fast-resync — selectable sources, offset > 1.0s, stepping" >> $NTPD_LOG_NAME
+            chronyc makestep > /dev/null 2>&1
+        else
+            echo_t "SERVICE_CHRONYD : fast-resync — selectable sources, offset <= 1.0s, no step" >> $NTPD_LOG_NAME
+        fi
+        return 0
+    fi
+    # Sources unreachable — re-acquire, force a fresh measurement, then step
+    echo_t "SERVICE_CHRONYD : fast-resync — sources unreachable, burst+waitsync+makestep" >> $NTPD_LOG_NAME
+        waitForConnChkFile
+    chronyc burst 4/4 > /dev/null 2>&1
+    # Bounded wait: max 10 tries, no max-correction limit (0). Backgrounded so the
+    # sysevent dispatcher and lockfile are not held for the wait duration.
+    (
+        if chronyc waitsync 10 0 > /dev/null 2>&1; then
+            echo_t "SERVICE_CHRONYD : fast-resync — waitsync succeeded, stepping" >> $NTPD_LOG_NAME
+        else
+            echo_t "SERVICE_CHRONYD : fast-resync — waitsync timed out" >> $NTPD_LOG_NAME
+        fi
+                chronyc makestep > /dev/null 2>&1
+    ) &
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # service_start: main start path
 # ──────────────────────────────────────────────────────────────────────────────
 service_start() {
+
+   # $1 == "force": skip the wan-status gate (failover path — during failover
+   # wan-status is set to "stopped" and would otherwise defer the restart).
+    local skip_wan_gate="$1"
     # RFC guard — only run if flag is present
      if ! chrony_rfc_enabled; then
         echo_t "SERVICE_CHRONYD : RFC flag absent — chrony path inactive" >> $NTPD_LOG_NAME
@@ -158,25 +239,32 @@ service_start() {
     syscfg set ntp_status 2
     sysevent set ${SERVICE_NAME}-status "starting"
 
-  
+if [ "$skip_wan_gate" != "force" ]; then  
     if [ "started" != "$CURRENT_WAN_STATUS" ]; then
             syscfg set ntp_status 2
             sysevent set ${SERVICE_NAME}-status "wan-down"
             return 0
     fi
-
+fi
 
     # Stop ntpd if running — mutual exclusivity with chrony
     if pidof ntpd > /dev/null 2>&1; then
-        echo_t "SERVICE_CHRONYD : stopping ntpd for mutual exclusivity" >> $NTPD_LOG_NAME
-        systemctl stop ntpd 2>/dev/null
-        killall ntpd 2>/dev/null
-        sleep 2
+    echo_t "SERVICE_CHRONYD : stopping ntpd for mutual exclusivity" >> "$NTPD_LOG_NAME"
+    systemctl stop ntpd 2>/dev/null
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+        echo_t "SERVICE_CHRONYD : failed to stop ntpd (rc=$rc), not starting chronyd" >> "$NTPD_LOG_NAME"
+        sysevent set ${SERVICE_NAME}-status "error"
+        return 1
     fi
-
+    sleep 2
+   fi
     # Start chronyd — only reaches here when no instance is running
 	# start chronyd will populate the config based on latest RFC configuration
-    echo_t "SERVICE_CHRONYD : starting chronyd daemon" >> $NTPD_LOG_NAME
+    uptime=$(cut -d. -f1 /proc/uptime)
+    uptime_ms=$((uptime*1000))
+    echo_t "SERVICE_CHRONYD : starting chronyd daemon at $uptime_ms ms" >> $NTPD_LOG_NAME
+	t2ValNotify "SYS_INFO_NTPSTART_split" $uptime_ms
     systemctl start chronyd
     rc=$?
     if [ "$rc" -eq 0 ]; then
@@ -190,13 +278,18 @@ service_start() {
         sysevent set ${SERVICE_NAME}-status "error"
         return 1
     fi
-
-   
+	
     sysevent set ${SERVICE_NAME}-status "started"
-    echo_t "SERVICE_CHRONYD : chronyd started — monitoring sync in background" >> $NTPD_LOG_NAME
+    echo_t "SERVICE_CHRONYD : chronyd started [pid=$(pidof $CHRONY_BIN)]" >> $NTPD_LOG_NAME
 
-    # Background sync monitor
-    set_chrony_sync_status &
+    # Start chrony metrics timer only when chronyd is the active NTP client
+    systemctl start chrony-ntp-metrics.timer
+
+   # Stop the metrics collector service for ntpd if it is running
+   if systemctl is-active --quiet ntp-data-collector.service; then
+       systemctl stop ntp-data-collector.service
+   fi
+   set_chrony_sync_status &
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -209,12 +302,53 @@ service_stop() {
         echo_t "SERVICE_CHRONYD : chronyd is not running — skipping chronyd stop" >> $NTPD_LOG_NAME
         return 0
     fi
-    echo_t "SERVICE_CHRONYD : stopping chronyd" >> $NTPD_LOG_NAME
+	uptime=$(cut -d. -f1 /proc/uptime)
+    uptime_ms=$((uptime*1000))
+    echo_t "SERVICE_CHRONYD : stopping chronyd at $uptime_ms ms" >> $NTPD_LOG_NAME
     systemctl stop chronyd 2>/dev/null
     killall chronyd 2>/dev/null
     sysevent set ${SERVICE_NAME}-status "stopped"
+	#Stop the chrony NTP metrics collection service
+	systemctl stop chrony-ntp-metrics.timer
 }
-	
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# service_wan_iface_change: handler for the current_wan_ifname event.
+#   Idempotent, flag-agnostic. Compares the live active WAN interface against the
+#   marker recorded by build_chrony_conf.sh (the interface chronyd is bound to):
+#     - chronyd not running          → service_start (pidof guard dedupes)
+#     - interface unchanged / no mark → strict no-op (no chronyc probing)
+#     - interface changed (failover)  → per-interface network-ready gate, then
+#                                        restart via service_restart (ExecStartPre
+#                                        rebuilds config + re-emits bindacqdevice
+#                                        and restamps the marker)
+# ──────────────────────────────────────────────────────────────────────────────
+service_wan_iface_change() {
+    # RFC guard — only act if the chrony path is active
+   if ! chrony_rfc_enabled; then 
+        echo_t "SERVICE_CHRONYD : current_wan_ifname — RFC flag absent, skipping" >> $NTPD_LOG_NAME
+        return 0
+        
+    fi
+    local new old
+    new=$(getWanInterfaceName)
+    old=$(cat "$WAN_IFACE_MARKER" 2>/dev/null)
+    if ! pidof "$CHRONY_BIN" > /dev/null 2>&1; then
+        echo_t "SERVICE_CHRONYD : current_wan_ifname — chronyd not running, calling service_start" >> $NTPD_LOG_NAME
+        service_start
+        return 0
+    fi
+    if [ -z "$old" ] || [ "$new" = "$old" ]; then
+        echo_t "SERVICE_CHRONYD : current_wan_ifname — interface unchanged ('$new'), no action" >> $NTPD_LOG_NAME
+        return 0
+    fi
+    # Interface changed (failover) — rebind chronyd to the new Interface.
+    echo_t "SERVICE_CHRONYD : current_wan_ifname — interface changed '$old' -> '$new', restarting chronyd" >> $NTPD_LOG_NAME
+    service_stop
+        service_start force
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Script entry point — serialise concurrent invocations via lockfile
 # ──────────────────────────────────────────────────────────────────────────────
@@ -246,13 +380,23 @@ case "$1" in
         ;;
     wan-status)
         if [ "started" = "$CURRENT_WAN_STATUS" ]; then
+		  if pidof "$CHRONY_BIN" > /dev/null 2>&1 && [ -f "$NTP_SYNCED_FILE" ]; then
+                # Reconnect after a prior sync — fast-resync without restarting chronyd
+                echo_t "SERVICE_CHRONYD : wan-status=started pid=$(pidof $CHRONY_BIN) is running (Network Recovery), Resync" >> $NTPD_LOG_NAME
+                chrony_fast_resync
+            else
                 # First sync this boot — service_start() guards against duplicate instances via pidof
-                echo_t "SERVICE_CHRONYD : wan-status=started, calling service_start" >> $NTPD_LOG_NAME
+                echo_t "SERVICE_CHRONYD : wan-status=started, start chronyd" >> $NTPD_LOG_NAME
                 service_start
+			fi
         fi
         ;;
+		current_wan_ifname)
+        echo_t "SERVICE_CHRONYD : current_wan_ifname received. Invoke chrony Handling" >> $NTPD_LOG_NAME
+        service_wan_iface_change
+        ;;
     *)
-        echo "Usage: $SELF_NAME [ ${SERVICE_NAME}-start | ${SERVICE_NAME}-stop | ${SERVICE_NAME}-restart | wan-status | ipv6_connection_state ]" >&2
+        echo "Usage: $SELF_NAME [ ${SERVICE_NAME}-start | ${SERVICE_NAME}-stop | ${SERVICE_NAME}-restart | wan-status | current_wan_ifname ]" >&2
         rm -f "$LOCKFILE"
         exit 3
         ;;
