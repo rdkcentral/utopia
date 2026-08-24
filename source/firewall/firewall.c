@@ -12416,11 +12416,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "FORWARD");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "OUTPUT");
 
-#if !(defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
     prepare_rabid_rules(filter_fp, mangle_fp, IP_V4);
-#else
-    prepare_rabid_rules_v2020Q3B(filter_fp, mangle_fp, IP_V4);
-#endif
 
 #ifdef INTEL_PUMA7
    //Avoid blocking packets at the Intel NIL layer
