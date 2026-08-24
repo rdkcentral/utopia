@@ -502,7 +502,7 @@ void do_ipv6_filter_table(FILE *fp){
 	FIREWALL_DEBUG("Inside do_ipv6_filter_table \n");
    int inf_num = 0;
    
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_)
    FILE *f = NULL;
    char request[256], response[256], cm_ipv6addr[40];
    unsigned int a[16] = {0};
@@ -519,6 +519,12 @@ void do_ipv6_filter_table(FILE *fp){
    fprintf(fp, ":lan2wan_pc_service - [0:0]\n");
    fprintf(fp, ":wan2lan - [0:0]\n");
 
+#if defined(_SR213_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
+   if (strcmp ( devicePartnerId, "sky-uk") == 0 || strcmp ( devicePartnerId, "sky-italia") == 0)
+   {
+        do_block_lan_access_to_wan_ssh_ipv6(fp);
+   }
+#endif
 #if defined (_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (HUB4_BFD_FEATURE_ENABLED) || defined (IHC_FEATURE_ENABLED)
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -622,7 +628,7 @@ void do_ipv6_filter_table(FILE *fp){
    // Video Analytics Firewall rule to allow port 58081 only from LAN interface
    do_OpenVideoAnalyticsPort (fp);
 
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_)
    /* To avoid open ssh connection to CM IP TCXB6-2879*/
    snprintf(request, 256, "snmpget -cpub -v2c -Ov %s %s", CM_SNMP_AGENT, kOID_cmRemoteIpv6Address);
 
@@ -885,7 +891,7 @@ void do_ipv6_filter_table(FILE *fp){
        * exclude primary lan*/
       prepare_ipv6_multinet(fp);
     #endif
-    #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) && !defined(_COSA_QCA_ARM_) //wan0 is not applicable for XER5
+    #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) && !defined(_COSA_QCA_ARM_) && !defined(_XER2_PRODUCT_REQ_) //wan0 is not applicable for XER5
       /* not allow ping wan0 from brlan0 */
       int i;
       for(i = 0; i < ecm_wan_ipv6_num; i++){
@@ -1372,7 +1378,7 @@ v6GPFirewallRuleNext:
          fprintf(fp, "-A FORWARD -i %s -o %s -m pkttype --pkt-type unicast ! -s %s -j LOG_FORWARD_DROP\n", lan_ifname, wan6_ifname, lan_prefix);
       }
 
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_)
       if (isNatReady)
       {
           FILE *f = NULL;
