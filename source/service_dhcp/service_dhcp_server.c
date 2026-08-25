@@ -254,15 +254,16 @@ int dnsmasq_server_start()
     {
         safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
                          " --dns-forward-max=%s", l_cDnsForwardMax);
-        if (safec_rc < EOK)
-        {
-            ERR_CHK(safec_rc);
-            l_cDnsForwardMaxArg[0] = '\0';
-        }
     }
     else
     {
-        /* If unset or 0, don't add flag (let dnsmasq use internal default) */
+        /* Use default value (150) if not set or 0 */
+        safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
+                         " --dns-forward-max=150");
+    }
+    if (safec_rc < EOK)
+    {
+        ERR_CHK(safec_rc);
         l_cDnsForwardMaxArg[0] = '\0';
     }
 
