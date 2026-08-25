@@ -196,17 +196,17 @@ int get_Pool_cnt(char arr[15][2],FILE *pipe)
 int get_PSM_VALUES_FOR_POOL(char *cmd,char *arr)
 {
     fprintf(g_fArmConsoleLog,"\n%s - cmd=%s - ",__FUNCTION__,cmd); //NTR
-    char* l_cpPsm_Get = NULL;
-    int l_iRet_Val;
-    l_iRet_Val = PSM_VALUE_GET_STRING(cmd, l_cpPsm_Get);
-    fprintf(g_fArmConsoleLog,"\n%s - l_iRet_Val=%d - ",__FUNCTION__,l_iRet_Val); //NTR
-    if (CCSP_SUCCESS == l_iRet_Val)
+    char* l_cpPsm_get = NULL;
+    int l_iRet_val;
+    l_iRet_val = PSM_VALUE_GET_STRING(cmd, l_cpPsm_get);
+    fprintf(g_fArmConsoleLog,"\n%s - l_iRet_val=%d - ",__FUNCTION__,l_iRet_val); //NTR
+    if (CCSP_SUCCESS == l_iRet_val)
     {
-        if (l_cpPsm_Get != NULL)
+        if (l_cpPsm_get != NULL)
         {
-            snprintf(arr, 16, "%s", l_cpPsm_Get);
-            Ansc_FreeMemory_Callback(l_cpPsm_Get);
-            l_cpPsm_Get = NULL;
+            snprintf(arr, 16, "%s", l_cpPsm_get);
+            Ansc_FreeMemory_Callback(l_cpPsm_get);
+            l_cpPsm_get = NULL;
         }
         else
         {
@@ -216,7 +216,7 @@ int get_PSM_VALUES_FOR_POOL(char *cmd,char *arr)
     }
     else
     {
-        fprintf(g_fArmConsoleLog, "\nError:%d while getting parameter:%s\n",l_iRet_Val, cmd);
+        fprintf(g_fArmConsoleLog, "\nError:%d while getting parameter:%s\n",l_iRet_val, cmd);
         return -1;
     }
     return 0;
@@ -249,21 +249,20 @@ int dnsmasq_server_start()
     char l_cDnsForwardMaxArg[32] = {0};
  
     /* Read dns-forward-max from syscfg (set via TR-181 X_RDKCENTRAL-COM_DNSForwardMax) */
-    syscfg_get(NULL, "dnsmasq_forward_max", l_cDnsForwardMax, sizeof(l_cDnsForwardMax));
+    syscfg_get(NULL, "dnsmasq_dns_forward_max", l_cDnsForwardMax, sizeof(l_cDnsForwardMax));
     if (l_cDnsForwardMax[0] != '\0' && strncmp(l_cDnsForwardMax, "0", 1) != 0)
     {
         safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
                          " --dns-forward-max=%s", l_cDnsForwardMax);
+        if (safec_rc < EOK)
+        {
+            ERR_CHK(safec_rc);
+            l_cDnsForwardMaxArg[0] = '\0';
+        }
     }
     else
     {
-        /* Use default value (600) if not set in syscfg */
-        safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
-                         " --dns-forward-max=600");
-    }
-    if (safec_rc < EOK)
-    {
-        ERR_CHK(safec_rc);
+        /* If unset or 0, don't add flag (let dnsmasq use internal default) */
         l_cDnsForwardMaxArg[0] = '\0';
     }
 
@@ -385,7 +384,7 @@ int dnsmasq_server_start()
 void dhcp_server_stop()
 {
         char l_cDhcp_Status[16] = {0}, l_cSystemCmd[255] = {0};
-        int l_iSystem_Res;
+        int l_iSystem_res;
         errno_t safec_rc = -1;
         fprintf(g_fArmConsoleLog,"\n%s Waiting for dhcp server end state\n",__FUNCTION__);
         wait_till_end_state("dhcp_server");
@@ -421,8 +420,8 @@ void dhcp_server_stop()
     if(safec_rc < EOK){
        ERR_CHK(safec_rc);
     }
-	l_iSystem_Res = v_secure_system("%s",l_cSystemCmd); //dnsmasq command
-    if (0 != l_iSystem_Res)
+	l_iSystem_res = v_secure_system("%s",l_cSystemCmd); //dnsmasq command
+    if (0 != l_iSystem_res)
 	{
 		fprintf(g_fArmConsoleLog, "%s command didnt execute successfully\n", l_cSystemCmd);
 	}
@@ -436,8 +435,8 @@ void dhcp_server_stop()
 
 	memset(l_cSystemCmd, 0x00, sizeof(l_cSystemCmd));
 
-    l_iSystem_Res = dnsmasq_server_start(); //dnsmasq command
-    if (0 == l_iSystem_Res)
+    l_iSystem_res = dnsmasq_server_start(); //dnsmasq command
+    if (0 == l_iSystem_res)
     {
         fprintf(g_fArmConsoleLog, "dns-server started successfully\n");
 		sysevent_set(g_iSyseventfd, g_tSysevent_token, "dns-status", "started", 0);
@@ -849,8 +848,8 @@ int dhcp_server_start (char *input)
         if(safec_rc < EOK){
             ERR_CHK(safec_rc);
         }
-        l_iSystem_Res = v_secure_system("%s",l_cSystemCmd); //dnsmasq command
-        if (0 != l_iSystem_Res)
+        l_iSystem_res = v_secure_system("%s",l_cSystemCmd); //dnsmasq command
+        if (0 != l_iSystem_res)
         {
             fprintf(g_fArmConsoleLog, "%s command didnt execute successfully\n", l_cSystemCmd);
         }
@@ -870,8 +869,8 @@ int dhcp_server_start (char *input)
 	print_with_uptime("RDKB_SYSTEM_BOOT_UP_LOG : starting dhcp-server_from_dhcp_server_start:");
 	int l_iDnamasq_Retry;	
 
-	l_iSystem_Res = dnsmasq_server_start(); //dnsmasq command
-	if (0 == l_iSystem_Res)
+	l_iSystem_res = dnsmasq_server_start(); //dnsmasq command
+	if (0 == l_iSystem_res)
 	{
     	fprintf(g_fArmConsoleLog, "%s process started successfully\n", SERVER);
 	}
@@ -884,9 +883,9 @@ int dhcp_server_start (char *input)
 			{
             	fprintf(g_fArmConsoleLog, "%s process failed to start sleep for 5 sec and restart it\n", SERVER);
 	            sleep(5);
-				l_iSystem_Res = dnsmasq_server_start(); //dnsmasq command
-                            fprintf(g_fArmConsoleLog, "\n%s dnsmasq_server_start returns %d .......\n", __FUNCTION__,l_iSystem_Res);
-			    if (0 == l_iSystem_Res)
+				l_iSystem_res = dnsmasq_server_start(); //dnsmasq command
+                            fprintf(g_fArmConsoleLog, "\n%s dnsmasq_server_start returns %d .......\n", __FUNCTION__,l_iSystem_res);
+			    if (0 == l_iSystem_res)
 			    {
     				fprintf(g_fArmConsoleLog, "%s process started successfully\n", SERVER);
 					break;
@@ -1340,9 +1339,9 @@ int service_dhcp_init()
 {
         fprintf(g_fArmConsoleLog,"\nInside %s function\n",__FUNCTION__);
 	char l_cPropagate_Ns[8] = {0}, l_cPropagate_Dom[8] = {0};
-	char l_cSlow_Start[8] = {0}, l_cByoi_Enabled[8] = {0};
+	char l_cSlow_start[8] = {0}, l_cByoi_Enabled[8] = {0};
     char l_cWan_IpAddr[16] = {0}, l_cPrim_Temp_Ip_Prefix[16] = {0}, l_cCurrent_Hsd_Mode[16] = {0};
-    //	char l_cTemp_Dhcp_Lease[8] = {0}, l_cDhcp_Slow_Start_Quanta[8] = {0}; UNUSED VARIABLE
+    //	char l_cTemp_Dhcp_Lease[8] = {0}, l_cDhcp_Slow_start_Quanta[8] = {0}; UNUSED VARIABLE
     //char l_cDhcpSlowStartQuanta[8] = {0};  UNUSED VARIABLE
 
 	syscfg_get(NULL, "dhcp_server_propagate_wan_nameserver", l_cPropagate_Ns, sizeof(l_cPropagate_Ns));
@@ -1355,15 +1354,15 @@ int service_dhcp_init()
 	syscfg_get(NULL, "dhcp_server_propagate_wan_domain", l_cPropagate_Dom, sizeof(l_cPropagate_Dom));
 
 	// Is dhcp slow start feature enabled
-	// int l_iSlow_Start_Needed; UNUSED Variable
-	syscfg_get(NULL, "dhcp_server_slow_start", l_cSlow_Start, sizeof(l_cSlow_Start));
+	// int l_iSlow_start_Needed; UNUSED Variable
+	syscfg_get(NULL, "dhcp_server_slow_start", l_cSlow_start, sizeof(l_cSlow_start));
 
 	syscfg_get(NULL, "byoi_enabled", l_cByoi_Enabled, sizeof(l_cByoi_Enabled));
 
 	if ((!strncmp(l_cPropagate_Ns, "1", 1)) || (!strncmp(l_cPropagate_Dom, "1", 1)) ||
 	    (!strncmp(l_cByoi_Enabled, "1", 1)))
 	{
-	    if (!strncmp(l_cSlow_Start, "1", 1))
+	    if (!strncmp(l_cSlow_start, "1", 1))
 	    {
 	        sysevent_get(g_iSyseventfd, g_tSysevent_token, "current_wan_ipaddr", 
 						 l_cWan_IpAddr, sizeof(l_cWan_IpAddr));
@@ -1375,26 +1374,26 @@ int service_dhcp_init()
             /* DEADCODE
 	        if (!strncmp(l_cWan_IpAddr, "0.0.0.0", 7))
     	    {
-        	    l_iSlow_Start_Needed = 1;
+        	    l_iSlow_start_Needed = 1;
 	        }
     	    if ((!strncmp(l_cByoi_Enabled, "1", 1)) && (!strncmp(l_cCurrent_Hsd_Mode, "primary", 7)) &&
         	    (!strncmp(l_cPrim_Temp_Ip_Prefix, "2", 1))) //TODO complete this if statement
 	            //[ "$primary_temp_ip_prefix" = ${wan_ipaddr:0:${#primary_temp_ip_prefix}} ] ; then
     	    {
-        	    l_iSlow_Start_Needed = 1;
+        	    l_iSlow_start_Needed = 1;
 	        }
 	    */
     	}
 	}
 
 	// Disable this to alway pick lease value from syscfg.db
-	// l_iSlow_Start_Needed = 0; DEADCODE
+	// l_iSlow_start_Needed = 0; DEADCODE
 
 	// DHCP_LEASE_TIME is the number of seconds or minutes or hours to give as a lease
 	syscfg_get(NULL, "dhcp_lease_time", g_cDhcp_Lease_Time, sizeof(g_cDhcp_Lease_Time));
 
 	/* DEADCODE
-	if (1 == l_iSlow_Start_Needed)
+	if (1 == l_iSlow_start_Needed)
 	{
 	    int l_iDhcpSlowQuanta;
     	syscfg_get(NULL, "temp_dhcp_lease_length", l_cTemp_Dhcp_Lease, sizeof(l_cTemp_Dhcp_Lease));
@@ -1411,7 +1410,7 @@ int service_dhcp_init()
 	        l_iDhcpSlowQuanta = atoi(l_cTemp_Dhcp_Lease);
     	}
 
-	    if (0 == l_cDhcp_Slow_Start_Quanta[0])
+	    if (0 == l_cDhcp_Slow_start_Quanta[0])
     	{
 	        l_iDhcpSlowQuanta = 1;
     	    strncpy(g_cTime_File, DHCP_SLOW_START_1_FILE, sizeof(g_cTime_File));
@@ -1435,7 +1434,7 @@ int service_dhcp_init()
 	        }
     	    else
         	{
-	            l_iDhcpSlowQuanta = atoi(g_cDhcp_Lease_Time);
+	            l_iDhcpSlowQuanta = atoi(g_cDhcp_Lease_time);
     	        strncpy(g_cTime_File, DHCP_SLOW_START_3_FILE, sizeof(g_cTime_File));
         	}
     	}
@@ -1445,9 +1444,9 @@ int service_dhcp_init()
 	        l_iDhcpSlowQuanta = 60;
     	}
 		
-		snprintf(l_cDhcp_Slow_Start_Quanta, sizeof(l_cDhcp_Slow_Start_Quanta), "%d", l_iDhcpSlowQuanta);
-	    sysevent_set(g_iSyseventfd, g_tSysevent_token, "dhcp_slow_start_quanta", l_cDhcp_Slow_Start_Quanta, 0);
-		snprintf(g_cDhcp_Lease_Time, sizeof(g_cDhcp_Lease_Time), "%d", l_iDhcpSlowQuanta);
+		snprintf(l_cDhcp_Slow_start_Quanta, sizeof(l_cDhcp_Slow_start_Quanta), "%d", l_iDhcpSlowQuanta);
+	    sysevent_set(g_iSyseventfd, g_tSysevent_token, "dhcp_slow_start_quanta", l_cDhcp_Slow_start_Quanta, 0);
+		snprintf(g_cDhcp_Lease_time, sizeof(g_cDhcp_Lease_time), "%d", l_iDhcpSlowQuanta);
 	}
 	else
 	*/
@@ -1485,7 +1484,7 @@ void lan_status_change(char *input)
 #endif 
         fprintf(g_fArmConsoleLog,"\nInside %s function with arg=%s\n",__FUNCTION__,input);
 	char l_cLan_Status[16] = {0}, l_cDhcp_Server_Enabled[8] = {0};
-	int l_iSystem_Res;
+	int l_iSystem_res;
 
 	sysevent_get(g_iSyseventfd, g_tSysevent_token, "lan-status", l_cLan_Status, sizeof(l_cLan_Status));
 	fprintf(g_fArmConsoleLog, "SERVICE DHCP : Inside lan status change with lan-status:%s\n", l_cLan_Status);
@@ -1502,8 +1501,8 @@ void lan_status_change(char *input)
 
         fprintf(g_fArmConsoleLog, "SERVICE DHCP : Start dhcp-server from lan status change");
            
-	    l_iSystem_Res = dnsmasq_server_start(); //dnsmasq command
-    	if (0 == l_iSystem_Res)
+	    l_iSystem_res = dnsmasq_server_start(); //dnsmasq command
+    	if (0 == l_iSystem_res)
 	    {
     	    fprintf(g_fArmConsoleLog, "%s process started successfully\n", SERVER);
 	    }
