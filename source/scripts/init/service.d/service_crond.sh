@@ -193,8 +193,6 @@ service_start ()
    
       else
 	      echo_t "Selfheal cron is disabled"
-	      # Monitor syscfg DB every 15minutes
-         echo "*/15 * * * * /usr/ccsp/tad/syscfg_recover.sh" >> $CRONTAB_FILE
 
       # Monitor resource_monitor.sh every 5 minutes TCCBR-3288
 #      if [ "$BOX_TYPE" = "TCCBR" ]; then 
@@ -202,6 +200,9 @@ service_start ()
 #      fi
 	 
       fi
+
+      # Monitor syscfg DB every 15minutes
+      echo "*/15 * * * * /usr/ccsp/tad/syscfg_recover.sh" >> $CRONTAB_FILE
 
       # RDKB-23651
       if [ "$THERMALCTRL_ENABLE" = "true" ]; then
