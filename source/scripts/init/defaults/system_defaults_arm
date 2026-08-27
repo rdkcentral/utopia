@@ -1322,6 +1322,11 @@ $dhcpv6spool00::X_RDKCENTRAL_COM_DNSServersEnabled=0
 #Aggressive selfheal interval default value
 $AggressiveInterval=5
 
+#MultiProcessDetect default configuration
+$MultiProcDetectEnable=true
+$MultiProcDetectExcludeDefaultList=sleep,dropbear,sh,ash,ssh,stunnel
+$MultiProcDetectInterval=15
+
 #DSLite
 #dslite_enable - Enable/disable DS-Lite
 $dslite_enable=0
