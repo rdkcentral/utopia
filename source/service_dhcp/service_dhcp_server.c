@@ -245,7 +245,7 @@ int dnsmasq_server_start()
 {
     char l_cSystemCmd[255] = {0};
     errno_t safec_rc = -1;
-     char l_cDnsForwardMax[16] = {0};
+    char l_cDnsForwardMax[16] = {0};
     char l_cDnsForwardMaxArg[32] = {0};
  
     /* Read dns-forward-max from syscfg (set via TR-181 X_RDKCENTRAL-COM_DNSForwardMax) */
@@ -253,7 +253,7 @@ int dnsmasq_server_start()
     if (l_cDnsForwardMax[0] != '\0' && strncmp(l_cDnsForwardMax, "0", 1) != 0)
     {
         safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
-                         " --dns-forward-max=%s", l_cDnsForwardMax);
+                         "--dns-forward-max=%u", l_cDnsForwardMax);
     }
     else
     {
