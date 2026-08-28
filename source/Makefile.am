@@ -20,10 +20,9 @@ SUBDIRS = ulog syscfg sysevent services utctx utapi util
 
 if FIREWALL_NFT
 SUBDIRS += firewall_nft
-SUBDIRS += firewall
-else
-SUBDIRS += firewall
 endif
+
+SUBDIRS += firewall
 
 SUBDIRS += firewall_log newhost macclone pal pmon services service_wan trigger igd service_routed service_ipv6 scripts service_multinet service_udhcpc
 

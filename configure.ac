@@ -52,10 +52,9 @@ AC_DISABLE_STATIC
 
 #Enable NFT compile time flags if firewall-nft is set as yes
 AC_ARG_ENABLE([firewall-nft],
-[  --enable-firewall-nft=val Turn on nft Feature, val=true or false],
+[  --enable-firewall-nft=yes Turn on nft Feature],
 [case "${enableval}" in
   yes) firewall_nft=true ;;
-  no)  firewall_nft=false ;;
   *) AC_MSG_ERROR([bad value ${enableval} for --enable-firewall-nft]) ;;
 esac],[firewall_nft=false])
 AM_CONDITIONAL(FIREWALL_NFT, test x"$firewall_nft" = x"true")
