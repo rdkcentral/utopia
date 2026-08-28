@@ -243,7 +243,7 @@ void getRFC_Value(const char* dnsOption)
 }
 int dnsmasq_server_start()
 {
-    char l_cSystemCmd[255] = {0};
+    char l_cSystemCmd[512] = {0};
     errno_t safec_rc = -1;
     char l_cDnsForwardMax[16] = {0};
     char l_cDnsForwardMaxArg[32] = {0};
