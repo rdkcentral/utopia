@@ -248,7 +248,6 @@ int dnsmasq_server_start()
     errno_t safec_rc = -1;
     char l_cDnsForwardMax[16] = {0};
     char l_cDnsForwardMaxArg[32] = {0};
-    int i = 0;
     int is_valid = 1;
  
     /* Read dns-forward-max from syscfg (set via TR-181 X_RDKCENTRAL-COM_DNSForwardMax) */
@@ -256,35 +255,36 @@ int dnsmasq_server_start()
     
     if (l_cDnsForwardMax[0] != '\0')
     {
-        /* Validate: must contain only digits */
-        for (i = 0; l_cDnsForwardMax[i] != '\0'; i++)
+        char *endptr = NULL;
+        unsigned long value_ul = 0;
+        
+        /* Reset errno before strtoul */
+        errno = 0;
+        value_ul = strtoul(l_cDnsForwardMax, &endptr, 10);
+        
+        /* Validate: check for conversion errors */
+        if (errno == ERANGE)
         {
-            if (!isdigit((unsigned char)l_cDnsForwardMax[i]))
-            {
-                fprintf(g_fArmConsoleLog, "SECURITY: Invalid dnsmasq_dns_forward_max value (non-digit): %s\n", l_cDnsForwardMax);
-                is_valid = 0;
-                break;
-            }
+            fprintf(g_fArmConsoleLog, "SECURITY: Invalid dnsmasq_dns_forward_max value (overflow): %s\n", l_cDnsForwardMax);
+            is_valid = 0;
+        }
+        else if (endptr == l_cDnsForwardMax || *endptr != '\0')
+        {
+            fprintf(g_fArmConsoleLog, "SECURITY: Invalid dnsmasq_dns_forward_max value (non-numeric): %s\n", l_cDnsForwardMax);
+            is_valid = 0;
+        }
+        else if (value_ul < 1 || value_ul > 600)
+        {
+            fprintf(g_fArmConsoleLog, "SECURITY: Invalid dnsmasq_dns_forward_max value (out of range 1-600): %lu\n", value_ul);
+            is_valid = 0;
         }
         
         if (is_valid)
         {
-            unsigned int value = (unsigned int)atoi(l_cDnsForwardMax);
-            
-            /* Validate range: 1-600 (same as TR-181 setter) */
-            if (value >= 1 && value <= 600)
-            {
-                safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
-                                 "--dns-forward-max=%u", value);
-            }
-            else
-            {
-                fprintf(g_fArmConsoleLog, "SECURITY: Invalid dnsmasq_dns_forward_max value (out of range 1-600): %u\n", value);
-                is_valid = 0;
-            }
+            safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
+                             "--dns-forward-max=%u", (unsigned int)value_ul);
         }
-        
-        if (!is_valid)
+        else
         {
             /* Invalid or out-of-range: use default */
             safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
