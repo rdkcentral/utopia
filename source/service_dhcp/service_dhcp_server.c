@@ -275,7 +275,7 @@ int dnsmasq_server_start()
             if (value >= 1 && value <= 600)
             {
                 safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
-                                 " --dns-forward-max=%u", value);
+                                 "--dns-forward-max=%u", value);
             }
             else
             {
@@ -288,14 +288,14 @@ int dnsmasq_server_start()
         {
             /* Invalid or out-of-range: use default */
             safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
-                             " --dns-forward-max=150");
+                             "--dns-forward-max=150");
         }
     }
     else
     {
         /* Use default value (150) if not set */
         safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
-                         " --dns-forward-max=150");
+                         "--dns-forward-max=150");
     }
     
     if (safec_rc < EOK)
