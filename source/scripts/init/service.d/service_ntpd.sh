@@ -293,7 +293,7 @@ set_ntp_driftsync_status ()
             ntpq_value=`ntpq -4 -c rv`
         fi
         if [ -n "$ntpq_value" ]; then
-            sync_status=`"$ntpq_value" | grep "stratum=16"`
+            sync_status=$(echo "$ntpq_value" | grep "stratum=16")
             if [ -z "$sync_status" ]; then
             echo_t "SERVICE_NTPD : ntpd time synced , setting the status" >> $NTPD_LOG_NAME
             syscfg set ntp_status 3
@@ -332,7 +332,20 @@ set_ntp_driftsync_status ()
 
 service_start ()
 {
+    if [ "$(syscfg get chrony_enabled)" = "true" ]; then
+        echo_t "SERVICE_NTPD : RFC flag Present — chrony is the active NTP client" >> $NTPD_LOG_NAME
+        sysevent set ${SERVICE_NAME}-status "stopped"
+        if pidof "$BIN" > /dev/null 2>&1; then
+            echo_t "SERVICE_NTPD : stopping ntpd because chrony is enabled" >> $NTPD_LOG_NAME
+            service_stop
+        fi
+        return 0
+    fi
 
+   # stop chrony metrics collection timer when NTPd is the active NTP client
+   if systemctl is-active --quiet chrony-ntp-metrics.timer; then
+       systemctl stop chrony-ntp-metrics.timer
+   fi
    local NTP_SERVER_URL_RESTORE="false"
    # Wait for connectivitycheck to complete
    if [ -f $CONNCHECK_FILE ]; then
@@ -529,7 +542,11 @@ service_start ()
            else
                MASK=$(ifconfig $SOURCE_PING_INTF | sed -rn '2s/ .*:(.*)$/\1/p')
            fi
-           echo "restrict $PEER_INTERFACE_IP mask $MASK nomodify notrap" >> $NTP_CONF_TMP
+           if [ -n "$MASK" ]; then
+               echo "restrict $PEER_INTERFACE_IP mask $MASK nomodify notrap" >> $NTP_CONF_TMP
+           else
+               echo "restrict $PEER_INTERFACE_IP nomodify notrap" >> $NTP_CONF_TMP
+           fi
        fi
    fi
 
@@ -590,7 +607,7 @@ service_start ()
        echo_t "SERVICE_NTPD : Starting NTP Daemon" >> $NTPD_LOG_NAME
        systemctl start $BIN
        ret_val=$? ### To ensure proper ret_val is obtained
-       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ]; then
+       if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" == "SCER11BEL" ] || [ "$BOX_TYPE" == "SCXF11BFL" ] || [ "$BOX_TYPE" == "XER2" ]; then
            sysevent set firewall-restart
        fi
    fi

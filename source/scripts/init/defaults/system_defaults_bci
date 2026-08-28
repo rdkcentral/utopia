@@ -1317,6 +1317,18 @@ $DscpSleepInterval_1=0
 $DscpEnabledList_2=
 $DscpSleepInterval_2=0
 
+#GatewayManager factory default values
+$ConfigSyncEnableOnChange=true
+$ConfigSyncInterval=300
+$DNSControl=2
+$ReqFailoverCloudAckEnable=false
+$ClearDeviceList=false
+$StationModeTimeOut=30
+$HealthCheckTimeout=60
+$GatewayRestoreAttemptCount=0
+$RemDeviceDetectionTimeout=60
+$FailoverEnable=-1
+
 #Direct Download Enable default value
 $SWDLDirectEnable=true
 
