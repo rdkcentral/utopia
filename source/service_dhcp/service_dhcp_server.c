@@ -24,6 +24,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 #include "sysevent/sysevent.h"
 #include "syscfg/syscfg.h"
 #include "errno.h"
@@ -247,20 +248,56 @@ int dnsmasq_server_start()
     errno_t safec_rc = -1;
     char l_cDnsForwardMax[16] = {0};
     char l_cDnsForwardMaxArg[32] = {0};
+    int i = 0;
+    int is_valid = 1;
  
     /* Read dns-forward-max from syscfg (set via TR-181 X_RDKCENTRAL-COM_DNSForwardMax) */
     syscfg_get(NULL, "dnsmasq_dns_forward_max", l_cDnsForwardMax, sizeof(l_cDnsForwardMax));
-    if (l_cDnsForwardMax[0] != '\0' && strncmp(l_cDnsForwardMax, "0", 1) != 0)
+    
+    if (l_cDnsForwardMax[0] != '\0')
     {
-        safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
-                         "--dns-forward-max=%u", (unsigned int)atoi(l_cDnsForwardMax));
+        /* Validate: must contain only digits */
+        for (i = 0; l_cDnsForwardMax[i] != '\0'; i++)
+        {
+            if (!isdigit((unsigned char)l_cDnsForwardMax[i]))
+            {
+                fprintf(g_fArmConsoleLog, "SECURITY: Invalid dnsmasq_dns_forward_max value (non-digit): %s\n", l_cDnsForwardMax);
+                is_valid = 0;
+                break;
+            }
+        }
+        
+        if (is_valid)
+        {
+            unsigned int value = (unsigned int)atoi(l_cDnsForwardMax);
+            
+            /* Validate range: 1-600 (same as TR-181 setter) */
+            if (value >= 1 && value <= 600)
+            {
+                safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
+                                 " --dns-forward-max=%u", value);
+            }
+            else
+            {
+                fprintf(g_fArmConsoleLog, "SECURITY: Invalid dnsmasq_dns_forward_max value (out of range 1-600): %u\n", value);
+                is_valid = 0;
+            }
+        }
+        
+        if (!is_valid)
+        {
+            /* Invalid or out-of-range: use default */
+            safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
+                             " --dns-forward-max=150");
+        }
     }
     else
     {
-        /* Use default value (150) if not set or 0 */
+        /* Use default value (150) if not set */
         safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
                          " --dns-forward-max=150");
     }
+    
     if (safec_rc < EOK)
     {
         ERR_CHK(safec_rc);
