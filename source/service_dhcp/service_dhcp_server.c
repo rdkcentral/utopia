@@ -253,7 +253,7 @@ int dnsmasq_server_start()
     if (l_cDnsForwardMax[0] != '\0' && strncmp(l_cDnsForwardMax, "0", 1) != 0)
     {
         safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
-                         "--dns-forward-max=%u", l_cDnsForwardMax);
+                         "--dns-forward-max=%u", (unsigned int)atoi(l_cDnsForwardMax));
     }
     else
     {
