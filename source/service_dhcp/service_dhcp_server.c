@@ -264,17 +264,17 @@ int dnsmasq_server_start()
         /* Validate: check for conversion errors */
         if (errno == ERANGE)
         {
-            fprintf(g_fArmConsoleLog, "SECURITY: Invalid dnsmasq_dns_forward_max value (overflow): %s\n", l_cDnsForwardMax);
+            fprintf(g_fArmConsoleLog, "Invalid dnsmasq_dns_forward_max value (overflow): %s\n", l_cDnsForwardMax);
             is_valid = 0;
         }
         else if (endptr == l_cDnsForwardMax || *endptr != '\0')
         {
-            fprintf(g_fArmConsoleLog, "SECURITY: Invalid dnsmasq_dns_forward_max value (non-numeric): %s\n", l_cDnsForwardMax);
+            fprintf(g_fArmConsoleLog, "Invalid dnsmasq_dns_forward_max value (non-numeric): %s\n", l_cDnsForwardMax);
             is_valid = 0;
         }
         else if (value_ul < 1 || value_ul > 600)
         {
-            fprintf(g_fArmConsoleLog, "SECURITY: Invalid dnsmasq_dns_forward_max value (out of range 1-600): %lu\n", value_ul);
+            fprintf(g_fArmConsoleLog, "Invalid dnsmasq_dns_forward_max value (out of range 1-600): %lu\n", value_ul);
             is_valid = 0;
         }
         

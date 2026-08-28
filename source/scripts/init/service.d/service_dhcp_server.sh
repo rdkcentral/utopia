@@ -128,7 +128,7 @@ dnsmasq_server_start ()
                  # Validate: must contain only digits
                  case "$DNS_FORWARD_MAX" in
                          *[!0-9]*)
-                                 echo_t "SECURITY: Invalid dnsmasq_dns_forward_max value (non-digit): $DNS_FORWARD_MAX"
+                                 echo_t "Invalid dnsmasq_dns_forward_max value (non-digit): $DNS_FORWARD_MAX"
                                  DNS_FORWARD_MAX_ARG="--dns-forward-max=150"
                                  ;;
                          *)
@@ -136,7 +136,7 @@ dnsmasq_server_start ()
                                  if [ "$DNS_FORWARD_MAX" -ge 1 ] && [ "$DNS_FORWARD_MAX" -le 600 ]; then
                                          DNS_FORWARD_MAX_ARG="--dns-forward-max=$DNS_FORWARD_MAX"
                                  else
-                                         echo_t "SECURITY: Invalid dnsmasq_dns_forward_max value (out of range 1-600): $DNS_FORWARD_MAX"
+                                         echo_t "Invalid dnsmasq_dns_forward_max value (out of range 1-600): $DNS_FORWARD_MAX"
                                          DNS_FORWARD_MAX_ARG="--dns-forward-max=150"
                                  fi
                                  ;;
