@@ -126,20 +126,20 @@ dnsmasq_server_start ()
                 SYSCFG_XDNSREFAC_FLAG=`syscfg get XDNS_RefacCodeEnable`
                 if ([ "$MODEL_NUM" = "CGA4131COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [ "$MODEL_NUM" = "CGM601TCOM" ] || [ "$MODEL_NUM" = "SG417DBCT" ]) && [ -n "$SYSCFG_XDNS_FLAG" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ] && [ "$SYSCFG_DNSSEC_FLAG" = "1" ] ; then
                         if [ "$SYSCFG_XDNSREFAC_FLAG" = "1" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ] ; then
-                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --proxy-dnssec --cache-size=0 --xdns-refac-code  #--enable-dbus
+                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 1232 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --proxy-dnssec --cache-size=0 --xdns-refac-code  #--enable-dbus
                         else
-                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
+                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 1232 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
                         fi
 
                 else
                         if [ "$SYSCFG_XDNSREFAC_FLAG" = "1" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ]; then
-                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
+                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 1232 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
                         else
-                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
+                                $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 1232 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log #--enable-dbus
                         fi
                 fi
          else
-                $SERVER -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
+                $SERVER -P 1232 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
          fi
 
 }
