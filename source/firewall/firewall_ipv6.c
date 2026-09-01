@@ -852,10 +852,9 @@ void do_ipv6_filter_table(FILE *fp){
       if(isWanPingDisableV6 == 1)
       {
          int index;
-
+         fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", current_wan_ifname);
          for (index = 0; index < current_wan_ipv6_num; index++)
          {
-            fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", current_wan_ifname);
             fprintf(fp, "-A INPUT -i brlan0 -d %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", current_wan_ipv6[index]);
          }
       }
