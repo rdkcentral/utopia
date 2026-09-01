@@ -1801,9 +1801,9 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     } //for (i = 0; i < enabled_iface_num; i++)
 
 #if !defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
-#ifdef _ONESTACK_PRODUCT_REQ_
-if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
-#endif
+//#ifdef _ONESTACK_PRODUCT_REQ_
+//if (!isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
+//#endif
 {
 char cmd[100];
 char out[100];
