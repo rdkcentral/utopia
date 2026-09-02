@@ -120,6 +120,12 @@ dnsserver_start_lxc ()
 
 dnsmasq_server_start ()
 {
+   SYSCFG_LAST_EROUTER_MODE=`syscfg get last_erouter_mode`
+   echo_t "Check if Device is IPv6 only mode $SYSCFG_LAST_EROUTER_MODE"
+   if [ "2" = "$SYSCFG_LAST_EROUTER_MODE" ]; then
+      echo_t "Device is in IPv6 only mode, skipping DHCP server start"
+      return
+   fi
          if [ "$XDNS_ENABLE" = "true" ]; then
                 SYSCFG_XDNS_FLAG=`syscfg get X_RDKCENTRAL-COM_XDNS`
                 SYSCFG_DNSSEC_FLAG=`syscfg get XDNS_DNSSecEnable`
