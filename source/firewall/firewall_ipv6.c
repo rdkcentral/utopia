@@ -2121,6 +2121,13 @@ void do_ipv6_sn_filter(FILE* fp) {
 #endif
 #endif
 
+#ifdef FEATURE_WANMGR_L2_MARKING
+	if(isWanServiceReady)
+   {
+	    add_qos_skb_mark(fp, AF_INET6);
+   }
+#endif //FEATURE_WANMGR_L2_MARKING
+
 #ifdef _COSA_INTEL_XB3_ARM_
         fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",current_wan_ifname);
         fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",ecm_wan_ifname);

@@ -509,6 +509,22 @@ BOOL isMAPEReady = 0;
 #define XHS_GRE_CLAMP_MSS   1400
 #define XHS_EB_MARK         4703
 
+#ifdef FEATURE_WANMGR_L2_MARKING
+#define WAN_IF_COUNT           "Device.X_RDK_WanManager.CPEInterfaceNumberOfEntries"
+#define WAN_IF_ACTIVE_LINK     "Device.X_RDK_WanManager.CPEInterface.%d.Selection.ActiveLink"
+#define WAN_VIF_COUNT          "Device.X_RDK_WanManager.CPEInterface.%d.VirtualInterfaceNumberOfEntries"
+#define WAN_VIF_NAME           "Device.X_RDK_WanManager.CPEInterface.%d.VirtualInterface.%d.Name"
+#define WAN_VIF_NOF_MARKINGS   "Device.X_RDK_WanManager.CPEInterface.%d.VirtualInterface.%d.MarkingNumberOfEntries"
+#define WAN_VIF_MARKINGS_ENTRY "Device.X_RDK_WanManager.CPEInterface.%d.VirtualInterface.%d.Marking.%d.Entry"
+#define WAN_COMPONENT_NAME     "eRT.com.cisco.spvtg.ccsp.wanmanager"
+#define WAN_DBUS_PATH          "/com/cisco/spvtg/ccsp/wanmanager"
+#define HTTP_PORT              80
+#define MLD_LISTENER_QUERY     130
+#define MLD_LISTENER_REPORT    131
+#define MLD_LISTENER_DONE      132
+#define MLD2_LISTENER_REPORT   143
+#endif //FEATURE_WANMGR_L2_MARKING
+
 //core net lib
 #include <stdint.h>
 #ifdef CORE_NET_LIB
@@ -5352,6 +5368,279 @@ QoSDone:
            FIREWALL_DEBUG("Exiting add_qos_marking_statements\n");       
    return(0);
 }
+
+#ifdef FEATURE_WANMGR_L2_MARKING
+/*
+ *  Procedure     : add_qos_skb_mark
+ *  Purpose       : Apply WanManager-based L3 DSCP and CLASSIFY marking rules
+ *                  for operator WAN traffic (DNS, NTP, VoIP, IPTV, etc.)
+ *  Parameters    :
+ *     mangle_fp       : iptables-restore mangle output file
+ *     family          : AF_INET or AF_INET6
+ *  Return Values   :
+ *     0               : Success
+ *    -1               : WanManager DM read failure
+ */
+int add_qos_skb_mark(FILE *mangle_fp, int family)
+{
+    int  wanif_count                        = 0;
+    int  numVlanIfc                         = 0;
+    int  dest_port                          = 0;
+    int  noOfVifMarking                     = 0;
+    int  activeLinkIdx                      = -1;
+    char acGetParamName[BUFLEN_256]         = {0};
+    char acTmpReturnValue[BUFLEN_256]       = {0};
+    char WanVIfMarkingEntry[BUFLEN_128]     = {0};
+    char SKBMark[BUFLEN_32]                 = {0};
+    char DSCPMark[BUFLEN_32]                = {0};
+    char MarkingName[BUFLEN_16]             = {0};
+    char WanVIfName[BUFLEN_16]              = {0};
+    char *endptr                            = NULL;
+
+    if(bus_handle != NULL)
+    {
+        /* Get Wan Interface count */
+        memset(acTmpReturnValue, 0, sizeof(acTmpReturnValue));
+        if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(WAN_COMPONENT_NAME, WAN_DBUS_PATH, WAN_IF_COUNT, acTmpReturnValue))
+        {
+            printf("[%s][%d]Failed to get WAN interface count\n", __FUNCTION__, __LINE__);
+            return -1;
+        }
+
+        wanif_count = strtol(acTmpReturnValue, &endptr, BASE_10);
+
+        /* Get active WAN interface index */
+        for(int wanif_idx = 1; wanif_idx <= wanif_count; wanif_idx++)
+        {
+            memset(acGetParamName, 0, sizeof(acGetParamName));
+            memset(acTmpReturnValue, 0, sizeof(acTmpReturnValue));
+
+            snprintf(acGetParamName, sizeof(acGetParamName), WAN_IF_ACTIVE_LINK, wanif_idx);
+            if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(WAN_COMPONENT_NAME, WAN_DBUS_PATH, acGetParamName, acTmpReturnValue))
+            {
+                printf("[%s][%d]Failed to get [%s]\n", __FUNCTION__, __LINE__, acGetParamName);
+                return -1;
+            }
+
+            if(0 == strcmp(acTmpReturnValue, "true"))
+            {
+                activeLinkIdx = wanif_idx;
+                break;
+            }
+        }
+
+        if ((-1 == activeLinkIdx) && (1 == wanif_count))
+        {
+            activeLinkIdx = 1;
+        }
+
+        if (-1 == activeLinkIdx)
+        {
+            printf("[%s][%d]No active interface\n", __FUNCTION__, __LINE__);
+            return -1;
+        }
+        else
+        {
+            memset(acGetParamName, 0, sizeof(acGetParamName));
+            memset(acTmpReturnValue, 0, sizeof(acTmpReturnValue));
+
+            snprintf(acGetParamName, sizeof(acGetParamName), WAN_VIF_COUNT, activeLinkIdx);
+            if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(WAN_COMPONENT_NAME, WAN_DBUS_PATH, acGetParamName, acTmpReturnValue))
+            {
+                printf("[%s][%d]Failed to get [%s]\n", __FUNCTION__, __LINE__, acGetParamName);
+                return -1;
+            }
+
+            if(acTmpReturnValue[0] != '\0')
+            {
+                numVlanIfc = strtol(acTmpReturnValue, &endptr, 10);
+            }
+        }
+
+        for(int vlan_idx = 1; vlan_idx <= numVlanIfc; vlan_idx++)
+        {
+            /* Get no of Virtual Interface Markings */
+            memset(acGetParamName, 0, sizeof(acGetParamName));
+            memset(acTmpReturnValue, 0, sizeof(acTmpReturnValue));
+
+            snprintf(acGetParamName, sizeof(acGetParamName), WAN_VIF_NOF_MARKINGS, activeLinkIdx, vlan_idx);
+            if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(WAN_COMPONENT_NAME, WAN_DBUS_PATH, acGetParamName, acTmpReturnValue))
+            {
+                printf("[%s][%d]Failed to get [%s], skipping\n", __FUNCTION__, __LINE__, acGetParamName);
+                continue;
+            }
+
+            noOfVifMarking = strtol(acTmpReturnValue, &endptr, BASE_10);
+            if (noOfVifMarking <= 0)
+            {
+                continue;
+            }
+
+            for (int vIfMarkingIdx = 1; vIfMarkingIdx <= noOfVifMarking; vIfMarkingIdx++)
+            {
+                /* Get virtual interface Marking Entry */
+                memset(acGetParamName, 0, sizeof(acGetParamName));
+                memset(acTmpReturnValue, 0, sizeof(acTmpReturnValue));
+
+                snprintf(acGetParamName, sizeof(acGetParamName), WAN_VIF_MARKINGS_ENTRY, activeLinkIdx, vlan_idx, vIfMarkingIdx);
+                if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(WAN_COMPONENT_NAME, WAN_DBUS_PATH, acGetParamName, acTmpReturnValue))
+                {
+                    printf("[%s][%d]Failed to get [%s]\n", __FUNCTION__, __LINE__, acGetParamName);
+                    return -1;
+                }
+
+                strncpy(WanVIfMarkingEntry, acTmpReturnValue, sizeof(WanVIfMarkingEntry));
+
+                /* Get SKBMark */
+                memset(acGetParamName, 0, sizeof(acGetParamName));
+                memset(acTmpReturnValue, 0, sizeof(acTmpReturnValue));
+
+                snprintf(acGetParamName, sizeof(acGetParamName), "%s.SKBMark", WanVIfMarkingEntry);
+                if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(WAN_COMPONENT_NAME, WAN_DBUS_PATH, acGetParamName, acTmpReturnValue))
+                {
+                    printf("[%s][%d]Failed to get [%s]\n", __FUNCTION__, __LINE__, acGetParamName);
+                    return -1;
+                }
+
+                strncpy(SKBMark, acTmpReturnValue, sizeof(SKBMark));
+
+                /* Get EthernetPriorityMark */
+                memset(acGetParamName, 0, sizeof(acGetParamName));
+                memset(acTmpReturnValue, 0, sizeof(acTmpReturnValue));
+
+                snprintf(acGetParamName, sizeof(acGetParamName), "%s.DSCPMark", WanVIfMarkingEntry);
+                if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(WAN_COMPONENT_NAME, WAN_DBUS_PATH, acGetParamName, acTmpReturnValue))
+                {
+                    printf("[%s][%d]Failed to get [%s]\n", __FUNCTION__, __LINE__, acGetParamName);
+                    return -1;
+                }
+
+                strncpy(DSCPMark, acTmpReturnValue, sizeof(DSCPMark));
+
+                /* Get Marking Name */
+                memset(acGetParamName, 0, sizeof(acGetParamName));
+                memset(acTmpReturnValue, 0, sizeof(acTmpReturnValue));
+
+                snprintf(acGetParamName, sizeof(acGetParamName), "%s.Name", WanVIfMarkingEntry);
+                if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(WAN_COMPONENT_NAME, WAN_DBUS_PATH, acGetParamName, acTmpReturnValue))
+                {
+                    printf("[%s][%d]Failed to get [%s]\n", __FUNCTION__, __LINE__, acGetParamName);
+                    return -1;
+                }
+
+                strncpy(MarkingName, acTmpReturnValue, sizeof(MarkingName));
+
+                if (numVlanIfc > 1)
+                {
+                    /* Get VLAN Name */
+                    memset(acGetParamName, 0, sizeof(acGetParamName));
+                    memset(acTmpReturnValue, 0, sizeof(acTmpReturnValue));
+
+                    snprintf(acGetParamName, sizeof(acGetParamName), WAN_VIF_NAME, activeLinkIdx, vlan_idx);
+                    if (ANSC_STATUS_FAILURE == RdkBus_GetParamValues(WAN_COMPONENT_NAME, WAN_DBUS_PATH, acGetParamName, acTmpReturnValue))
+                    {
+                        printf("[%s][%d]Failed to get [%s], skipping\n", __FUNCTION__, __LINE__, acGetParamName);
+                        continue;
+                    }
+
+                    strncpy(WanVIfName, acTmpReturnValue, sizeof(WanVIfName));
+
+                    /* Multi-VLAN: one coarse mark per VIF egress — your DATA/IPTV/VOICE.. etc case */
+                    fprintf(mangle_fp, "-A POSTROUTING -o %s -j DSCP --set-dscp-class %s\n", WanVIfName, DSCPMark);
+                    fprintf(mangle_fp, "-A POSTROUTING -o %s -j CLASSIFY --set-class 0:%s\n", WanVIfName, SKBMark);
+
+                    continue;  /* skip protocol-specific blocks */
+                }
+
+                /* Single-VLAN: protocol table on wan interface only */
+                if (strcmp(MarkingName, "NTP") == 0)
+                {
+                    dest_port = 123; // for NTP
+                    fprintf(mangle_fp, "-A POSTROUTING -j DSCP -p udp --dport %d -o %s --set-dscp-class %s\n", dest_port, current_wan_ifname, DSCPMark);
+                    fprintf(mangle_fp, "-A POSTROUTING -j DSCP -p tcp --dport %d -o %s --set-dscp-class %s\n", dest_port, current_wan_ifname, DSCPMark);
+                    fprintf(mangle_fp, "-A POSTROUTING -j CLASSIFY -p udp --dport %d -o %s --set-class 0:%s\n", dest_port, current_wan_ifname, SKBMark);
+                    fprintf(mangle_fp, "-A POSTROUTING -j CLASSIFY -p tcp --dport %d -o %s --set-class 0:%s\n", dest_port, current_wan_ifname, SKBMark);
+                }
+                else if (strcmp(MarkingName, "DNS") == 0)
+                {
+                    dest_port = 53; // for DNS
+                    fprintf(mangle_fp, "-A POSTROUTING -p udp --dport %d -o %s -j DSCP --set-dscp-class %s\n", dest_port, current_wan_ifname, DSCPMark);
+                    fprintf(mangle_fp, "-A POSTROUTING -p tcp --dport %d -o %s -j DSCP --set-dscp-class %s\n", dest_port, current_wan_ifname, DSCPMark);
+                    fprintf(mangle_fp, "-A POSTROUTING -p udp --dport %d -o %s -j CLASSIFY --set-class 0:%s\n", dest_port, current_wan_ifname, SKBMark);
+                    fprintf(mangle_fp, "-A POSTROUTING -p tcp --dport %d -o %s -j CLASSIFY --set-class 0:%s\n", dest_port, current_wan_ifname, SKBMark);
+                }
+                else if (strcmp(MarkingName, "HTTP") == 0)
+                {
+                    fprintf(mangle_fp, "-A POSTROUTING -p tcp --dport %d -m dscp --dscp-class cs3 -o %s -j DSCP --set-dscp-class %s\n", HTTP_PORT, current_wan_ifname, DSCPMark);
+                    fprintf(mangle_fp, "-A POSTROUTING -p tcp --dport %d -m dscp --dscp-class %s -j CLASSIFY --set-class 0:%s\n", HTTP_PORT, DSCPMark, SKBMark);
+                }
+                else if (strcmp(MarkingName,"VOIPCTRL") == 0)
+                {
+                    fprintf(mangle_fp, "-A POSTROUTING -m dscp --dscp-class %s -o %s -j CLASSIFY --set-class 0:%s\n", DSCPMark, current_wan_ifname, SKBMark);
+                }
+                else if (strcmp(MarkingName,"IPTVCTRL") == 0)
+                {
+                    fprintf(mangle_fp, "-A POSTROUTING -m dscp --dscp-class %s -o %s -j CLASSIFY --set-class 0:%s\n", DSCPMark, current_wan_ifname, SKBMark);
+                }
+                else if ( strcmp(MarkingName,"VOIPMULT") == 0 )
+                {
+                    fprintf(mangle_fp, "-A POSTROUTING -m dscp --dscp-class %s -o %s -j CLASSIFY --set-class 0:%s\n", DSCPMark, current_wan_ifname, SKBMark);
+                }
+                else if ( strcmp (MarkingName,"IPTVMULT") == 0 )
+                {
+                    fprintf(mangle_fp, "-A POSTROUTING -m dscp --dscp-class %s -o %s -j CLASSIFY --set-class 0:%s\n", DSCPMark, current_wan_ifname, SKBMark);
+                }
+                else if ( strcmp(MarkingName,"IGMP") == 0 )
+                {
+                    fprintf(mangle_fp, "-A POSTROUTING -p igmp -o %s -j DSCP --set-dscp-class %s\n", current_wan_ifname, DSCPMark);
+                    fprintf(mangle_fp, "-A POSTROUTING -p igmp -o %s -j CLASSIFY --set-class 0:%s\n", current_wan_ifname, SKBMark);
+                    fprintf(mangle_fp, "-A POSTROUTING -p igmp -o brlan0 -j DSCP --set-dscp-class %s\n", DSCPMark);
+                }
+                else if (family == AF_INET6)
+                {
+                    if (strcmp(MarkingName, "DHCPv6") == 0)
+                    {
+                        fprintf(mangle_fp, "-A POSTROUTING -p udp --dport 547 -o %s -j DSCP --set-dscp-class %s\n", current_wan_ifname, DSCPMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p udp --dport 547 -o %s -j CLASSIFY --set-class 0:%s\n", current_wan_ifname, SKBMark);
+                    }
+                    else if (strcmp(MarkingName, "ICMPv6") == 0)
+                    {
+                        fprintf(mangle_fp, "-A POSTROUTING -p icmpv6 --icmpv6-type router-solicitation -o %s -j DSCP --set-dscp-class %s\n", current_wan_ifname, DSCPMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p icmpv6 --icmpv6-type router-solicitation -o %s -j CLASSIFY --set-class 0:%s\n", current_wan_ifname, SKBMark);
+                    }
+                    else if (strcmp(MarkingName, "DNSv6") == 0)
+                    {
+                        dest_port = 53;
+
+                        fprintf(mangle_fp, "-A POSTROUTING -p udp --dport %d -o %s -j DSCP --set-dscp-class %s\n", dest_port, current_wan_ifname, DSCPMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p tcp --dport %d -o %s -j DSCP --set-dscp-class %s\n", dest_port, current_wan_ifname, DSCPMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p udp --dport %d -o %s -j CLASSIFY --set-class 0:%s\n", dest_port, current_wan_ifname, SKBMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p tcp --dport %d -o %s -j CLASSIFY --set-class 0:%s\n", dest_port, current_wan_ifname, SKBMark);
+                    }
+                    else if ( strcmp(MarkingName, "MLD") == 0 )
+                    {
+                        /* MLD query / v1 / v2 — standard icmpv6-type only */
+                        fprintf(mangle_fp, "-A POSTROUTING -p icmpv6 --icmpv6-type %d -o %s -j DSCP --set-dscp-class %s\n", MLD_LISTENER_QUERY, current_wan_ifname, DSCPMark);
+                        fprintf(mangle_fp, "-A OUTPUT -p icmpv6 --icmpv6-type %d -o %s -j CLASSIFY --set-class 0:%s\n", MLD_LISTENER_QUERY, current_wan_ifname, SKBMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p icmpv6 --icmpv6-type %d -o brlan0 -j DSCP --set-dscp-class %s\n", MLD_LISTENER_QUERY, DSCPMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p icmpv6 --icmpv6-type %d -o %s -j DSCP --set-dscp-class %s\n", MLD2_LISTENER_REPORT, current_wan_ifname, DSCPMark);
+                        fprintf(mangle_fp, "-A OUTPUT -p icmpv6 --icmpv6-type %d -o %s -j CLASSIFY --set-class 0:%s\n", MLD2_LISTENER_REPORT, current_wan_ifname, SKBMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p icmpv6 --icmpv6-type %d -o brlan0 -j DSCP --set-dscp-class %s\n", MLD2_LISTENER_REPORT, DSCPMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p icmpv6 --icmpv6-type %d -o %s -j DSCP --set-dscp-class %s\n", MLD_LISTENER_REPORT, current_wan_ifname, DSCPMark);
+                        fprintf(mangle_fp, "-A OUTPUT -p icmpv6 --icmpv6-type %d -o %s -j CLASSIFY --set-class 0:%s\n", MLD_LISTENER_REPORT, current_wan_ifname, SKBMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p icmpv6 --icmpv6-type %d -o %s -j DSCP --set-dscp-class %s\n", MLD_LISTENER_DONE, current_wan_ifname, DSCPMark);
+                        fprintf(mangle_fp, "-A OUTPUT -p icmpv6 --icmpv6-type %d -o %s -j CLASSIFY --set-class 0:%s\n", MLD_LISTENER_DONE, current_wan_ifname, SKBMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p icmpv6 --icmpv6-type %d -o brlan0 -j DSCP --set-dscp-class %s\n", MLD_LISTENER_REPORT, DSCPMark);
+                        fprintf(mangle_fp, "-A POSTROUTING -p icmpv6 --icmpv6-type %d -o brlan0 -j DSCP --set-dscp-class %s\n", MLD_LISTENER_DONE, DSCPMark);
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+#endif //FEATURE_WANMGR_L2_MARKING
 
 /*
  =================================================================
@@ -12149,6 +12438,13 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #ifdef FEATURE_MAPE
    prepare_mape_rules(mangle_fp);
 #endif
+
+#ifdef FEATURE_WANMGR_L2_MARKING
+   if(isWanServiceReady)
+   {
+       add_qos_skb_mark(mangle_fp, AF_INET);
+   }
+#endif //FEATURE_WANMGR_L2_MARKING
 
 #ifdef CONFIG_BUILD_TRIGGER
 #ifndef CONFIG_KERNEL_NF_TRIGGER_SUPPORT

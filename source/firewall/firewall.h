@@ -1275,3 +1275,17 @@ int validate_port(const char* port_num);
 *
 */
 void do_ssl_blocking_rules(FILE *fp, const char *chain_name);
+
+#ifdef FEATURE_WANMGR_L2_MARKING
+/** 
+ *  @brief Apply WanManager-based L3 DSCP and CLASSIFY marking rules
+ *                  for operator WAN traffic (DNS, NTP, VoIP, IPTV, etc.)
+ *
+ *  @param[in] mangle_fp       : iptables-restore mangle output file
+ *  @param[in] family          : AF_INET or AF_INET6
+ *
+ *  @return 0               : Success
+ *         -1               : WanManager DM read failure
+ */
+int add_qos_skb_mark(FILE *mangle_fp, int family);
+#endif //FEATURE_WANMGR_L2_MARKING
