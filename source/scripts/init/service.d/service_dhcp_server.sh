@@ -432,6 +432,13 @@ reset_eth_usb_ports ()
 #-----------------------------------------------------------------
 dhcp_server_start ()
 {
+   SYSCFG_LAST_EROUTER_MODE=`syscfg get last_erouter_mode`
+   echo_t "Checking if Device is IPv6 only mode $SYSCFG_LAST_EROUTER_MODE"
+   if [ "2" = "$SYSCFG_LAST_EROUTER_MODE" ]; then
+      echo_t "SERVICE DHCP : Device is in IPv6 only mode, skipping DHCP server start"
+      return 0
+   fi
+
    if [ "0" = "$SYSCFG_dhcp_server_enabled" ] ; then
       #when disable dhcp server in gui, we need remove the corresponding process in backend, or the dhcp server still work.
       dhcp_server_stop

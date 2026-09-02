@@ -618,6 +618,7 @@ int dhcp_server_start (char *input)
 {
         fprintf(g_fArmConsoleLog, "\nInside  %s function with arg %s\n", __FUNCTION__,input);
 	//Declarations
+	char l_cLastErouterMode[16] = {0};
 	char l_cDhcpServerEnable[16] = {0}, l_cLanStatusDhcp[16] = {0};
 	char l_cSystemCmd[255] = {0}, l_cPsm_Mode[8] = {0}, l_cStart_Misc[8] = {0};
 	char l_cPmonCmd[255] = {0}, l_cDhcp_Tmp_Conf[32] = {0};
@@ -633,6 +634,16 @@ int dhcp_server_start (char *input)
         FILE *fptr = NULL;
 	char *l_cToken = NULL;
 	errno_t safec_rc = -1;
+
+	fprintf(g_fArmConsoleLog, "Check if Device is IPv6 only mode\n");
+	syscfg_get(NULL, "last_erouter_mode", l_cLastErouterMode, sizeof(l_cLastErouterMode));
+
+	if (!strncmp(l_cLastErouterMode, "2", 1))
+	{
+	    //When in Ipv6 only mode, dont start DHCP server
+	    fprintf(g_fArmConsoleLog, "Device is in IPv6 only mode, skipping DHCP server start\n");
+	    return 0;
+	}
 
 	service_dhcp_init();
 
