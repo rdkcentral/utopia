@@ -2400,7 +2400,7 @@ static int prepare_globals_from_configuration(void)
          else {
             snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", default_wan_ifname);
          }
-		 snprintf(ecm_wan_ifname, sizeof(ecm_wan_ifname),"%s"current_wan_ifname);
+		 snprintf(ecm_wan_ifname, sizeof(ecm_wan_ifname), "%s", current_wan_ifname);
 	  }
 	  
 	}
