@@ -2394,11 +2394,15 @@ static int prepare_globals_from_configuration(void)
 		 ERR_CHK(safec_rc);  
 	  }
       else{
-		 safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),default_wan_ifname); 
-		 ERR_CHK(safec_rc);
-		 safec_rc=strcpy_s(ecm_wan_ifname, sizeof(ecm_wan_ifname),default_wan_ifname);  
-		 ERR_CHK(safec_rc);
-	  }	  
+		 if ('\0' == default_wan_ifname[0]) {
+            snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", "erouter0");
+         }
+         else {
+            snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", default_wan_ifname);
+         }
+		 snprintf(ecm_wan_ifname, sizeof(ecm_wan_ifname),"%s"current_wan_ifname);
+	  }
+	  
 	}
 	else {
 	  safec_rc=strcpy_s(ecm_wan_ifname, sizeof(ecm_wan_ifname),current_wan_ifname);	
