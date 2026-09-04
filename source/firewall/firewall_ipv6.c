@@ -787,9 +787,6 @@ void do_ipv6_filter_table(FILE *fp){
    if (isFirewallEnabled) {
       // Get the current WAN IPv6 interface (which differs from the IPv4 in case of tunnels)
       char query[10],port[10],tmpQuery[10];
-#if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
-      char wanIPv6[64];
-#endif
       int rc, ret;
       errno_t safec_rc = -1;
 
@@ -854,12 +851,12 @@ void do_ipv6_filter_table(FILE *fp){
 #if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
       if(isWanPingDisableV6 == 1)
       {
-             syscfg_get(NULL, "wanIPv6Address", wanIPv6, sizeof(wanIPv6));
-             if(0 != strcmp(wanIPv6,""))
-             {
-                 fprintf(fp, "-A INPUT -i brlan0 -d %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", wanIPv6); // Echo request
-                 fprintf(fp, "-A INPUT -i brlan0 -d %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m state --state NEW,INVALID,RELATED -j DROP\n", wanIPv6); // Echo reply
-             }
+         int index;
+         fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", current_wan_ifname);
+         for (index = 0; index < current_wan_ipv6_num; index++)
+         {
+            fprintf(fp, "-A INPUT -i brlan0 -d %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", current_wan_ipv6[index]);
+         }
       }
 #endif
      
