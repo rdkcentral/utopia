@@ -369,7 +369,9 @@ call_back_remove_prefix ()
 #-------------------------------------------------------------------------------------------
 
 service_init 
-
+if [ "$BOX_TYPE" = "genericarm" ]; then
+	logger -t "utopia_${SERVICE_NAME}" "Called $1 parent $PPID"
+fi
 case "$1" in
    "${SERVICE_NAME}-start")
       service_start
@@ -405,6 +407,10 @@ case "$1" in
       else
 	echo "$SELF: unknown event ($EVENT) or unknow DHCP call back ($REASON)" >> $LOG
 	echo "Usage: $SERVICE_NAME [ ${SERVICE_NAME}-start | ${SERVICE_NAME}-stop | ${SERVICE_NAME}-restart]" > /dev/console
+	if [ "$BOX_TYPE" = "genericarm" ]; then
+		logger -t "utopia_${SERVICE_NAME}" "Called $1 parent $PPID"
+        fi
+
 	exit 3
       fi
       ;;

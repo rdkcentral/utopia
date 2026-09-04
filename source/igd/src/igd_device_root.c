@@ -80,9 +80,11 @@
 #include "pal_kernel.h"
 #include "igd_platform_independent_inf.h"
 #include "igd_utility.h"
-
+#if defined(_PLATFORM_GENERICARM_)
+#define DEFAULT_WEB_DIR "/var/volatile/IGD"
+#else
 #define DEFAULT_WEB_DIR "/var/IGD"
-
+#endif
 #define DEFAULT_ADVR_EXPIRE 1800
 #define VERSION_MAJOR 		1
 #define VERSION_MINOR 		0
