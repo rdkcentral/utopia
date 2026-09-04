@@ -1074,6 +1074,17 @@ $lastActiontakentime=0
 $process_memory_log_count=0
 $selfheal_ping_DataBlockSize=56
 
+#IOT VLAN
+$iot_ifname=br106
+$iot_ipaddr=192.168.106.1
+$iot_netmask=255.255.255.0
+$iot_dhcp_start=192.168.106.100
+$iot_dhcp_end=192.168.106.150
+
+# XSMART or IOT Enable
+$X_RDKCENTRAL-COM_ENABLEIOT=false
+$lost_and_found_enable=true
+
 # Webpa Parameters
 $X_RDKCENTRAL-COM_LastRebootReason=unknown
 $X_RDKCENTRAL-COM_LastRebootCounter=0
