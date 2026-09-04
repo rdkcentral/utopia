@@ -1075,7 +1075,7 @@ $process_memory_log_count=0
 $selfheal_ping_DataBlockSize=56
 
 #IOT VLAN
-$iot_ifname=l2sd0.106
+$iot_ifname=br106
 $iot_ipaddr=192.168.106.1
 $iot_netmask=255.255.255.0
 $iot_dhcp_start=192.168.106.100
