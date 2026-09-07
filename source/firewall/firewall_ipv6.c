@@ -312,11 +312,8 @@ int prepare_ipv6_firewall(const char *fw_file)
 
 	do_wpad_isatap_blockv6(filter_fp);
 
-#if !(defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
         prepare_rabid_rules(filter_fp, mangle_fp, IP_V6);
-#else
-        prepare_rabid_rules_v2020Q3B(filter_fp, mangle_fp, IP_V6);
-#endif
+
 	do_parental_control(filter_fp,nat_fp, 6);
 #if defined(SPEED_BOOST_SUPPORTED) && defined(SPEED_BOOST_SUPPORTED_V6)
 	WAN_FAILOVER_SUPPORT_CHECK
