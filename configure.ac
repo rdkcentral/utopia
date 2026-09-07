@@ -50,6 +50,15 @@ AC_PREFIX_DEFAULT(`pwd`)
 AC_ENABLE_SHARED
 AC_DISABLE_STATIC
 
+#Enable NFT compile time flags if firewall-nft is set as yes
+AC_ARG_ENABLE([firewall-nft],
+[  --enable-firewall-nft=yes Turn on nft Feature],
+[case "${enableval}" in
+  yes) firewall_nft=true ;;
+  *) AC_MSG_ERROR([bad value ${enableval} for --enable-firewall-nft]) ;;
+esac],[firewall_nft=false])
+AM_CONDITIONAL(FIREWALL_NFT, test x"$firewall_nft" = x"true")
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -258,6 +267,7 @@ AC_CONFIG_FILES(
 	source/Makefile
 	source/dhcpproxy/Makefile
 	source/firewall/Makefile
+	source/firewall_nft/Makefile
 	source/firewall_log/Makefile
 	source/igd/Makefile
 	source/igd/src/Makefile
