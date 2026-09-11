@@ -194,12 +194,10 @@ service_start ()
       else
 	      echo_t "Selfheal cron is disabled"
 
-      # Monitor resource_monitor.sh every 5 minutes TCCBR-3288
-#      if [ "$BOX_TYPE" = "TCCBR" ]; then 
-         echo "*/5 * * * * /usr/ccsp/tad/resource_monitor_recover.sh" >> $CRONTAB_FILE
-#      fi
-	 
       fi
+
+      # Monitor resource_monitor.sh every 5 minutes TCCBR-3288
+      echo "*/5 * * * * /usr/ccsp/tad/resource_monitor_recover.sh" >> $CRONTAB_FILE
 
       # Monitor syscfg DB every 15minutes
       echo "*/15 * * * * /usr/ccsp/tad/syscfg_recover.sh" >> $CRONTAB_FILE
