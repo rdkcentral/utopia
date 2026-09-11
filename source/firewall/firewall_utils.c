@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+#include <ctype.h>
+
 #include "firewall.h"
 
 /**
@@ -30,7 +32,19 @@
  */
 int validate_port(const char* port_num)
 {
-    int port = atoi(port_num);
+    const char *digit;
+    unsigned long port;
+
+    if (NULL == port_num || '\0' == port_num[0])
+        return -1;
+
+    for (digit = port_num; '\0' != *digit; digit++)
+    {
+        if (!isdigit((unsigned char)*digit))
+            return -1;
+    }
+
+    port = strtoul(port_num, NULL, 10);
     if (port <= 0 || port > MAX_PORT)
         return -1;
     return 0;
