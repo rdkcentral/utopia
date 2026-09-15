@@ -421,19 +421,6 @@ int wan_lan_webui_attack(FILE *fp, const char *interface);
 int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
 
 /**
-* @brief Prepare RABID rules version 2020Q3B.
-*
-* @param[in] filter_fp - Pointer to the FILE stream for writing filter table rules.
-* @param[in] mangle_fp - Pointer to the FILE stream for writing mangle table rules.
-* @param[in] ver - IP version type.
-*
-* @return The status of the operation.
-* @retval 0 on success.
-*
-*/
-int prepare_rabid_rules_v2020Q3B(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
-
-/**
 * @brief Prepare RABID rules for MAP-T (Mapping of Address and Port with Translation).
 *
 * @param[in] filter_fp - Pointer to the FILE stream for writing filter table rules.
