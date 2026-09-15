@@ -73,7 +73,7 @@
 #include <sysevent/sysevent.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "firewall.h"
+#include "firewallnft.h"
 
 #include <getopt.h>
 #include <sys/types.h>
@@ -97,9 +97,6 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #endif
-#ifdef _ONESTACK_PRODUCT_REQ_
-#include <rdkb_feature_mode_gate.h>
-#endif
 
 void* bus_handle ;
 int sysevent_fd;
@@ -113,9 +110,7 @@ char wan6_ifname[50];
 char ecm_wan_ifname[20];
 char lan_ifname[50];
 char cmdiag_ifname[20];
-#if !defined (NO_MTA_FEATURE_SUPPORT)
 char emta_wan_ifname[20];
-#endif
 token_t sysevent_token;
 int syslog_level;
 char firewall_levelv6[20];
@@ -175,8 +170,6 @@ char devicePartnerId[255] = {'\0'};
 //Hardcoded support for cm and erouter should be generalized.
 #if defined(_HUB4_PRODUCT_REQ_) || defined(_TELCO_PRODUCT_REQ_)
 char * ifnames[] = { wan6_ifname, lan_ifname};
-#elif defined (NO_MTA_FEATURE_SUPPORT)
-char * ifnames[] = { wan6_ifname, ecm_wan_ifname, lan_ifname};
 #else
 char * ifnames[] = { wan6_ifname, ecm_wan_ifname, emta_wan_ifname, lan_ifname};
 #endif /* * _HUB4_PRODUCT_REQ_ */
@@ -186,10 +179,6 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #define V6_BLOCKFRAGIPPKT   "v6_BlockFragIPPkts"
 #define V6_PORTSCANPROTECT  "v6_PortScanProtect"
 #define V6_IPFLOODDETECT    "v6_IPFloodDetect"
-#define IPV6_PREFIX_BUF_LEN 128
-#if defined (_ONESTACK_PRODUCT_REQ_)
-static char ipv6_delegation_prefix[IPV6_PREFIX_BUF_LEN+1] ={0};
-#endif
 /*
  ****************************************************************
  *               IPv6 Firewall                                  *
@@ -269,16 +258,8 @@ int prepare_ipv6_firewall(const char *fw_file)
 		ret=-2;
 		goto clean_up_files;
 	}
-#if defined (_ONESTACK_PRODUCT_REQ_)
-	char sysEventName[256] ={0};
-	memset(ipv6_delegation_prefix, 0, sizeof(ipv6_delegation_prefix));
-	if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
-	{
-		snprintf(sysEventName, sizeof(sysEventName), "tr_%s_dhcpv6_client_v6pref", current_wan_ifname);
-		sysevent_get(sysevent_fd, sysevent_token, sysEventName, ipv6_delegation_prefix, sizeof(ipv6_delegation_prefix));
-	}
-#endif 
-
+        
+       
    #ifdef RDKB_EXTENDER_ENABLED  
 
    if (isExtProfile() == 0)
@@ -312,8 +293,11 @@ int prepare_ipv6_firewall(const char *fw_file)
 
 	do_wpad_isatap_blockv6(filter_fp);
 
+#if !(defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
         prepare_rabid_rules(filter_fp, mangle_fp, IP_V6);
-
+#else
+        prepare_rabid_rules_v2020Q3B(filter_fp, mangle_fp, IP_V6);
+#endif
 	do_parental_control(filter_fp,nat_fp, 6);
 #if defined(SPEED_BOOST_SUPPORTED) && defined(SPEED_BOOST_SUPPORTED_V6)
 	WAN_FAILOVER_SUPPORT_CHECK
@@ -392,16 +376,17 @@ int prepare_ipv6_firewall(const char *fw_file)
          if ( strcmp(current_wan_ifname,default_wan_ifname) != 0 )
 #endif
          {
-            fprintf(filter_fp, "-I FORWARD -i %s -p tcp --tcp-flags RST RST -j DROP\n",current_wan_ifname);
-            fprintf(filter_fp, "-I FORWARD -i %s -p tcp -m tcp --tcp-flags RST RST -m limit --limit 2/sec --limit-burst 2 -j ACCEPT\n",current_wan_ifname);
-            fprintf(filter_fp, "-I FORWARD -o %s -p tcp --tcp-flags RST RST -j DROP\n",current_wan_ifname);
-            fprintf(filter_fp, "-I FORWARD -o %s -p tcp -m tcp --tcp-flags RST RST -m limit --limit 2/sec --limit-burst 2 -j ACCEPT\n",current_wan_ifname);
-            fprintf(filter_fp, "-I OUTPUT -o %s -p tcp --tcp-flags RST RST -j DROP\n",current_wan_ifname);
-            fprintf(filter_fp, "-I OUTPUT -o %s -p tcp -m tcp --tcp-flags RST RST -m limit --limit 2/sec --limit-burst 2 -j ACCEPT\n",current_wan_ifname);
-         }
-         fprintf(filter_fp, "-I FORWARD -o %s -m state --state INVALID -j DROP\n",current_wan_ifname);
+            // nft rules added    
+            fprintf(filter_fp, "insert rule ip6 filter FORWARD iifname %s ip6 protocol tcp tcp flags rst counter drop\n", current_wan_ifname);
+            fprintf(filter_fp, "insert rule ip6 filter FORWARD iifname %s ip6 protocol tcp tcp flags rst limit rate 2/second burst 2 packets counter accept\n", current_wan_ifname);
+            fprintf(filter_fp, "insert rule ip6 filter FORWARD oifname %s ip6 protocol tcp tcp flags rst counter drop\n", current_wan_ifname);
+            fprintf(filter_fp, "insert rule ip6 filter FORWARD oifname %s ip6 protocol tcp tcp flags rst limit rate 2/second burst 2 packets counter accept\n", current_wan_ifname);
+            fprintf(filter_fp, "insert rule ip6 filter OUTPUT oifname %s ip6 protocol tcp tcp flags rst counter drop\n", current_wan_ifname);
+            fprintf(filter_fp, "insert rule ip6 filter OUTPUT oifname %s ip6 protocol tcp tcp flags rst limit rate 2/second burst 2 packets counter accept\n", current_wan_ifname);
+}
+         fprintf(filter_fp, "insert rule ip6 filter FORWARD oifname \"%s\" ct state invalid  counter drop\n",current_wan_ifname);
 #ifdef NAT46_KERNEL_SUPPORT
-         fprintf(filter_fp, "-I FORWARD -o %s -p gre -j ACCEPT\n",current_wan_ifname);
+         fprintf(filter_fp, "insert rule ip6 filter FORWARD oifname \"%s\" meta l4proto gre counter accept\n",current_wan_ifname);
 #endif
 
          int retval = 0;
@@ -418,22 +403,19 @@ int prepare_ipv6_firewall(const char *fw_file)
 
    #endif
 
-#if defined (_PLATFORM_BANANAPI_R4_)
-        fprintf(fp, "*raw\n-F\n");
-#endif
-
+/* not applicable for NFT - start */
 	/*add rules before this*/
 #if !defined(_BWG_PRODUCT_REQ_)
-	fprintf(raw_fp, "COMMIT\n");
+	//fprintf(raw_fp, "COMMIT\n");
 #endif
-
-
-	fprintf(mangle_fp, "COMMIT\n");
+	//fprintf(mangle_fp, "COMMIT\n");
 #if !defined(_PLATFORM_IPQ_)
-	fprintf(nat_fp, "COMMIT\n");
+	//fprintf(nat_fp, "COMMIT\n");
 #endif
-	fprintf(filter_fp, "COMMIT\n");
-	
+	//fprintf(filter_fp, "COMMIT\n");
+/* not applicable for NFT - End */
+
+
    	fflush(raw_fp);
    	fflush(mangle_fp);
    	fflush(nat_fp);
@@ -452,7 +434,10 @@ int prepare_ipv6_firewall(const char *fw_file)
 		   fprintf(fp, "%s", string);
 		}
 	} else {
-		fprintf(fp, "*raw\n-F\nCOMMIT\n");
+		fprintf(fp,"add table ip6 raw\n");
+           fprintf(fp,"add chain ip6 raw PREROUTING { type filter hook prerouting priority -300; policy accept; }\n");
+           fprintf(fp,"add chain ip6 raw OUTPUT { type filter hook output priority -300; policy accept; }\n");
+
 	}
 #endif
 
@@ -483,12 +468,12 @@ clean_up_files:
 	}
 	if(nat_fp) {
 		fclose(nat_fp);
-		snprintf(fname, sizeof(fname), "/tmp/filter6_%x", ourpid);
+		snprintf(fname, sizeof(fname), "/tmp/nat6_%x", ourpid);
 	 	unlink(fname);
 	}
 	if(filter_fp) {
 		fclose(filter_fp);
-		snprintf(fname, sizeof(fname), "/tmp/nat6_%x", ourpid);
+		snprintf(fname, sizeof(fname), "/tmp/filter6_%x", ourpid);
 		unlink(fname);
 	}
 	FIREWALL_DEBUG("Exiting prepare_ipv6_firewall \n"); 
@@ -499,29 +484,24 @@ void do_ipv6_filter_table(FILE *fp){
 	FIREWALL_DEBUG("Inside do_ipv6_filter_table \n");
    int inf_num = 0;
    
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
    FILE *f = NULL;
    char request[256], response[256], cm_ipv6addr[40];
    unsigned int a[16] = {0};
 #endif
 	
-   fprintf(fp, "*filter\n");
-   fprintf(fp, ":INPUT ACCEPT [0:0]\n");
-   fprintf(fp, ":FORWARD ACCEPT [0:0]\n");
-   fprintf(fp, ":OUTPUT ACCEPT [0:0]\n");
-   fprintf(fp, ":lan2wan - [0:0]\n");
-   fprintf(fp, ":lan2wan_misc_ipv6 - [0:0]\n");
-   fprintf(fp, ":lan2wan_pc_device - [0:0]\n");
-   fprintf(fp, ":lan2wan_pc_site - [0:0]\n");
-   fprintf(fp, ":lan2wan_pc_service - [0:0]\n");
-   fprintf(fp, ":wan2lan - [0:0]\n");
+ // nft rules added
+fprintf(fp, "add table ip6 filter\n");
+fprintf(fp, "add chain ip6 filter INPUT { type filter hook input priority 0; policy accept; }\n");
+fprintf(fp, "add chain ip6 filter FORWARD { type filter hook forward priority 0; policy accept; }\n");
+fprintf(fp, "add chain ip6 filter OUTPUT { type filter hook output priority 0; policy accept; }\n");
+fprintf(fp, "add chain ip6 filter lan2wan\n");
+fprintf(fp, "add chain ip6 filter lan2wan_misc_ipv6\n");
+fprintf(fp, "add chain ip6 filter lan2wan_pc_device\n");
+fprintf(fp, "add chain ip6 filter lan2wan_pc_site\n");
+fprintf(fp, "add chain ip6 filter lan2wan_pc_service\n");
+fprintf(fp, "add chain ip6 filter wan2lan\n");
 
-#if defined(_SR213_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
-   if (strcmp ( devicePartnerId, "sky-uk") == 0 || strcmp ( devicePartnerId, "sky-italia") == 0)
-   {
-        do_block_lan_access_to_wan_ssh_ipv6(fp);
-   }
-#endif
 #if defined (_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined (HUB4_BFD_FEATURE_ENABLED) || defined (IHC_FEATURE_ENABLED)
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -530,102 +510,110 @@ void do_ipv6_filter_table(FILE *fp){
    get_ret = syscfg_get(NULL, "ConnectivityCheckType", syscfg_value, sizeof(syscfg_value));
    if ((get_ret == 0) && atoi(syscfg_value) == 1)
    {
-        fprintf(fp, ":%s - [0:0]\n", IPOE_HEALTHCHECK);
-        fprintf(fp, "-I INPUT -j %s\n", IPOE_HEALTHCHECK);
+        fprintf(fp, "add chain ip6 filter %s\n", IPOE_HEALTHCHECK);
+        fprintf(fp, "insert rule ip6 filter INPUT counter jump %s\n", IPOE_HEALTHCHECK);
    }
 #else
-    fprintf(fp, ":%s - [0:0]\n", IPOE_HEALTHCHECK);
-    fprintf(fp, "-I INPUT -j %s\n", IPOE_HEALTHCHECK);
+    //nft rules added
+fprintf(fp, "add chain ip6 filter %s\n", IPOE_HEALTHCHECK);
+   fprintf(fp, "insert INPUT count  %s\n", IPOE_HEALTHCHECK);
 #endif //_RDKB_GLOBAL_PRODUCT_REQ_
 #endif //HUB4_BFD_FEATURE_ENABLED || IHC_FEATURE_ENABLED
 #endif //_HUB4_PRODUCT_REQ_
    //>>DOS
 #ifdef _COSA_INTEL_XB3_ARM_
-   fprintf(fp, ":%s - [0:0]\n", "wandosattack");
-   fprintf(fp, ":%s - [0:0]\n", "mtadosattack");
+   //nft rules added 
+   fprintf(fp, "add chain ip6 filter %s\n", "wandosattack");
+   fprintf(fp, "add chain ip6 filter %s\n", "mtadosattack");
 #endif
    //<<DOS
 
 #if defined (INTEL_PUMA7)
-   fprintf(fp, "-I FORWARD -m conntrack --ctdir original -m connbytes --connbytes 0:15 --connbytes-dir original --connbytes-mode packets -j GWMETA --dis-pp\n");
-   fprintf(fp, "-I FORWARD -m conntrack --ctdir reply -m connbytes --connbytes 0:15 --connbytes-dir reply --connbytes-mode packets -j GWMETA --dis-pp\n");
+   //nft rules added 
+   fprintf(fp, "insert rule ip6 filter FORWARD ct original connbytes 0:15 connbytes-dir original connbytes-mode packets counter meta set dis-pp\n");
+   fprintf(fp, "insert rule ip6 filter FORWARD ct reply connbytes 0:15 connbytes-dir reply connbytes-mode packets counter meta set dis-pp\n");
 #endif
 
 #ifdef INTEL_PUMA7
    //Avoid blocking packets at the Intel NIL layer
-   fprintf(fp, "-A FORWARD -i a-mux -j ACCEPT\n");
+   //nft rules added 
+   fprintf(fp, "add rule ip6 filter FORWARD iifname a-mux accept\n");
 #endif
 
-   fprintf(fp, ":%s - [0:0]\n", "LOG_INPUT_DROP");
-   fprintf(fp, ":%s - [0:0]\n", "LOG_FORWARD_DROP");
+      // nft rules added
+   fprintf(fp, "add chain ip6 filter %s\n", "LOG_INPUT_DROP");
+   fprintf(fp, "add chain ip6 filter %s\n", "LOG_FORWARD_DROP");
    if(isComcastImage) {
        //tr69 chains for logging and filtering
-       fprintf(fp, ":%s - [0:0]\n", "LOG_TR69_DROP");
-       fprintf(fp, ":%s - [0:0]\n", "tr69_filter");
-       fprintf(fp, "-A INPUT -p tcp -m tcp --dport 7547 -j tr69_filter\n");
-       fprintf(fp, "-A LOG_TR69_DROP -m limit --limit 1/minute -j LOG --log-level %d --log-prefix \"TR-069 ACS Server Blocked:\"\n",syslog_level);
-       fprintf(fp, "-A LOG_TR69_DROP -j DROP\n");
+       //nft rules added
+       fprintf(fp, "add chain ip6 filter %s\n", "LOG_TR69_DROP");
+       fprintf(fp, "add chain ip6 filter %s\n", "tr69_filter");
+       fprintf(fp, "add rule ip6 filter INPUT tcp dport 7547 counter jump tr69_filter\n");
+       fprintf(fp, "add rule ip6 filter LOG_TR69_DROP limit rate 1/minute log level %d prefix \"TR-069 ACS Server Blocked:\"\n", syslog_level);
+       fprintf(fp, "add rule ip6 filter LOG_TR69_DROP counter drop\n");
    }
 
 #ifdef _COSA_INTEL_XB3_ARM_
-   fprintf(fp, "-I INPUT -i wan0 -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j wandosattack\n");
-   fprintf(fp, "-I INPUT -i wan0 -p udp -m udp -j wandosattack\n");
-   fprintf(fp, "-I INPUT -i mta0 -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j mtadosattack\n");
-   fprintf(fp, "-I INPUT -i mta0 -p udp -m udp -j mtadosattack\n");
-   fprintf(fp, "-A wandosattack -p tcp -m tcp --dport 22 -m limit --limit 25/sec --limit-burst 80 -j RETURN\n");
-   fprintf(fp, "-A wandosattack -m limit --limit 25/sec --limit-burst 80 -j ACCEPT\n");
-   fprintf(fp, "-A wandosattack -j DROP\n");
-   fprintf(fp, "-A mtadosattack -m limit --limit 200/sec --limit-burst 100 -j ACCEPT\n");
-   fprintf(fp, "-A mtadosattack -j DROP\n");
+   //nft rules added
+   fprintf(fp, "insert rule ip6 filter INPUT iifname wan0 tcp flags & (fin|syn|rst|ack) == syn counter jump wandosattack\n");
+   fprintf(fp, "insert rule ip6 filter INPUT iifname wan0 udp counter wandosattack\n");
+   fprintf(fp, "insert rule ip6 filter INPUT iifname mta0 tcp flags  & (fin |syn|rst|ack) == syn counter mtadosattack\n");
+   fprintf(fp, "insert rule ip6 filter INPUT iifname mta0 udp counter mtadosattack\n");
+   fprintf(fp, "add rule ip6 filter wandosattack tcp dport 22 limit rate 25/sec burst 80 return\n");
+   fprintf(fp, "add rule ip6 filter wandosattack limit rate 25/sec burst 80 accept\n");
+   fprintf(fp, "add rule ip6 filter wandosattack counter drop\n");
+   fprintf(fp, "add rule ip6 filter mtadosattack limit rate 200/sec burst 100 accept\n");
+   fprintf(fp, "add rule ip6 filter mtadosattack counter drop\n");
 #endif
 
-   do_block_ports(fp);	
-   fprintf(fp, ":%s - [0:0]\n", "LOG_SSH_DROP");
-   fprintf(fp, ":%s - [0:0]\n", "SSH_FILTER");
+   do_block_ports(fp,"ip6");
+   //nft rules added
+   fprintf(fp, "add chain ip6 filter %s\n", "LOG_SSH_DROP");
+   fprintf(fp, "add chain ip6 filter %s\n", "SSH_FILTER");
    if(bEthWANEnable)
    {
-   fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n",current_wan_ifname);
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport 22 counter jump SSH_FILTER\n",current_wan_ifname);
    }
    else if (erouterSSHEnable)
    {
-   fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n",current_wan_ifname);
-   fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", ecm_wan_ifname);
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport 22 counter jump SSH_FILTER\n",current_wan_ifname);
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport 22 counter jump SSH_FILTER\n", ecm_wan_ifname);
    }
    else
    {
        if (strcmp(current_wan_ifname,default_wan_ifname ) == 0)
        {
-        fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", ecm_wan_ifname);
+        fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport 22 counter jump SSH_FILTER\n", ecm_wan_ifname);
        }
        else
        {
-        fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", current_wan_ifname);
+        fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport 22 counter jump SSH_FILTER\n", current_wan_ifname);
        }
       
    }
    
-   fprintf(fp, "-A LOG_SSH_DROP -j LOG --log-prefix \"SSH Connection Blocked: \" --log-level %d --log-tcp-sequence --log-tcp-options --log-ip-options -m limit --limit 1/minute --limit-burst 1\n", syslog_level); 
-   fprintf(fp, "-A LOG_SSH_DROP -j DROP\n");
+   fprintf(fp, "add rule ip6 filter LOG_SSH_DROP limit rate 1/minute log prefix \"SSH Connection Blocked:\" level %s counter\n", get_log_level(syslog_level));
+   fprintf(fp, "add rule ip6 filter LOG_SSH_DROP counter drop\n");
 
 //SNMPv3 chains for logging and filtering
-   fprintf(fp, ":%s - [0:0]\n", "SNMPDROPLOG");
-   fprintf(fp, ":%s - [0:0]\n", "SNMP_FILTER");
-   fprintf(fp, "-A INPUT -p udp -m udp --match multiport --dports 10161,10163 -j SNMP_FILTER\n");
-   fprintf(fp, "-A SNMPDROPLOG -m limit --limit 1/minute -j LOG --log-level %d --log-prefix \"SNMP Connection Blocked:\"\n",syslog_level);
-   fprintf(fp, "-A SNMPDROPLOG -j DROP\n");
+   fprintf(fp, "add chain ip6 filter %s\n", "SNMPDROPLOG");
+   fprintf(fp, "add chain ip6 filter %s\n", "SNMP_FILTER");
+   fprintf(fp, "add rule ip6 filter INPUT  udp dport { 10161,10163} counter jump SNMP_FILTER\n");
+   fprintf(fp, "add rule ip6 filter SNMPDROPLOG limit rate 1/minute log prefix \"SNMP Connection Blocked:\" level %s counter\n", get_log_level(syslog_level));
+   fprintf(fp, "add rule ip6 filter SNMPDROPLOG counter drop\n");
 
    //DROP incoming  NTP packets on erouter interface
-   fprintf(fp, "-A INPUT -i %s -m state --state ESTABLISHED,RELATED -p udp --dport 123 -j ACCEPT \n", get_current_wan_ifname());
-   fprintf(fp, "-A INPUT -i %s  -m state --state NEW -p udp --dport 123 -j DROP \n",get_current_wan_ifname());
+   fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" ct state related,established  udp dport 123 accept\n", get_current_wan_ifname());
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" ct state new udp dport 123 drop\n",get_current_wan_ifname());
 
    /* RDKB-57186 SNMP drop to XHS and LnF */
-   fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 161 -j DROP\n", XHS_IF_NAME);
-   fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 161 -j DROP\n", LNF_IF_NAME);
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 161 counter drop\n", XHS_IF_NAME);
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 161 counter drop\n", LNF_IF_NAME);
 
    // Video Analytics Firewall rule to allow port 58081 only from LAN interface
    do_OpenVideoAnalyticsPort (fp);
 
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
    /* To avoid open ssh connection to CM IP TCXB6-2879*/
    snprintf(request, 256, "snmpget -cpub -v2c -Ov %s %s", CM_SNMP_AGENT, kOID_cmRemoteIpv6Address);
 
@@ -640,9 +628,9 @@ void do_ipv6_filter_table(FILE *fp){
          && a[8] == 0 && a[9] == 0 && a[10] == 0 && a[11] == 0
          && a[12] == 0 && a[13] == 0 && a[14] == 0 && a[15] == 0))
          {
-            fprintf(fp, "-I FORWARD -d %s -i %s  -j DROP\n", cm_ipv6addr, lan_ifname);
-            fprintf(fp, "-I FORWARD -d %s -i brlan1  -j DROP\n", cm_ipv6addr);
-	    fprintf(fp, "-I FORWARD -d %s -i br106  -j DROP\n", cm_ipv6addr);
+            fprintf(fp, "insert rule ip6 filter FORWARD ip6 daddr %s iifname %s counter drop\n", cm_ipv6addr, lan_ifname);
+            fprintf(fp, "insert rule ip6 filter FORWARD ip6 daddr %s iifname brlan1 counter drop\n", cm_ipv6addr);
+	    fprintf(fp, "insert rule ip6 filter FORWARD ip6 daddr %s iifname br106 counter drop\n", cm_ipv6addr);
          }
 
          pclose(f);
@@ -650,48 +638,50 @@ void do_ipv6_filter_table(FILE *fp){
 #endif
 
    // Create iptable chain to ratelimit remote management packets
-   do_webui_rate_limit(fp);
+   do_webui_rate_limit(fp,"ip6");
    // Rate limiting the webui-access lan side
    if(isBridgeMode)
    {
-       lan_access_set_proto(fp, "80",cmdiag_ifname);
-       lan_access_set_proto(fp, "443",cmdiag_ifname);
+       lan_access_set_proto_ipv6(fp, "80",cmdiag_ifname);
+       lan_access_set_proto_ipv6(fp, "443",cmdiag_ifname);
    }
    else
    {
-       lan_access_set_proto(fp, "80",lan_ifname);
-       lan_access_set_proto(fp, "443",lan_ifname);
+       lan_access_set_proto_ipv6(fp, "80",lan_ifname);
+       lan_access_set_proto_ipv6(fp, "443",lan_ifname);
    }
    // Blocking webui access to unnecessary interfaces
-   fprintf(fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",lan_ifname);
-   fprintf(fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",ecm_wan_ifname);
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto tcp tcp dport { 80,443 } counter accept\n", lan_ifname);
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto tcp tcp dport { 80,443 } counter accept\n", ecm_wan_ifname);
    if (isCmDiagEnabled)
    {
-      fprintf(fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto tcp tcp dport { 80,443} counter accept\n", cmdiag_ifname);
    }
    #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
         #if !defined(_CBR_PRODUCT_REQ_) && !defined (_BWG_PRODUCT_REQ_) && !defined (_CBR2_PRODUCT_REQ_)
-           fprintf(fp, "-A FORWARD -i %s -o privbr -p tcp -m multiport --dport 22,23,80,443 -j DROP\n",XHS_IF_NAME);
-           fprintf(fp, "-A FORWARD -i %s -o privbr -p tcp -m multiport --dport 22,23,80,443 -j DROP\n",LNF_IF_NAME);
-	   /* RDKB-57186 SNMP drop to XHS and LnF */
-           fprintf(fp, "-A FORWARD -i %s -o privbr -p udp --dport 161 -j DROP\n",XHS_IF_NAME);
-           fprintf(fp, "-A FORWARD -i %s -o privbr -p udp --dport 161 -j DROP\n",LNF_IF_NAME);
-	   fprintf(fp, "-A FORWARD -i %s -o brlan113 -p udp --dport 161 -j DROP\n",LNF_IF_NAME);
-           fprintf(fp, "-A FORWARD -i %s -o brlan112 -p udp --dport 161 -j DROP\n",LNF_IF_NAME);
-           fprintf(fp, "-A FORWARD -i %s -o brlan113 -p udp --dport 161 -j DROP\n",XHS_IF_NAME);
-           fprintf(fp, "-A FORWARD -i %s -o brlan112 -p udp --dport 161 -j DROP\n",XHS_IF_NAME);
-       #endif
-       fprintf(fp, "-A INPUT -p tcp -i privbr --match multiport  --dport 80,443 -j ACCEPT\n");
+         fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"privbr\" meta l4proto tcp tcp dport { 22,23,80,443 } counter drop\n", XHS_IF_NAME);
+         fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"privbr\" meta l4proto tcp tcp dport { 22,23,80,443 } counter drop\n", LNF_IF_NAME);
        
-       fprintf(fp, "-A FORWARD -i brlan1 -o erouter0 -p tcp -m multiport --dport 22,8080,8181 -j DROP\n");
-       fprintf(fp, "-A FORWARD -i br106 -o erouter0 -p tcp -m multiport --dport 22,8080,8181 -j DROP\n");
+	   /* RDKB-57186 SNMP drop to XHS and LnF */
+           fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"privbr\" udp dport 161 counter drop\n",XHS_IF_NAME);
+
+           fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"privbr\" udp dport 161 counter drop\n",LNF_IF_NAME);
+	        fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"brlan113\" udp dport 161 counter drop\n",LNF_IF_NAME);
+           fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"brlan112\" udp dport 161 counter drop\n",LNF_IF_NAME);
+           fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"brlan113\" udp dport 161 counter drop\n",XHS_IF_NAME);
+           fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"brlan112\" udp dport 161 counter drop\n",XHS_IF_NAME);
+       #endif
+       fprintf(fp, "add rule ip6 filter INPUT iifname \"privbr\" meta l4proto tcp tcp dport { 80,443 } counter accept\n");
+       
+       fprintf(fp, "add rule ip6 filter FORWARD iifname \"brlan1\" oifname \"erouter0\" meta l4proto tcp tcp dport { 22,8080,8181 } counter drop\n");
+       fprintf(fp, "add rule ip6 filter FORWARD iifname \"br106\" oifname \"erouter0\" meta l4proto tcp tcp dport { 22,8080,8181 } counter drop\n");
    #endif
    if ( !bEthWANEnable )
    {
-      fprintf(fp,"-A INPUT -p tcp --match multiport  --dport 80,443 -j DROP\n");
+      fprintf(fp,"add rule ip6 filter INPUT tcp dport { 80,443 } counter drop\n");
    }
-   fprintf(fp,"-A INPUT -p tcp -i brlan1 --dport 22 -j DROP\n");
-   fprintf(fp,"-A INPUT -p tcp -i br106 --dport 22 -j DROP\n");
+   fprintf(fp,"add rule ip6 filter INPUT iifname \"brlan1\" tcp dport 22 counter drop\n");
+   fprintf(fp,"add rule ip6 filter INPUT iifname \"brlan1\" tcp dport 22 counter drop\n");
    int retval = 0;
    char tmpsysQuery[MAX_QUERY];
    memset(tmpsysQuery, 0, sizeof(tmpsysQuery));
@@ -702,22 +692,22 @@ void do_ipv6_filter_table(FILE *fp){
    #endif
    if ((retval == 0) && atoi(tmpsysQuery) == 1)
    {
-      fprintf(fp,"-A INPUT -p tcp ! -i %s --dport 8080 -j DROP\n",current_wan_ifname);
+      fprintf(fp,"add rule ip6 filter INPUT iifname != \"%s\" tcp dport 8080 counter drop\n", current_wan_ifname);
    }
    else
    {
-      fprintf(fp,"-A INPUT -p tcp  --dport 8080 -j DROP\n");
+      fprintf(fp, "add rule ip6 filter INPUT tcp dport 8080 drop\n");
    }
    memset(tmpsysQuery, 0, sizeof(tmpsysQuery));
    retval =  syscfg_get(NULL, "mgmt_wan_httpsaccess", tmpsysQuery, sizeof(tmpsysQuery));
    if ((retval == 0) && atoi(tmpsysQuery) == 1)
    {
-      fprintf(fp,"-A INPUT -i  brlan0 -p tcp --dport 8181 -j ACCEPT\n");
-      fprintf(fp,"-A INPUT -p tcp ! -i %s --dport 8181 -j DROP\n",current_wan_ifname);
+      fprintf(fp,"add rule ip6 filter INPUT iifname \"brlan0\" tcp dport 8181 counter accept\n");
+      fprintf(fp,"add rule ip6 filter INPUT iifname != \"%s\" tcp dport 8181 counter drop\n", current_wan_ifname);
    }
    else
    {
-      fprintf(fp,"-A INPUT -p tcp --dport 8181 -j DROP\n");
+      fprintf(fp,"add rule ip6 filter INPUT tcp dport 8181 counter drop\n");
    }
 
    if (!isFirewallEnabled || isBridgeMode || !isWanServiceReady) {
@@ -731,7 +721,7 @@ void do_ipv6_filter_table(FILE *fp){
 #if defined(_CBR_PRODUCT_REQ_)
        if (isBridgeMode) {
            //TCCBR-2674 - Technicolor CBR Telnet port exposed to Public internet
-           fprintf(fp, "-A INPUT -i erouter0 -p tcp -m tcp --dport 23 -j DROP\n" );
+           fprintf(fp, "add rule ip6 filter INPUT iifname erouter0 tcp dport 23  counter drop\n" );
        }
 #endif
 
@@ -744,8 +734,8 @@ void do_ipv6_filter_table(FILE *fp){
 #if defined (FEATURE_SUPPORT_MAPT_NAT46)
       if (isMAPTReady)
       {
-         fprintf(fp, "-I FORWARD -i %s -o %s -j ACCEPT\n", wan6_ifname, NAT46_INTERFACE);
-         fprintf(fp, "-I FORWARD -i %s -o %s -j ACCEPT\n", NAT46_INTERFACE, wan6_ifname);
+         fprintf(fp, "insert rule ip6 filter FORWARD iifname %s oifname %s counter accept\n", wan6_ifname, NAT46_INTERFACE);
+         fprintf(fp, "insert rule ip6 filter FORWARD iifname %s oifname %s counter accept\n", NAT46_INTERFACE, wan6_ifname);
       }
 #endif
        goto end_of_ipv6_firewall;
@@ -753,18 +743,18 @@ void do_ipv6_filter_table(FILE *fp){
 
    do_openPorts(fp);
 
-   fprintf(fp, "-A LOG_INPUT_DROP -m limit --limit 1/minute -j LOG --log-level %d --log-prefix \"UTOPIA: FW.IPv6 INPUT drop\"\n",syslog_level);
-   fprintf(fp, "-A LOG_FORWARD_DROP -m limit --limit 1/minute -j LOG --log-level %d --log-prefix \"UTOPIA: FW.IPv6 FORWARD drop\"\n",syslog_level);
-   fprintf(fp, "-A LOG_INPUT_DROP -j DROP\n"); 
+   fprintf(fp, "add rule ip6 filter LOG_INPUT_DROP limit rate 1/minute log prefix \"UTOPIA: FW.IPv6 INPUT drop\" level %s counter\n", get_log_level(syslog_level));
+   fprintf(fp, "add rule ip6 filter LOG_FORWARD_DROP limit rate 1/minute log prefix \"UTOPIA: FW.IPv6 INPUT drop\" level %s counter\n", get_log_level(syslog_level));
+   fprintf(fp, "add rule ip6 filter LOG_INPUT_DROP counter drop\n"); 
 #ifdef FEATURE_464XLAT
     //464xlat remove the rule
 #else
-    fprintf(fp, "-A LOG_FORWARD_DROP -j DROP\n");
+    fprintf(fp, "add rule ip6 filter LOG_FORWARD_DROP counter drop\n");
 #endif
-   fprintf(fp, ":%s - [0:0]\n", "PING_FLOOD");
-   fprintf(fp, "-A PING_FLOOD -m limit --limit 5/sec  --limit-burst 60 -j ACCEPT\n");
-   fprintf(fp, "-A PING_FLOOD -m limit --limit 1/minute -j LOG --log-level %d --log-prefix \"UTOPIA: IPv6 PING FLOOD Drop\"\n",syslog_level);
-   fprintf(fp, "-A PING_FLOOD -j DROP\n");
+   fprintf(fp, "add chain ip6 filter %s\n", "PING_FLOOD");
+   fprintf(fp, "add rule ip6 filter PING_FLOOD limit rate 5/second burst 60 packets accept\n");
+   fprintf(fp, "add rule ip6 filter PING_FLOOD limit rate 1/minute log prefix \"UTOPIA: IPv6 PING FLOOD Drop\" level %s counter\n", get_log_level(syslog_level));
+   fprintf(fp, "add rule ip6 filter PING_FLOOD counter drop\n");
 
 #ifdef MULTILAN_FEATURE
    prepare_multinet_filter_forward_v6(fp);
@@ -772,8 +762,8 @@ void do_ipv6_filter_table(FILE *fp){
 #endif
 #if defined (INTEL_PUMA7)
    //Intel Proposed RDKB Generic Bug Fix from XB6 SDK
-   fprintf(fp, "-A FORWARD -i brlan2 -j ACCEPT\n");
-   fprintf(fp, "-A FORWARD -i brlan3 -j ACCEPT\n");
+   fprintf(fp, "add rule ip6 filter FORWARD iifname brlan2 counter accept\n");
+   fprintf(fp, "add rule ip6 filter FORWARD iifname brlan3 counter accept\n");
 #endif
 
    //ban telnet and ssh from lan side
@@ -784,6 +774,9 @@ void do_ipv6_filter_table(FILE *fp){
    if (isFirewallEnabled) {
       // Get the current WAN IPv6 interface (which differs from the IPv4 in case of tunnels)
       char query[10],port[10],tmpQuery[10];
+#ifdef _COSA_FOR_BCI_
+      char wanIPv6[64];
+#endif
       int rc, ret;
       errno_t safec_rc = -1;
 
@@ -821,47 +814,48 @@ void do_ipv6_filter_table(FILE *fp){
       }
 
       // Accept everything from localhost
-      fprintf(fp, "-A INPUT -i lo -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"lo\" counter accept\n");
 
 #if !defined(_PLATFORM_IPQ_)
       // Block the evil routing header type 0
-      fprintf(fp, "-A INPUT -m rt --rt-type 0 -j DROP\n");
+      fprintf(fp, "add rule ip6 filter INPUT rt type 0 counter drop\n");
 #endif
       prepare_hotspot_gre_ipv6_rule(fp);
-      fprintf(fp, "-A INPUT -m state --state INVALID -j LOG_INPUT_DROP\n");
+      fprintf(fp, "add rule ip6 filter INPUT ct state invalid  counter jump LOG_INPUT_DROP\n");
 
       if(isComcastImage) {
           do_tr69_whitelistTable(fp, AF_INET6);
       }
 
 #if defined(_COSA_BCM_MIPS_)
-      fprintf(fp, "-A INPUT -m physdev --physdev-in %s -j ACCEPT\n", emta_wan_ifname);
-      fprintf(fp, "-A INPUT -m physdev --physdev-out %s -j ACCEPT\n", emta_wan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT physdev in %s accept\n", emta_wan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT physdev out %s accept\n", emta_wan_ifname);
 #endif
       // Allow cfgserv through 
       //fprintf(fp, "-A INPUT -p udp -d ff80::114/64 --dport 5555 -j ACCEPT\n");
       //fprintf(fp, "-A INPUT -p tcp --dport 3005 -j ACCEPT\n");
 
       // Block all packet whose source is mcast
-      fprintf(fp, "-A INPUT -s ff00::/8  -j DROP\n");
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr ff00::/8 counter drop\n");
      
-#if defined(_COSA_FOR_BCI_) || defined(_ONESTACK_PRODUCT_REQ_)
+#ifdef _COSA_FOR_BCI_ 
       if(isWanPingDisableV6 == 1)
       {
-         int index;
-         for (index = 0; index < current_wan_ipv6_num; index++)
-         {
-            fprintf(fp, "-A INPUT -i brlan0 -d %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", current_wan_ipv6[index]);
-         }
+             syscfg_get(NULL, "wanIPv6Address", wanIPv6, sizeof(wanIPv6));
+             if(0 != strcmp(wanIPv6,""))
+             {
+                 fprintf(fp, "add rule ip6 filter INPUT iifname brlan0 ip6 daddr %s icmpv6 type echo-request drop\n", wanIPv6);
+                 fprintf(fp, "add rule ip6 filter INPUT iifname brlan0 ip6 daddr %s icmpv6 type echo-reply ip6 saddr %s state new,invalid,related drop\n", wanIPv6); // Echo reply
+             }
       }
 #endif
      
       // Should include --limit 10/second for most of ICMP
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 1/0 -m limit --limit 10/sec -j ACCEPT\n"); // No route
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 2 -m limit --limit 10/sec -j ACCEPT\n"); // Packet too big
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 3 -m limit --limit 10/sec -j ACCEPT\n"); // Time exceeded
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 4/1 -m limit --limit 10/sec -j ACCEPT\n"); // Unknown header type
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 4/2 -m limit --limit 10/sec -j ACCEPT\n"); // Unknown option
+      //nft rules added 
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type destination-unreachable limit rate 10/second counter accept\n"); // nft does not support this icmpv6 code
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type packet-too-big limit rate 10/second counter accept\n"); // Packet too big
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type time-exceeded limit rate 10/second counter accept\n"); // Time exceeded
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type parameter-problem limit rate 10/second counter accept\n"); // nft does not support this icmpv6 code
 
       //ping is allowed for cm and emta regardless whatever firewall level is
 
@@ -870,12 +864,12 @@ void do_ipv6_filter_table(FILE *fp){
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
    {
-      fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", ecm_wan_ifname); // Echo request
-      fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", ecm_wan_ifname); // Echo reply
-#if !defined (NO_MTA_FEATURE_SUPPORT)
-      fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", emta_wan_ifname); // Echo request
-      fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", emta_wan_ifname); // Echo reply
-#endif
+      //nft rules added 
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-request jump PING_FLOOD\n", ecm_wan_ifname); // Echo request
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-reply limit rate 10/second accept\n", ecm_wan_ifname); // Echo reply
+
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-request jump PING_FLOOD\n", emta_wan_ifname); // Echo request
+   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-reply limit rate 10/second accept\n", emta_wan_ifname); // Echo reply
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
 
@@ -884,103 +878,96 @@ void do_ipv6_filter_table(FILE *fp){
        * exclude primary lan*/
       prepare_ipv6_multinet(fp);
     #endif
-    #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) && !defined(_COSA_QCA_ARM_) && !defined(_XER2_PRODUCT_REQ_) //wan0 is not applicable for XER5
+    #if !defined(_XER5_PRODUCT_REQ_) && !defined (_SCER11BEL_PRODUCT_REQ_) //wan0 is not applicable for XER5
       /* not allow ping wan0 from brlan0 */
       int i;
       for(i = 0; i < ecm_wan_ipv6_num; i++){
-         fprintf(fp, "-A INPUT -i %s -d %s -p icmpv6 -m icmp6 --icmpv6-type 128  -j LOG_INPUT_DROP\n", lan_ifname, ecm_wan_ipv6[i]);
+         fprintf(fp, "add rule ip6 filter INPUT iifname %s ip6 daddr %s icmpv6 type echo-request log prefix \"LOG_INPUT_DROP\" drop\n", lan_ifname, ecm_wan_ipv6[i]);
       }
     #endif
-      fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", lan_ifname); // Echo request
-      fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", lan_ifname); // Echo reply
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-request jump PING_FLOOD\n", lan_ifname); // Echo request
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-reply limit rate 10/second accept\n", lan_ifname); // Echo reply
       if(inf_num!= 0)
 	  {
 	    int cnt =0;
 		for(cnt = 0;cnt < inf_num;cnt++)
 		{
-			fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", Interface[cnt]); // Echo request
-      		fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", Interface[cnt]); // Echo reply
+fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-request jump PING_FLOOD\n", Interface[cnt]); // Echo request
+         fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-reply limit rate 10/second accept\n", Interface[cnt]); // Echo reply
 		}
 	  }
 
       if (isWanPingDisableV6 == 1)
       {
-          fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", current_wan_ifname); // Echo request
-          fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m state --state NEW,INVALID,RELATED -j DROP\n", current_wan_ifname); // Echo reply
+          fprintf(fp, "add rule ip6 filter INPUT iifname %s icmpv6 type echo-request drop\n", current_wan_ifname); // Echo request
+          fprintf(fp, "add rule ip6 filter INPUT iifname %s icmpv6 type echo-reply state new,invalid,related drop\n", current_wan_ifname); // Echo reply
 
-      }
+     }
       else if (strncasecmp(firewall_levelv6, "None", strlen("None")) != 0 && (isWanPingDisableV6 == 0))
       {
       #if defined(CONFIG_CCSP_DROP_ICMP_PING)
-          fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", current_wan_ifname); // Echo request
-          fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m state --state NEW,INVALID,RELATED -j DROP\n", current_wan_ifname); // Echo reply
+          fprintf(fp, "add rule ip6 filter INPUT iifname %s icmpv6 type echo-request drop\n", current_wan_ifname); // Echo request
+          fprintf(fp, "add rule ip6 filter INPUT iifname %s icmpv6 type echo-reply state new,invalid,related drop\n", current_wan_ifname); // Echo reply
       #else
-          fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", current_wan_ifname); // Echo request
-          fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", current_wan_ifname); // Echo reply
+         fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-request jump PING_FLOOD\n", current_wan_ifname); // Echo request
+         fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-reply limit rate 10/second accept\n", current_wan_ifname); // Echo reply
       #endif
       }
       else
       {
           //fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 128 -m limit --limit 10/sec -j ACCEPT\n"); // Echo request
-          fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", current_wan_ifname); // Echo request
-          fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", current_wan_ifname); // Echo reply
+          fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-request jump PING_FLOOD\n", current_wan_ifname); // Echo request
+          fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-reply limit rate 10/second accept\n", current_wan_ifname); // Echo reply
       }
 
       // Should only come from LINK LOCAL addresses, rate limited except 100/second for NA/NS and RS
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 135 -m limit --limit 100/sec -j ACCEPT\n"); // Allow NS from any type source address
-      fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 136 -m limit --limit 100/sec -j ACCEPT\n"); // NA
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type nd-neighbor-solicit limit rate 100/second accept\n"); // Allow NS from any type source address
+      fprintf(fp, "add rule ip6 filter INPUT meta l4proto ipv6-icmp icmpv6 type nd-neighbor-advert limit rate 100/second accept\n");
 
       //fprintf(fp, "-A INPUT -s fe80::/64 -d ff02::1/128 -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", current_wan_ifname); // periodic RA
-      fprintf(fp, "-A INPUT -s fe80::/64 -d ff02::1/128 ! -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", lan_ifname); // periodic RA
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 ip6 daddr ff02::1/128 iifname != \"%s\" meta l4proto ipv6-icmp icmpv6 type nd-router-advert limit rate 10/second accept\n", lan_ifname); // periodic RA
 
       if (strcmp(current_wan_ifname, wan6_ifname)) // Also accept from wan6_ifname in case of tunnel
-         fprintf(fp, "-A INPUT -s fe80::/64 -d ff02::1/128 -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", wan6_ifname); // periodic RA
+         fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 ip6 daddr ff02::1/128 iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type nd-router-advert limit rate 10/second accept\n", wan6_ifname); // periodic RA
 
       //fprintf(fp, "-A INPUT -s fe80::/64 -d fe80::/64 -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", current_wan_ifname); // sollicited RA
-      fprintf(fp, "-A INPUT -s fe80::/64 -d fe80::/64 ! -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", lan_ifname); // sollicited RA
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 ip6 daddr fe80::/64 iifname != \"%s\" meta l4proto ipv6-icmp icmpv6 type nd-router-advert limit rate 10/second accept\n", lan_ifname); // sollicited RA
 
       if (strcmp(current_wan_ifname, wan6_ifname)) // Also accept from wan6_ifname in case of tunnel
-         fprintf(fp, "-A INPUT -s fe80::/64 -d fe80::/64 -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", wan6_ifname); // sollicited RA
+         fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 ip6 daddr fe80::/64 iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type nd-router-advert limit rate 10/second accept\n", wan6_ifname); // sollicited RA
 
-
-      FIREWALL_DEBUG("Current WAN interface name :%s , Hotspot WAN interface name: %s \n" COMMA current_wan_ifname COMMA hotspot_wan_ifname);
-      if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0) //Also accept from wan6_ifname in case of hotspot
-      {
-         fprintf(fp, "-A INPUT -s fe80::/64 -d %s -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", current_wan_ip6_addr, current_wan_ifname); // periodic RA
-	 FIREWALL_DEBUG("Accepting RA on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ip6_addr);
-      }
-
-      fprintf(fp, "-A INPUT -s fe80::/64 -i %s -p icmpv6 -m icmp6 --icmpv6-type 133 -m limit --limit 100/sec -j ACCEPT\n", lan_ifname); //RS
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type nd-router-solicit limit rate 100/second accept\n", lan_ifname); //RS
       if(inf_num!= 0)
 	  {
 		int cnt =0;
 		for(cnt = 0;cnt < inf_num;cnt++)
 		{
-		fprintf(fp, "-A INPUT -s fe80::/64 -d ff02::1/128 ! -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", Interface[cnt]); // periodic RA
-      		fprintf(fp, "-A INPUT -s fe80::/64 -d fe80::/64 ! -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", Interface[cnt]); // sollicited RA
-		fprintf(fp, "-A INPUT -s fe80::/64 -i %s -p icmpv6 -m icmp6 --icmpv6-type 133 -m limit --limit 100/sec -j ACCEPT\n", Interface[cnt]); //RS
+		fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 ip6 daddr ff02::1/128 iifname != \"%s\" icmpv6 type router-advertisement limit rate 10/second accept\n", Interface[cnt]); // periodic RA
+      		fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 ip6 daddr fe80::/64 iifname != \"%s\" icmpv6 type router-advertisement limit rate 10/second accept\n", Interface[cnt]); // sollicited RA
+		fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 iifname %s icmpv6 type router-solicitation limit rate 100/second accept\n", Interface[cnt]); //RS
 		}
 	  }
       // But can also come from UNSPECIFIED addresses, rate limited 100/second for NS (for DAD) and MLD
-      fprintf(fp, "-A INPUT -s ::/128 -p icmpv6 -m icmp6 --icmpv6-type 135 -m limit --limit 100/sec -j ACCEPT\n"); // NS
-      fprintf(fp, "-A INPUT -s ::/128 -p icmpv6 -m icmp6 --icmpv6-type 143 -m limit --limit 100/sec -j ACCEPT\n"); // MLD
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr ::/128 meta l4proto ipv6-icmp icmpv6 type nd-neighbor-solicit limit rate 100/second accept\n"); // NS
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr ::/128 meta l4proto ipv6-icmp icmpv6 type mld-listener-report limit rate 100/second accept\n"); // MLD
 
       // IPV6 Multicast traffic
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 130 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 131 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 132 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 143 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 151 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 152 -m limit --limit 10/sec -j ACCEPT\n");
-      fprintf(fp, "-A INPUT -s fe80::/64 -p icmpv6 -m icmp6 --icmpv6-type 153 -m limit --limit 10/sec -j ACCEPT\n");
-      
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 meta l4proto ipv6-icmp icmpv6 type 130 limit rate 10/second accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 meta l4proto ipv6-icmp icmpv6 type 131 limit rate 10/second accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 meta l4proto ipv6-icmp icmpv6 type 132 limit rate 10/second accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 meta l4proto ipv6-icmp icmpv6 type 143 limit rate 10/second accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 meta l4proto ipv6-icmp icmpv6 type 151 limit rate 10/second accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 meta l4proto ipv6-icmp icmpv6 type 152 limit rate 10/second accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT ip6 saddr fe80::/64 meta l4proto ipv6-icmp icmpv6 type 153 limit rate 10/second accept\n");
+
       // Allow SSDP 
-      fprintf(fp, "-A INPUT -i %s -p udp --dport 1900 -j ACCEPT\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto udp udp dport 1900 accept\n", lan_ifname);
       
       // Normal ports for Management interface
       do_lan2self_by_wanip6(fp);
-      fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 80 --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 10/sec -j ACCEPT\n", lan_ifname);
-      fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 443 --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 10/sec -j ACCEPT\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto tcp tcp dport 80 tcp flags syn limit rate 10/second accept\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto tcp tcp dport 443 tcp flags syn limit rate 10/second accept\n", lan_ifname);
+
       //if (port[0])
       //   fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport %s --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 10/sec -j ACCEPT\n", wan6_ifname,port);
       if(inf_num!= 0)
@@ -988,9 +975,9 @@ void do_ipv6_filter_table(FILE *fp){
 		int cnt =0;
 		for(cnt = 0;cnt < inf_num;cnt++)
 		{
-		fprintf(fp, "-A INPUT -i %s -p udp --dport 1900 -j ACCEPT\n", Interface[cnt]);
-	      	fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 80 --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 10/sec -j ACCEPT\n", Interface[cnt]);
-	      	fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 443 --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 10/sec -j ACCEPT\n", Interface[cnt]);
+         fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto udp udp dport 1900 accept\n", Interface[cnt]);
+         fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto tcp tcp dport 80 tcp flags syn limit rate 10/second accept\n", Interface[cnt]);
+         fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto tcp tcp dport 443 tcp flags syn limit rate 10/second accept\n", Interface[cnt]);
 		}
 	  }
         WAN_FAILOVER_SUPPORT_CHECK
@@ -1008,18 +995,18 @@ void do_ipv6_filter_table(FILE *fp){
 
       // Development override
       if (isDevelopmentOverride) {
-        fprintf(fp, "-A INPUT -p tcp -m tcp --dport 22 -j ACCEPT\n");
-        fprintf(fp, "-A INPUT -p tcp -m tcp --dport 80 -j ACCEPT\n");
-        fprintf(fp, "-A INPUT -p tcp -m tcp --dport 443 -j ACCEPT\n");
-        fprintf(fp, "-A INPUT -p tcp -m tcp --dport 8080 -j ACCEPT\n");
+        fprintf(fp, "add rule ip6 filter INPUT tcp dport 22 counter  accept\n");
+        fprintf(fp, "add rule ip6 filter INPUT tcp dport 80 counter  accept\n");
+        fprintf(fp, "add rule ip6 filter INPUT tcp dport 443 counter  accept\n");
+        fprintf(fp, "add rule ip6 filter INPUT tcp dport 8080 counter  accept\n");
       }
 
       // established communication from anywhere is accepted
-      fprintf(fp, "-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter INPUT ct state related,established  counter accept\n");
 
 #if defined(_COSA_BCM_MIPS_)
-      fprintf(fp, "-A INPUT -m physdev --physdev-in %s -j ACCEPT\n", emta_wan_ifname);
-      fprintf(fp, "-A INPUT -m physdev --physdev-out %s -j ACCEPT\n", emta_wan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT physdev iifname %s accept\n", emta_wan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT physdev oifname %s accept\n", emta_wan_ifname);
 #endif
 
 #if !defined(_HUB4_PRODUCT_REQ_)
@@ -1028,15 +1015,19 @@ void do_ipv6_filter_table(FILE *fp){
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
    {
       // for tftp software download to work
-      fprintf(fp, "-A INPUT -i %s -p udp --dport 53 -j DROP\n", ecm_wan_ifname);
+      /*fprintf(fp, "-A INPUT -i %s -p udp --dport 53 -j DROP\n", ecm_wan_ifname);
       fprintf(fp, "-A INPUT -i %s -p udp --dport 67 -j DROP\n", ecm_wan_ifname);
       fprintf(fp, "-A INPUT -i %s -p udp --dport 514 -j DROP\n", ecm_wan_ifname);
-      fprintf(fp, "-A INPUT -i %s -j ACCEPT\n", ecm_wan_ifname);
+      fprintf(fp, "-A INPUT -i %s -j ACCEPT\n", ecm_wan_ifname);*/
+     fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 53 counter drop\n", ecm_wan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 67 counter drop\n", ecm_wan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 514 counter drop\n", ecm_wan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" counter accept\n", ecm_wan_ifname);
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
 
       // Return traffic. The equivalent of IOS 'established'
-      fprintf(fp, "-A INPUT -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter INPUT tcp flags & (fin|syn|rst|ack) != syn counter accept\n");
 
       //Captive Portal 
       // Commenting out DROP 53 part as it will create confusion to end user
@@ -1053,25 +1044,25 @@ void do_ipv6_filter_table(FILE *fp){
    if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
    {
       // Remove burst limit on Hub4 IPv6 DNS requests
-      fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 53 -j ACCEPT\n", lan_ifname);
-      fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 53 -j ACCEPT\n", lan_ifname);
-      fprintf(fp, "-A INPUT ! -i %s -p udp -m udp --sport 53 -j ACCEPT\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 53 counter accept\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport 53 counter accept\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" udp sport 53 counter accept\n", lan_ifname);
    }
    else
    {
-      fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 53 -m limit --limit 100/sec -j ACCEPT\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 53 limit rate 100/second burst 5 packets counter accept\n", lan_ifname);
       //fprintf(fp, "-A INPUT -i %s -p udp -m udp --sport 53 -m limit --limit 100/sec -j ACCEPT\n", wan6_ifname);
-      fprintf(fp, "-A INPUT ! -i %s -p udp -m udp --sport 53 -m limit --limit 100/sec -j ACCEPT\n", lan_ifname); 
+      fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" udp sport 53 limit rate 100/second burst 5 packets counter accept\n", lan_ifname); 
    }
 #elif !defined(_HUB4_PRODUCT_REQ_)
-           fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 53 -m limit --limit 100/sec -j ACCEPT\n", lan_ifname);
+           fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 53 limit rate 100/second accept\n", lan_ifname);
            //fprintf(fp, "-A INPUT -i %s -p udp -m udp --sport 53 -m limit --limit 100/sec -j ACCEPT\n", wan6_ifname);
-           fprintf(fp, "-A INPUT ! -i %s -p udp -m udp --sport 53 -m limit --limit 100/sec -j ACCEPT\n", lan_ifname);
+           fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" udp sport 53 limit rate 100/second accept\n", lan_ifname);
 #else
             // Remove burst limit on Hub4 IPv6 DNS requests
-           fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 53 -j ACCEPT\n", lan_ifname);
-           fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 53 -j ACCEPT\n", lan_ifname);
-           fprintf(fp, "-A INPUT ! -i %s -p udp -m udp --sport 53 -j ACCEPT\n", lan_ifname);
+           fprintf(fp, "add rule ip6 filter INPUT -iifname %s udp dport 53 counter accept\n", lan_ifname);
+           fprintf(fp, "add rule ip6 filter INPUT -iifname %s tcp dport 53 counter accept\n", lan_ifname);
+           fprintf(fp, "add rule ip6 filter INPUT ! -i %s -p udp -m udp --sport 53 -j accept\n", lan_ifname);
 #endif
       //}
       if(inf_num!= 0)
@@ -1083,53 +1074,53 @@ void do_ipv6_filter_table(FILE *fp){
          if( 0 == strncmp( devicePartnerId, "sky-", 4 ) )
          {
                // Remove burst limit on Hub4 IPv6 DNS requests
-            fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 53 -j ACCEPT\n", Interface[cnt]);
-            fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 53 -j ACCEPT\n", Interface[cnt]);
-            fprintf(fp, "-A INPUT ! -i %s -p udp -m udp --sport 53 -j ACCEPT\n", Interface[cnt]);
+            fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 53 counter accept\n", Interface[cnt]);
+            fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport 53 counter accept\n", Interface[cnt]);
+            fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" udp sport 53 counter accept\n", Interface[cnt]);
          }
          else
          {
-            fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 53 -m limit --limit 100/sec -j ACCEPT\n", Interface[cnt]);
-            fprintf(fp, "-A INPUT ! -i %s -p udp -m udp --sport 53 -m limit --limit 100/sec -j ACCEPT\n", Interface[cnt]);
+            fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 53 limit rate 100/second burst 5 packets counter accept\n", Interface[cnt]);
+            fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" udp sport 53 limit rate 100/second burst 5 packets counter accept\n", Interface[cnt]);
          }
 #elif !defined(_HUB4_PRODUCT_REQ_)            
-		   fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 53 -m limit --limit 100/sec -j ACCEPT\n", Interface[cnt]);
-		   fprintf(fp, "-A INPUT ! -i %s -p udp -m udp --sport 53 -m limit --limit 100/sec -j ACCEPT\n", Interface[cnt]);
+                   fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 53 limit rate 100/second accept\n", Interface[cnt]);
+		   fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" udp sport 53 limit rate 100/second accept\n", Interface[cnt]);
 #else
             // Remove burst limit on Hub4 IPv6 DNS requests
-		   fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 53 -j ACCEPT\n", Interface[cnt]);
-           fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 53 -j ACCEPT\n", Interface[cnt]);
-		   fprintf(fp, "-A INPUT ! -i %s -p udp -m udp --sport 53 -j ACCEPT\n", Interface[cnt]);
+		   fprintf(fp, "add rule ip6 filter INPUT iifname %s udp dport 53 counter accept\n", Interface[cnt]);
+           fprintf(fp, "add rule ip6 filter INPUT iifname %s tcp dport 53 counter accept\n", Interface[cnt]);             
+	   fprintf(fp, "add rule ip6 filter INPUT iifname != %s ip6 protocol udp udp sport 53 accept\n", Interface[cnt]);
 #endif           
 		}
 	  }
 
       // NTP request from client
       // NTP server replies from Internet servers
-      fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 123 -m limit --limit 10/sec -j ACCEPT\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 123 limit rate 10/second burst 5 packets counter accept\n", lan_ifname);
       //fprintf(fp, "-A INPUT -i %s -p udp -m udp --sport 123 -m limit --limit 10/sec -j ACCEPT\n", wan6_ifname);
-      fprintf(fp, "-A INPUT ! -i %s -p udp -m udp --sport 123 -m limit --limit 10/sec -j ACCEPT\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" udp sport 123 limit rate 10/second burst 5 packets counter accept\n", lan_ifname);
 
       // DHCPv6 from inside clients (high rate in case of global reboot)
-      fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 547 -m limit --limit 100/sec -j ACCEPT\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 547 limit rate 100/second accept\n", lan_ifname);
 
       // DHCPv6 from outside server (low rate as only a couple of potential DHCP servers)
       //fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 546 -m limit --limit 10/sec -j ACCEPT\n", current_wan_ifname);
       //fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 546 -m limit --limit 10/sec -j ACCEPT\n", wan6_ifname);
-      fprintf(fp, "-A INPUT ! -i %s -p udp -m udp --dport 546 -m limit --limit 10/sec -j ACCEPT\n", lan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" udp dport 546 limit rate 10/second burst 5 packets counter accept\n", lan_ifname);
 
       // IPv4 in IPv6 (for DS-lite)
-      fprintf(fp, "-A INPUT -i %s -p 4 -j ACCEPT\n", wan6_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" ip6 nexthdr 4 counter accept\n", wan6_ifname);
 
       //SNMP
       //fprintf(fp, "-A INPUT -i %s -p udp --dport 161 -j ACCEPT\n", ecm_wan_ifname);
-      fprintf(fp, "-A INPUT -i %s -p udp --dport 161 -j DROP\n", current_wan_ifname);
-      fprintf(fp, "-A INPUT ! -i %s -p udp --dport 161 -j ACCEPT\n", lan_ifname);
-#if (defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_) ) && !defined(MODEM_ONLY_SUPPORT)
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 161 counter drop\n", current_wan_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" udp dport 161 counter accept\n", lan_ifname);
+#if (defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_))  && !defined(MODEM_ONLY_SUPPORT)
 	  //SSH and HTTP port open for IPv6
-	  fprintf(fp, "-I INPUT 42 -p tcp -i privbr --dport 22 -j ACCEPT\n");
-	  fprintf(fp, "-I INPUT 43 -p tcp -i privbr --dport 80 -j ACCEPT\n");
-	  fprintf(fp, "-I INPUT 42 -p tcp -i privbr --dport 443 -j ACCEPT\n");
+  fprintf(fp, "add rule ip6 filter INPUT iifname \"privbr\" tcp dport 22 counter accept\n");
+     fprintf(fp, "add rule ip6 filter INPUT iifname \"privbr\" tcp dport 80 counter accept\n");
+     fprintf(fp, "add rule ip6 filter INPUT iifname \"privbr\" tcp dport 443 counter accept\n");
 #endif
       // add user created rules from syscfg
       int  idx;
@@ -1195,41 +1186,41 @@ v6GPFirewallRuleNext:
       // Open destination port 36367 on wan0 to allow sysevent communication between tpg and cns 
       //fprintf(fp, "-A INPUT -i %s -p tcp -m tcp --dport 36367 -j ACCEPT\n", wan6_ifname);
       // Adding rule for HOTSPOT interface
-      fprintf(fp, "-A INPUT -i brlan2 -j ACCEPT \n");
-      fprintf(fp, "-A INPUT -i brlan3 -j ACCEPT \n");
-      fprintf(fp, "-A INPUT -i brlan4 -j ACCEPT \n");
-      fprintf(fp, "-A INPUT -i brlan5 -j ACCEPT \n");
-      fprintf(fp, "-A INPUT -i brpublic -j ACCEPT \n");
-#if (defined (_XB8_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_)) && defined(RDK_ONEWIFI)
-      fprintf(fp, "-A INPUT -i bropen6g -j ACCEPT \n");
-      fprintf(fp, "-A INPUT -i brsecure6g -j ACCEPT \n");
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"brlan2\" counter accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"brlan3\" counter accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"brlan4\" counter accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"brlan5\" counter accept\n");
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"brpublic\" counter accept\n");
+#if defined (_XB8_PRODUCT_REQ_) && defined(RDK_ONEWIFI)
+      fprintf(fp, "add rule ip6 filter INPUT iifname bropen6g counter accept \n");
+      fprintf(fp, "add rule ip6 filter INPUT iifname brsecure6g counter accept \n");
 #endif
       // Logging and rejecting politely (rate limiting anyway)
-      fprintf(fp, "-A INPUT -j LOG_INPUT_DROP \n");
+      fprintf(fp, "add rule ip6 filter INPUT counter jump LOG_INPUT_DROP\n");
 
       do_forwardPorts(fp);
 
       //Adding rule for XB6 ARRISXB6-3348 and TCXB6-2262
 #if defined(INTEL_PUMA7) || defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_COSA_QCA_ARM_) || defined(_PLATFORM_BANANAPI_R4_)
-      fprintf(fp, "-A FORWARD -i brlan0 -o brlan0 -j lan2wan \n");
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"brlan0\" oifname \"brlan0\" counter jump lan2wan\n");
 #endif
 
 #if !defined(_PLATFORM_IPQ_)
       // Block the evil routing header type 0
-      fprintf(fp, "-A FORWARD -m rt --rt-type 0 -j LOG_FORWARD_DROP \n");
+      fprintf(fp, "add rule ip6 filter FORWARD rt type 0 counter jump LOG_FORWARD_DROP\n");
 #endif
 #if defined(_COSA_BCM_MIPS_)
-      fprintf(fp, "-A FORWARD -m physdev --physdev-in %s -j ACCEPT\n", emta_wan_ifname);
-      fprintf(fp, "-A FORWARD -m physdev --physdev-out %s -j ACCEPT\n", emta_wan_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname %s accept\n", emta_wan_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD oifname %s accept\n", emta_wan_ifname);
 #endif
-      fprintf(fp, "-A FORWARD -i brlan2 -o brlan2 -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -i brlan3 -o brlan3 -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -i brlan4 -o brlan4 -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -i brlan5 -o brlan5 -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -i brpublic -o brpublic -j ACCEPT\n");
-#if (defined (_XB8_PRODUCT_REQ_) || defined (_SCXF11BFL_PRODUCT_REQ_)) && defined(RDK_ONEWIFI)
-      fprintf(fp, "-A FORWARD -i bropen6g -o bropen6g -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -i brsecure6g -o brsecure6g -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"brlan2\" oifname \"brlan2\" counter accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"brlan3\" oifname \"brlan3\" counter accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"brlan4\" oifname \"brlan4\" counter accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"brlan5\" oifname \"brlan5\" counter accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"brpublic\" oifname \"brpublic\" counter accept\n");
+#if defined (_XB8_PRODUCT_REQ_) && defined(RDK_ONEWIFI)
+      fprintf(fp, "add rule ip6 filter FORWARD iifname bropen6g oifname bropen6g accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD iifname brsecure6g oifname brsecure6g accept\n");
 #endif
 #if defined (AMENITIES_NETWORK_ENABLED)
       if (TRUE == bAmenityEnabled)
@@ -1238,122 +1229,56 @@ v6GPFirewallRuleNext:
       }
 #endif
       // Link local should never be forwarded
-      fprintf(fp, "-A FORWARD -s fe80::/64 -j LOG_FORWARD_DROP\n");
-      fprintf(fp, "-A FORWARD -d fe80::/64 -j LOG_FORWARD_DROP\n");
+      fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr fe80::/64 counter jump LOG_FORWARD_DROP\n");
+      fprintf(fp, "add rule ip6 filter FORWARD ip6 daddr fe80::/64 counter jump LOG_FORWARD_DROP\n");
 
       // Block all packet whose source is mcast
-      fprintf(fp, "-A FORWARD -s ff00::/8  -j LOG_FORWARD_DROP\n");
+      fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr ff00::/8 counter jump LOG_FORWARD_DROP\n");
 
       // Block all packet whose destination is mcast with organization scope
-      fprintf(fp, "-A FORWARD -d ff08::/16  -j LOG_FORWARD_DROP\n");
+      fprintf(fp, "add rule ip6 filter FORWARD ip6 daddr ff08::/16 counter jump LOG_FORWARD_DROP\n");
 
       // Block all packet whose source or destination is the deprecated site local
-      fprintf(fp, "-A FORWARD -s ec00::/10  -j LOG_FORWARD_DROP\n");
-      fprintf(fp, "-A FORWARD -d ec00::/10  -j LOG_FORWARD_DROP\n");
+      fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr ec00::/10 counter jump LOG_FORWARD_DROP\n");
+      fprintf(fp, "add rule ip6 filter FORWARD ip6 daddr ec00::/10 counter jump LOG_FORWARD_DROP\n");
       // Block all packet whose source or destination is IPv4 compatible address
-      fprintf(fp, "-A FORWARD -s 0::/96  -j LOG_FORWARD_DROP\n");
-      fprintf(fp, "-A FORWARD -d 0::/96  -j LOG_FORWARD_DROP\n");
+      fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr 0::/96 counter jump LOG_FORWARD_DROP\n");
+      fprintf(fp, "add rule ip6 filter FORWARD ip6 daddr 0::/96 counter jump LOG_FORWARD_DROP\n");
 
       // Basic RPF check on the egress & ingress traffic
-      char prefix[IPV6_PREFIX_BUF_LEN+1];
+      char prefix[129];
       prefix[0] = 0;
-#ifdef FEATURE_MAPE
-      char prev_prefix[MAX_QUERY] = {0};
-
-      sysevent_get(sysevent_fd, sysevent_token, "previous_ipv6_prefix", prev_prefix, sizeof(prev_prefix));
-#endif
-
-#ifdef WAN_FAILOVER_SUPPORTED
+      #ifdef WAN_FAILOVER_SUPPORTED
       if (0 == checkIfULAEnabled())
       {
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_ula", prefix, sizeof(prefix));
       }  
       else
       {
-#ifdef _ONESTACK_PRODUCT_REQ_
-      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
-      {
-	  snprintf(prefix, sizeof(prefix), "%s", ipv6_delegation_prefix);
-      }
-      else
-      {
-	 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
-      }
-#else
-	 sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
-#endif
-      }
-
-#else
-#ifdef _ONESTACK_PRODUCT_REQ_
-      if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
-      {
-	  snprintf(prefix, sizeof(prefix), "%s", ipv6_delegation_prefix);
-      }
-      else
-      {
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
       }
-#else
+      #else
          sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
-#endif
-#endif
-#ifdef FEATURE_MAPE
-      if (prev_prefix[0] != '\0' && prefix[0] != '\0' && strcmp(prev_prefix, prefix) != 0)
-      {
-         fprintf(fp, "-A FORWARD -i brlan0 -o erouter0 -s %s -j REJECT --reject-with icmp6-policy-fail\n", prev_prefix);
-      }
-#endif
-      if ( '\0' != prefix[0] ) {
+      #endif
+      if ( '\0' != prefix[0] && '/' != prefix[0] ) {
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j LOG --log-level %d --log-prefix \"UTOPIA: FW. IPv6 FORWARD anti-spoofing\"\n", prefix, lan_ifname,syslog_level);
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j REJECT --reject-with icmp6-adm-prohibited\n", prefix, lan_ifname);
-#if defined (_COSA_FOR_BCI_) || defined (_ONESTACK_PRODUCT_REQ_)
+#ifdef _COSA_FOR_BCI_
          /* adding forward rule for PD traffic */
-#ifdef _ONESTACK_PRODUCT_REQ_
-      if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
-      {
-         fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
-	 if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
-         {
-            if(isMulticastBlockedV6 || isP2pBlockedV6 || isPingBlockedV6 || isIdentBlockedV6 || isHttpBlockedV6)
-            {
-               fprintf(fp, "-A FORWARD -d %s -o %s -j wan2lan\n", prefix, lan_ifname);
-            }
-            else{
-               fprintf(fp, "-A FORWARD -d %s -o %s -j ACCEPT\n", prefix, lan_ifname);
-            }
-         }
-	 else
-	 {
-	     fprintf(fp, "-A FORWARD -d %s -o %s -j wan2lan\n", prefix, lan_ifname);
-	     FIREWALL_DEBUG(" firewall_levelv6 is  %s  \n" COMMA firewall_levelv6);
-	 }
-
-      } 
-#else
-         fprintf(fp, "-A FORWARD -s %s -i %s -j ACCEPT\n", prefix, lan_ifname);
+         fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr %s iifname %s accept\n", prefix, lan_ifname);
          if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
          {
             if(isMulticastBlockedV6 || isP2pBlockedV6 || isPingBlockedV6 || isIdentBlockedV6 || isHttpBlockedV6)
             {
-               fprintf(fp, "-A FORWARD -d %s -o %s -j wan2lan\n", prefix, lan_ifname);
+               fprintf(fp, "add rule ip6 filter FORWARD ip6 daddr %s oifname %s counter wan2lan\n", prefix, lan_ifname);
             }
             else{
-               fprintf(fp, "-A FORWARD -d %s -o %s -j ACCEPT\n", prefix, lan_ifname);
+               fprintf(fp, "add rule ip6 filter FORWARD ip6 daddr %s oifname %s counter accept\n", prefix, lan_ifname);
             }
          }
-	 else
-	 {
-            fprintf(fp, "-A FORWARD -d %s -o %s -j wan2lan\n", prefix, lan_ifname);
-	 }
 #endif
-#endif
-         FIREWALL_DEBUG("current_wan_ifname is %s default_wan_ifname is %s lan_ifname is %s wan6_ifname %s \n" COMMA current_wan_ifname COMMA default_wan_ifname COMMA lan_ifname COMMA wan6_ifname);
-        if (strcmp(current_wan_ifname,default_wan_ifname ) == 0)
-        {
-            fprintf(fp, "-A FORWARD ! -s %s -i %s -j LOG_FORWARD_DROP\n", prefix, lan_ifname);
-             fprintf(fp, "-A FORWARD -s %s -i %s -j LOG_FORWARD_DROP\n", prefix, wan6_ifname);
-        }
+       fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr != %s iifname %s log drop\n", prefix, lan_ifname);
+       fprintf(fp, "add rule ip6 filter FORWARD ip6 saddr %s iifname %s  counter jump LOG_FORWARD_DROP\n", prefix, wan6_ifname);
       }
 
 /* From community: utopia/generic */
@@ -1366,12 +1291,12 @@ v6GPFirewallRuleNext:
 
       if ( '\0' != lan_prefix[0] ) {
          // Block unicast WAN to LAN traffic from going to this bridge if the destination address is not within this bridge's allocated prefix
-         fprintf(fp, "-A FORWARD -i %s -o %s -m pkttype --pkt-type unicast ! -d %s -j LOG_FORWARD_DROP\n", wan6_ifname, lan_ifname, lan_prefix);
+         fprintf(fp, "add rule ip6 filter FORWARD iifname %s oifname %s  pkttype --pkt-type unicast ! -d %s -j LOG_FORWARD_DROP\n", wan6_ifname, lan_ifname, lan_prefix);
          // Block unicast LAN to WAN traffic from being sent from this bridge if the source address is not within this bridge's allocated prefix
-         fprintf(fp, "-A FORWARD -i %s -o %s -m pkttype --pkt-type unicast ! -s %s -j LOG_FORWARD_DROP\n", lan_ifname, wan6_ifname, lan_prefix);
+         fprintf(fp, "add rule ip6 filter FORWARD iifname %s oifname %s pkttype unicast ip6 saddr != %s log drop\n", lan_ifname, wan6_ifname, lan_prefix);
       }
 
-#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_) && !defined(_XER2_PRODUCT_REQ_)
+#if defined(_COSA_BCM_ARM_) && (defined(_CBR_PRODUCT_REQ_) || defined(_XB6_PRODUCT_REQ_)) && !defined(_SCER11BEL_PRODUCT_REQ_) && !defined(_XER5_PRODUCT_REQ_)
       if (isNatReady)
       {
           FILE *f = NULL;
@@ -1391,8 +1316,8 @@ v6GPFirewallRuleNext:
                  && a[8] == 0 && a[9] == 0 && a[10] == 0 && a[11] == 0 
                  && a[12] == 0 && a[13] == 0 && a[14] == 0 && a[15] == 0))
               {
-                  fprintf(fp, "-I lan2wan -d %s -p icmpv6 -m icmpv6 --icmpv6-type 8 -j DROP\n", cm_ipv6addr);
-                  fprintf(fp, "-I lan2wan -d %s -p tcp -m tcp --dport 80 -j DROP\n", cm_ipv6addr);
+                  fprintf(fp, "insert rule ip6 filter lan2wan ip6 daddr %s icmpv6 type echo-request drop\n", cm_ipv6addr);
+                  fprintf(fp, "insert rule ip6 filter lan2wan ip6 daddr %s tcp dport 80 drop\n", cm_ipv6addr);
               }
 
               pclose(f);
@@ -1400,17 +1325,16 @@ v6GPFirewallRuleNext:
       }
 #endif
 
-      fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", lan_ifname, lan_ifname);
-      fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", lan_ifname, wan6_ifname);
-
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter accept\n", lan_ifname, lan_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump lan2wan\n", lan_ifname, wan6_ifname);
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
 #if defined(IVI_KERNEL_SUPPORT)
-      fprintf(fp, "-I FORWARD -i %s -o %s -j lan2wan\n", ETH_MESH_BRIDGE, wan6_ifname);
+      fprintf(fp, "insert rule ip6 filter FORWARD iifname %s oifname %s counter jump lan2wan\n", ETH_MESH_BRIDGE, wan6_ifname);
 #elif defined(NAT46_KERNEL_SUPPORT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
       if (isMAPTReady)
       {
-         fprintf(fp, "-I FORWARD -i %s -o %s -j lan2wan\n", NAT46_INTERFACE, wan6_ifname);
-         fprintf(fp, "-I FORWARD -i %s -o %s -j lan2wan\n", ETH_MESH_BRIDGE, wan6_ifname);
+         fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump lan2wan\n", NAT46_INTERFACE, wan6_ifname);
+         fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump lan2wan\n", ETH_MESH_BRIDGE, wan6_ifname);
       }
 #endif //IVI_KERNEL_SUPPORT
 #endif //FEATURE_MAPT
@@ -1420,10 +1344,8 @@ v6GPFirewallRuleNext:
    if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
    {
-      fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", lan_ifname, ecm_wan_ifname);
-#if !defined (NO_MTA_FEATURE_SUPPORT)
-      fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", lan_ifname, emta_wan_ifname);
-#endif
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump lan2wan\n", lan_ifname, ecm_wan_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump lan2wan\n", lan_ifname, emta_wan_ifname);
    }
 #endif /*_HUB4_PRODUCT_REQ_*/
       if(inf_num!= 0)
@@ -1482,34 +1404,32 @@ v6GPFirewallRuleNext:
                 			sysevent_get(sysevent_fd, sysevent_token, inf_sysevent, inf_prefix, sizeof(inf_prefix));
 					if((inf_prefix[0] != '\0') && (lan_prefix[0] != '\0'))
 					{
-		      			fprintf(fp, "-A FORWARD -d %s -i %s -o %s -j ACCEPT\n",inf_prefix ,lan_ifname, Interface[cnt]);
-		      			fprintf(fp, "-A FORWARD -d %s -i %s -o %s -j ACCEPT\n",lan_prefix , Interface[cnt],lan_ifname);
+                                        fprintf(fp, "add rule ip6 filter FORWARD ip6 daddr %s iifname %s oifname %s counter accept\n",inf_prefix ,lan_ifname, Interface[cnt]);
+		      			fprintf(fp, "add rule ip6 filter FORWARD ip6 daddr %s iifname %s oifname %s counter accept\n",lan_prefix , Interface[cnt],lan_ifname);
 					}
 				}
 			}	
-		      fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", Interface[cnt], wan6_ifname);
+		      fprintf(fp, "add rule ip6 filter FORWARD iifname %s oifname %s counter lan2wan\n", Interface[cnt], wan6_ifname);
 #ifndef _HUB4_PRODUCT_REQ_
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
          if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
          {
-            fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", Interface[cnt], ecm_wan_ifname);
-#if !defined (NO_MTA_FEATURE_SUPPORT)
-		      fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", Interface[cnt], emta_wan_ifname);
-#endif
+            fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump lan2wan\n", Interface[cnt], ecm_wan_ifname);
+		      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump lan2wan\n", Interface[cnt], emta_wan_ifname);  
          }
 #endif
 		}
 	  }
 
 
-      fprintf(fp, "-A lan2wan -j lan2wan_pc_device\n");
-      fprintf(fp, "-A lan2wan -j lan2wan_pc_site\n");
-      fprintf(fp, "-A lan2wan -j lan2wan_pc_service\n");
+      fprintf(fp, "add rule ip6 filter lan2wan counter jump lan2wan_pc_device\n");
+      fprintf(fp, "add rule ip6 filter lan2wan counter jump lan2wan_pc_site\n");
+      fprintf(fp, "add rule ip6 filter lan2wan counter jump lan2wan_pc_service\n");
 
 #ifdef CONFIG_CISCO_PARCON_WALLED_GARDEN
-      fprintf(fp, ":%s - [0:0]\n", "wan2lan_dnsr_nfqueue");
-      fprintf(fp, "-A FORWARD -i %s -p udp --sport 53 -j wan2lan_dnsr_nfqueue\n", wan6_ifname);
+      fprintf(fp, "add chain ip6 filter %s\n", "wan2lan_dnsr_nfqueue");
+      fprintf(fp, "add rule ip6 filter FORWARD iifname %s udp sport 53 counter jump wan2lan_dnsr_nfqueue\n", wan6_ifname);
 #endif
 
 
@@ -1538,61 +1458,50 @@ v6GPFirewallRuleNext:
          */
 
          //Changed GUI and IPv6 firewall now allows all lan2wan traffic
-         fprintf(fp, "-A lan2wan -j ACCEPT\n");
+         fprintf(fp, "add rule ip6 filter lan2wan counter accept\n");
       }
       else
       {
          // Everything from inside to Internet is allowed
-         fprintf(fp, "-A lan2wan -j ACCEPT\n");
+         fprintf(fp, "add rule ip6 filter lan2wan counter accept\n");
       }
 
       // established communication from WAN is accepted
-      fprintf(fp, "-A FORWARD -i %s -m state --state ESTABLISHED,RELATED -j ACCEPT\n", wan6_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" ct state related,established  counter accept\n", wan6_ifname);
 #if !defined(_HUB4_PRODUCT_REQ_)
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
       if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
       {
-         fprintf(fp, "-A FORWARD -i %s -m state --state ESTABLISHED,RELATED -j ACCEPT\n", ecm_wan_ifname);
-#if !defined (NO_MTA_FEATURE_SUPPORT)
-         fprintf(fp, "-A FORWARD -i %s -m state --state ESTABLISHED,RELATED -j ACCEPT\n", emta_wan_ifname);
-#endif
+         fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" ct state related,established  counter accept\n", ecm_wan_ifname);
+         fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" ct state related,established  counter accept\n", emta_wan_ifname);
       }
 #endif /*_HUB4_PRODUCT_REQ_*/
 
       // ICMP varies and are rate limited anyway
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 1/0 -m limit --limit 100/sec -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 2 -m state --state INVALID,NEW -j DROP\n");
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 2 -m limit --limit 100/sec -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 3 -m limit --limit 100/sec -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 4 -m limit --limit 100/sec -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type 1/0 limit rate 100/second accept\n"); // nft does not support this icmpv6 code
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type packet-too-big ct state invalid,new counter drop\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type packet-too-big limit rate 100/second counter accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type time-exceeded limit rate 100/second counter accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type parameter-problem limit rate 100/second counter accept\n");
 
       // ICMP messages for MIPv6 (assuming mobile node on the inside)
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 145 -m limit --limit 100/sec -j ACCEPT\n");
-      fprintf(fp, "-A FORWARD -p icmpv6 -m icmp6 --icmpv6-type 147 -m limit --limit 100/sec -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type 145 limit rate 100/second accept\n");
+      fprintf(fp, "add rule ip6 filter FORWARD meta l4proto ipv6-icmp icmpv6 type 147 limit rate 100/second accept\n");
 
-      // Traffic WAN to LAN
+          // Traffic WAN to LAN
 
-#if defined (_CBR2_PRODUCT_REQ_) ||  defined (_ONESTACK_PRODUCT_REQ_) 
-#if defined (_ONESTACK_PRODUCT_REQ_) 
-      if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
-#endif
-      {
-      fprintf(fp, "-A wan2lan -m state --state ESTABLISHED,RELATED -j ACCEPT\n");
-      }
-#endif
+      fprintf(fp, "add rule ip6 filter wan2lan ct state invalid counter jump LOG_FORWARD_DROP\n");
 
-      fprintf(fp, "-A wan2lan -m state --state INVALID -j LOG_FORWARD_DROP\n");
-
-      fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", wan6_ifname, lan_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump wan2lan\n", wan6_ifname, lan_ifname);
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
 #if defined(IVI_KERNEL_SUPPORT)
-      fprintf(fp, "-I FORWARD -i %s -o %s -j wan2lan\n", wan6_ifname, ETH_MESH_BRIDGE);
+      fprintf(fp, "insert rule ip6 filter FORWARD iifname %s oifname %s counter jump wan2lan\n", wan6_ifname, ETH_MESH_BRIDGE);
 #elif defined(NAT46_KERNEL_SUPPORT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
       if (isMAPTReady)
       {
-         fprintf(fp, "-I FORWARD -i %s -o %s -j wan2lan\n", wan6_ifname, NAT46_INTERFACE);
-         fprintf(fp, "-I FORWARD -i %s -o %s -j wan2lan\n", wan6_ifname, ETH_MESH_BRIDGE);
+         fprintf(fp, "insert rule ip6 filter FORWARD iifname %s oifname %s counter wan2lan\n", wan6_ifname, NAT46_INTERFACE);
+         fprintf(fp, "insert rule ip6 filter FORWARD iifname %s oifname %s counter wan2lan\n", wan6_ifname, ETH_MESH_BRIDGE);
       }
 #endif //IVI_KERNEL_SUPPORT
 #endif //FEATURE_MAPT
@@ -1602,10 +1511,8 @@ v6GPFirewallRuleNext:
       if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
       {
-         fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", ecm_wan_ifname, lan_ifname);
-#if !defined (NO_MTA_FEATURE_SUPPORT)
-         fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", emta_wan_ifname, lan_ifname);
-#endif
+         fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump wan2lan\n", ecm_wan_ifname, lan_ifname);
+         fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump wan2lan\n", emta_wan_ifname, lan_ifname);
       }
 #endif /*_HUB4_PRODUCT_REQ_*/
       if(inf_num!= 0)
@@ -1613,16 +1520,14 @@ v6GPFirewallRuleNext:
 		int cnt =0;
 		for(cnt = 0;cnt < inf_num;cnt++)
 		{
-		      fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", wan6_ifname, Interface[cnt]);
+		      fprintf(fp, "add rule ip6 filter FORWARD iifname  %s oifname %s counter wan2lan\n", wan6_ifname, Interface[cnt]);
 #ifndef _HUB4_PRODUCT_REQ_
 #if defined (_RDKB_GLOBAL_PRODUCT_REQ_)
       if( 0 != strncmp( devicePartnerId, "sky-", 4 ) )
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
       {
-		      fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", ecm_wan_ifname, Interface[cnt]);
-#if !defined (NO_MTA_FEATURE_SUPPORT)
-		      fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", emta_wan_ifname, Interface[cnt]);
-#endif
+		      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump wan2lan\n", ecm_wan_ifname, Interface[cnt]);
+		      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump wan2lan\n", emta_wan_ifname, Interface[cnt]);
       }
 #endif
 		}
@@ -1637,12 +1542,12 @@ v6GPFirewallRuleNext:
 			  if(rc != 0){
            #if defined(SPEED_BOOST_SUPPORTED_V6)
            if (speedboostportsv6[0] != '\0' && (isPvDEnable)) {
-               fprintf(fp, "-A wan2lan -d %s -p tcp -m multiport ! --dports %s -j ACCEPT\n", ipv6host , speedboostportsv6);
-               fprintf(fp, "-A wan2lan -d %s -p udp -m multiport ! --dports %s -j ACCEPT\n", ipv6host , speedboostportsv6);
+               fprintf(fp, "add rule ip6 filter wan2lan ip6 daddr %s tcp dport != { %s } counter accept\n", ipv6host, speedboostportsv6);
+               fprintf(fp, "add rule ip6 filter wan2lan ip6 daddr %s udp dport != { %s } counter accept\n", ipv6host, speedboostportsv6);
            }
            else
            #endif
-				  fprintf(fp, "-A wan2lan -d %s -j ACCEPT\n", ipv6host);
+				  fprintf(fp, "add rule ip6 filter wan2lan ip6 daddr %s counter accept\n", ipv6host);
 			  }
 			}
 		}
@@ -1653,60 +1558,60 @@ v6GPFirewallRuleNext:
 
       if (strncasecmp(firewall_levelv6, "High", strlen("High")) == 0)
       {
-         fprintf(fp, "-A wan2lan -j RETURN\n");
+         fprintf(fp, "add rule ip6 filter wan2lan counter return\n");
       }
       else if (strncasecmp(firewall_levelv6, "Medium", strlen("Medium")) == 0)
       {
-         fprintf(fp, "-A wan2lan -p tcp --dport 113 -j RETURN\n"); // IDENT
-         fprintf(fp, "-A wan2lan -p icmpv6 --icmpv6-type 128 -j RETURN\n"); // ICMP PING
+         fprintf(fp, "add rule ip6 filter wan2lan tcp dport 113 counter return\n"); // IDENT
+         fprintf(fp, "add rule ip6 filter wan2lan icmpv6 type echo-request counter return\n"); // ICMP PING
 
-         fprintf(fp, "-A wan2lan -p tcp --dport 1214 -j RETURN\n"); // Kazaa
-         fprintf(fp, "-A wan2lan -p udp --dport 1214 -j RETURN\n"); // Kazaa
-         fprintf(fp, "-A wan2lan -p tcp --dport 6881:6999 -j RETURN\n"); // Bittorrent
-         fprintf(fp, "-A wan2lan -p tcp --dport 6346 -j RETURN\n"); // Gnutella
-         fprintf(fp, "-A wan2lan -p udp --dport 6346 -j RETURN\n"); // Gnutella
-         fprintf(fp, "-A wan2lan -p tcp --dport 49152:65534 -j RETURN\n"); // Vuze
-         fprintf(fp, "-A wan2lan -j ACCEPT\n");
+         fprintf(fp, "add rule ip6 filter wan2lan tcp dport 1214 counter return\n"); // Kazaa
+         fprintf(fp, "add rule ip6 filter wan2lan  udp dport 1214 counter return\n"); // Kazaa
+         fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 6881-6999 counter return\n"); // Bittorrent
+         fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 6346 counter return\n"); // Gnutella
+         fprintf(fp, "add rule ip6 filter wan2lan  udp dport 6346 counter return\n"); // Gnutella
+         fprintf(fp, "add rule ip6 filter wan2lan  tcp dport 49152-65534 counter return\n"); // Vuze
+         fprintf(fp, "add rule ip6 filter wan2lan counter accept\n");
       }
       else if (strncasecmp(firewall_levelv6, "Low", strlen("Low")) == 0)
       {
-         fprintf(fp, "-A wan2lan -p tcp --dport 113 -j RETURN\n"); // IDENT
-         fprintf(fp, "-A wan2lan -j ACCEPT\n");
+         fprintf(fp, "add rule ip6 filter wan2lan tcp dport 113 counter return\n"); // IDENT
+         fprintf(fp, "add rule ip6 filter wan2lan counter accept\n");
       }
       else if (strncasecmp(firewall_levelv6, "Custom", strlen("Custom")) == 0)
       {
          if (isHttpBlockedV6)
          {
-            fprintf(fp, "-A wan2lan -p tcp --dport 80 -j RETURN\n"); // HTTP
-            fprintf(fp, "-A wan2lan -p tcp --dport 443 -j RETURN\n"); // HTTPS
+            fprintf(fp, "add rule ip6 filter wan2lan tcp dport 80 counter return\n"); // HTTP
+            fprintf(fp, "add rule ip6 filter wan2lan tcp dport 443 counter return \n"); // HTTPS
          }
          if (isIdentBlockedV6)
          {
-            fprintf(fp, "-A wan2lan -p tcp --dport 113 -j RETURN\n"); // IDENT
+            fprintf(fp, "add rule ip6 filter wan2lan tcp dport 113  counter return\n"); // IDENT
          }
          if (isPingBlockedV6)
          {
-            fprintf(fp, "-A wan2lan -p icmpv6 --icmpv6-type 128 -j RETURN\n"); // ICMP PING
+            fprintf(fp, "add rule ip6 filter wan2lan icmpv6 type echo-request counter return\n"); // ICMP PING
          }
          if (isP2pBlockedV6)
          {
-            fprintf(fp, "-A wan2lan -p tcp --dport 1214 -j RETURN\n"); // Kazaa
-            fprintf(fp, "-A wan2lan -p udp --dport 1214 -j RETURN\n"); // Kazaa
-            fprintf(fp, "-A wan2lan -p tcp --dport 6881:6999 -j RETURN\n"); // Bittorrent
-            fprintf(fp, "-A wan2lan -p tcp --dport 6346 -j RETURN\n"); // Gnutella
-            fprintf(fp, "-A wan2lan -p udp --dport 6346 -j RETURN\n"); // Gnutella
-            fprintf(fp, "-A wan2lan -p tcp --dport 49152:65534 -j RETURN\n"); // Vuze
+            fprintf(fp, "add rule ip6 filter wan2lan tcp dport 1214 counter return\n"); // Kazaa
+            fprintf(fp, "add rule ip6 filter wan2lan udp dport 1214 counter return\n");// Kazaa
+            fprintf(fp, "add rule ip6 filter wan2lan tcp dport 6881-6999 counter return\n"); // Bittorrent
+            fprintf(fp, "add rule ip6 filter wan2lan tcp dport 6346 counter return\n"); // Gnutella
+            fprintf(fp, "add rule ip6 filter wan2lan udp dport 6346 counter return\n"); // Gnutella
+            fprintf(fp, "add rule ip6 filter wan2lan tcp dport 49152-65534 counter return\n"); // Vuze
          }
 
          if(isMulticastBlockedV6) {
-            fprintf(fp, "-A wan2lan -p 2 -j RETURN\n"); // IGMP
+            fprintf(fp, "add rule ip6 filter wan2lan meta l4proto ipv6-icmp icmpv6 type { 130, 131, 132, 143 } counter return\n"); // MLD (IPv6 multicast group management)
          }
 
-         fprintf(fp, "-A wan2lan -j ACCEPT\n");
+         fprintf(fp, "add rule ip6 filter wan2lan counter accept\n");
       }
       else if (strncasecmp(firewall_levelv6, "None", strlen("None")) == 0)
       {
-         fprintf(fp, "-A wan2lan -j ACCEPT\n");
+         fprintf(fp, "add rule ip6 filter wan2lan counter accept\n");
       }
 
       // Accept TCP return traffic (stateless a la IOS 'established')
@@ -1721,24 +1626,24 @@ v6GPFirewallRuleNext:
 #endif
 
       // Accept blindly ESP/AH/SCTP
-      fprintf(fp, "-A FORWARD -i %s -o %s -p esp -j ACCEPT\n", wan6_ifname, lan_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" meta l4proto esp counter accept\n", wan6_ifname, lan_ifname);
 //temp changes for CBR until brcm fixauthentication Head issue on brlan0 for v6
 #if !defined(_CBR_PRODUCT_REQ_) && !defined (_PLATFORM_IPQ_)
-      fprintf(fp, "-A FORWARD -i %s -o %s -m ah -j ACCEPT\n", wan6_ifname, lan_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" meta l4proto ah counter accept\n", wan6_ifname, lan_ifname);
 #endif
-      fprintf(fp, "-A FORWARD -i %s -o %s -p 132 -j ACCEPT\n", wan6_ifname, lan_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" meta l4proto sctp counter accept\n", wan6_ifname, lan_ifname);
 
       // Everything else is logged and declined
       //fprintf(fp, "-A FORWARD -m limit --limit 10/sec -j REJECT --reject-with icmp6-adm-prohibited\n");
-      fprintf(fp, "-A FORWARD -j LOG_FORWARD_DROP\n");
+      fprintf(fp, "add rule ip6 filter FORWARD counter jump LOG_FORWARD_DROP\n");
 
       // Accept everything from localhost
-      fprintf(fp, "-A OUTPUT -o lo -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter OUTPUT oifname \"lo\" counter accept\n");
       // And accept everything anyway as we trust ourself
-      fprintf(fp, "-A OUTPUT -j ACCEPT\n");
+      fprintf(fp, "add rule ip6 filter OUTPUT counter accept\n");
 
 #if defined(_COSA_BCM_MIPS_)
-      fprintf(fp, "-A OUTPUT -m physdev --physdev-in %s -j ACCEPT\n", emta_wan_ifname);
+      fprintf(fp, "add rule ip6 filter output physdev in %s counter accept\n", emta_wan_ifname);
 #endif
 
    }
@@ -1747,53 +1652,48 @@ v6GPFirewallRuleNext:
 
     char queryv6[10] = {'\0'};
     if((0 == syscfg_get(NULL, "blockipsec::result", queryv6 , sizeof(queryv6))) && strcmp(queryv6,"DROP") == 0){
-        fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 500  -j DROP\n");
-        fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 4500  -j DROP\n");
+        fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6 udp dport 500  counter drop\n");
+        fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6 udp dport 4500 counter drop\n");
     }
     else if(strcmp(queryv6,"ACCEPT") == 0){
-        fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 500  -j ACCEPT\n");
-        fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 4500  -j ACCEPT\n");
+        fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6  udp dport 500  counter accept\n");
+        fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6  udp dport 4500  counter accept\n");
     }
-    // Apply SSL blocking rules
-    do_ssl_blocking_rules(fp, "lan2wan_misc_ipv6");
+    char sites_enabled[MAX_QUERY];
+    sites_enabled[0] = '\0';
+    syscfg_get(NULL, "managedsites_enabled", sites_enabled, sizeof(sites_enabled));
+    if (sites_enabled[0] != '\0' && sites_enabled[0] == '0') // managed site list enabled
+    {
+        queryv6[0] = '\0';
 
+        if((0 == syscfg_get(NULL, "blockssl::result", queryv6, sizeof(queryv6))) && strcmp(queryv6,"DROP") == 0){
+            fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6 udp dport 443  counter drop\n");
+            fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6 tcp dport 443  counter drop\n");
+        }
+        else if(strcmp(queryv6,"ACCEPT") == 0){
+            fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6 udp dport 443 counter accept\n");
+            fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6 tcp dport 443  counter accept\n");
+        }
+    }
     queryv6[0] = '\0';
 
     if((0 == syscfg_get(NULL, "blockl2tp::result", queryv6, sizeof(queryv6))) && strcmp(queryv6,"DROP") == 0){
-        fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 1701  -j DROP\n");
+        fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6 udp dport 1701  counter drop\n");
     }
     else if(strcmp(queryv6,"ACCEPT") == 0){
-        fprintf(fp, "-A lan2wan_misc_ipv6 -p udp --dport 1701  -j ACCEPT\n");
+        fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6 udp dport 1701 counter accept\n");
     }
     queryv6[0] = '\0';
 
     if((0 == syscfg_get(NULL, "blockpptp::result", queryv6, sizeof(queryv6))) && strcmp(queryv6,"DROP") == 0){
-        fprintf(fp, "-A lan2wan_misc_ipv6 -p tcp --dport 1723  -j DROP\n");
+        fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6 tcp dport 1723  counter drop\n");
     }
     else if(strcmp(queryv6,"ACCEPT") == 0){
-        fprintf(fp, "-A lan2wan_misc_ipv6 -p tcp --dport 1723  -j ACCEPT\n");
+        fprintf(fp, "add rule ip6 filter lan2wan_misc_ipv6 tcp dport 1723 counter accept\n");
     }
-    fprintf(fp, "-I lan2wan -j lan2wan_misc_ipv6\n");
+    fprintf(fp, "add rule ip6 filter lan2wan counter jump lan2wan_misc_ipv6\n");
 #endif
 
-    /*
-     * Check WAN-to-LAN operational mode. When set to "Manageable",
-     * treat LAN-to-WAN forwarding as manageable by blocking LAN-to-WAN
-     * traffic via the lan2wan chain.
-     */
-    char cValue[64] = {0};
-    sysevent_get(sysevent_fd, sysevent_token, "wan_to_lan_operational_mode",cValue, sizeof(cValue));
-    if (0 == strcasecmp(cValue, "Manageable"))
-    {
-       if('\0' == lan_ifname[0])
-          snprintf(lan_ifname, sizeof(lan_ifname), "brlan0");
-
-       if('\0' == wan6_ifname[0])
-          snprintf(wan6_ifname, sizeof(wan6_ifname), "erouter0");
-
-       FIREWALL_DEBUG("IPv6:wan_to_lan_operational_mode is 'Manageable', adding DROP rule in lan2wan chain to block LAN to WAN traffic from %s to %s\n" COMMA lan_ifname COMMA wan6_ifname);
-       fprintf(fp, "-I lan2wan -i %s -o %s -j DROP\n", lan_ifname, wan6_ifname);
-    }
 end_of_ipv6_firewall:
 
       FIREWALL_DEBUG("Exiting prepare_ipv6_firewall \n");
@@ -1829,12 +1729,11 @@ static int prepare_ipv6_multinet(FILE *fp)
             sysevent_get(sysevent_fd, sysevent_token, buf, iface_ipv6addr, sizeof(iface_ipv6addr));
             */
 
-            fprintf(fp, "-A INPUT -i %s -j ACCEPT\n", iface_name);
-	    fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", iface_name, isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
-	    fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", iface_name, ecm_wan_ifname);
-            fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname, iface_name);
-	    fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", ecm_wan_ifname, iface_name);
-
+            fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" counter accept\n", iface_name);
+            fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter accept\n", iface_name, current_wan_ifname);
+            fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter accept\n", iface_name, ecm_wan_ifname);
+            fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter accept\n", current_wan_ifname, iface_name);
+            fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter accept\n", ecm_wan_ifname, iface_name);
         }
 
     } while ((p = strtok(NULL, " ")) != NULL);
@@ -1886,7 +1785,7 @@ int prepare_multinet_prerouting_nat_v6 (FILE *fp)
          continue;
 
       // Support blocked devices
-      fprintf(fp, "-A PREROUTING -i %s -j prerouting_devices\n", multinet_ifname);
+      fprintf(fp, "add rule ip6 nat PREROUTING iifname \"%s\" counter jump prerouting_devices\n", multinet_ifname);
 
    }while ((tok = strtok(NULL, " ")) != NULL);
 
@@ -1925,7 +1824,7 @@ int prepare_multinet_filter_output_v6 (FILE *fp)
          continue;
 
       // Allow output towards LAN clients
-      fprintf(fp, "-A OUTPUT -o %s -j ACCEPT\n", multinet_ifname);
+      fprintf(fp, "add rule ip6 filter OUTPUT oifname \"%s\" counter accept\n", multinet_ifname);
 
    }while ((tok = strtok(NULL, " ")) != NULL);
 
@@ -1970,28 +1869,28 @@ int prepare_multinet_filter_forward_v6 (FILE *fp)
       sysevent_get(sysevent_fd, sysevent_token, sysevent_query, lan_prefix, sizeof(lan_prefix));
 
       // Allow DHCPv6 from LAN clients
-      fprintf(fp, "-A INPUT -i %s -p udp -m udp --dport 547 -m limit --limit 100/sec -j ACCEPT\n", multinet_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" udp dport 547 limit rate 100/second burst 5 packets counter accept\n", multinet_ifname);
 
       // Allow echo request and reply
-      fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", multinet_ifname);
-      fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", multinet_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-request counter jump PING_FLOOD\n", multinet_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type echo-reply limit rate 10/second burst 5 packets counter accept\n", multinet_ifname);
 
       // Allow router solicitation and advertisement
-      fprintf(fp, "-A INPUT -s fe80::/64 -d ff02::1/128 ! -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", multinet_ifname);
-      fprintf(fp, "-A INPUT -s fe80::/64 -d fe80::/64 ! -i %s -p icmpv6 -m icmp6 --icmpv6-type 134 -m limit --limit 10/sec -j ACCEPT\n", multinet_ifname);
-      fprintf(fp, "-A INPUT -s fe80::/64 -i %s -p icmpv6 -m icmp6 --icmpv6-type 133 -m limit --limit 100/sec -j ACCEPT\n", multinet_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" meta l4proto ipv6-icmp ip6 saddr fe80::/64 ip6 daddr ff02::1 icmpv6 type nd-router-advert limit rate 10/second burst 5 packets counter accept\n", multinet_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname != \"%s\" meta l4proto ipv6-icmp ip6 saddr fe80::/64 ip6 daddr fe80::/64 icmpv6 type nd-router-advert limit rate 10/second burst 5 packets counter accept\n", multinet_ifname);
+      fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" meta l4proto ipv6-icmp ip6 saddr fe80::/64 icmpv6 type nd-router-solicit limit rate 100/second burst 5 packets counter accept\n", multinet_ifname);
 
       // Block unicast WAN to LAN traffic from going to this bridge if the destination address is not within this bridge's allocated prefix
-      fprintf(fp, "-A FORWARD -i %s -o %s -m pkttype --pkt-type unicast ! -d %s -j LOG_FORWARD_DROP\n", wan6_ifname, multinet_ifname, lan_prefix);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" ip6 daddr != %s pkttype unicast counter jump LOG_FORWARD_DROP\n", wan6_ifname, multinet_ifname, lan_prefix);
       // Block unicast LAN to WAN traffic from being sent from this bridge if the source address is not within this bridge's allocated prefix
-      fprintf(fp, "-A FORWARD -i %s -o %s -m pkttype --pkt-type unicast ! -s %s -j LOG_FORWARD_DROP\n", multinet_ifname, wan6_ifname, lan_prefix);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" ip6 saddr != %s pkttype unicast counter jump LOG_FORWARD_DROP\n", multinet_ifname, wan6_ifname, lan_prefix);
 
       // Allow lan2wan and wan2lan traffic
-      fprintf(fp, "-A FORWARD -i %s -o %s -j wan2lan\n", wan6_ifname, multinet_ifname);
-      fprintf(fp, "-A FORWARD -i %s -o %s -j lan2wan\n", multinet_ifname, wan6_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump wan2lan\n", wan6_ifname, multinet_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter jump wan2lan\n", multinet_ifname, wan6_ifname);
 
       // Added this rule to allow any ipv6 traffic local to the bridge
-      fprintf(fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", multinet_ifname, multinet_ifname);
+      fprintf(fp, "add rule ip6 filter FORWARD iifname \"%s\" oifname \"%s\" counter accept\n", multinet_ifname, multinet_ifname);
 
    }while ((tok = strtok(NULL, " ")) != NULL);
 
@@ -2005,10 +1904,10 @@ void do_ipv6_UIoverWAN_filter(FILE* fp) {
  if(strlen(current_wan_ipv6[0]) > 0)
       {
         if(!isDefHttpPortUsed)
-            fprintf(fp, "-A PREROUTING -i %s -d %s -p tcp -m tcp --dport 80 -j DROP\n", lan_ifname,(char *)current_wan_ipv6);
+            fprintf(fp, "add rule ip6 mangle PREROUTING iifname \"%s\" ip6 daddr %s tcp dport 80 counter drop\n", lan_ifname,(char *)current_wan_ipv6);
         
         if(!isDefHttpPortUsed)
-            fprintf(fp, "-A PREROUTING -i %s -d %s -p tcp -m tcp --dport 443 -j DROP\n", lan_ifname,(char *)current_wan_ipv6);
+            fprintf(fp, "add rule ip6 mangle PREROUTING iifname \"%s\" ip6 daddr %s tcp dport 443 counter drop\n", lan_ifname,(char *)current_wan_ipv6);
         int rc = 0;
         char buf[16] ;
         memset(buf,0,sizeof(buf));
@@ -2019,7 +1918,7 @@ void do_ipv6_UIoverWAN_filter(FILE* fp) {
             rc = syscfg_get(NULL, "mgmt_wan_httpport", buf, sizeof(buf));
             if ( rc == 0 && buf[0] != '\0' )
             {
-                fprintf(fp, "-A PREROUTING -i %s -d %s -p tcp -m tcp --dport %s -j DROP\n", lan_ifname,(char *)current_wan_ipv6,buf);
+                fprintf(fp, "add rule ip6 mangle PREROUTING iifname \"%s\" ip6 daddr %s tcp dport %s counter drop\n", lan_ifname,(char *)current_wan_ipv6,buf);
             }
 
         }
@@ -2031,7 +1930,7 @@ void do_ipv6_UIoverWAN_filter(FILE* fp) {
             rc = syscfg_get(NULL, "mgmt_wan_httpsport", buf, sizeof(buf));
             if ( rc == 0 && buf[0] != '\0' )
             {
-                fprintf(fp, "-A PREROUTING -i %s -d %s -p tcp -m tcp --dport %s -j DROP\n", lan_ifname,(char *)current_wan_ipv6,buf);
+                fprintf(fp, "add rule ip6 mangle PREROUTING iifname \"%s\" ip6 daddr %s tcp dport %s counter drop\n", lan_ifname,(char *)current_wan_ipv6,buf);
             }
 
         }
@@ -2044,9 +1943,9 @@ void do_ipv6_UIoverWAN_filter(FILE* fp) {
             {
                if(mesh_wan_ipv6addr[i][0] != '\0' )
                {
-                  fprintf(fp, "-A PREROUTING -i %s -d %s -p tcp -m tcp --dport 80 -j DROP\n", current_wan_ifname,(char *)mesh_wan_ipv6addr[i]);
-                  fprintf(fp, "-A PREROUTING -i %s -d %s -p tcp -m tcp --dport 443 -j DROP\n", current_wan_ifname,(char *)mesh_wan_ipv6addr[i]);
-                  fprintf(fp, "-A PREROUTING -i %s -d %s -p tcp -m tcp --dport 8080 -j DROP\n", current_wan_ifname,(char *)mesh_wan_ipv6addr[i]);
+                  fprintf(fp, "add rule ip6 mangle PREROUTING iifname \"%s\" ip6 daddr %s tcp dport 80 counter drop\n", current_wan_ifname,(char *)mesh_wan_ipv6addr[i]);
+                  fprintf(fp, "add rule ip6 mangle PREROUTING iifname \"%s\" ip6 daddr %s tcp dport 443 counter drop\n", current_wan_ifname,(char *)mesh_wan_ipv6addr[i]);
+                  fprintf(fp, "add rule ip6 mangle PREROUTING iifname \"%s\" ip6 daddr %s tcp dport 8080 counter drop\n", current_wan_ifname,(char *)mesh_wan_ipv6addr[i]);
                }
             }
          }
@@ -2061,10 +1960,14 @@ void do_ipv6_sn_filter(FILE* fp) {
     int i;
     char mcastAddrStr[64];
     char ifIpv6AddrKey[64];
-    fprintf(fp, "*mangle\n");
-    
-   fprintf(fp, ":%s - [0:0]\n", "postrouting_qos");
- 
+    fprintf(fp,"add table ip6 mangle\n");
+    fprintf(fp,"add chain ip6 mangle PREROUTING { type filter hook prerouting priority -150; policy accept; }\n");
+    fprintf(fp,"add chain ip6 mangle INPUT { type filter hook input priority -150; policy accept; }\n");
+    fprintf(fp,"add chain ip6 mangle FORWARD { type filter hook forward priority -150; policy accept; }\n");
+    fprintf(fp,"add chain ip6 mangle OUTPUT { type route hook output priority -150; policy accept; }\n");
+    fprintf(fp,"add chain ip6 mangle POSTROUTING { type filter hook postrouting priority -150; policy accept; }\n");
+    fprintf(fp,"add chain ip6 mangle postrouting_qos\n");
+
    #ifdef RDKB_EXTENDER_ENABLED
       add_if_mss_clamping(fp,AF_INET6);
    #endif
@@ -2072,16 +1975,19 @@ void do_ipv6_sn_filter(FILE* fp) {
     for (i = 0; i < numifs; ++i) {
         snprintf(ifIpv6AddrKey, sizeof(ifIpv6AddrKey), "ipv6_%s_dhcp_solicNodeAddr", ifnames[i]);
         sysevent_get(sysevent_fd, sysevent_token, ifIpv6AddrKey, mcastAddrStr, sizeof(mcastAddrStr));
-        if (mcastAddrStr[0] != '\0')
-            fprintf(fp, "-A PREROUTING -i %s -d %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i], mcastAddrStr);
+        if (IsValidIPv6Addr(mcastAddrStr))
+            fprintf(fp,"add rule ip6 mangle PREROUTING iifname \"%s\" meta l4proto ipv6-icmp ip6 daddr %s icmpv6 type nd-neighbor-solicit limit rate 20/second burst 5 packets counter accept\n",ifnames[i], mcastAddrStr);
+
         
         snprintf(ifIpv6AddrKey, sizeof(ifIpv6AddrKey), "ipv6_%s_ll_solicNodeAddr", ifnames[i]);
         sysevent_get(sysevent_fd, sysevent_token, ifIpv6AddrKey, mcastAddrStr, sizeof(mcastAddrStr));
-        if (mcastAddrStr[0] != '\0')
-            fprintf(fp, "-A PREROUTING -i %s -d %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i], mcastAddrStr);
+        if (IsValidIPv6Addr(mcastAddrStr))
+            fprintf(fp,"add rule ip6 mangle PREROUTING iifname \"%s\" meta l4proto ipv6-icmp ip6 daddr %s icmpv6 type nd-neighbor-solicit limit rate 20/second burst 5 packets counter accept\n",ifnames[i], mcastAddrStr);
+
         /* NS Throttling rules for WAN and LAN */
-        fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -m limit --limit 20/sec -j ACCEPT\n", ifnames[i]);
-        fprintf(fp, "-A PREROUTING -i %s -p ipv6-icmp -m icmp6 --icmpv6-type 135 -j DROP\n", ifnames[i]);
+        fprintf(fp,"add rule ip6 mangle PREROUTING iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type nd-neighbor-solicit limit rate 20/second burst 5 packets counter accept\n",ifnames[i]);
+        fprintf(fp,"add rule ip6 mangle PREROUTING iifname \"%s\" meta l4proto ipv6-icmp icmpv6 type nd-neighbor-solicit counter drop\n",ifnames[i]);
+
     }
 
     //RDKB-10248: IPv6 Entries issue in ip neigh show 1. drop the NS
@@ -2097,9 +2003,9 @@ void do_ipv6_sn_filter(FILE* fp) {
                     continue;
         	 strncpy(ip, "ff02::1:ff", sizeof(ip));
         	 ip[10]=buf[26];  ip[11]=buf[27];  ip[12]=':';  ip[13]=buf[28];  ip[14]=buf[29];  ip[15]=buf[30];  ip[16]=buf[31];  ip[17]=0;
-        	 fprintf(fp, "-A PREROUTING -d %s -j ACCEPT\n", ip);
+        	 fprintf(fp, "add rule ip6 mangle PREROUTING ip6 daddr %s counter accept\n", ip);
        	   }
-           fprintf(fp, "-A PREROUTING -p icmpv6 --icmpv6-type neighbor-solicitation -i %s -d ff02::1:ff00:0/104 -j DROP\n", current_wan_ifname);
+           fprintf(fp, "add rule ip6 mangle PREROUTING iifname \"%s\" meta l4proto ipv6-icmp ip6 daddr ff02::1:ff00:0/104 icmpv6 type nd-neighbor-solicit counter drop\n", current_wan_ifname);
            fclose(fp1);
 	}
 	//RDKB-10248: IPv6 Entries issue in ip neigh show 2. Bring back TOS mirroring 
@@ -2109,15 +2015,12 @@ void do_ipv6_sn_filter(FILE* fp) {
 	prepare_dscp_rules_to_prioritized_clnt(fp);
 	prepare_dscp_rule_for_host_mngt_traffic(fp);
 	prepare_xconf_rules(fp);
-#ifdef FEATURE_MAPE
-	prepare_mape_rules(fp);
-#endif
 #endif
 
 #ifdef _COSA_INTEL_XB3_ARM_
-        fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",current_wan_ifname);
-        fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",ecm_wan_ifname);
-	fprintf(fp, "-A PREROUTING -i %s -p tcp -m tcp ! --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j DROP\n",emta_wan_ifname);
+        fprintf(fp, "add rule ip6 filter PREROUTING iifname \"%s\" tcp flags & (fin|syn|rst|ack) != syn ct state new counter drop\n",current_wan_ifname);
+        fprintf(fp, "add rule ip6 filter PREROUTING iifname \"%s\" tcp flags & (fin|syn|rst|ack) != syn ct state new counter drop\n",ecm_wan_ifname);
+        fprintf(fp, "add rule ip6 filter PREROUTING iifname \"%s\" tcp flags & (fin|syn|rst|ack) != syn ct state new counter drop\n",emta_wan_ifname);
 #endif
      FIREWALL_DEBUG("Exiting do_ipv6_sn_filter \n"); 
 }
@@ -2131,39 +2034,24 @@ typedef enum{
 void applyRoutingRules(FILE* fp,ipv6_type type)
 {
        FIREWALL_DEBUG("Entering applyRoutingRules, ipv6_type is %d \n" COMMA type);
-         char prefix[IPV6_PREFIX_BUF_LEN+1];
-	 memset(prefix,0,sizeof(prefix));
+         char prefix[64] ;
+         memset(prefix,0,sizeof(prefix));
          int i ;
          if ( ULA_IPV6 == type)
-	 {
             sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix_ula", prefix, sizeof(prefix));
-	 }
          else
-	 {
-         #ifdef _ONESTACK_PRODUCT_REQ_
-	     if(isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION)) 
-	     {
-		 snprintf(prefix, sizeof(prefix), "%s", ipv6_delegation_prefix);
-	     }
-	     else
-	     {
-		 sysevent_get(sysevent_fd, sysevent_token, "lan_prefix", prefix, sizeof(prefix));
-	     }
-         #else
-	     sysevent_get(sysevent_fd, sysevent_token, "lan_prefix", prefix, sizeof(prefix));
-         #endif
-	 }
-	 if (strlen(prefix) != 0)
+            sysevent_get(sysevent_fd, sysevent_token, "ipv6_prefix", prefix, sizeof(prefix));
+   if (strlen(prefix) != 0 )
          {
-		 char *token_pref =NULL;
+      char *token_pref =NULL;
          token_pref = strtok(prefix,"/");
                   for(i = 0; i < mesh_wan_ipv6_num; i++)
                   {
                   if(mesh_wan_ipv6addr[i][0] != '\0' )
                      {
                            if ( ULA_IPV6 == type)
-                              fprintf(fp, "-A PREROUTING -i %s -d %s -j DNAT --to-destination %s1\n",current_wan_ifname,(char *)mesh_wan_ipv6addr[i],token_pref);
-                           fprintf(fp, "-A POSTROUTING -o %s -s %s1/64 -j SNAT --to-source %s\n",current_wan_ifname,token_pref,(char *)mesh_wan_ipv6addr[i]);
+                              fprintf(fp, "add rule ip6 filter PREROUTING iifname \"%s\" ip6 daddr %s counter dnat to %s1\n",current_wan_ifname,(char *)mesh_wan_ipv6addr[i],token_pref);
+                           fprintf(fp, "add rule ip6 filter POSTROUTING oifname \"%s\" ip6 saddr %s/64 counter snat to %s\n",current_wan_ifname,token_pref,(char *)mesh_wan_ipv6addr[i]);
                      }
                   }
                char cmd[100];
@@ -2212,8 +2100,8 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
                                           if(mesh_wan_ipv6addr[i][0] != '\0' )
                                           {
                                                 if ( ULA_IPV6 == type)
-                                                      fprintf(fp, "-A PREROUTING -i %s -d %s -j DNAT --to-destination %s1\n",current_wan_ifname,(char *)mesh_wan_ipv6addr[i],token_pref);
-                                                fprintf(fp, "-A POSTROUTING -o %s -s %s1/64 -j SNAT --to-source %s\n",current_wan_ifname,token_pref,(char *)mesh_wan_ipv6addr[i]);
+                                                      fprintf(fp, "add rule ip6 filter PREROUTING iifname \"%s\" ip6 daddr %s counter dnat to %s1\n",current_wan_ifname,(char *)mesh_wan_ipv6addr[i],token_pref);
+                                                fprintf(fp, "add rule ip6 filter POSTROUTING oifname \"%s\" ip6 saddr %s/64 counter snat to %s\n",current_wan_ifname,token_pref,(char *)mesh_wan_ipv6addr[i]);
                                           }
                                        }
                               }
@@ -2225,6 +2113,7 @@ void applyRoutingRules(FILE* fp,ipv6_type type)
 }
 #endif
 
+#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
 int checkIfULAEnabled()
 {
     // temp check , need to replace with CurrInterface Name or if device is XLE
@@ -2245,31 +2134,48 @@ int checkIfULAEnabled()
       return -1;
 }
 
-#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
 void applyIpv6ULARules(FILE* fp)
 {
-   #if defined  (RDKB_EXTENDER_ENABLED)
+   #ifdef RDKB_EXTENDER_ENABLED  
       if(strlen(current_wan_ipv6[0]) > 0)
       {
-	  FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipv6); 
-	  fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n",current_wan_ifname);
+          FIREWALL_DEBUG("Source natting all traffic on %s interface to %s address\n" COMMA current_wan_ifname COMMA current_wan_ipv6); 
+
+         fprintf(fp, "add rule ip6 filter POSTROUTING oifname \"%s\" counter masquerade\n",current_wan_ifname);
       }
    #else
-      FIREWALL_DEBUG("Applying applyIpv6ULARules \n");
       applyRoutingRules(fp,GLOBAL_IPV6);
       applyRoutingRules(fp,ULA_IPV6);
 
    #endif
 }
+#endif
 
-#endif 
+int lan_access_set_proto_ipv6(FILE *fp,const char *port, const char *interface)
+{
+        if ((0 == strcmp("80", port)) || (0 == strcmp("443", port))) {
+           fprintf(fp, "add rule ip6 filter INPUT iifname \"%s \" tcp dport %s jump webui_limit\n", interface, port);
+        }
+        else
+        {
+            fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport %s accept\n", interface, port);
+        }
+        return 0;
+}
+
+
 void do_ipv6_nat_table(FILE* fp)
 {
-    FIREWALL_DEBUG("Entering do_ipv6_nat_table \n");
     char IPv6[INET6_ADDRSTRLEN] = "0";
-    fprintf(fp, "*nat\n");
-	fprintf(fp, ":%s - [0:0]\n", "prerouting_devices");
-	fprintf(fp, ":%s - [0:0]\n", "prerouting_redirect");
+    fprintf(fp,"add table ip6 nat\n");
+    fprintf(fp,"add chain ip6 nat PREROUTING { type nat hook prerouting priority -100; policy accept; }\n");
+    fprintf(fp,"add chain ip6 nat INPUT { type nat hook input priority 100; policy accept; }\n");
+    fprintf(fp,"add chain ip6 nat OUTPUT { type nat hook output priority -100; policy accept; }\n");
+    fprintf(fp,"add chain ip6 nat POSTROUTING { type nat hook postrouting priority 100; policy accept; }\n");
+
+    fprintf(fp, "add chain ip6 nat %s\n", "prerouting_devices");
+    fprintf(fp, "add chain ip6 nat %s\n", "prerouting_redirect");
+
 
 #ifdef WAN_FAILOVER_SUPPORTED
 #if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_)
@@ -2297,7 +2203,7 @@ void do_ipv6_nat_table(FILE* fp)
 #endif*/
    
    //zqiu: RDKB-7639: block device broken for IPv6
-   fprintf(fp, "-A PREROUTING -i %s -j prerouting_devices\n", lan_ifname);  
+   fprintf(fp, "add rule ip6 nat PREROUTING iifname \"%s\" counter jump prerouting_devices\n",lan_ifname);  
 
    memset(IPv6, 0, INET6_ADDRSTRLEN);
    sysevent_get(sysevent_fd, sysevent_token, "lan_ipaddr_v6", IPv6, sizeof(IPv6));
@@ -2305,35 +2211,40 @@ void do_ipv6_nat_table(FILE* fp)
 #if defined (_XB6_PRODUCT_REQ_)
    if(rfstatus == 1)
    {
-      fprintf(fp, ":%s - [0:0]\n", "prerouting_noRFCP_redirect");
-      fprintf(fp, "-I PREROUTING 1 -i %s -j prerouting_noRFCP_redirect\n", lan_ifname);
-      fprintf(fp, "-I prerouting_noRFCP_redirect -p udp ! --dport 53 -j DNAT --to-destination [%s]:80\n",IPv6);
-      fprintf(fp, "-I prerouting_noRFCP_redirect -p tcp -j DNAT --to-destination [%s]:80\n",IPv6);
-      fprintf(fp, "-I prerouting_noRFCP_redirect -i %s -p udp --dport 53 -j DNAT --to-destination [%s]:80\n",lan_ifname, IPv6);   
-      fprintf(fp, "-I prerouting_noRFCP_redirect -i %s -p tcp --dport 53 -j DNAT --to-destination [%s]:80\n",lan_ifname, IPv6);
+      fprintf(fp, "add rule ip6 nat\n", "prerouting_noRFCP_redirect");
+      fprintf(fp, "insert rule ip6 nat  PREROUTING 1 iifname %s counter prerouting_noRFCP_redirect\n", lan_ifname);
+
+      fprintf(fp, "insert rule ip6 nat prerouting_noRFCP_redirect udp dport != 53 ip6 daddr %s counter dnat to %s\n", IPv6, IPv6);
+
+
+      fprintf(fp, "insert rule ip6 nat prerouting_noRFCP_redirect tcp counter dnat to [%s]:80\n",IPv6);
+      fprintf(fp, "insert rule ip6 nat  prerouting_noRFCP_redirect iifname %s udp dport 53 counter dnat to [%s]:80\n",lan_ifname, IPv6);
+      fprintf(fp, "insert rule ip6 nat  prerouting_noRFCP_redirect iifname %s tcp dport 53 counter dnat to [%s]:80\n",lan_ifname, IPv6);
+
    }
 #endif
    // RDKB-25069 - Lan Admin page should able to access from connected clients.
    if (strlen(IPv6) > 0)
    {
-       fprintf(fp, "-A prerouting_redirect -i %s -p tcp --dport 80 -d %s -j DNAT --to-destination %s\n",lan_ifname,IPv6,IPv6);
-       fprintf(fp, "-A prerouting_redirect -i %s -p tcp --dport 443 -d %s -j DNAT --to-destination %s\n",lan_ifname,IPv6,IPv6);
+       fprintf(fp, "add rule ip6 nat prerouting_redirect iifname \"%s\" ip6 daddr %s tcp dport 80 counter dnat to %s\n",lan_ifname,IPv6,IPv6);
+       fprintf(fp, "add rule ip6 nat prerouting_redirect iifname \"%s\" ip6 daddr %s tcp dport 443 counter dnat to %s\n",lan_ifname,IPv6,IPv6);
    }
 
    if ((lan_local_ipv6_num == 1) && strlen(lan_local_ipv6[0]) > 0)
    {
-       fprintf(fp, "-A prerouting_redirect -i %s -p tcp --dport 80 -d %s -j DNAT --to-destination %s\n",lan_ifname,lan_local_ipv6[0],lan_local_ipv6[0]);
-       fprintf(fp, "-A prerouting_redirect -i %s -p tcp --dport 443 -d %s -j DNAT --to-destination %s\n",lan_ifname,lan_local_ipv6[0],lan_local_ipv6[0]);
+       fprintf(fp, "add rule ip6 nat prerouting_redirect iifname \"%s\" ip6 daddr %s tcp dport 80 counter dnat to %s\n",lan_ifname,lan_local_ipv6[0],lan_local_ipv6[0]);
+       fprintf(fp, "add rule ip6 nat prerouting_redirect iifname \"%s\" ip6 daddr %s tcp dport 443 counter dnat to %s\n",lan_ifname,lan_local_ipv6[0],lan_local_ipv6[0]);
    }
 
-   fprintf(fp, "-A prerouting_redirect -p tcp --dport 80 -j DNAT --to-destination [%s]:21515\n",IPv6);
+   fprintf(fp, "add rule ip6 nat prerouting_redirect tcp dport 80 counter dnat to %s:21515\n",IPv6);
  	
-   fprintf(fp, "-A prerouting_redirect -p tcp --dport 443 -j DNAT --to-destination [%s]:21515\n",IPv6);
+   fprintf(fp, "add rule ip6 nat prerouting_redirect tcp dport 443 counter dnat to %s:21515\n",IPv6);
       
-   fprintf(fp, "-A prerouting_redirect -p tcp -j DNAT --to-destination [%s]:21515\n",IPv6);
-   fprintf(fp, "-A prerouting_redirect -p udp ! --dport 53 -j DNAT --to-destination [%s]:21515\n",IPv6);
+   fprintf(fp, "add rule ip6 nat prerouting_redirect meta l4proto tcp counter dnat to %s:21515\n",IPv6);
+   fprintf(fp, "add rule ip6 nat prerouting_redirect udp dport 53 counter dnat to %s:21515\n",IPv6);
    #if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
    if (0 == checkIfULAEnabled())
+
    {
          applyIpv6ULARules(fp);
    }
@@ -2349,33 +2260,25 @@ void do_ipv6_nat_table(FILE* fp)
 			  if(rc != 0 && strlen(current_wan_ipv6[0]) > 0) {
            #if defined(SPEED_BOOST_SUPPORTED_V6)
            if (speedboostportsv6[0] != '\0' && (isPvDEnable)) {
-              fprintf(fp, "-A PREROUTING -i %s -d %s -p tcp -m multiport ! --dports %s -j DNAT --to-destination %s \n", wan6_ifname, (char *)current_wan_ipv6, speedboostportsv6 , ipv6host);
-              fprintf(fp, "-A PREROUTING -i %s -d %s -p udp -m multiport ! --dports %s -j DNAT --to-destination %s \n", wan6_ifname, (char *)current_wan_ipv6, speedboostportsv6 , ipv6host);
+              fprintf(fp, "add rule ip6 nat prerouting iifname %s ip6 daddr %s tcp multiport dports != { %s } counter dnat to %s\n", wan6_ifname, current_wan_ipv6, speedboostportsv6, ipv6host);
+              fprintf(fp, "add rule ip6 nat prerouting iifname %s ip6 daddr %s udp multiport dports != { %s } counter dnat to %s\n", wan6_ifname, current_wan_ipv6, speedboostportsv6, ipv6host);
+
            }
            else
            #endif
-				  fprintf(fp, "-A PREROUTING -i %s -d %s -j DNAT --to-destination %s \n", wan6_ifname, (char *)current_wan_ipv6, ipv6host);
+				  fprintf(fp, "add rule ip6 nat PREROUTING iifname %s ip6 daddr %s counter dnat to %s \n", wan6_ifname, (char *)current_wan_ipv6, ipv6host);
 			}
 		}
    }
-#if defined  (WAN_FAILOVER_SUPPORTED)
-   if(strncmp(current_wan_ifname, hotspot_wan_ifname, strlen(current_wan_ifname) ) == 0)
-   {
-       if (0 == checkIfULAEnabled())
-       {
-	   applyHotspotPostRoutingRules(fp, false);
-       }
-   }
-#endif
 #ifdef _PLATFORM_RASPBERRYPI_
-   fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
+   fprintf(fp, "add rule ip6 nat POSTROUTING oifname \"%s\" counter masquerade\n", current_wan_ifname);
 #endif
 
 #ifdef _PLATFORM_BANANAPI_R4_
-   fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
+   fprintf(fp, "add rule ip6 nat POSTROUTING oifname \"%s\" counter masquerade\n", current_wan_ifname);
 #endif
 
-   FIREWALL_DEBUG("Exiting do_ipv6_nat_table \n");
+    FIREWALL_DEBUG("Exiting do_ipv6_nat_table \n");
 }
 
 void getIpv6Interfaces(char Interface[MAX_NO_IPV6_INF][MAX_LEN_IPV6_INF],int *len)
@@ -2452,12 +2355,11 @@ int do_blockfragippktsv6(FILE *fp)
     if (enable)
     {
         /* Creating New Chain */
-        fprintf(fp, "-N FRAG_DROP\n");
-        fprintf(fp, "-F FRAG_DROP\n");
-        /*Adding rules in new chain */
-        fprintf(fp, "-I FORWARD -m frag --fragmore --fragid 0x0:0xffffffff -j FRAG_DROP\n");
-        fprintf(fp, "-I INPUT -m frag --fragmore --fragid 0x0:0xffffffff -j FRAG_DROP\n");
-        fprintf(fp, "-A FRAG_DROP -j DROP\n");
+        fprintf(fp, "add chain ip6 filter FRAG_DROP\n");
+        fprintf(fp, "flush chain ip6 filter FRAG_DROP\n");
+        fprintf(fp, "insert rule ip6 filter FORWARD ip fragmore fragid 0x0-0xffffffff jump FRAG_DROP\n");
+        fprintf(fp, "insert rule ip6 filter INPUT ip fragmore fragid 0x0-0xffffffff jump FRAG_DROP\n");
+        fprintf(fp, "add rule ip6 filter FRAG_DROP drop\n");
     }
     return 0;
 }
@@ -2478,13 +2380,13 @@ int do_portscanprotectv6(FILE *fp)
     if (enable)
     {
         /* Creating New Chain */
-        fprintf(fp,"-N %s\n",PORT_SCAN_CHECK_CHAIN);
-        fprintf(fp,"-F %s\n",PORT_SCAN_CHECK_CHAIN);
+        fprintf(fp,"add chain ip6 filter %s\n",PORT_SCAN_CHECK_CHAIN);
+        fprintf(fp,"flush chain ip6 filter %s\n",PORT_SCAN_CHECK_CHAIN);
         /*Adding rules in new chain */
-        fprintf(fp,"-A INPUT -j %s\n", PORT_SCAN_CHECK_CHAIN);
-        fprintf(fp,"-A FORWARD -j %s\n", PORT_SCAN_CHECK_CHAIN);
-        fprintf(fp,"-A %s -i %s -j RETURN\n", PORT_SCAN_CHECK_CHAIN,current_wan_ifname);
-        fprintf(fp,"-A %s -i lo -j RETURN\n", PORT_SCAN_CHECK_CHAIN);
+        fprintf(fp,"add rule ip6 filter INPUT jump %s\n", PORT_SCAN_CHECK_CHAIN);
+        fprintf(fp,"add rule ip6 filter FORWARD jump %s\n", PORT_SCAN_CHECK_CHAIN);
+        fprintf(fp,"add rule ip6 filter %s iifname %s return\n", PORT_SCAN_CHECK_CHAIN,current_wan_ifname);
+        fprintf(fp,"add rule ip6 filter %s iifname lo return\n", PORT_SCAN_CHECK_CHAIN);
     }
     return 0;
 }
@@ -2505,55 +2407,55 @@ int do_ipflooddetectv6(FILE *fp)
     if (enable)
     {
         /* Creating New Chain */
-        fprintf(fp, "-N DOS\n");
-        fprintf(fp, "-N DOS_FWD\n");
-        fprintf(fp, "-N DOS_TCP\n");
-        fprintf(fp, "-N DOS_UDP\n");
-        fprintf(fp, "-N DOS_ICMP\n");
-        fprintf(fp, "-N DOS_ICMP_REQUEST\n");
-        fprintf(fp, "-N DOS_ICMP_REPLY\n");
-        fprintf(fp, "-N DOS_ICMP_OTHER\n");
-        fprintf(fp, "-N DOS_DROP\n");
+        fprintf(fp, "add chain ip6 filter DOS\n");
+        fprintf(fp, "add chain ip6 filter DOS_FWD\n");
+        fprintf(fp, "add chain ip6 filter DOS_TCP\n");
+        fprintf(fp, "add chain ip6 filter DOS_UDP\n");
+        fprintf(fp, "add chain ip6 filter DOS_ICMP\n");
+        fprintf(fp, "add chain ip6 filter DOS_ICMP_REQUEST\n");
+        fprintf(fp, "add chain ip6 filter DOS_ICMP_REPLY\n");
+        fprintf(fp, "add chain ip6 filter DOS_ICMP_OTHER\n");
+        fprintf(fp, "add chain ip6 filter DOS_DROP\n");
 
-        fprintf(fp, "-F DOS\n");
-        fprintf(fp, "-F DOS_FWD\n");
-        fprintf(fp, "-F DOS_TCP\n");
-        fprintf(fp, "-F DOS_UDP\n");
-        fprintf(fp, "-F DOS_ICMP\n");
-        fprintf(fp, "-F DOS_ICMP_REQUEST\n");
-        fprintf(fp, "-F DOS_ICMP_REPLY\n");
-        fprintf(fp, "-F DOS_ICMP_OTHER\n");
-        fprintf(fp, "-F DOS_DROP\n");
+        fprintf(fp, "flush chain ip6 filter DOS\n");
+        fprintf(fp, "flush chain ip6 filter DOS_FWD\n");
+        fprintf(fp, "flush chain ip6 filter DOS_TCP\n");
+        fprintf(fp, "flush chain ip6 filter DOS_UDP\n");
+        fprintf(fp, "flush chain ip6 filter DOS_ICMP\n");
+        fprintf(fp, "flush chain ip6 filter DOS_ICMP_REQUEST\n");
+        fprintf(fp, "flush chain ip6 filter DOS_ICMP_REPLY\n");
+        fprintf(fp, "flush chain ip6 filter DOS_ICMP_OTHER\n");
+        fprintf(fp, "flush chain ip6 filter DOS_DROP\n");
         /*Adding Rules in new chain */
-        fprintf(fp, "-A DOS -i lo -j RETURN\n");
-        fprintf(fp, "-A DOS -p tcp --syn -j DOS_TCP\n");
-        fprintf(fp, "-A DOS -p udp -m state --state NEW -j DOS_UDP\n");
-        fprintf(fp, "-A DOS -p ipv6-icmp -j DOS_ICMP\n");
-        fprintf(fp, "-A DOS_TCP -p tcp --syn -m limit --limit 20/s --limit-burst 40 -j RETURN\n");
-        fprintf(fp, "-A DOS_TCP -j DOS_DROP\n");
-        fprintf(fp, "-A DOS_UDP -p udp -m limit --limit 20/s --limit-burst 40 -j RETURN\n");
-        fprintf(fp, "-A DOS_UDP -j DOS_DROP\n");
-        fprintf(fp, "-A DOS_ICMP -j DOS_ICMP_REQUEST\n");
-        fprintf(fp, "-A DOS_ICMP -j DOS_ICMP_REPLY\n");
-        fprintf(fp, "-A DOS_ICMP -j DOS_ICMP_OTHER\n");
-        fprintf(fp, "-A DOS_ICMP_REQUEST -p ipv6-icmp ! --icmpv6-type echo-request -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_REQUEST -p ipv6-icmp --icmpv6-type echo-request -m limit --limit 5/s --limit-burst 60 -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_REQUEST -m frag --fragmore --fragid 0x0:0xffffffff -m limit --limit 5/s --limit-burst 60 -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_REQUEST -m frag --fraglast --fragid 0x0:0xffffffff -m limit --limit 5/s --limit-burst 60 -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_REQUEST -j DOS_DROP\n");
-        fprintf(fp, "-A DOS_ICMP_REPLY -p ipv6-icmp ! --icmpv6-type echo-reply -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_REPLY -p ipv6-icmp --icmpv6-type echo-reply -m limit --limit 5/s --limit-burst 60 -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_REPLY -m frag --fragmore --fragid 0x0:0xffffffff -m limit --limit 5/s --limit-burst 60 -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_REPLY -m frag --fraglast --fragid 0x0:0xffffffff -m limit --limit 5/s --limit-burst 60 -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_REPLY -j DOS_DROP\n");
-        fprintf(fp, "-A DOS_ICMP_OTHER -p ipv6-icmp --icmpv6-type echo-request -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_OTHER -p ipv6-icmp --icmpv6-type echo-reply -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_OTHER -p ipv6-icmp -m limit --limit 5/s --limit-burst 60 -j RETURN\n");
-        fprintf(fp, "-A DOS_ICMP_OTHER -j DOS_DROP\n");
-        fprintf(fp, "-A DOS_DROP -j DROP\n");
-        fprintf(fp, "-A DOS_FWD -j DOS\n");
-        fprintf(fp, "-A FORWARD -j DOS_FWD\n");
-        fprintf(fp, "-A INPUT -j DOS\n");
+        fprintf(fp, "add rule ip6 filter DOS iifname lo return\n");
+        fprintf(fp, "add rule ip6 filter DOS tcp dport 80 tcp flags syn jump DOS_TC\n");
+        fprintf(fp, "add rule ip6 filter DOS udp state new jump DOS_UDP\n");
+        fprintf(fp, "add rule ip6 filter DOS icmpv6 jump DOS_ICMP\n");
+        fprintf(fp, "add rule ip6 filter DOS_TCP tcp dport 80 tcp flags syn limit rate 20/second burst 40 return\n");
+        fprintf(fp, "add rule ip6 filter DOS_TCP jump DOS_DROP\n");
+        fprintf(fp, "add rule ip6 filter DOS_UDP udp limit rate 20/second burst 40 return\n");
+        fprintf(fp, "add rule ip6 filter DOS_UDP jump DOS_DROP\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP jump DOS_ICMP_REQUEST\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP jump DOS_ICMP_REPLY\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP jump DOS_ICMP_OTHER\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_REQUEST icmpv6 type != echo-request return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_REQUEST icmpv6 type echo-request limit rate 5/second burst 60 return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_REQUEST fragmore fragid 0x0-0xffffffff limit rate 5/second burst 60 return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_REQUEST fraglast fragid 0x0-0xffffffff limit rate 5/second burst 60 return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_REQUEST jump DOS_DROP\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_REPLY icmpv6 type != echo-reply return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_REPLY icmpv6 type echo-reply limit rate 5/second burst 60 return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_REPLY fragmore fragid 0x0-0xffffffff limit rate 5/second burst 60 return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_REPLY fraglast fragid 0x0-0xffffffff limit rate 5/second burst 60 return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_REPLY jump DOS_DROP\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_OTHER icmpv6 type echo-request return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_OTHER icmpv6 type echo-reply return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_OTHER icmpv6 limit rate 5/second burst 60 return\n");
+        fprintf(fp, "add rule ip6 filter DOS_ICMP_OTHER jump DOS_DROP\n");
+        fprintf(fp, "add rule ip6 filter DOS_DROP drop\n");
+        fprintf(fp, "add rule ip6 filter DOS_FWD jump DOS\n");
+        fprintf(fp, "add rule ip6 filter FORWARD jump DOS_FWD\n");
+        fprintf(fp, "add rule ip6 filter INPUT jump DOS\n");
     }
     return 0;
 }
