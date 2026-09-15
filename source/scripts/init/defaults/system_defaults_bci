@@ -1226,6 +1226,9 @@ $xMemEnable=false
 $xMemArgs=
 #xMemTrigger=stop
 
+#Defaults for RDKDownloadManager
+$PackageExpiryTime=3600
+
 #Enable DNS strict order
 $DNSStrictOrder=false
 
