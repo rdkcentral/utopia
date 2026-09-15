@@ -2,7 +2,7 @@
  * If not stated otherwise in this file or this component's Licenses.txt file the
  * following copyright and licenses apply:
  *
- * Copyright 2015 RDK Management
+ * Copyright 2025 RDK Management
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -137,6 +137,7 @@ int prepare_xconf_rules(FILE *mangle_fp)
                 Rabid Rules
  ==========================================================================
  */
+#if !(defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
 __attribute__((weak))
 int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver)
 {
@@ -144,6 +145,15 @@ int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver)
     FIREWALL_DEBUG("Exiting prepare_rabid_rules \n");
     return 0;
 }
+#else
+__attribute__((weak))
+int prepare_rabid_rules_v2020Q3B(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver)
+{
+    FIREWALL_DEBUG("Entering prepare_rabid_rules \n");
+    FIREWALL_DEBUG("Exiting prepare_rabid_rules \n");
+    return 0;
+}
+#endif
 
 __attribute__((weak))
 void update_rabid_features_status()
