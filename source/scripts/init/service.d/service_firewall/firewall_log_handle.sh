@@ -35,7 +35,19 @@
 #######################################################################
 
 /usr/bin/GenFWLog -c
-/usr/bin/firewall "$@"
+
+nft_enable=`syscfg get nft_enable`
+if [ "$nft_enable" != "1" ];then
+        if [ -x /usr/bin/firewall_ipt ];then
+                 /usr/bin/firewall_ipt  "$@"
+	else
+		/usr/bin/firewall  "$@"
+        fi
+else
+        if [ -x /usr/bin/firewall_nft ];then
+                /usr/bin/firewall_nft "$@"
+        fi
+fi
 /usr/bin/GenFWLog -gc
 
 CONN_F=`sysevent get firewall_flush_conntrack`
