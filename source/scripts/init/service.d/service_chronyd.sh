@@ -199,6 +199,40 @@ chrony_fast_resync() {
     ) &
 }
 
+ ──────────────────────────────────────────────────────────────────────────────
+# chrony_apply_mapt_ipv6_gate: mirrors the MAP-T IPv6-only forcing that
+#   service_ntpd.sh applies via `sed -i 's/^server/server -6/g'`. chrony has no
+#   equivalent per-source directive (the server/pool directive does not accept
+#   an address-family option), so the equivalent is chronyd's own -6 command-line
+#   option (resolve hostnames to IPv6 only, create IPv6 sockets only).
+#
+#   Passed to chronyd via the systemd manager environment rather than the unit's
+#   own Environment=/EnvironmentFile=, because this script always runs
+#   `systemctl set/unset-environment` strictly before `systemctl start chronyd` -
+#   avoiding the ExecStartPre-vs-ExecStart environment-snapshot ordering hazard
+#   an EnvironmentFile written by build_chrony_conf.sh would have.
+#   chronyd.service's ExecStart expands $CHRONY_EXTRA_OPTS.
+# ──────────────────────────────────────────────────────────────────────────────
+chrony_apply_mapt_ipv6_gate() {
+    local partner_id mapt_status
+    partner_id=$(syscfg get PartnerID)
+    case "$partner_id" in
+        sky-*)
+            # MAP-T IPv6 forcing is not applied for SKY partners (matches service_ntpd.sh)
+            systemctl unset-environment CHRONY_EXTRA_OPTS
+            return 0
+            ;;
+    esac
+
+    mapt_status=$(sysevent get mapt_config_flag)
+    if [ "$mapt_status" = "set" ]; then
+        echo_t "SERVICE_CHRONYD : MAP-T active - forcing chronyd IPv6-only (-6)" >> $NTPD_LOG_NAME
+        systemctl set-environment CHRONY_EXTRA_OPTS=-6
+    else
+        systemctl unset-environment CHRONY_EXTRA_OPTS
+    fi
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # service_start: main start path
 # ──────────────────────────────────────────────────────────────────────────────
@@ -261,7 +295,10 @@ fi
    fi
     # Start chronyd — only reaches here when no instance is running
 	# start chronyd will populate the config based on latest RFC configuration
-    uptime=$(cut -d. -f1 /proc/uptime)
+	
+	chrony_apply_mapt_ipv6_gate
+    
+	uptime=$(cut -d. -f1 /proc/uptime)
     uptime_ms=$((uptime*1000))
     echo_t "SERVICE_CHRONYD : starting chronyd daemon at $uptime_ms ms" >> $NTPD_LOG_NAME
 	t2ValNotify "SYS_INFO_NTPSTART_split" $uptime_ms
