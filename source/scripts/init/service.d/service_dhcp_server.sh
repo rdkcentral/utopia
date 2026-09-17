@@ -126,6 +126,9 @@ dnsmasq_server_start ()
                 SYSCFG_XDNSREFAC_FLAG=`syscfg get XDNS_RefacCodeEnable`
                 EDNS_PACKET_SIZE=$(syscfg get edns_packet_size)
                 EDNS_PACKET_SIZE=${EDNS_PACKET_SIZE:-1232}
+                case "$EDNS_PACKET_SIZE" in
+                    ''|*[!0-9]*) EDNS_PACKET_SIZE=1232 ;;
+                esac
                 if ([ "$MODEL_NUM" = "CGA4131COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [ "$MODEL_NUM" = "CGM601TCOM" ] || [ "$MODEL_NUM" = "SG417DBCT" ]) && [ -n "$SYSCFG_XDNS_FLAG" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ] && [ "$SYSCFG_DNSSEC_FLAG" = "1" ] ; then
                         if [ "$SYSCFG_XDNSREFAC_FLAG" = "1" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ] ; then
                                 $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P $EDNS_PACKET_SIZE -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --proxy-dnssec --cache-size=0 --xdns-refac-code  #--enable-dbus
@@ -143,6 +146,9 @@ dnsmasq_server_start ()
          else
                 EDNS_PACKET_SIZE=$(syscfg get edns_packet_size)
                 EDNS_PACKET_SIZE=${EDNS_PACKET_SIZE:-1232}
+                case "$EDNS_PACKET_SIZE" in
+                    ''|*[!0-9]*) EDNS_PACKET_SIZE=1232 ;;
+                esac
                 $SERVER -P $EDNS_PACKET_SIZE -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
          fi
 
