@@ -60,11 +60,15 @@ SERVICE_NAME="dhcp_server"
 
 #DHCP_CONF=/etc/dnsmasq.conf
 DHCP_CONF=/var/dnsmasq.conf
+DHCP_CONF_WAN=/var/dnsmasq_wan.conf
+DHCP_CONF_LAN=/var/dnsmasq_lan.conf
 RESOLV_CONF=/etc/resolv.conf
 BIN=dnsmasq
 SERVER=${BIN}
 PMON=/etc/utopia/service.d/pmon.sh
 PID_FILE=/var/run/dnsmasq.pid
+WAN_PID_FILE=/var/run/dnsmasq_wan.pid
+LAN_PID_FILE=/var/run/dnsmasq_lan.pid
 PID=$$
 
 LXC_PID_FILE=/run/lxc/dnsmasq.pid
@@ -139,9 +143,33 @@ dnsmasq_server_start ()
                         fi
                 fi
          else
-                $SERVER -P 4096 -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
-         fi
+                SYSCFG_RELAY_ENABLE=`syscfg get dns_relay_enable`
+                if [ "$SYSCFG_RELAY_ENABLE" = "1" ] ; then
+                        ##"SERVICE DHCP : Relay On"
+                        $SERVER -u nobody -P 4096 -C $DHCP_CONF_LAN
+                        $SERVER -u nobody -P 4096 -C $DHCP_CONF_WAN
 
+                        WANPID=`ps -ef | grep dnsmasq_wan | head -n 1| cut -d" " -f1`
+                        if [ -z "$WANPID" ] ; then
+                           WANPID=`ps -ef | grep dnsmasq_wan | head -n 1| cut -d" " -f2`
+                           echo $WANPID > $WAN_PID_FILE
+                        else
+                           echo $WANPID > $WAN_PID_FILE
+                        fi
+
+                        LANPID=`ps -ef | grep dnsmasq_lan | head -n 1| cut -d" " -f1`
+                        if [ -z "$LANPID" ] ; then
+                            LANPID=`ps -ef | grep dnsmasq_lan | head -n 1| cut -d" " -f2`
+                            echo $LANPID > $LAN_PID_FILE
+                        else
+                            echo $LANPID > $LAN_PID_FILE
+                        fi
+                else
+                     ## "SERVICE DHCP : Relay off"
+                     sysevent set dns_proxy_status stopped
+                     $SERVER -u nobody -P 4096 -C $DHCP_CONF  #--enable-dbus
+                fi
+         fi
 }
 
 
@@ -229,7 +257,7 @@ restart_request ()
 
    wait_till_end_state dns
    wait_till_end_state dhcp_server
-
+   DNS_PROXY_STATUS=`sysevent get dns_proxy_status`
    # save a copy of the dnsmasq conf file to help determine whether or not to 
    # kill the server
    DHCP_TMP_CONF="/tmp/dnsmasq.conf.orig"
@@ -247,37 +275,110 @@ restart_request ()
       sanitize_leases_file
    fi
 
+   DHCP_TMP_WAN_CONF="/tmp/dnsmasq_wan.conf.orig"
+   if [ -f $DHCP_CONF_WAN ];then
+           cp -f $DHCP_CONF_WAN $DHCP_TMP_WAN_CONF
+   fi
+
+   DHCP_TMP_LAN_CONF="/tmp/dnsmasq_lan.conf.orig"
+   if [ -f $DHCP_CONF_LAN ];then
+           cp -f $DHCP_CONF_LAN $DHCP_TMP_LAN_CONF
+   fi
+
    # we need to decide whether to completely restart the dns/dhcp_server
    # or whether to just have it reread everything
    # SIGHUP is reread (except for dnsmasq.conf)
    RESTART=0
-   if ! cmp -s $DHCP_CONF $DHCP_TMP_CONF ; then
-      RESTART=1
-   else
-      CURRENT_PID=`cat $PID_FILE 2>/dev/null`
-      if [ -z "$CURRENT_PID" ] ; then
-         RESTART=1
-      else
-         RUNNING_PIDS=`pidof dnsmasq`
-         if [ -z "$RUNNING_PIDS" ] ; then
-            RESTART=1
-         else
-            FOO=`echo $RUNNING_PIDS | grep $CURRENT_PID`
-            if [ -z "$FOO" ] ; then
+   FOO=""
+   if [ "started" = "$DNS_PROXY_STATUS" ] ; then
+       ##Relay on mode
+       FOO1=""
+       if [ -f $DHCP_CONF_WAN ] && [ -f $DHCP_TMP_WAN_CONF ];then
+           FOO=`diff $DHCP_CONF_WAN $DHCP_TMP_WAN_CONF`
+       fi
+
+       if [ -f $DHCP_CONF_LAN ] && [ -f $DHCP_TMP_LAN_CONF ];then
+           FOO1=`diff $DHCP_CONF_LAN $DHCP_TMP_LAN_CONF`
+       fi
+
+       if [ -n "$FOO" ] || [ -n "$FOO1"]; then
+          RESTART=1
+       fi
+
+       LAN_CONF_PID=""
+       WAN_CONF_PID=""
+       if [ -f $LAN_PID_FILE ];then
+           LAN_CONF_PID=`cat $LAN_PID_FILE`
+       fi
+
+       if [ -f $WAN_PID_FILE ];then
+           WAN_CONF_PID=`cat $WAN_PID_FILE`
+       fi
+
+       if [ -z "$LAN_PID_FILE" ]  || [ -z "$WAN_PID_FILE" ] ; then
+           RESTART=1
+       else
+           RUNNING_PIDS=`pidof dnsmasq`
+           if [ -z "$RUNNING_PIDS" ] ; then
                RESTART=1
-            else
-               # Intel Proposed RDKB Generic Bug Fix from XB6 SDK
-               # Check for the case where dnsmasq is running without config file
-               FOO=`cat /proc/${CURRENT_PID}/cmdline | grep "$DHCP_CONF"`
-               if [ -z "$FOO" ] ; then
-                  RESTART=1
+           else
+               FOO=`echo $RUNNING_PIDS | grep $LAN_CONF_PID`
+               FOO1=`echo $RUNNING_PIDS | grep $WAN_CONF_PID`
+               if [ -z "$FOO" ] || [ -z "$FOO1" ] ; then
+                   RESTART=1
                fi
+
+               #Check for the case where dnsmasq is running without config file
+               FOO=`cat /proc/${LAN_CONF_PID}/cmdline | grep "$DHCP_LAN_CONF"`
+               FOO1=`cat /proc/${WAN_CONF_PID}/cmdline | grep "$DHCP_WAN_CONF"`
+               if [ -z "$FOO" ] || [ -z "$FOO1" ]; then
+                   RESTART=1
+               fi
+
             fi
-         fi 
-      fi
+       fi
+   else
+       ##Relay off - Default mode
+        if [ -f $DHCP_CONF ] && [ -f $DHCP_TMP_CONF ];then
+           FOO=`diff $DHCP_CONF $DHCP_TMP_CONF`
+        fi
+
+        if [ -n "$FOO" ] ; then
+           RESTART=1
+        fi
+
+        CURRENT_PID=""
+        if [ -f $PID_FILE ];then
+            CURRENT_PID=`cat $PID_FILE`
+        fi
+
+        if [ -z "$CURRENT_PID" ] ; then
+            RESTART=1
+        else
+            CURRENT_PIDS=`pidof dnsmasq`
+            if [ -z "$CURRENT_PIDS" ] ; then
+                RESTART=1
+            else
+                RUNNING_PIDS=`pidof dnsmasq`
+                FOO=`echo $RUNNING_PIDS | grep $CURRENT_PID`
+                if [ -z "$FOO" ] ; then
+                    RESTART=1
+                fi
+
+                #Intel Proposed RDKB Generic Bug Fix from XB6 SDK
+                #Check for the case where dnsmasq is running without config file
+                FOO=`cat /proc/${CURRENT_PID}/cmdline | grep "$DHCP_CONF"`
+                if [ -z "$FOO" ] ; then
+                       RESTART=1
+                fi
+            fi
+
+        fi
    fi
 
    rm -f $DHCP_TMP_CONF
+   rm -f $DHCP_TMP_WAN_CONF
+   rm -f $DHCP_TMP_LAN_CONF
 
    killall -HUP `basename $SERVER`
    if [ "0" = "$RESTART" ] ; then
@@ -285,7 +386,12 @@ restart_request ()
    fi
 
    killall `basename $SERVER`
-   rm -f $PID_FILE
+   if [ "started" = "$DNS_PROXY_STATUS" ] ; then
+       rm -f $WAN_PID_FILE
+       rm -f $LAN_PID_FILE
+   else
+       rm -f $PID_FILE
+   fi
 
    if [ "$CONTAINER_SUPPORT" = "1" ]; then
         dnsserver_start_lxc
@@ -432,6 +538,7 @@ reset_eth_usb_ports ()
 #-----------------------------------------------------------------
 dhcp_server_start ()
 {
+   DNS_PROXY_STATUS=`sysevent get dns_proxy_status`
    if [ "0" = "$SYSCFG_dhcp_server_enabled" ] ; then
       #when disable dhcp server in gui, we need remove the corresponding process in backend, or the dhcp server still work.
       dhcp_server_stop
@@ -486,6 +593,17 @@ dhcp_server_start ()
    if [ -f $DHCP_CONF ];then
    	cp -f $DHCP_CONF $DHCP_TMP_CONF
    fi
+
+   DHCP_TMP_WAN_CONF="/tmp/dnsmasq_wan.conf.orig"
+   if [ -f $DHCP_CONF_WAN ];then
+        cp -f $DHCP_CONF_WAN $DHCP_TMP_WAN_CONF
+   fi
+
+   DHCP_TMP_LAN_CONF="/tmp/dnsmasq_lan.conf.orig"
+   if [ -f $DHCP_CONF_LAN ];then
+        cp -f $DHCP_CONF_LAN $DHCP_TMP_LAN_CONF
+   fi
+
    # set hostname and /etc/hosts cause we are the dns forwarder
    prepare_hostname
    # also prepare dhcp conf cause we are the dhcp server too
@@ -493,37 +611,105 @@ dhcp_server_start ()
    # remove any extraneous leases
    sanitize_leases_file
 
+   #prepare dns proxy lan conf file
+   prepare_dns_proxy_conf
+
    # we need to decide whether to completely restart the dns/dhcp_server
    # or whether to just have it reread everything
    # SIGHUP is reread (except for dnsmasq.conf)
    RESTART=0
-   if ! cmp -s $DHCP_CONF $DHCP_TMP_CONF ; then
-      RESTART=1
-   else
-      CURRENT_PID=`cat $PID_FILE 2>/dev/null`
-      if [ -z "$CURRENT_PID" ] ; then
-         RESTART=1
-      else
-         RUNNING_PIDS=`pidof dnsmasq`
-         if [ -z "$RUNNING_PIDS" ] ; then
-            RESTART=1
-         else
-            FOO=`echo $RUNNING_PIDS | grep $CURRENT_PID`
-            if [ -z "$FOO" ] ; then
+   FOO=""
+   if [ "started" = "$DNS_PROXY_STATUS" ] ; then
+       ##Relay on mode
+       FOO1=""
+       if [ -f $DHCP_CONF_WAN ] && [ -f $DHCP_TMP_WAN_CONF ];then
+           FOO=`diff $DHCP_CONF_WAN $DHCP_TMP_WAN_CONF`
+       fi
+
+       if [ -f $DHCP_CONF_LAN ] && [ -f $DHCP_TMP_LAN_CONF ];then
+           FOO1=`diff $DHCP_CONF_LAN $DHCP_TMP_LAN_CONF`
+       fi
+
+       if [ -n "$FOO" ] || [ -n "$FOO1" ]; then
+          RESTART=1
+       fi
+
+       LAN_CONF_PID=""
+       WAN_CONF_PID=""
+       if [ -f $LAN_PID_FILE ];then
+           LAN_CONF_PID=`cat $LAN_PID_FILE`
+       fi
+
+       if [ -f $WAN_PID_FILE ];then
+           WAN_CONF_PID=`cat $WAN_PID_FILE`
+       fi
+
+       if [ -z "$LAN_PID_FILE" ]  || [ -z "$WAN_PID_FILE" ] ; then
+           RESTART=1
+       else
+           RUNNING_PIDS=`pidof dnsmasq`
+           if [ -z "$RUNNING_PIDS" ] ; then
                RESTART=1
-            else
-               # Intel Proposed RDKB Generic Bug Fix from XB6 SDK
-               # Check for the case where dnsmasq is running without config file
+           else
+               FOO=`echo $RUNNING_PIDS | grep $LAN_CONF_PID`
+               FOO1=`echo $RUNNING_PIDS | grep $WAN_CONF_PID`
+               if [ -z "$FOO" ] || [ -z "$FOO1" ] ; then
+                   RESTART=1
+               fi
+
+               #Check for the case where dnsmasq is running without config file
+               FOO=`cat /proc/${LAN_CONF_PID}/cmdline | grep "$DHCP_CONF_LAN"`
+               FOO1=`cat /proc/${WAN_CONF_PID}/cmdline | grep "$DHCP_CONF_WAN"`
+               if [ -z "$FOO" ] || [ -z "$FOO1" ]; then
+                   RESTART=1
+               fi
+
+           fi
+       fi
+   else
+         ##Relay off or default mode
+       if [ -f $DHCP_CONF ] && [ -f $DHCP_TMP_CONF ];then
+           FOO=`diff $DHCP_CONF $DHCP_TMP_CONF`
+       fi
+
+       if [ -n "$FOO" ] ; then
+          RESTART=1
+       fi
+
+       CURRENT_PID=""
+       if [ -f $PID_FILE ];then
+           CURRENT_PID=`cat $PID_FILE`
+       fi
+
+       if [ -f $PID_FILE ];then
+           CURRENT_PID=`cat $PID_FILE`
+       fi
+
+       if [ -z "$CURRENT_PID" ] ; then
+           RESTART=1
+       else
+           RUNNING_PIDS=`pidof dnsmasq`
+           if [ -z "$RUNNING_PIDS" ] ; then
+               RESTART=1
+           else
+               FOO=`echo $RUNNING_PIDS | grep $CURRENT_PID`
+               if [ -z "$FOO" ] ; then
+                   RESTART=1
+               fi
+
+               #Intel Proposed RDKB Generic Bug Fix from XB6 SDK
+               #Check for the case where dnsmasq is running without config file
                FOO=`cat /proc/${CURRENT_PID}/cmdline | grep "$DHCP_CONF"`
                if [ -z "$FOO" ] ; then
-                  RESTART=1
+                   RESTART=1
                fi
             fi
-         fi 
-      fi
+        fi
    fi
 
    rm -f $DHCP_TMP_CONF
+   rm -f $DHCP_TMP_WAN_CONF
+   rm -f $DHCP_TMP_LAN_CONF
 
    killall -HUP `basename $SERVER`
    if [ "0" = "$RESTART" ] ; then
@@ -541,8 +727,13 @@ dhcp_server_start ()
 
    sysevent set dns-status stopped
    killall `basename $SERVER`
-   rm -f $PID_FILE
-   
+   if [ "started" = "$DNS_PROXY_STATUS" ] ; then
+       rm -f $WAN_PID_FILE
+       rm -f $LAN_PID_FILE
+   else
+       rm -f $PID_FILE
+   fi
+
    #Send SIGKILL to dnsmasq process if its not killed properly with SIGTERM
    if [ ! -z `pidof dnsmasq` ] ; then
          echo_t "SERVICE DHCP : dnsmasq process killed with SIGKILL "
@@ -673,7 +864,15 @@ dhcp_server_start ()
        echo_t "Xfinityhome service is not UP yet"
    fi
        	
-   $PMON setproc dhcp_server $BIN $PID_FILE "/etc/utopia/service.d/service_dhcp_server.sh dhcp_server-restart" 
+   if [ "started" = "$DNS_PROXY_STATUS" ] ; then
+       $PMON register dhcp_server_wan
+       $PMON register dhcp_server_lan
+       $PMON setproc dhcp_server_wan $BIN $WAN_PID_FILE "/etc/utopia/service.d/service_dhcp_server.sh dhcp_server_wan-restart"
+       $PMON setproc dhcp_server_lan $BIN $LAN_PID_FILE "/etc/utopia/service.d/service_dhcp_server.sh dhcp_server_lan-restart"
+   else
+       $PMON setproc dhcp_server $BIN $PID_FILE "/etc/utopia/service.d/service_dhcp_server.sh dhcp_server-restart"
+   fi
+
    sysevent set dns-status started
    sysevent set dhcp_server-status started
    sysevent set dhcp_server-progress completed
@@ -723,12 +922,23 @@ dhcp_server_stop ()
    fi
    
    #dns is always running
+   prepare_dns_proxy_conf
    prepare_hostname
    prepare_dhcp_conf $SYSCFG_lan_ipaddr $SYSCFG_lan_netmask dns_only
-   $PMON unsetproc dhcp_server
    sysevent set dns-status stopped
+   DNS_PROXY_STATUS=`sysevent get dns_proxy_status`
+   if [ "started" = "$DNS_PROXY_STATUS" ] ; then
+       $PMON unregister dhcp_server_wan
+       $PMON unregister dhcp_server_lan
+       $PMON unsetproc dhcp_server_wan
+       $PMON unsetproc dhcp_server_lan
+       rm -f $LAN_PID_FILE
+       rm -f $WAN_PID_FILE
+   else
+       $PMON unsetproc dhcp_server
+       rm -f $PID_FILE
+   fi
    killall `basename $SERVER`
-   rm -f $PID_FILE
    sysevent set dhcp_server-status stopped
 
    if [ "$CONTAINER_SUPPORT" = "1" ]; then
@@ -861,6 +1071,32 @@ dns_start ()
    $PMON setproc dhcp_server $BIN $PID_FILE "/etc/utopia/service.d/service_dhcp_server.sh dns-restart"
 }
 
+dhcp_server_wan_restart ()
+{
+     echo_t "dns proxy wan restart called by pmon"
+     $SERVER -u nobody -P 4096 -C $DHCP_CONF_WAN
+     WANPID=`ps -ef | grep dnsmasq_wan | head -n 1| cut -d" " -f1`
+     if [ -z "$WANPID" ] ; then
+        WANPID=`ps -ef | grep dnsmasq_wan | head -n 1| cut -d" " -f2`
+        echo $WANPID > $WAN_PID_FILE
+     else
+        echo $WANPID > $WAN_PID_FILE
+     fi
+}
+
+dhcp_server_lan_restart ()
+{
+     echo_t "dns proxy lan restart called by pmon"
+     $SERVER -u nobody -P 4096 -C $DHCP_CONF_LAN
+     LANPID=`ps -ef | grep dnsmasq_lan | head -n 1| cut -d" " -f1`
+     if [ -z "$LANPID" ] ; then
+        LANPID=`ps -ef | grep dnsmasq_lan | head -n 1| cut -d" " -f2`
+        echo $LANPID > $LAN_PID_FILE
+     else
+        echo $LANPID > $LAN_PID_FILE
+     fi
+}
+
 #-----------------------------------------------------------------------
 #-----------------------------------------------------------------------
 
@@ -905,6 +1141,12 @@ case "$1" in
       UpdateDhcpConfChangeBasedOnEvent
       dhcp_server_start $2
    fi
+      ;;
+   ${SERVICE_NAME}_wan-restart)
+      dhcp_server_wan_restart
+      ;;
+   ${SERVICE_NAME}_lan-restart)
+      dhcp_server_lan_restart
       ;;
    lan-status)
 	  echo_t "SERVICE DHCP : Got lan_status"
