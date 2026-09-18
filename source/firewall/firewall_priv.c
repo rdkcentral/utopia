@@ -68,6 +68,9 @@ int do_parcon_mgmt_lan2wan_pc_site_appendrule(FILE *fp)
 void do_parcon_mgmt_lan2wan_pc_site_insertrule(FILE *fp, int index, char *nstdPort)
 {
 #if !defined(_PLATFORM_RASPBERRYPI_)
+    if (NULL == fp || index < 1 || 0 != validate_port(nstdPort))
+        return;
+
 	fprintf(fp, "-I lan2wan_pc_site %d -p tcp -m tcp --dport %s -m state --state ESTABLISHED -m "
 			"connbytes --connbytes 0:5 --connbytes-dir original --connbytes-mode packets -j GWMETA "
 			"--dis-pp\n", index, nstdPort);
