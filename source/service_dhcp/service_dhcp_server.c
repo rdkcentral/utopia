@@ -262,6 +262,7 @@ int dnsmasq_server_start()
     }
     if ('\0' == l_cEdnsPacketSize[0] ||
         strtoul(l_cEdnsPacketSize, NULL, 10) < 512 || strtoul(l_cEdnsPacketSize, NULL, 10) > 65535)
+    {
         if ((safec_rc = strcpy_s(l_cEdnsPacketSize, sizeof(l_cEdnsPacketSize), "1232")) < EOK)
         {
             ERR_CHK(safec_rc);
