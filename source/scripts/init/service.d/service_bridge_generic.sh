@@ -1,7 +1,4 @@
 #!/bin/sh
-if [ -f /etc/utopia/service.d/log_capture_path.sh ]; then
-    . /etc/utopia/service.d/log_capture_path.sh
-fi
 
 ##################################################################################
 # If not stated otherwise in this file or this component's Licenses.txt file the

@@ -19,16 +19,14 @@
 # limitations under the License.
 ################################################################################
 
+#source /etc/utopia/service.d/log_env_var.sh
+LOG_PATH="/rdklogs/logs/"
+CONSOLEFILE="${LOG_PATH}Consolelog.txt.0"
 source /etc/log_timestamp.sh
 
-if [ "${SCRIPT_TRACE_ACTIVE}" != "1" ]; then
-    SCRIPT_TRACE_ACTIVE=1
-    export SCRIPT_TRACE_ACTIVE
-    SCRIPT_TRACE_LOG="/tmp/script_execution_trace.log"
-
-    exec >> "$SCRIPT_TRACE_LOG" 2>&1
-    echo "$(date '+%Y-%m-%d %H:%M:%S') SCRIPT_START pid=$$ script=$0 args=$*"
-    PS4='+ pid=$$ script=$0 line=$LINENO: '
-    set -x
+if [ ! -d "$LOG_PATH" ]; then
+    mkdir $LOG_PATH
 fi
+
+exec 3>&1 4>&2 >>$CONSOLEFILE 2>&1
 
