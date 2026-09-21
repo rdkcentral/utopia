@@ -1643,13 +1643,13 @@ void do_webui_rate_limit (FILE *filter_fp)
     */
    /* Aggregate backstop across all sources still under their individual per-IP limits. The per-family
     * log bucket is intentionally kept extremely sparse to avoid flooding syslog during an attack. */
-   fprintf(filter_fp, "-A webui_limit -m limit --limit 0.5/hour --limit-burst 1 -j LOG --log-prefix \"WebUI Rate Limited: \" --log-level 6\n");
+   fprintf(filter_fp, "-A webui_limit -m limit --limit 1/hour --limit-burst 1 -j LOG --log-prefix \"WebUI Rate Limited: \" --log-level 6\n");
    fprintf(filter_fp, "-A webui_limit -j DROP\n");
 
    /* Mark the source as an offender (starts/refreshes the ban window) then log and drop. The log is intentionally
     * sparse to avoid flooding the logs while still preserving evidence of abuse. */
    fprintf(filter_fp, "-A webui_offend -m recent --name webui_offender --set\n");
-   fprintf(filter_fp, "-A webui_offend -m limit --limit 0.5/hour --limit-burst 1 -j LOG --log-prefix \"WebUI Rate Limited: \" --log-level 6\n");
+   fprintf(filter_fp, "-A webui_offend -m limit --limit 1/hour --limit-burst 1 -j LOG --log-prefix \"WebUI Rate Limited: \" --log-level 6\n");
    fprintf(filter_fp, "-A webui_offend -j DROP\n");
    FIREWALL_DEBUG("Exiting do_webui_rate_limit\n");
 }
