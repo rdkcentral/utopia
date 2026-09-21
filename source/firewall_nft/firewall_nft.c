@@ -1550,7 +1550,7 @@ void do_webui_rate_limit(FILE *filter_fp,const char *version)
     fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } ct state new tcp flags & (fin | syn | rst | ack) == syn limit rate 2/second burst 5 packets add @webui_offender { %s timeout 300s } counter log prefix \"WebUI Rate Limited: \" level info drop\n", version, webui_ports, src_expr);
     fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } ct state new tcp flags & (fin | syn | rst | ack) == syn limit rate 2/second burst 5 packets counter accept\n", version, webui_ports);
 #else
-    fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } ct state new tcp flags & (fin|syn|rst|ack) == syn limit rate 5/second burst 10 packets add @webui_offender { %s timeout 300s } counter log prefix \"WebUI Rate Limited: \" level info drop\n", version, webui_ports, src_expr);
+    fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } ct state new tcp flags & (fin|syn|rst|ack) == syn limit rate over 5/second burst 10 packets add @webui_offender { %s timeout 300s } counter log prefix \"WebUI Rate Limited: \" level info drop\n", version, webui_ports, src_expr);
     fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } ct state new tcp flags & (fin|syn|rst|ack) == syn limit rate 5/second burst 10 packets counter accept\n", version, webui_ports);
 #endif
     fprintf(filter_fp, "add rule %s filter webui_limit limit rate 1/second burst 1 packets counter log prefix \"WebUI Rate Limited: \" level info\n", version);

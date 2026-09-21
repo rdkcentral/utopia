@@ -1622,7 +1622,7 @@ void do_webui_rate_limit (FILE *filter_fp)
    /* Cap concurrent new connections per source IP only for the configured WebUI ports. Counting all TCP
     * connections from the source would let unrelated browsing traffic trigger a WebUI ban.
     */
-   fprintf(filter_fp, "-A webui_limit -p tcp -m tcp -m multiport --dports %s --tcp-flags FIN,SYN,RST,ACK SYN -m connlimit --connlimit-above 10 --connlimit-mask 32 --connlimit-saddr -j webui_offend\n", webui_ports);
+   fprintf(filter_fp, "-A webui_limit -p tcp -m tcp -m multiport --dports %s --tcp-flags FIN,SYN,RST,ACK SYN -m connlimit --connlimit-above 10 --connlimit-saddr -j webui_offend\n", webui_ports);
 
    /* Cap new-connection rate per source IP; excess from a single source is banned, not just dropped */
 #if defined(_HUB4_PRODUCT_REQ_)
