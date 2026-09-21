@@ -348,6 +348,7 @@ NOT_DEF:
 
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <sys/file.h>
 #include <sys/mman.h>
@@ -8222,13 +8223,113 @@ static int do_parcon_device_cloud_mgmt(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
-static int validate_port(char* port_num)
+int validate_port(const char *port_num)
 {
-   int port = atoi(port_num);
-   if ( port <= 0 || port > MAX_PORT )
+   const char *digit;
+   unsigned long port;
+
+   if (NULL == port_num || '\0' == port_num[0])
+      return -1;
+
+   for (digit = port_num; '\0' != *digit; digit++)
+   {
+      if (!isdigit((unsigned char)*digit))
+         return -1;
+   }
+
+   port = strtoul(port_num, NULL, 10);
+   if (port <= 0 || port > MAX_PORT)
       return -1;
 
    return 0;
+}
+
+static int IsValidManagedSiteHost(const char *host)
+{
+   const unsigned char *character;
+   struct in_addr ipv4_address;
+   struct in6_addr ipv6_address_value;
+   size_t label_length = 0;
+   size_t length;
+   int ipv4_literal = 1;
+
+   if (NULL == host || '\0' == host[0])
+      return 0;
+
+   length = strlen(host);
+   if ('[' == host[0])
+   {
+      char ipv6_address[INET6_ADDRSTRLEN];
+
+      if (length < 3 || ']' != host[length - 1] ||
+          length - 2 >= sizeof(ipv6_address))
+      {
+         return 0;
+      }
+
+      memcpy(ipv6_address, host + 1, length - 2);
+      ipv6_address[length - 2] = '\0';
+      return 1 == inet_pton(AF_INET6, ipv6_address, &ipv6_address_value);
+   }
+
+   if (length > 253)
+      return 0;
+
+   for (character = (const unsigned char *)host; '\0' != *character; character++)
+   {
+      if (!isdigit((int)*character) && '.' != *character)
+      {
+         ipv4_literal = 0;
+         break;
+      }
+   }
+   if (ipv4_literal)
+      return 1 == inet_pton(AF_INET, host, &ipv4_address);
+
+   for (character = (const unsigned char *)host; '\0' != *character; character++)
+   {
+      if (!isalnum((int)*character) && '.' != *character && '-' != *character)
+         return 0;
+
+      if ('.' == *character)
+      {
+         if (0 == label_length || '-' == *(character - 1))
+            return 0;
+         label_length = 0;
+      }
+      else if ((0 == label_length && '-' == *character) || ++label_length > 63)
+      {
+         return 0;
+      }
+   }
+
+   return label_length > 0 && '-' != host[length - 1];
+}
+
+static int IsValidInterfaceName(const char *if_name)
+{
+   size_t index;
+   size_t length;
+
+   if (NULL == if_name)
+      return 0;
+
+   length = strlen(if_name);
+   if (0 == length || length >= IFNAMSIZ)
+      return 0;
+
+   for (index = 0; index < length; index++)
+   {
+      if (!isalnum((unsigned char)if_name[index]) &&
+          '.' != if_name[index] && '-' != if_name[index] &&
+          '_' != if_name[index] && '+' != if_name[index] &&
+          ':' != if_name[index])
+      {
+         return 0;
+      }
+   }
+
+   return 1;
 }
 /*
  * add parental control managed service(ports) rules
@@ -8516,13 +8617,30 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 
                 if(pch != NULL)
                 {
+          const char *port_start = urlType == IPv6_URL ? pch + 2 : pch + 1;
+          if (strlen(port_start) >= sizeof(nstdPort))
+          {
+             FIREWALL_DEBUG("Invalid Managed Site port, skipping entry\n");
+             continue;
+          }
+
 		    /* CID 135335 :BUFFER_SIZE_WARNING */
                     strncpy(nstdPort, urlType == IPv6_URL ? pch+2 : pch+1, sizeof(nstdPort)-1);
 		    nstdPort[sizeof(nstdPort)-1] = '\0';
+               if ('\0' == nstdPort[0] || 0 != validate_port(nstdPort))
+               {
+                  FIREWALL_DEBUG("Invalid Managed Site port '%s', skipping entry\n" COMMA nstdPort);
+                  continue;
+               }
                     if(urlType == IPv6_URL)
                         *(pch+1) = '\0';
                     else
                         *pch = '\0';
+               if (!IsValidManagedSiteHost(query + host_name_offset))
+               {
+                  FIREWALL_DEBUG("Invalid Managed Site host '%s', skipping entry\n" COMMA query + host_name_offset);
+                  continue;
+               }
 #if defined (INTEL_PUMA7)
                     //Intel Proposed RDKB Generic Bug Fix from XB6 SDK
                     fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport %s %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto , addrtype , nstdPort, resolve_ip(query + host_name_offset , iptype) , idx);
@@ -8545,11 +8663,16 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                     
 #endif
 #if !defined(_COSA_BCM_MIPS_)
-                    do_parcon_mgmt_lan2wan_pc_site_insertrule(fp, ruleIndex + 1, nstdPort);
+                    do_parcon_mgmt_lan2wan_pc_site_insertrule(fp, ruleIndex, nstdPort);
 #endif
                 }
                 else
                 {
+                  if (!IsValidManagedSiteHost(query + host_name_offset))
+                  {
+                     FIREWALL_DEBUG("Invalid Managed Site host '%s', skipping entry\n" COMMA query + host_name_offset);
+                     continue;
+                  }
 #if defined (INTEL_PUMA7)
 					//Intel Proposed RDKB Generic Bug Fix from XB6 SDK
                     fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport 80 %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto, addrtype, resolve_ip(query + host_name_offset, iptype), idx);
@@ -11844,6 +11967,9 @@ fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"brlan112
 
    if(0==strcmp("true",iot_enabled))
    {
+       struct in_addr iot_ipv4addr;
+       int valid_iot_ipaddr;
+       int valid_iot_ifname;
 	   FIREWALL_DEBUG("IOT_LOG : Adding iptable rules for IOT\n");
 	   memset(iot_ifName, 0, sizeof(iot_ifName));
 	   syscfg_get(NULL, "iot_ifname", iot_ifName, sizeof(iot_ifName));
@@ -11852,6 +11978,14 @@ fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"brlan112
 	   }
 	   memset(iot_primaryAddress, 0, sizeof(iot_primaryAddress));
 	   syscfg_get(NULL, "iot_ipaddr", iot_primaryAddress, sizeof(iot_primaryAddress));
+        valid_iot_ipaddr = (1 == inet_pton(AF_INET, iot_primaryAddress, &iot_ipv4addr));
+        valid_iot_ifname = IsValidInterfaceName(iot_ifName);
+        if (!valid_iot_ipaddr || !valid_iot_ifname)
+        {
+           FIREWALL_DEBUG("IOT_LOG : Invalid IoT address or interface, skipping IPv4 IoT rules\n");
+        }
+        else
+        {
       fprintf(filter_fp,"add rule ip filter INPUT ip daddr %s/24 iifname %s counter accept\n",iot_primaryAddress,iot_ifName);
       
       fprintf(filter_fp,"add rule ip filter INPUT iifname %s pkttype != unicast counter accept\n",iot_ifName);
@@ -11868,6 +12002,7 @@ fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"brlan112
       fprintf(filter_fp, "add rule ip filter FORWARD iifname %s oifname %s counter jump DROP\n", iot_ifName, lan_ifname);
       fprintf(filter_fp, "add rule ip filter FORWARD iifname %s oifname %s counter jump DROP\n", iot_ifName, XHS_IF_NAME);
 #endif
+        }
    }
 
 

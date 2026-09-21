@@ -49,6 +49,7 @@ extern FILE *firewallfp;
 void do_device_based_pp_disabled_appendrule(FILE *fp, const char *ins_num, const char *lan_ifname, const char *query);
 void do_device_based_pp_disabled_ip_appendrule(FILE *fp, const char *ins_num, const char *ipAddr);
 int do_parcon_mgmt_lan2wan_pc_site_appendrule(FILE *fp);
+int validate_port(const char *port_num);
 void do_parcon_mgmt_lan2wan_pc_site_insertrule(FILE *fp, int index, char *nstdPort);
 void firewall_log( char* fmt, ...);
 void update_rabid_features_status();

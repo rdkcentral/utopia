@@ -81,6 +81,8 @@ void do_device_based_pp_disabled_ip_appendrule(FILE *fp, const char *ins_num, co
 */
 int do_parcon_mgmt_lan2wan_pc_site_appendrule(FILE *fp);
 
+int validate_port(const char *port_num);
+
 /**
 * @brief Insert parental control management LAN to WAN PC site rule at specified index.
 *
