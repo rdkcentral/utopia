@@ -1580,7 +1580,10 @@ void do_webui_attack_filter(FILE *filter_fp)
 }
 /*
  *  Procedure     : do_webui_rate_limit
- *  Purpose       : Create chain to ratelimit remote management GUI packets over erouter interface
+ *  Purpose       : Create chain to ratelimit remote management GUI packets over erouter interface.
+ *                  Enforces a per-source-IP concurrent connection cap and new-connection rate limit
+ *                  (webui_offend bans repeat offenders for 5 minutes via the recent module), in
+ *                  addition to the pre-existing aggregate rate limit across all sources.
  *  Parameters    :
  *    fp             : An open file to write webui_ratelimit Rule
  * Return Values  :
@@ -1590,15 +1593,34 @@ void do_webui_rate_limit (FILE *filter_fp)
 {
    FIREWALL_DEBUG("Entering do_webui_rate_limit\n");
    fprintf(filter_fp, ":%s - [0:0]\n", "webui_limit");
+   fprintf(filter_fp, ":%s - [0:0]\n", "webui_offend");
    fprintf(filter_fp, "-I webui_limit -m state --state ESTABLISHED,RELATED -j ACCEPT\n");
+
+   /* Sources already flagged as offenders stay blocked for the ban window, even if they pause and resume */
+   fprintf(filter_fp, "-A webui_limit -m recent --name webui_offender --rcheck --seconds 300 -j DROP\n");
+
+   /* Cap concurrent new connections per source IP so one client can't exhaust the aggregate budget below */
+   fprintf(filter_fp, "-A webui_limit -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m connlimit --connlimit-above 10 -j webui_offend\n");
+
+   /* Cap new-connection rate per source IP; excess from a single source is banned, not just dropped */
 #if defined(_HUB4_PRODUCT_REQ_)
+   fprintf(filter_fp, "-A webui_limit -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m hashlimit --hashlimit-name webui_srcip --hashlimit-mode srcip --hashlimit-above 4/sec --hashlimit-burst 10 --hashlimit-htable-expire 60000 -j webui_offend\n");
    fprintf(filter_fp, "-A webui_limit -p tcp -m tcp  --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 4/sec --limit-burst 10 -j ACCEPT\n");
 #else
+   fprintf(filter_fp, "-A webui_limit -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m hashlimit --hashlimit-name webui_srcip --hashlimit-mode srcip --hashlimit-above 10/sec --hashlimit-burst 20 --hashlimit-htable-expire 60000 -j webui_offend\n");
    fprintf(filter_fp, "-A webui_limit -p tcp -m tcp  --tcp-flags FIN,SYN,RST,ACK SYN -m limit --limit 10/sec --limit-burst 20 -j ACCEPT\n");
 #endif
    /* webui_limit is emitted in both IPv4 and IPv6 rulesets; split device-wide budget across families */
-   fprintf(filter_fp, "-A webui_limit -m limit --limit 3/hour --limit-burst 1 -j LOG --log-prefix \"WebUI Rate Limited: \" --log-level 6\n");
-   fprintf(filter_fp, "-A webui_limit -j DROP\n"); 
+   /* Aggregate backstop across all sources still under their individual per-IP limits. Keep the log rate
+    * intentionally extremely low so an active attack cannot flood the syslog with repeated rate-limit hits. */
+   fprintf(filter_fp, "-A webui_limit -m limit --limit 1/hour --limit-burst 1 -j LOG --log-prefix \"WebUI Rate Limited: \" --log-level 6\n");
+   fprintf(filter_fp, "-A webui_limit -j DROP\n");
+
+   /* Mark the source as an offender (starts/refreshes the ban window) then log and drop. The log is intentionally
+    * sparse to avoid flooding the logs while still preserving evidence of abuse. */
+   fprintf(filter_fp, "-A webui_offend -m recent --name webui_offender --set\n");
+   fprintf(filter_fp, "-A webui_offend -m limit --limit 1/hour --limit-burst 1 -j LOG --log-prefix \"WebUI Rate Limited: \" --log-level 6\n");
+   fprintf(filter_fp, "-A webui_offend -j DROP\n");
    FIREWALL_DEBUG("Exiting do_webui_rate_limit\n");
 }
 
