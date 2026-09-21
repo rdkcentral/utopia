@@ -1545,6 +1545,7 @@ void do_webui_rate_limit(FILE *filter_fp,const char *version)
     fprintf(filter_fp, "add chain %s filter %s\n", version, "webui_limit");
     fprintf(filter_fp, "add set %s filter webui_offender { type %s; flags timeout; timeout 300s; }\n", version, set_type);
     fprintf(filter_fp, "add rule %s filter webui_limit ct state related,established counter accept\n", version);
+    fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { 80,443 } counter accept\n", version);
     fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } %s @webui_offender counter drop\n", version, webui_ports, src_expr);
 #if defined(_HUB4_PRODUCT_REQ_)
     fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } ct state new tcp flags & (fin | syn | rst | ack) == syn limit rate 2/second burst 5 packets add @webui_offender { %s timeout 300s } counter log prefix \"WebUI Rate Limited: \" level info drop\n", version, webui_ports, src_expr);
@@ -6264,7 +6265,7 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
 int lan_access_set_proto(FILE *fp,const char *port, const char *interface)
 {
 	if ((0 == strcmp("80", port)) || (0 == strcmp("443", port))) {
-	   fprintf(fp, "add rule ip filter INPUT iifname \"%s \"tcp dport %s jump webui_limit\n", interface, port);
+      fprintf(fp, "add rule ip filter INPUT iifname \"%s\" tcp dport %s jump webui_limit\n", interface, port);
 	}
 	else
 	{
