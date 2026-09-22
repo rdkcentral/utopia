@@ -1,0 +1,70 @@
+diff --git a/source/firewall/firewall.c b/source/firewall/firewall.c
+index 5270bc0..367c5fc 100644
+--- a/source/firewall/firewall.c
++++ b/source/firewall/firewall.c
+@@ -5952,15 +5952,6 @@ static int do_lan2self_by_wanip(FILE *filter_fp, int family)
+    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.101.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
+    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.101.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
+    //<<
+-#if defined(_WNXL11BWL_PRODUCT_REQ_) 
+-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.70.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
+-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.71.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
+-#else
+-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.0.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
+-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.1.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
+-#endif
+-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 172.16.12.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
+-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.106.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
+    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.251.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
+ 
+    if (rc == 0 && httpport[0] != '\0' && atoi(httpport) != 80 && (atoi(httpport) >= 0 && atoi(httpport) <= 65535 ))
+@@ -5976,6 +5967,16 @@ static int do_lan2self_by_wanip(FILE *filter_fp, int family)
+    FIREWALL_DEBUG("Exiting do_lan2self_by_wanip\n");
+    return 0;
+ }
++
++static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
++{
++   fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d 169.254.0.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
++   fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d 169.254.1.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
++   fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d 172.16.12.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
++   fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d 192.168.106.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
++
++   return 0;
++}
+ #ifdef CISCO_CONFIG_TRUE_STATIC_IP
+ /*
+  *  Procedure     : do_lan2wan_staticip
+@@ -6076,6 +6077,8 @@ static int do_lan2self(FILE *fp)
+ #endif //FEATURE_MAPT
+        do_lan2self_by_wanip(fp, AF_INET);
+ 
++   do_lan2self_isolatedInterfaces(fp);
++
+    do_lan2self_attack(fp);
+    do_lan2self_mgmt(fp);
+         // FIREWALL_DEBUG("Exiting do_lan2self\n");     
+@@ -12544,6 +12547,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
+ #endif
+    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self");
+    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_by_wanip");
++   fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_isolatedInterfaces");
+    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_mgmt");
+    fprintf(filter_fp, ":%s - [0:0]\n", "host_detect");
+    fprintf(filter_fp, ":%s - [0:0]\n", "lanattack");
+@@ -13199,6 +13203,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
+ #else
+    fprintf(filter_fp, "-A lan2self ! -d %s -j lan2self_by_wanip\n", lan_ipaddr);
+ #endif
++   fprintf(filter_fp, "-A lan2self -j lan2self_isolatedInterfaces\n");
+    fprintf(filter_fp, "-A lan2self -j lan2self_mgmt\n");
+    fprintf(filter_fp, "-A lan2self -j lanattack\n");
+    fprintf(filter_fp, "-A lan2self -j host_detect\n");
+@@ -14298,6 +14303,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
+       {
+          fprintf(filter_fp, ":%s - [0:0]\n", "lan2self");
+          fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_by_wanip");
++         fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_isolatedInterfaces");
+          fprintf(filter_fp, ":%s - [0:0]\n", "lanattack");
+          fprintf(filter_fp, ":%s - [0:0]\n", "xlog_drop_lanattack");
+          do_lan2self(filter_fp);

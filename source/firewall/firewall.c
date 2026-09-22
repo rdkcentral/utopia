@@ -344,6 +344,7 @@ NOT_DEF:
 #include <syslog.h>
 #include <ctype.h>
 #include <ulog/ulog.h>
+#include <ifaddrs.h>
 
 
 #include <netdb.h>
@@ -359,15 +360,11 @@ NOT_DEF:
 #include "ccsp_memory.h"
 
 
-#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/if.h>
-
-#endif
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <rdkb_feature_mode_gate.h>
@@ -5952,15 +5949,6 @@ static int do_lan2self_by_wanip(FILE *filter_fp, int family)
    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.101.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.101.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
    //<<
-#if defined(_WNXL11BWL_PRODUCT_REQ_) 
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.70.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.71.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-#else
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.0.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.1.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-#endif
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 172.16.12.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.106.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.251.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
 
    if (rc == 0 && httpport[0] != '\0' && atoi(httpport) != 80 && (atoi(httpport) >= 0 && atoi(httpport) <= 65535 ))
@@ -5974,6 +5962,63 @@ static int do_lan2self_by_wanip(FILE *filter_fp, int family)
    fprintf(filter_fp, "-A lan2self_by_wanip -p udp --dport 161 -j xlog_drop_lan2self\n"); //SNMP
    fprintf(filter_fp, "-A lan2self_by_wanip -p icmp --icmp-type 8 -j xlog_drop_lan2self\n"); // ICMP PING request
    FIREWALL_DEBUG("Exiting do_lan2self_by_wanip\n");
+   return 0;
+}
+
+static int get_interface_ipv4(const char *interface_name, char *ipaddr, size_t ipaddr_size)
+{
+   struct ifaddrs *interfaces = NULL;
+   struct ifaddrs *interface_entry;
+   struct sockaddr_in *address;
+
+   if (interface_name == NULL || ipaddr == NULL || ipaddr_size == 0)
+      return -1;
+
+   if (getifaddrs(&interfaces) != 0)
+      return -1;
+
+   for (interface_entry = interfaces;
+        interface_entry != NULL;
+        interface_entry = interface_entry->ifa_next)
+   {
+      if (interface_entry->ifa_addr == NULL ||
+          strcmp(interface_entry->ifa_name, interface_name) != 0 ||
+          interface_entry->ifa_addr->sa_family != AF_INET)
+         continue;
+
+      address = (struct sockaddr_in *)interface_entry->ifa_addr;
+      if (inet_ntop(AF_INET, &address->sin_addr, ipaddr, ipaddr_size) != NULL)
+      {
+         freeifaddrs(interfaces);
+         return 0;
+      }
+   }
+
+   freeifaddrs(interfaces);
+   return -1;
+}
+
+static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
+{
+   static const char *isolated_interfaces[] = {
+      "l2sd0.500", "brlan112", "brlan113", XHS_IF_NAME,
+      LNF_IF_NAME, "l2sd0.4090", ETH_MESH_BRIDGE
+   };
+   char interface_ip[INET_ADDRSTRLEN];
+   unsigned int interface_index;
+
+   for (interface_index = 0;
+        interface_index < sizeof(isolated_interfaces) / sizeof(isolated_interfaces[0]);
+        interface_index++)
+   {
+      if (get_interface_ipv4(isolated_interfaces[interface_index],
+                             interface_ip, sizeof(interface_ip)) == 0)
+      {
+         fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n",
+                 lan_ipaddr, interface_ip);
+      }
+   }
+
    return 0;
 }
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP
@@ -6075,6 +6120,8 @@ static int do_lan2self(FILE *fp)
    if(isWanReady)
 #endif //FEATURE_MAPT
        do_lan2self_by_wanip(fp, AF_INET);
+
+   do_lan2self_isolatedInterfaces(fp);
 
    do_lan2self_attack(fp);
    do_lan2self_mgmt(fp);
@@ -12544,6 +12591,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self");
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_by_wanip");
+   fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_isolatedInterfaces");
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_mgmt");
    fprintf(filter_fp, ":%s - [0:0]\n", "host_detect");
    fprintf(filter_fp, ":%s - [0:0]\n", "lanattack");
@@ -13199,6 +13247,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #else
    fprintf(filter_fp, "-A lan2self ! -d %s -j lan2self_by_wanip\n", lan_ipaddr);
 #endif
+   fprintf(filter_fp, "-A lan2self -j lan2self_isolatedInterfaces\n");
    fprintf(filter_fp, "-A lan2self -j lan2self_mgmt\n");
    fprintf(filter_fp, "-A lan2self -j lanattack\n");
    fprintf(filter_fp, "-A lan2self -j host_detect\n");
@@ -14298,6 +14347,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
       {
          fprintf(filter_fp, ":%s - [0:0]\n", "lan2self");
          fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_by_wanip");
+         fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_isolatedInterfaces");
          fprintf(filter_fp, ":%s - [0:0]\n", "lanattack");
          fprintf(filter_fp, ":%s - [0:0]\n", "xlog_drop_lanattack");
          do_lan2self(filter_fp);
