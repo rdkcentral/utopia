@@ -38,6 +38,8 @@
 # ENTRY
 #------------------------------------------------------------------
 
+echo "$(date '+%Y-%m-%d %H:%M:%S') HANDLE_GRE_ENTRY pid=$$ ppid=$PPID args=$*" >> /tmp/pandm_stderr.log
+
 TYPE=Gre
 
 GRE_IFNAME="gretap0"
@@ -1150,7 +1152,9 @@ case "$1" in
     
     #args: hotspot gre instance
     hotspot-update_bridges)
+    echo "$(date '+%Y-%m-%d %H:%M:%S') HOTSPOT_UPDATE_BRIDGES_ENTRY pid=$$ ppid=$PPID instance=$2" >> /tmp/pandm_stderr.log
 		eval `psmcli get -e BRIDGE_INST_1 $HS_PSM_BASE.${2}.interface.1.$GRE_PSM_BRIDGES BRIDGE_INST_2 $HS_PSM_BASE.${2}.interface.2.$GRE_PSM_BRIDGES BRIDGE_INST_3 $HS_PSM_BASE.${2}.interface.3.$GRE_PSM_BRIDGES BRIDGE_INST_4 $HS_PSM_BASE.${2}.interface.4.$GRE_PSM_BRIDGES BRIDGE_INST_5 $HS_PSM_BASE.${2}.interface.5.$GRE_PSM_BRIDGES WECB_BRIDGES dmsb.wecb.hhs_extra_bridges NAME $GRE_PSM_BASE.$2.$GRE_PSM_NAME`
+        echo "$(date '+%Y-%m-%d %H:%M:%S') HOTSPOT_PSM_VALUES pid=$$ bridge1=$BRIDGE_INST_1 bridge2=$BRIDGE_INST_2 bridge3=$BRIDGE_INST_3 bridge4=$BRIDGE_INST_4 bridge5=$BRIDGE_INST_5 wecb=$WECB_BRIDGES name=$NAME" >> /tmp/pandm_stderr.log
         BRIDGE_INSTS="$BRIDGE_INST_1,$BRIDGE_INST_2,$BRIDGE_INST_3,$BRIDGE_INST_4,$BRIDGE_INST_5,$BRIDGE_INST_6"
         start=""
         brinst=""
@@ -1161,8 +1165,10 @@ case "$1" in
         for i in $BRIDGE_INSTS; do
             brinst=`echo $i |cut -d . -f 4`
             status=`sysevent get multinet_$brinst-status`
+            echo "$(date '+%Y-%m-%d %H:%M:%S') HOTSPOT_BRIDGE_DECISION pid=$$ bridge=$brinst status=$status" >> /tmp/pandm_stderr.log
             if [ x = x$status -o x$STOPPED_STATUS = x$status ]; then
                 sysevent set multinet-start $brinst
+                echo "$(date '+%Y-%m-%d %H:%M:%S') HOTSPOT_MULTINET_START pid=$$ bridge=$brinst" >> /tmp/pandm_stderr.log
                 start=1
             fi
         done
@@ -1180,10 +1186,14 @@ case "$1" in
         IFS="$OLD_IFS"
         
         bInst_to_bNames "$BRIDGE_INSTS" "$WECB_BRIDGES"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') HOTSPOT_BEFORE_UPDATE_BRIDGE_CONFIG pid=$$ name=$NAME" >> /tmp/pandm_stderr.log
         update_bridge_config $NAME
+        echo "$(date '+%Y-%m-%d %H:%M:%S') HOTSPOT_AFTER_UPDATE_BRIDGE_CONFIG pid=$$ name=$NAME" >> /tmp/pandm_stderr.log
         curr_tunnel=`sysevent get gre_current_endpoint`
         if [ x != x$curr_tunnel ]; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') HOTSPOT_BEFORE_UPDATE_FRAGMENT pid=$$ instance=$2 tunnel=$curr_tunnel" >> /tmp/pandm_stderr.log
             update_bridge_frag_config $2 $curr_tunnel
+            echo "$(date '+%Y-%m-%d %H:%M:%S') HOTSPOT_AFTER_UPDATE_FRAGMENT pid=$$ instance=$2 tunnel=$curr_tunnel" >> /tmp/pandm_stderr.log
         fi
         
         if [ x = x$start ]; then

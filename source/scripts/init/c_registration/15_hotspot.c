@@ -34,6 +34,7 @@
 **********************************************************************/
 
 #include <stdio.h>
+#include <unistd.h>
 #include "srvmgr.h"
 #ifdef RDKB_EXTENDER_ENABLED
 #include <string.h>
@@ -67,6 +68,13 @@ const char* SERVICE_CUSTOM_EVENTS[] = {
 
 void srv_register(void) {
    DBG_PRINT("15_hotspot : %s Entry\n", __FUNCTION__);
+   {
+      FILE *logFile = fopen("/tmp/pandm_stderr.log", "a");
+      if (logFile != NULL) {
+         fprintf(logFile, "hotspot_registration pid=%ld event=hotspot-update_bridges handler=/etc/utopia/service.d/service_multinet/handle_gre.sh\n", (long)getpid());
+         fclose(logFile);
+      }
+   }
    sm_register(SERVICE_NAME, SERVICE_DEFAULT_HANDLER, SERVICE_CUSTOM_EVENTS);
    system("modprobe brMtuMod");
    DBG_PRINT("15_hotspot : %s Exit\n", __FUNCTION__);
