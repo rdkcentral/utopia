@@ -28,12 +28,5 @@ if [ ! -d "$LOG_PATH" ]; then
     mkdir $LOG_PATH
 fi
 
-SCRIPT_TRACE_LOG="/tmp/script_execution_trace.log"
-SCRIPT_TRACE_FIFO="/tmp/.script_execution_trace.$$"
-
-rm -f "$SCRIPT_TRACE_FIFO"
-mkfifo "$SCRIPT_TRACE_FIFO"
-tee -a "$CONSOLEFILE" < "$SCRIPT_TRACE_FIFO" >> "$SCRIPT_TRACE_LOG" &
-exec > "$SCRIPT_TRACE_FIFO" 2>&1
-rm -f "$SCRIPT_TRACE_FIFO"
+exec 3>&1 4>&2 >>$CONSOLEFILE 2>&1
 
