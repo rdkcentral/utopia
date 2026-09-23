@@ -104,6 +104,21 @@ is_mesh_ready() {
 
 
 #-----------------------------------------------------------------
+#  get_edns_packet_size
+#
+#  Read the configured EDNS packet size from syscfg; fall back to
+#  1232 when unset or non-numeric
+#-----------------------------------------------------------------
+get_edns_packet_size ()
+{
+    EDNS_PACKET_SIZE=$(syscfg get edns_packet_size)
+    EDNS_PACKET_SIZE=${EDNS_PACKET_SIZE:-1232}
+    case "$EDNS_PACKET_SIZE" in
+        ''|*[!0-9]*) EDNS_PACKET_SIZE=1232 ;;
+    esac
+}
+
+#-----------------------------------------------------------------
 #  dnsserver_start_lxc
 #
 #  Start dnsmasq for the container too whenever dnsmasq is restarted
@@ -113,22 +128,20 @@ dnsserver_start_lxc ()
    if [ -f /usr/bin/lxc-ls ]; then
         IS_CONTAINER_ACTIVE=`/usr/bin/lxc-ls --active`
         if [ "$IS_CONTAINER_ACTIVE" = "webui" ]; then
-             $SERVER --strict-order --bind-interfaces --pid-file=$LXC_PID_FILE --conf-file=$LXC_DHCP_CONF --listen-address 147.0.3.1 --dhcp-range 147.0.3.2,147.0.3.254 --dhcp-lease-max=253 --dhcp-no-override --except-interface=lo --interface=$LXC_BRIDGE_NAME --dhcp-leasefile=/tmp/dnsmasq.$LXC_BRIDGE_NAME.leases --dhcp-authoritative
+             get_edns_packet_size
+             $SERVER --strict-order --bind-interfaces --pid-file=$LXC_PID_FILE --conf-file=$LXC_DHCP_CONF -P $EDNS_PACKET_SIZE --listen-address 147.0.3.1 --dhcp-range 147.0.3.2,147.0.3.254 --dhcp-lease-max=253 --dhcp-no-override --except-interface=lo --interface=$LXC_BRIDGE_NAME --dhcp-leasefile=/tmp/dnsmasq.$LXC_BRIDGE_NAME.leases --dhcp-authoritative
         fi
    fi
 }
 
 dnsmasq_server_start ()
 {
+         get_edns_packet_size
          if [ "$XDNS_ENABLE" = "true" ]; then
                 SYSCFG_XDNS_FLAG=`syscfg get X_RDKCENTRAL-COM_XDNS`
                 SYSCFG_DNSSEC_FLAG=`syscfg get XDNS_DNSSecEnable`
                 SYSCFG_XDNSREFAC_FLAG=`syscfg get XDNS_RefacCodeEnable`
-                EDNS_PACKET_SIZE=$(syscfg get edns_packet_size)
-                EDNS_PACKET_SIZE=${EDNS_PACKET_SIZE:-1232}
-                case "$EDNS_PACKET_SIZE" in
-                    ''|*[!0-9]*) EDNS_PACKET_SIZE=1232 ;;
-                esac
+                # EDNS_PACKET_SIZE initialized by get_edns_packet_size at the top of dnsmasq_server_start
                 if ([ "$MODEL_NUM" = "CGA4131COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] || [ "$MODEL_NUM" = "CGM601TCOM" ] || [ "$MODEL_NUM" = "SG417DBCT" ]) && [ -n "$SYSCFG_XDNS_FLAG" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ] && [ "$SYSCFG_DNSSEC_FLAG" = "1" ] ; then
                         if [ "$SYSCFG_XDNSREFAC_FLAG" = "1" ] && [ "$SYSCFG_XDNS_FLAG" = "1" ] ; then
                                 $SERVER -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P $EDNS_PACKET_SIZE -C $DHCP_CONF $DNS_ADDITIONAL_OPTION --proxy-dnssec --cache-size=0 --xdns-refac-code  #--enable-dbus
@@ -144,11 +157,7 @@ dnsmasq_server_start ()
                         fi
                 fi
          else
-                EDNS_PACKET_SIZE=$(syscfg get edns_packet_size)
-                EDNS_PACKET_SIZE=${EDNS_PACKET_SIZE:-1232}
-                case "$EDNS_PACKET_SIZE" in
-                    ''|*[!0-9]*) EDNS_PACKET_SIZE=1232 ;;
-                esac
+                # EDNS_PACKET_SIZE initialized by get_edns_packet_size at the top of dnsmasq_server_start
                 $SERVER -P $EDNS_PACKET_SIZE -C $DHCP_CONF $DNS_ADDITIONAL_OPTION  #--enable-dbus
          fi
 
