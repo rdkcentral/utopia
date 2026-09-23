@@ -70,6 +70,58 @@ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.*/
 #include "utapi_tr_wlan.h"
 #include "safec_lib_common.h"
 #include "secure_wrapper.h"
+#include <stdarg.h>
+#include <time.h>
+#include <unistd.h>
+
+static void utapi_wlan_trace(const char *function, int line, const char *format, ...)
+{
+    FILE *logFile = fopen("/tmp/utapi_tr_wlan_trace.log", "a");
+    time_t currentTime;
+    struct tm localTime;
+    char timestamp[32];
+    va_list args;
+
+    if (logFile == NULL)
+    {
+        return;
+    }
+
+    currentTime = time(NULL);
+    localtime_r(&currentTime, &localTime);
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &localTime);
+    fprintf(logFile, "%s pid=%ld ppid=%ld %s:%d ", timestamp, (long)getpid(), (long)getppid(), function, line);
+    va_start(args, format);
+    vfprintf(logFile, format, args);
+    va_end(args);
+    fputc('\n', logFile);
+    fclose(logFile);
+}
+
+static void utapi_wlan_trace_command(const char *function, int line, const char *format, ...)
+{
+    FILE *logFile = fopen("/tmp/utapi_tr_wlan_trace.log", "a");
+    time_t currentTime;
+    struct tm localTime;
+    char timestamp[32];
+    char command[4096];
+    va_list args;
+
+    if (logFile == NULL)
+    {
+        return;
+    }
+
+    currentTime = time(NULL);
+    localtime_r(&currentTime, &localTime);
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &localTime);
+    va_start(args, format);
+    vsnprintf(command, sizeof(command), format, args);
+    va_end(args);
+    fprintf(logFile, "%s pid=%ld ppid=%ld %s:%d command=%s\n", timestamp, (long)getpid(), (long)getppid(), function, line, command);
+    fclose(logFile);
+}
+
 const wifiTRPlatformSetup_t wifiTRPlatform[] =
 {
     {FREQ_2_4_GHZ, "wl0", "eth0", "SSID0", "ap0"},
@@ -192,9 +244,13 @@ int Utopia_GetWifiRadioCfg(UtopiaContext *ctx, int dummyInstanceNum, void *cfg)
     }
  
     prefix =  wifiTRPlatform[ulIndex].syscfg_namespace_prefix ;
+    utapi_wlan_trace(__FUNCTION__, __LINE__, "radio index=%lu syscfg=%s ifconfig=%s", ulIndex, prefix, wifiTRPlatform[ulIndex].ifconfig_interface);
 
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s | grep Radio |cut -d'}' -f2- -s |cut -d. -f2- -s > " WLANCFG_RADIO_FULL_FILE, wifiTRPlatform[ulIndex].ifconfig_interface);
     v_secure_system("wlancfg_tr %s | grep Radio |cut -d'}' -f2- -s |cut -d. -f2- -s > "WLANCFG_RADIO_FULL_FILE,wifiTRPlatform[ulIndex].ifconfig_interface);
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "cat " WLANCFG_RADIO_FULL_FILE " | grep Extensions | cut -d. -f2- -s > " WLANCFG_RADIO_EXTN_FILE);
     v_secure_system("cat " WLANCFG_RADIO_FULL_FILE " | grep Extensions | cut -d. -f2- -s > " WLANCFG_RADIO_EXTN_FILE);
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "cat " WLANCFG_RADIO_FULL_FILE " | sed -e '/Extensions/{N;d;}'|sed -e '/Stats/{N;d;}' > " WLANCFG_RADIO_FILE);
     v_secure_system("cat " WLANCFG_RADIO_FULL_FILE " | sed -e '/Extensions/{N;d;}'|sed -e '/Stats/{N;d;}' > " WLANCFG_RADIO_FILE);
 
     retVal = file_parse(WLANCFG_RADIO_FILE, &head);
@@ -752,7 +808,9 @@ int Utopia_GetWifiRadioDinfo(unsigned long ulInstanceNum, void *dInfo)
         return ERR_INVALID_ARGS;
     }
 
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s | grep Radio |cut -d'}' -f2- -s |cut -d. -f2- -s > " WLANCFG_RADIO_FULL_FILE, wifiTRPlatform[ulIndex].ifconfig_interface);
     v_secure_system("wlancfg_tr %s | grep Radio |cut -d'}' -f2- -s |cut -d. -f2- -s > "WLANCFG_RADIO_FULL_FILE, wifiTRPlatform[ulIndex].ifconfig_interface);
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "cat " WLANCFG_RADIO_FULL_FILE "|  sed -e '/Extensions/{N;d;}'|sed -e '/Stats/{N;d;}' > " WLANCFG_RADIO_FILE);
     v_secure_system("cat "WLANCFG_RADIO_FULL_FILE"|  sed -e '/Extensions/{N;d;}'|sed -e '/Stats/{N;d;}' > "WLANCFG_RADIO_FILE);
     
     retVal = file_parse(WLANCFG_RADIO_FILE, &head);
@@ -808,7 +866,9 @@ int Utopia_GetWifiRadioStats(unsigned long instanceNum, void *stats)
         return ERR_INVALID_ARGS;
     }
 
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s | grep Radio |cut -d'}' -f2- -s |cut -d. -f2- -s > " WLANCFG_RADIO_FULL_FILE, wifiTRPlatform[ulIndex].ifconfig_interface);
     v_secure_system("wlancfg_tr %s | grep Radio |cut -d'}' -f2- -s |cut -d. -f2- -s > "WLANCFG_RADIO_FULL_FILE,wifiTRPlatform[ulIndex].ifconfig_interface);
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "cat " WLANCFG_RADIO_FULL_FILE " | grep Stats | cut -d. -f2- -s > " WLANCFG_RADIO_STATS_FILE);
     v_secure_system("cat "WLANCFG_RADIO_FULL_FILE" | grep Stats | cut -d. -f2- -s > "WLANCFG_RADIO_STATS_FILE);
 
     retVal = file_parse(WLANCFG_RADIO_STATS_FILE, &head);
@@ -922,6 +982,7 @@ int Utopia_GetWifiSSIDInstances(UtopiaContext *ctx)
            if(safec_rc < EOK){
               ERR_CHK(safec_rc);
            }
+              utapi_wlan_trace(__FUNCTION__, __LINE__, "created index=%d radio=%s ssid=%s ap_name=%s ifconfig=%s", i, wifiTRPlatform_multiSSID[i].syscfg_namespace_prefix, wifiTRPlatform_multiSSID[i].ssid_name, wifiTRPlatform_multiSSID[i].ap_name, wifiTRPlatform_multiSSID[i].ifconfig_interface);
        }
     } else if(count < STATIC_SSID_COUNT) {
         count = STATIC_SSID_COUNT; /* These are statically configured */
@@ -1034,6 +1095,7 @@ int Utopia_GetWifiSSIDCfg(UtopiaContext *ctx, int dummyInstanceNum, void *cfg)
             vif_num = 0;
     }
 
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s %d | grep SSID |cut -d'}' -f2- -s |cut -d. -f2- -s > " WLANCFG_SSID_FILE, wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
     v_secure_system("wlancfg_tr %s %d | grep SSID |cut -d'}' -f2- -s |cut -d. -f2- -s > "WLANCFG_SSID_FILE,wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
 
     retVal = file_parse(WLANCFG_SSID_FILE, &head);
@@ -1124,6 +1186,7 @@ int Utopia_GetWifiSSIDSInfo(unsigned long ulIndex, void *sInfo)
             vif_num = 0;
     }
 
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s %d | grep SSID |cut -d'}' -f2- -s |cut -d. -f2- -s | awk '{print $1$2}' > " WLANCFG_SSID_FILE, wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
     v_secure_system("wlancfg_tr %s %d | grep SSID |cut -d'}' -f2- -s |cut -d. -f2- -s | awk '{print $1$2}' > "WLANCFG_SSID_FILE,wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
 
     retVal = file_parse(WLANCFG_SSID_FILE, &head);
@@ -1232,6 +1295,7 @@ int Utopia_GetWifiSSIDDInfo(unsigned long ulInstanceNum, void *dInfo)
         else
             vif_num = 0;
     }
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s %d | grep SSID |cut -d'}' -f2- -s |cut -d. -f2- -s | awk '{print $1$2}' > " WLANCFG_SSID_FILE, wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
     v_secure_system("wlancfg_tr %s %d | grep SSID |cut -d'}' -f2- -s |cut -d. -f2- -s | awk '{print $1$2}' > "WLANCFG_SSID_FILE,wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
     retVal = file_parse(WLANCFG_SSID_FILE, &head);
 
@@ -1574,6 +1638,7 @@ int Utopia_GetIndexedWifiAPCfg(UtopiaContext *ctx, unsigned long ulIndex, void *
     }
 
     prefix = wifiTRPlatform_multiSSID[ulIndex].ap_name;
+    utapi_wlan_trace(__FUNCTION__, __LINE__, "AP index=%lu ap_name=%s radio=%s ssid=%s ifconfig=%s", ulIndex, prefix, wifiTRPlatform_multiSSID[ulIndex].syscfg_namespace_prefix, wifiTRPlatform_multiSSID[ulIndex].ssid_name, wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface);
 
     /* Check if we have an InstanceNumber stored for this SSID */
     if(Utopia_GetNamedInt(ctx,UtopiaValue_WLAN_AP_Instance_Num,prefix,&iVal))
@@ -1638,6 +1703,7 @@ int Utopia_GetWifiAPCfg(UtopiaContext *ctx,int dummyInstanceNum, void *cfg)
             vif_num = 0;
     }
 
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s %d | grep AccessPoint |cut -d'}' -f2- -s |cut -d. -f2- -s | awk '{print $1$2}' > " WLANCFG_AP_FILE, wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
     v_secure_system("wlancfg_tr %s %d | grep AccessPoint |cut -d'}' -f2- -s |cut -d. -f2- -s | awk '{print $1$2}' > "WLANCFG_AP_FILE,wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
     
     retVal = file_parse(WLANCFG_AP_FILE, &head);
@@ -1808,6 +1874,7 @@ int Utopia_SetWifiAPCfg(UtopiaContext *ctx, void *cfg)
 
     /* Set Alias */
     prefix = wifiTRPlatform_multiSSID[ulIndex].ap_name;
+    utapi_wlan_trace(__FUNCTION__, __LINE__, "set AP index=%lu ap_name=%s alias=%s", ulIndex, prefix, cfg_t->Alias);
     UTOPIA_SETNAMED(ctx,UtopiaValue_WLAN_AP_Alias,prefix,cfg_t->Alias);
 
     /* These are prefixed on radio - Would need to change when we support multi-SSID */
@@ -1864,6 +1931,7 @@ int Utopia_WifiAPSetValues(UtopiaContext *ctx, unsigned long ulIndex, unsigned l
     /* Now set these values in syscfg */
 
     prefix = wifiTRPlatform_multiSSID[ulIndex].ap_name;
+    utapi_wlan_trace(__FUNCTION__, __LINE__, "set AP values index=%lu ap_name=%s instance=%lu alias=%s", ulIndex, prefix, ulInstanceNum, pAlias);
     Utopia_SetNamedInt(ctx,UtopiaValue_WLAN_AP_Instance_Num,prefix,ulInstanceNum);
     UTOPIA_SETNAMED(ctx,UtopiaValue_WLAN_AP_Alias,prefix, pAlias);
 
@@ -1923,6 +1991,7 @@ int Utopia_GetWifiAPSecCfg(UtopiaContext *ctx,char *pSSID, void *cfg)
             vif_num = 0;
     }
 
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s %d | grep Security |cut -d'}' -f2- -s |cut -d. -f3- -s | awk '{print $1$2}' > " WLANCFG_AP_SEC_FILE, wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
     v_secure_system("wlancfg_tr %s %d | grep Security |cut -d'}' -f2- -s |cut -d. -f3- -s | awk '{print $1$2}' > "WLANCFG_AP_SEC_FILE,wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
 
     retVal = file_parse(WLANCFG_AP_SEC_FILE, &head);
@@ -2327,6 +2396,7 @@ unsigned long Utopia_GetAssociatedDevicesCount(UtopiaContext *ctx, char *pSSID)
             vif_num = 0;
     }
 
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s %d | grep AssociatedDevice |cut -d'}' -f2- -s |cut -d. -f2- -s | awk '{print $1$2}' > " WLANCFG_AP_ASSOC_DEV_FILE, wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
     v_secure_system("wlancfg_tr %s %d | grep AssociatedDevice |cut -d'}' -f2- -s |cut -d. -f2- -s | awk '{print $1$2}' > "WLANCFG_AP_ASSOC_DEV_FILE,wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
 
     retVal = file_parse(WLANCFG_AP_ASSOC_DEV_FILE, &head);
@@ -2386,6 +2456,7 @@ int Utopia_GetAssocDevice(UtopiaContext *ctx, char *pSSID, unsigned long ulIndex
             vif_num = 0;
     }
  
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s %d | grep AssociatedDevice_%lu |cut -d'}' -f2- -s |cut -d. -f3- -s | awk '{print $1$2}' > " WLANCFG_AP_ASSOC_DEV_FILE, wifiTRPlatform_multiSSID[ulAPIndex].ifconfig_interface, vif_num, ulIndex);
     v_secure_system("wlancfg_tr %s %d | grep AssociatedDevice_%lu |cut -d'}' -f2- -s |cut -d. -f3- -s | awk '{print $1$2}' > "WLANCFG_AP_ASSOC_DEV_FILE,wifiTRPlatform_multiSSID[ulAPIndex].ifconfig_interface, vif_num, ulIndex);
 
     retVal = file_parse(WLANCFG_AP_ASSOC_DEV_FILE, &head);
@@ -2545,6 +2616,7 @@ int Utopia_GetWifiAPMFCfg(UtopiaContext *ctx, char *pSSID, void *cfg)
             vif_num = 0;
     }
 
+    utapi_wlan_trace_command(__FUNCTION__, __LINE__, "wlancfg_tr %s %d | grep Filter | cut -d. -f5- -s | sed 's/ //' | sed 's/ /,/g' > " WIFI_MACFILTER_FILE, wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
     v_secure_system("wlancfg_tr %s %d | grep Filter | cut -d. -f5- -s | sed 's/ //' | sed 's/ /,/g' > "WIFI_MACFILTER_FILE,wifiTRPlatform_multiSSID[ulIndex].ifconfig_interface, vif_num);
 
     retVal = file_parse(WIFI_MACFILTER_FILE, &head);
