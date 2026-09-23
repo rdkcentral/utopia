@@ -115,6 +115,7 @@ get_edns_packet_size ()
     EDNS_PACKET_SIZE=${EDNS_PACKET_SIZE:-1232}
     case "$EDNS_PACKET_SIZE" in
         ''|*[!0-9]*) EDNS_PACKET_SIZE=1232 ;;
+        *) [ "$EDNS_PACKET_SIZE" -ge 512 ] && [ "$EDNS_PACKET_SIZE" -le 65535 ] || EDNS_PACKET_SIZE=1232 ;;
     esac
 }
 
