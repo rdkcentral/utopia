@@ -295,9 +295,6 @@ TEST_F(ServiceDhcpServerTest, LanStatusChangeWithLanNotRestart)
         .Times(8)
         .WillRepeatedly(Return(0));
     
-    EXPECT_CALL(*g_syscfgMock, syscfg_get(_, StrEq("edns_packet_size"), _, _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(0));
 
     EXPECT_CALL(*g_safecLibMock, _strcpy_s_chk(_, _, _, _)).Times(AnyNumber()).WillRepeatedly(Return(0));
 
