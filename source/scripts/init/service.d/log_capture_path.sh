@@ -36,6 +36,4 @@ mkfifo "$SCRIPT_TRACE_FIFO"
 tee -a "$CONSOLEFILE" < "$SCRIPT_TRACE_FIFO" >> "$SCRIPT_TRACE_LOG" &
 exec > "$SCRIPT_TRACE_FIFO" 2>&1
 rm -f "$SCRIPT_TRACE_FIFO"
-PS4='+ pid=$$ script=$0 line=$LINENO: '
-set -x
 
