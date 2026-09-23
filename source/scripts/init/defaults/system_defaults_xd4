@@ -1446,5 +1446,3 @@ $FwDwld_AvlMem_RsrvThreshold=20
 #FwDwld_ImageProcMemPercent Default value
 $FwDwld_ImageProcMemPercent=0
 
-#Edns Packet Size
-$edns_packet_size=1232
