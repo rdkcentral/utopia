@@ -49,6 +49,10 @@ SYSEVENT="sysevent"
 source /etc/utopia/service.d/ut_plat.sh
 source /etc/utopia/service.d/log_capture_path.sh
 . /etc/device.properties
+exec >>/tmp/utopia_flow_trace.log 2>&1
+echo "$(date '+%Y-%m-%d %H:%M:%S') SCRIPT_START pid=$$ ppid=$PPID script=$0 args=$*"
+PS4='+ pid=$$ ppid=$PPID script=$0 line=$LINENO: '
+set -x
 source /lib/rdk/t2Shared_api.sh
 THIS=/etc/utopia/service.d/service_multinet/handle_gre.sh
 

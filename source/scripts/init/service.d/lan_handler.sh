@@ -45,6 +45,11 @@ source /etc/utopia/service.d/ut_plat.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source /lib/rdk/t2Shared_api.sh
 
+exec >>/tmp/utopia_flow_trace.log 2>&1
+echo "$(date '+%Y-%m-%d %H:%M:%S') SCRIPT_START pid=$$ ppid=$PPID script=$0 args=$*"
+PS4='+ pid=$$ ppid=$PPID script=$0 line=$LINENO: '
+set -x
+
 . /etc/device.properties
 IOT_SERVICE_PATH="/etc/utopia/service.d"
 SERVICE_MULTINET_PATH="/etc/utopia/service.d/service_multinet"

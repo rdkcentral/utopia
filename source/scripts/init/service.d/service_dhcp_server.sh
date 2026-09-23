@@ -50,6 +50,10 @@ source /etc/utopia/service.d/ulog_functions.sh
 source /etc/utopia/service.d/event_handler_functions.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source /etc/device.properties
+exec >>/tmp/utopia_flow_trace.log 2>&1
+echo "$(date '+%Y-%m-%d %H:%M:%S') SCRIPT_START pid=$$ ppid=$PPID script=$0 args=$*"
+PS4='+ pid=$$ ppid=$PPID script=$0 line=$LINENO: '
+set -x
 if [ -f /lib/rdk/utils.sh ];then
      . /lib/rdk/utils.sh
 fi

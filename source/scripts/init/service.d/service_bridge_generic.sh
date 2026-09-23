@@ -25,6 +25,10 @@ source /etc/utopia/service.d/hostname_functions.sh
 source /etc/utopia/service.d/ulog_functions.sh
 source /etc/utopia/service.d/event_handler_functions.sh
 source /etc/utopia/service.d/log_capture_path.sh
+exec >>/tmp/utopia_flow_trace.log 2>&1
+echo "$(date '+%Y-%m-%d %H:%M:%S') SCRIPT_START pid=$$ ppid=$PPID script=$0 args=$*"
+PS4='+ pid=$$ ppid=$PPID script=$0 line=$LINENO: '
+set -x
 
 # Runtime/default knobs for bridge mode behavior.
 POSTD_START_FILE="/tmp/.postd_started"
