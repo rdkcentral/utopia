@@ -222,7 +222,6 @@ TEST_F(ServiceDhcpServerTest, syslog_restart_request)
     EXPECT_CALL(*g_fileIOMock, access(StrEq("/tmp/dnsmasq.conf.orig"), 0)).Times(AtLeast(1)).WillRepeatedly(Return(0));
 
     EXPECT_CALL(*g_safecLibMock, _sprintf_s_chk(_, _, _, _)).Times(AnyNumber()).WillRepeatedly(Return(0));
-    EXPECT_CALL(*g_safecLibMock, _strcpy_s_chk(_, _, _, _)).Times(AnyNumber()).WillRepeatedly(Return(0));
 
     EXPECT_EQ(0, syslog_restart_request());
 }
