@@ -295,9 +295,6 @@ TEST_F(ServiceDhcpServerTest, LanStatusChangeWithLanNotRestart)
         .Times(8)
         .WillRepeatedly(Return(0));
     
-
-    EXPECT_CALL(*g_safecLibMock, _strcpy_s_chk(_, _, _, _)).Times(AnyNumber()).WillRepeatedly(Return(0));
-
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, _, _, _))
         .Times(2)
         .WillRepeatedly(Return(0));
