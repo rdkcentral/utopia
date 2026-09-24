@@ -13904,7 +13904,7 @@ void  proxy_dns(FILE *nat_fp,int family)
                      syscfg_get( NULL, "iot_brname", iot_ifName, sizeof(iot_ifName));
             }
 
-            if (iot_ifName[0] != '\0' && strlen(iot_ifName) != 0 )
+            if (IsValidInterfaceName(iot_ifName))
             {
                memset(if_ipaddr, 0, sizeof(if_ipaddr));
                if(family == AF_INET )
@@ -14013,7 +14013,7 @@ void  redirect_dns_to_extender(FILE *nat_fp,int family)
                      syscfg_get( NULL, "iot_brname", iot_ifName, sizeof(iot_ifName));
             }
 
-            if (iot_ifName[0] != '\0' && strlen(iot_ifName) != 0 )
+            if (IsValidInterfaceName(iot_ifName))
             {
                fprintf(nat_fp, "-A PREROUTING -i %s -p udp --dport 53 -j DNAT --to-destination %s\n",iot_ifName,token);
                fprintf(nat_fp, "-A PREROUTING -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",iot_ifName,token);  
