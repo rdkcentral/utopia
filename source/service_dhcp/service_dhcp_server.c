@@ -246,28 +246,22 @@ int dnsmasq_server_start()
     char l_cSystemCmd[255] = {0};
     errno_t safec_rc = -1;
     char l_cEdnsPacketSize[8] = {0};
-    char *l_pEdns = NULL;
-    if (syscfg_get(NULL, "edns_packet_size", l_cEdnsPacketSize, sizeof(l_cEdnsPacketSize)) != 0)
+    char l_cEdnsConfig[16] = {0};
+    int l_iEdnsPacketSize = 1232;
+    int l_iValue = 0;
+
+    if (syscfg_get(NULL, "edns_packet_size", l_cEdnsConfig, sizeof(l_cEdnsConfig)) == 0)
     {
-        l_cEdnsPacketSize[0] = '\0';
-    }
-    // Value must be numeric (e.g. syscfg may return "NULL" when unset); otherwise fall back to the default, same as the shell script
-    for (l_pEdns = l_cEdnsPacketSize; '\0' != *l_pEdns; l_pEdns++)
-    {
-        if (('0' > *l_pEdns) || ('9' < *l_pEdns))
+        /* Valid EDNS packet sizes are 1-65535 (1 to 5 digits). Reject empty,
+           non-numeric, out-of-range and truncated values; fall back to 1232 */
+        if ((strspn(l_cEdnsConfig, "0123456789") == strlen(l_cEdnsConfig)) &&
+            (strlen(l_cEdnsConfig) >= 1) && (strlen(l_cEdnsConfig) <= 5) &&
+            ((l_iValue = atoi(l_cEdnsConfig)) > 0) && (l_iValue <= 65535))
         {
-            l_cEdnsPacketSize[0] = '\0';
-            break;
+            l_iEdnsPacketSize = l_iValue;
         }
     }
-    if ('\0' == l_cEdnsPacketSize[0] ||
-        strtoul(l_cEdnsPacketSize, NULL, 10) < 512 || strtoul(l_cEdnsPacketSize, NULL, 10) > 65535)
-    {
-        if ((safec_rc = strcpy_s(l_cEdnsPacketSize, sizeof(l_cEdnsPacketSize), "1232")) < EOK)
-        {
-            ERR_CHK(safec_rc);
-        }
-    }
+    snprintf(l_EdnsPacketSize, sizeof(l_cEdnsPacketSize), "%d", l_iEdnsPacketSize);
 
     getRFC_Value (dnsOption);
     dnsOption[sizeof(dnsOption) - 1] = '\0'; // CID 340940 : String not null terminated (STRING_NULL)
