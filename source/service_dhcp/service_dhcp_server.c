@@ -261,7 +261,7 @@ int dnsmasq_server_start()
             l_iEdnsPacketSize = l_iValue;
         }
     }
-    snprintf(l_EdnsPacketSize, sizeof(l_cEdnsPacketSize), "%d", l_iEdnsPacketSize);
+   snprintf(l_cEdnsPacketSize, sizeof(l_cEdnsPacketSize), "%d", l_iEdnsPacketSize);
 
     getRFC_Value (dnsOption);
     dnsOption[sizeof(dnsOption) - 1] = '\0'; // CID 340940 : String not null terminated (STRING_NULL)
