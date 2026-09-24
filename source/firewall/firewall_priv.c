@@ -38,7 +38,6 @@
  * Custom Functions
  */
 #include <stdio.h>
-#include "firewall.h"
 #include "firewall_custom.h"
 
 void do_device_based_pp_disabled_appendrule(FILE *fp, const char *ins_num, const char *lan_ifname, const char *query)

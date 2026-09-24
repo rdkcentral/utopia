@@ -67,9 +67,6 @@ fprintf(fp, "add rule ip filter lan2wan_pc_site tcp dport { 80, 443, 8080 } ct s
 void do_parcon_mgmt_lan2wan_pc_site_insertrule(FILE *fp, int index, char *nstdPort)
 {
 #if !defined(_PLATFORM_RASPBERRYPI_)
-if (NULL == fp || index < 1 || 0 != validate_port(nstdPort))
-    return;
-
 fprintf(fp, "insert rule ip filter lan2wan_pc_site %d tcp dport %s ct state established connbytes 0-5 packets counter jump GWMETA comment \"dis-pp\"\n", index, nstdPort);
 #endif
 }

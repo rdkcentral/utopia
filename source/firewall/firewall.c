@@ -9600,13 +9600,6 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 
                 if(pch != NULL)
                 {
-                  const char *port_start = urlType == IPv6_URL ? pch + 2 : pch + 1;
-
-                  if (strlen(port_start) >= sizeof(nstdPort))
-                  {
-                     FIREWALL_DEBUG("Invalid Managed Site port, skipping entry\n");
-                     continue;
-                  }
 		    /* CID 135335 :BUFFER_SIZE_WARNING */
                     strncpy(nstdPort, urlType == IPv6_URL ? pch+2 : pch+1, sizeof(nstdPort)-1);
 		    nstdPort[sizeof(nstdPort)-1] = '\0';

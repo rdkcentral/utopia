@@ -8223,87 +8223,13 @@ static int do_parcon_device_cloud_mgmt(FILE *fp, int iptype, FILE *cron_fp)
    return(0);
 }
 
-int validate_port(const char *port_num)
+static int validate_port(char* port_num)
 {
-   const char *digit;
-   unsigned long port;
-
-   if (NULL == port_num || '\0' == port_num[0])
-      return -1;
-
-   for (digit = port_num; '\0' != *digit; digit++)
-   {
-      if (!isdigit((unsigned char)*digit))
-         return -1;
-   }
-
-   port = strtoul(port_num, NULL, 10);
-   if (port <= 0 || port > MAX_PORT)
+   int port = atoi(port_num);
+   if ( port <= 0 || port > MAX_PORT )
       return -1;
 
    return 0;
-}
-
-static int IsValidManagedSiteHost(const char *host)
-{
-   const unsigned char *character;
-   struct in_addr ipv4_address;
-   struct in6_addr ipv6_address_value;
-   size_t label_length = 0;
-   size_t length;
-   int ipv4_literal = 1;
-
-   if (NULL == host || '\0' == host[0])
-      return 0;
-
-   length = strlen(host);
-   if ('[' == host[0])
-   {
-      char ipv6_address[INET6_ADDRSTRLEN];
-
-      if (length < 3 || ']' != host[length - 1] ||
-          length - 2 >= sizeof(ipv6_address))
-      {
-         return 0;
-      }
-
-      memcpy(ipv6_address, host + 1, length - 2);
-      ipv6_address[length - 2] = '\0';
-      return 1 == inet_pton(AF_INET6, ipv6_address, &ipv6_address_value);
-   }
-
-   if (length > 253)
-      return 0;
-
-   for (character = (const unsigned char *)host; '\0' != *character; character++)
-   {
-      if (!isdigit((int)*character) && '.' != *character)
-      {
-         ipv4_literal = 0;
-         break;
-      }
-   }
-   if (ipv4_literal)
-      return 1 == inet_pton(AF_INET, host, &ipv4_address);
-
-   for (character = (const unsigned char *)host; '\0' != *character; character++)
-   {
-      if (!isalnum((int)*character) && '.' != *character && '-' != *character)
-         return 0;
-
-      if ('.' == *character)
-      {
-         if (0 == label_length || '-' == *(character - 1))
-            return 0;
-         label_length = 0;
-      }
-      else if ((0 == label_length && '-' == *character) || ++label_length > 63)
-      {
-         return 0;
-      }
-   }
-
-   return label_length > 0 && '-' != host[length - 1];
 }
 
 static int IsValidInterfaceName(const char *if_name)
@@ -8617,30 +8543,13 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
 
                 if(pch != NULL)
                 {
-          const char *port_start = urlType == IPv6_URL ? pch + 2 : pch + 1;
-          if (strlen(port_start) >= sizeof(nstdPort))
-          {
-             FIREWALL_DEBUG("Invalid Managed Site port, skipping entry\n");
-             continue;
-          }
-
 		    /* CID 135335 :BUFFER_SIZE_WARNING */
                     strncpy(nstdPort, urlType == IPv6_URL ? pch+2 : pch+1, sizeof(nstdPort)-1);
 		    nstdPort[sizeof(nstdPort)-1] = '\0';
-               if ('\0' == nstdPort[0] || 0 != validate_port(nstdPort))
-               {
-                  FIREWALL_DEBUG("Invalid Managed Site port '%s', skipping entry\n" COMMA nstdPort);
-                  continue;
-               }
                     if(urlType == IPv6_URL)
                         *(pch+1) = '\0';
                     else
                         *pch = '\0';
-               if (!IsValidManagedSiteHost(query + host_name_offset))
-               {
-                  FIREWALL_DEBUG("Invalid Managed Site host '%s', skipping entry\n" COMMA query + host_name_offset);
-                  continue;
-               }
 #if defined (INTEL_PUMA7)
                     //Intel Proposed RDKB Generic Bug Fix from XB6 SDK
                     fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport %s %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto , addrtype , nstdPort, resolve_ip(query + host_name_offset , iptype) , idx);
@@ -8668,11 +8577,6 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 }
                 else
                 {
-                  if (!IsValidManagedSiteHost(query + host_name_offset))
-                  {
-                     FIREWALL_DEBUG("Invalid Managed Site host '%s', skipping entry\n" COMMA query + host_name_offset);
-                     continue;
-                  }
 #if defined (INTEL_PUMA7)
 					//Intel Proposed RDKB Generic Bug Fix from XB6 SDK
                     fprintf(fp, "add rule %s filter lan2wan_pc_site %s tcp dport 80 %s daddr %s counter jump LOG_SiteBlocked_%d_DROP\n", addrtype, proto, addrtype, resolve_ip(query + host_name_offset, iptype), idx);
