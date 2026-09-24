@@ -905,7 +905,7 @@ void do_ipv6_filter_table(FILE *fp){
 
       if (isWanPingDisableV6 == 1)
       {
-          printf("Error case 1 - isWanPingDisableV6 = 1 \n");
+          FIREWALL_DEBUG("Error case 1 - isWanPingDisableV6 = 1 \n");
           fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", current_wan_ifname); // Echo request
           fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m state --state NEW,INVALID,RELATED -j DROP\n", current_wan_ifname); // Echo reply
 
@@ -913,18 +913,18 @@ void do_ipv6_filter_table(FILE *fp){
       else if (strncasecmp(firewall_levelv6, "None", strlen("None")) != 0 && (isWanPingDisableV6 == 0))
       {
       #if defined(CONFIG_CCSP_DROP_ICMP_PING)
-          printf("Error case 2 - isWanPingDisableV6 = 0 and CONFIG_CCSP_DROP_ICMP_PING defined \n");
+          FIREWALL_DEBUG("Error case 2 - isWanPingDisableV6 = 0 and CONFIG_CCSP_DROP_ICMP_PING defined \n");
           fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j DROP\n", current_wan_ifname); // Echo request
           fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m state --state NEW,INVALID,RELATED -j DROP\n", current_wan_ifname); // Echo reply
       #else
-          printf("Error case 3 - isWanPingDisableV6 = 0 and CONFIG_CCSP_DROP_ICMP_PING not defined \n");
+          FIREWALL_DEBUG("Error case 3 - isWanPingDisableV6 = 0 and CONFIG_CCSP_DROP_ICMP_PING not defined \n");
           fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", current_wan_ifname); // Echo request
           fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", current_wan_ifname); // Echo reply
       #endif
       }
       else
       {
-          printf("Error case 4 - isWanPingDisableV6 = 0 \n");
+          FIREWALL_DEBUG("Error case 4 - isWanPingDisableV6 = 0 \n");
           //fprintf(fp, "-A INPUT -p icmpv6 -m icmp6 --icmpv6-type 128 -m limit --limit 10/sec -j ACCEPT\n"); // Echo request
           fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 128 -j PING_FLOOD\n", current_wan_ifname); // Echo request
           fprintf(fp, "-A INPUT -i %s -p icmpv6 -m icmp6 --icmpv6-type 129 -m limit --limit 10/sec -j ACCEPT\n", current_wan_ifname); // Echo reply
