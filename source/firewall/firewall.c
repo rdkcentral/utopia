@@ -359,15 +359,11 @@ NOT_DEF:
 #include "ccsp_memory.h"
 
 
-#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/if.h>
-
-#endif
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <rdkb_feature_mode_gate.h>
@@ -887,8 +883,6 @@ unsigned int Get_Device_Mode()
 }
 #endif
 
-#ifdef WAN_FAILOVER_SUPPORTED
-
 int create_socket() 
 {
    int sockfd = 0;
@@ -925,6 +919,7 @@ char* get_iface_ipaddr(const char* iface_name)
       return (inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 }
 
+   #ifdef WAN_FAILOVER_SUPPORTED
 bool isServiceNeeded()
 {
         if (Get_Device_Mode()==EXTENDER_MODE)
@@ -5912,6 +5907,62 @@ static int do_multinet_lan2self_by_wanip (FILE *filter_fp)
 }
 #endif
 
+static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
+{
+   FIREWALL_DEBUG("Entering do_lan2self_isolatedInterfaces\n");
+#if defined(MULTILAN_FEATURE)
+   char *tok;
+   char net_query[MAX_QUERY];
+   char net_resp[MAX_QUERY];
+   char inst_resp[MAX_QUERY];
+   char primary_inst[MAX_QUERY];
+   char *interface_ipaddr;
+
+   inst_resp[0] = 0;
+   sysevent_get(sysevent_fd, sysevent_token, "multinet-instances", inst_resp, sizeof(inst_resp));
+   FIREWALL_DEBUG("lan2self_isolatedInterfaces: multinet-instances='%s'\n", inst_resp);
+
+   primary_inst[0] = 0;
+   sysevent_get(sysevent_fd, sysevent_token, "primary_lan_l2net", primary_inst, sizeof(primary_inst));
+   FIREWALL_DEBUG("lan2self_isolatedInterfaces: primary_lan_l2net='%s'\n", primary_inst);
+
+   tok = strtok(inst_resp, " ");
+   if (tok) do {
+      FIREWALL_DEBUG("lan2self_isolatedInterfaces: checking instance '%s'\n", tok);
+      if (strcmp(primary_inst, tok) == 0) {
+         FIREWALL_DEBUG("lan2self_isolatedInterfaces: skipping primary instance '%s'\n", tok);
+         continue;
+      }
+
+      snprintf(net_query, sizeof(net_query), "multinet_%s-localready", tok);
+      net_resp[0] = 0;
+      sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
+      FIREWALL_DEBUG("lan2self_isolatedInterfaces: %s='%s'\n", net_query, net_resp);
+      if (strcmp("1", net_resp) != 0) {
+         FIREWALL_DEBUG("lan2self_isolatedInterfaces: skipping instance '%s' because it is not ready\n", tok);
+         continue;
+      }
+
+      snprintf(net_query, sizeof(net_query), "multinet_%s-name", tok);
+      net_resp[0] = 0;
+      sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
+      FIREWALL_DEBUG("lan2self_isolatedInterfaces: %s='%s'\n", net_query, net_resp);
+      interface_ipaddr = get_iface_ipaddr(net_resp);
+      if (interface_ipaddr != NULL) {
+         FIREWALL_DEBUG("lan2self_isolatedInterfaces: adding interface '%s' with IPv4 '%s'\n", net_resp, interface_ipaddr);
+         fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", lan_ipaddr, interface_ipaddr);
+      } else {
+         FIREWALL_DEBUG("lan2self_isolatedInterfaces: no IPv4 address found for interface '%s'\n", net_resp);
+      }
+   } while ((tok = strtok(NULL, " ")) != NULL);
+#else
+   FIREWALL_DEBUG("lan2self_isolatedInterfaces: MULTILAN_FEATURE is disabled\n");
+#endif
+
+   FIREWALL_DEBUG("Exiting do_lan2self_isolatedInterfaces\n");
+   return 0;
+}
+
 static int do_lan2self_by_wanip(FILE *filter_fp, int family)
 {
    //As requested, we don't allow SNMP/HTTP/HTTPs/Ping
@@ -5955,12 +6006,7 @@ static int do_lan2self_by_wanip(FILE *filter_fp, int family)
 #if defined(_WNXL11BWL_PRODUCT_REQ_) 
    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.70.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.71.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-#else
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.0.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.1.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
 #endif
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 172.16.12.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.106.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.251.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
 
    if (rc == 0 && httpport[0] != '\0' && atoi(httpport) != 80 && (atoi(httpport) >= 0 && atoi(httpport) <= 65535 ))
@@ -6069,6 +6115,7 @@ static int do_lan2self_mgmt(FILE *fp)
 static int do_lan2self(FILE *fp)
 {
         // FIREWALL_DEBUG("Entering do_lan2self\n");     
+   do_lan2self_isolatedInterfaces(fp);
 #if (defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)) || defined(FEATURE_SUPPORT_MAPT_NAT46)
    if((!isMAPTReady) & isWanReady) // Pass for Dual Stack Line
 #else
@@ -12544,6 +12591,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self");
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_by_wanip");
+   fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_isolatedInterfaces");
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_mgmt");
    fprintf(filter_fp, ":%s - [0:0]\n", "host_detect");
    fprintf(filter_fp, ":%s - [0:0]\n", "lanattack");
@@ -13195,8 +13243,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, "-A general_input -i %s -p udp -m udp --dport 161 -j xlog_drop_lan2self\n", XHS_IF_NAME);
    fprintf(filter_fp, "-A general_input -i %s -p udp -m udp --dport 161 -j xlog_drop_lan2self\n", LNF_IF_NAME);
 #if defined (MULTILAN_FEATURE)
+   fprintf(filter_fp, "-A lan2self -j lan2self_isolatedInterfaces\n");
    fprintf(filter_fp, "-A lan2self -j lan2self_by_wanip\n");
 #else
+   fprintf(filter_fp, "-A lan2self -j lan2self_isolatedInterfaces\n");
    fprintf(filter_fp, "-A lan2self ! -d %s -j lan2self_by_wanip\n", lan_ipaddr);
 #endif
    fprintf(filter_fp, "-A lan2self -j lan2self_mgmt\n");
@@ -14298,6 +14348,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
       {
          fprintf(filter_fp, ":%s - [0:0]\n", "lan2self");
          fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_by_wanip");
+         fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_isolatedInterfaces");
          fprintf(filter_fp, ":%s - [0:0]\n", "lanattack");
          fprintf(filter_fp, ":%s - [0:0]\n", "xlog_drop_lanattack");
          do_lan2self(filter_fp);
