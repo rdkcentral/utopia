@@ -5920,39 +5920,34 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
 
    inst_resp[0] = 0;
    sysevent_get(sysevent_fd, sysevent_token, "multinet-instances", inst_resp, sizeof(inst_resp));
-   FIREWALL_DEBUG("lan2self_isolatedInterfaces: multinet-instances='%s'\n", inst_resp);
+   FIREWALL_DEBUG("lan2self_isolatedInterfaces: multinet-instance\n");
 
    primary_inst[0] = 0;
    sysevent_get(sysevent_fd, sysevent_token, "primary_lan_l2net", primary_inst, sizeof(primary_inst));
-   FIREWALL_DEBUG("lan2self_isolatedInterfaces: primary_lan_l2net='%s'\n", primary_inst);
 
    tok = strtok(inst_resp, " ");
    if (tok) do {
-      FIREWALL_DEBUG("lan2self_isolatedInterfaces: checking instance '%s'\n", tok);
       if (strcmp(primary_inst, tok) == 0) {
-         FIREWALL_DEBUG("lan2self_isolatedInterfaces: skipping primary instance '%s'\n", tok);
+         FIREWALL_DEBUG("lan2self_isolatedInterfaces: skipping primary instance \n");
          continue;
       }
 
       snprintf(net_query, sizeof(net_query), "multinet_%s-localready", tok);
       net_resp[0] = 0;
       sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
-      FIREWALL_DEBUG("lan2self_isolatedInterfaces: %s='%s'\n", net_query, net_resp);
+      FIREWALL_DEBUG("lan2self_isolatedInterfaces: netquery\n");
       if (strcmp("1", net_resp) != 0) {
-         FIREWALL_DEBUG("lan2self_isolatedInterfaces: skipping instance '%s' because it is not ready\n", tok);
          continue;
       }
 
       snprintf(net_query, sizeof(net_query), "multinet_%s-name", tok);
       net_resp[0] = 0;
       sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
-      FIREWALL_DEBUG("lan2self_isolatedInterfaces: %s='%s'\n", net_query, net_resp);
       interface_ipaddr = get_iface_ipaddr(net_resp);
       if (interface_ipaddr != NULL) {
-         FIREWALL_DEBUG("lan2self_isolatedInterfaces: adding interface '%s' with IPv4 '%s'\n", net_resp, interface_ipaddr);
          fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", lan_ipaddr, interface_ipaddr);
       } else {
-         FIREWALL_DEBUG("lan2self_isolatedInterfaces: no IPv4 address found for interface '%s'\n", net_resp);
+         FIREWALL_DEBUG("lan2self_isolatedInterfaces: no IPv4 address found for interface\n");
       }
    } while ((tok = strtok(NULL, " ")) != NULL);
 #else
