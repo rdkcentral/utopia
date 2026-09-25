@@ -5910,7 +5910,7 @@ static int do_multinet_lan2self_by_wanip (FILE *filter_fp)
 static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
 {
    FIREWALL_DEBUG("Entering do_lan2self_isolatedInterfaces\n");
-#if defined(MULTILAN_FEATURE)
+#if !defined(MULTILAN_FEATURE)
    char *tok;
    char net_query[MAX_QUERY];
    char net_resp[MAX_QUERY];
