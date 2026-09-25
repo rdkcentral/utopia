@@ -93,6 +93,10 @@ set_chrony_sync_status() {
             sysevent set ntp_time_sync 1
             touch "$SYNC_FILE"
             touch "$NTP_SYNCED_FILE"
+			if [ -e "/usr/bin/print_uptime" ] && [ ! -f "/tmp/ntp_sync_time_logged" ]; then
+               /usr/bin/print_uptime "boot_to_chrony_ntp_sync"
+               touch /tmp/ntp_sync_time_logged
+            fi
             DEVICEFIRSTUSEDATE=$(syscfg get device_first_use_date)
             if [ -z "$DEVICEFIRSTUSEDATE" ] || [ "0" = "$DEVICEFIRSTUSEDATE" ]; then
                 syscfg set device_first_use_date "$(date +%Y-%m-%dT%H:%M:%S)"
