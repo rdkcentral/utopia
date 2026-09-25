@@ -348,6 +348,7 @@ NOT_DEF:
 
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <sys/file.h>
 #include <sys/mman.h>
@@ -365,7 +366,6 @@ NOT_DEF:
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
-#include <net/if.h>
 
 #endif
 
@@ -972,6 +972,32 @@ int IsValidIPv6Addr(char* ip_addr_string)
         return 0;
     }
 	return 1;
+}
+
+static int IsValidInterfaceName(const char *if_name)
+{
+   size_t index;
+   size_t length;
+
+   if (if_name == NULL)
+      return 0;
+
+   length = strlen(if_name);
+   if (length == 0 || length >= IFNAMSIZ)
+      return 0;
+
+   for (index = 0; index < length; index++)
+   {
+      if (!isalnum((unsigned char)if_name[index]) &&
+         if_name[index] != '.' && if_name[index] != '-' &&
+         if_name[index] != '_' && if_name[index] != '+' &&
+         if_name[index] != ':')
+      {
+         return 0;
+      }
+   }
+
+   return 1;
 }
 
 
@@ -13048,6 +13074,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
   
    if(0==strcmp("true",iot_enabled))
    {
+      struct in_addr iot_ipv4addr;
+      int valid_iot_ipaddr;
+      int valid_iot_ifname;
+
       FIREWALL_DEBUG("IOT_LOG : Adding iptable rules for IOT\n");
       memset(iot_ifName, 0, sizeof(iot_ifName));
       syscfg_get(NULL, "iot_ifname", iot_ifName, sizeof(iot_ifName));
@@ -13056,6 +13086,18 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       }
       memset(iot_primaryAddress, 0, sizeof(iot_primaryAddress));
       syscfg_get(NULL, "iot_ipaddr", iot_primaryAddress, sizeof(iot_primaryAddress));
+      valid_iot_ipaddr = (inet_pton(AF_INET, iot_primaryAddress, &iot_ipv4addr) == 1);
+      valid_iot_ifname = IsValidInterfaceName(iot_ifName);
+      if (!valid_iot_ipaddr)
+      {
+         FIREWALL_DEBUG("IOT_LOG : Invalid iot_ipaddr '%s', skipping IPv4 IoT rules\n" COMMA iot_primaryAddress);
+      }
+      if (!valid_iot_ifname)
+      {
+         FIREWALL_DEBUG("IOT_LOG : Invalid IoT interface '%s', skipping IPv4 IoT rules\n" COMMA iot_ifName);
+      }
+      if (valid_iot_ipaddr && valid_iot_ifname)
+      {
       fprintf(filter_fp,"-A INPUT -d %s/24 -i %s -j ACCEPT\n",iot_primaryAddress,iot_ifName);
       fprintf(filter_fp,"-A INPUT -i %s -m pkttype ! --pkt-type unicast -j ACCEPT\n",iot_ifName);
       //fprintf(filter_fp,"-A FORWARD -i %s -o %s -j ACCEPT\n",iot_ifName,iot_ifName);
@@ -13072,6 +13114,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", iot_ifName, lan_ifname);
       fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", iot_ifName, XHS_IF_NAME);
 #endif
+      }
    }
 
    /*
