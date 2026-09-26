@@ -1517,14 +1517,60 @@ static int do_wan_nat_lan_clients_mapt(FILE *fp)
  */
 void do_webui_rate_limit(FILE *filter_fp,const char *version)
 {
+    char httpport[64] = {0};
+    char httpsport[64] = {0};
+    char webui_ports[128] = {0};
+    const char *src_expr = "ip saddr";
+    const char *set_type = "ipv4_addr";
+    int ret = 0;
+#if defined(CONFIG_CCSP_WAN_MGMT_PORT)
+    char tmpQuery[MAX_QUERY];
+#endif
+
     FIREWALL_DEBUG("Entering do_webui_rate_limit\n");
+
+    if (strcmp(version, "ip6") == 0) {
+        src_expr = "ip6 saddr";
+        set_type = "ipv6_addr";
+    }
+
+    ret = syscfg_get(NULL, "mgmt_wan_httpport", httpport, sizeof(httpport));
+#if defined(CONFIG_CCSP_WAN_MGMT_PORT)
+    tmpQuery[0] = '\0';
+    ret = syscfg_get(NULL, "mgmt_wan_httpport_ert", tmpQuery, sizeof(tmpQuery));
+    if (ret == 0)
+        strcpy(httpport, tmpQuery);
+#endif
+    if ((ret != 0) || ('\0' == httpport[0])) {
+        snprintf(httpport, sizeof(httpport), "%d", 8080);
+    }
+
+    ret = syscfg_get(NULL, "mgmt_wan_httpsport", httpsport, sizeof(httpsport));
+    if ((ret != 0) || ('\0' == httpsport[0])) {
+        snprintf(httpsport, sizeof(httpsport), "%d", 8181);
+    }
+    snprintf(webui_ports, sizeof(webui_ports), "%s,%s", httpport, httpsport);
+
     fprintf(filter_fp, "add chain %s filter %s\n", version, "webui_limit");
-    fprintf(filter_fp, "add rule %s filter webui_limit ct state related,established  counter accept\n", version);
- #if defined(_HUB4_PRODUCT_REQ_)
-    fprintf(filter_fp, "add rule %s filter webui_limit tcp flags & (fin | syn | rst | ack) == syn limit rate 4/second burst 10 accept\n", version);
- #else
-    fprintf(filter_fp, "add rule %s filter webui_limit tcp flags & (fin|syn|rst|ack) == syn limit rate 10/second burst 20 packets counter accept\n", version);
- #endif
+    fprintf(filter_fp, "add set %s filter webui_offender { type %s; flags timeout; timeout 300s; }\n", version, set_type);
+    /* Per-source concurrent-connection state, mirroring iptables' connlimit --connlimit-saddr */
+    fprintf(filter_fp, "add set %s filter webui_connlimit { type %s; flags dynamic,timeout; timeout 300s; }\n", version, set_type);
+    fprintf(filter_fp, "add rule %s filter webui_limit ct state related,established counter accept\n", version);
+    /* lan_access_set_proto() jumps LAN-side port 80/443 traffic here unrestricted; exempt it by the LAN
+     * interface it entered on, not by destination port alone, so a WAN mgmt port configured as 80/443
+     * cannot use this rule to skip the offender/rate-limit checks below. */
+    fprintf(filter_fp, "add rule %s filter webui_limit iifname { \"%s\", \"%s\" } tcp dport { 80,443 } counter accept\n", version, lan_ifname, cmdiag_ifname);
+    fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } %s @webui_offender counter drop\n", version, webui_ports, src_expr);
+
+    /* Cap concurrent connections per source IP; excess from a single source is banned, not just dropped */
+    fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } add @webui_connlimit { %s ct count over 10 } add @webui_offender { %s timeout 300s } counter log prefix \"WebUI Rate Limited: \" level info drop\n", version, webui_ports, src_expr, src_expr);
+#if defined(_HUB4_PRODUCT_REQ_)
+    fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } ct state new tcp flags & (fin | syn | rst | ack) == syn meter webui_srcip_meter { %s limit rate over 2/second burst 5 packets } add @webui_offender { %s timeout 300s } counter log prefix \"WebUI Rate Limited: \" level info drop\n", version, webui_ports, src_expr, src_expr);
+    fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } ct state new tcp flags & (fin | syn | rst | ack) == syn meter webui_srcip_meter { %s limit rate 2/second burst 5 packets } counter accept\n", version, webui_ports, src_expr);
+#else
+    fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } ct state new tcp flags & (fin|syn|rst|ack) == syn meter webui_srcip_meter { %s limit rate over 5/second burst 10 packets } add @webui_offender { %s timeout 300s } counter log prefix \"WebUI Rate Limited: \" level info drop\n", version, webui_ports, src_expr, src_expr);
+    fprintf(filter_fp, "add rule %s filter webui_limit tcp dport { %s } ct state new tcp flags & (fin|syn|rst|ack) == syn meter webui_srcip_meter { %s limit rate 5/second burst 10 packets } counter accept\n", version, webui_ports, src_expr);
+#endif
     fprintf(filter_fp, "add rule %s filter webui_limit limit rate 1/second burst 1 packets counter log prefix \"WebUI Rate Limited: \" level info\n", version);
     fprintf(filter_fp, "add rule %s filter webui_limit counter drop\n", version);
     FIREWALL_DEBUG("Exiting do_webui_rate_limit\n");
@@ -6236,7 +6282,7 @@ static int remote_access_set_proto(FILE *filt_fp, FILE *nat_fp, const char *port
 int lan_access_set_proto(FILE *fp,const char *port, const char *interface)
 {
 	if ((0 == strcmp("80", port)) || (0 == strcmp("443", port))) {
-	   fprintf(fp, "add rule ip filter INPUT iifname \"%s \"tcp dport %s jump webui_limit\n", interface, port);
+      fprintf(fp, "add rule ip filter INPUT iifname \"%s\" tcp dport %s jump webui_limit\n", interface, port);
 	}
 	else
 	{
