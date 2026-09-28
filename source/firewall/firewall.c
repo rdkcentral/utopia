@@ -990,7 +990,7 @@ static int IsValidInterfaceName(const char *if_name)
    {
       if (!isalnum((unsigned char)if_name[index]) &&
          if_name[index] != '.' && if_name[index] != '-' &&
-         if_name[index] != '_' && if_name[index] != '+' &&
+         if_name[index] != '_' &&
          if_name[index] != ':')
       {
          return 0;
