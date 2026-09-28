@@ -48,12 +48,16 @@ recover="false"
 hotspot_down_notification="false"
 SYSEVENT="sysevent"
 HANDLE_GRE_TRACE_LOG=/tmp/handle_gre_trace.log
-exec >>"$HANDLE_GRE_TRACE_LOG" 2>&1
+exec 5>>"$HANDLE_GRE_TRACE_LOG"
+exec 1>&5 2>&5
 PS4='+ pid=$$ ppid=$PPID script=$0 line=$LINENO: '
 set -x
 
 source /etc/utopia/service.d/ut_plat.sh
+set +x
 source /etc/utopia/service.d/log_capture_path.sh
+exec 1>&5 2>&5
+set -x
 . /etc/device.properties
 trace_value() {
     printf '%s pid=%s ppid=%s VALUE %s=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$$" "$PPID" "$1" "$(printf '%s' "$2" | tr '\n' ' ')"
