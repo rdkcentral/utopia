@@ -2372,6 +2372,9 @@ void do_ipv6_nat_table(FILE* fp)
 #endif
 
 #ifdef _PLATFORM_BANANAPI_R4_
+#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
+   if (!isMAPTReady)
+#endif
    fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
 #endif
 
