@@ -5921,6 +5921,7 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
    char iface_names[32][IFNAMSIZ];
    int iface_count = 0;
    int i, j;
+   int already_exists;
 
    inst_resp[0] = 0;
    sysevent_get(sysevent_fd, sysevent_token, "multinet-instances", inst_resp, sizeof(inst_resp));
@@ -5948,7 +5949,14 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
       net_resp[0] = 0;
       sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
       if (net_resp[0] != '\0') {
-         if (iface_count < (int)(sizeof(iface_names) / sizeof(iface_names[0]))) {
+         already_exists = 0;
+         for (i = 0; i < iface_count; i++) {
+            if (strcmp(iface_names[i], net_resp) == 0) {
+               already_exists = 1;
+               break;
+            }
+         }
+         if (!already_exists && iface_count < (int)(sizeof(iface_names) / sizeof(iface_names[0]))) {
             strncpy(iface_names[iface_count], net_resp, sizeof(iface_names[iface_count]) - 1);
             iface_names[iface_count][sizeof(iface_names[iface_count]) - 1] = '\0';
             iface_count++;
@@ -5964,7 +5972,15 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
       if (get_iface_ipaddr(net_resp) == NULL) {
          continue;
       }
-      if (iface_count < (int)(sizeof(iface_names) / sizeof(iface_names[0]))) {
+
+      already_exists = 0;
+      for (j = 0; j < iface_count; j++) {
+         if (strcmp(iface_names[j], net_resp) == 0) {
+            already_exists = 1;
+            break;
+         }
+      }
+      if (!already_exists && iface_count < (int)(sizeof(iface_names) / sizeof(iface_names[0]))) {
          strncpy(iface_names[iface_count], net_resp, sizeof(iface_names[iface_count]) - 1);
          iface_names[iface_count][sizeof(iface_names[iface_count]) - 1] = '\0';
          iface_count++;
@@ -5977,15 +5993,17 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
          continue;
       }
 
-      for (j = 0; j < iface_count; j++) {
-         if (i == j) {
+      for (j = i + 1; j < iface_count; j++) {
+         dst_ipaddr = get_iface_ipaddr(iface_names[j]);
+         if (dst_ipaddr == NULL) {
+            continue;
+         }
+         if (strcmp(src_ipaddr, dst_ipaddr) == 0) {
             continue;
          }
 
-         dst_ipaddr = get_iface_ipaddr(iface_names[j]);
-         if (dst_ipaddr != NULL) {
-            fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", src_ipaddr, dst_ipaddr);
-         }
+         fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", src_ipaddr, dst_ipaddr);
+         fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", dst_ipaddr, src_ipaddr);
       }
    }
 #else
