@@ -261,6 +261,10 @@ typedef struct dhcpv6s_cfg {
 */
    int dhcpv6s_start(struct serv_ipv6 *si6);
 
+#if defined(_CBR2_PRODUCT_REQ_)
+   int dhcpv6s_start_if_needed(struct serv_ipv6 *si6);
+#endif
+
 /**
 * @brief Format dibbler options by replacing spaces with commas.
 *
