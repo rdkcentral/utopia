@@ -5917,6 +5917,11 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
    char inst_resp[MAX_QUERY];
    char primary_inst[MAX_QUERY];
    char *interface_ipaddr;
+   char *src_ipaddr;
+   char *dst_ipaddr;
+   char iface_names[32][IFNAMSIZ];
+   int iface_count = 0;
+   int i, j;
 
    inst_resp[0] = 0;
    sysevent_get(sysevent_fd, sysevent_token, "multinet-instances", inst_resp, sizeof(inst_resp));
@@ -5943,13 +5948,41 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
       snprintf(net_query, sizeof(net_query), "multinet_%s-name", tok);
       net_resp[0] = 0;
       sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
-      interface_ipaddr = get_iface_ipaddr(net_resp);
-      if (interface_ipaddr != NULL) {
-         fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", lan_ipaddr, interface_ipaddr);
-      } else {
-         FIREWALL_DEBUG("lan2self_isolatedInterfaces: no IPv4 address found for interface\n");
+      if (net_resp[0] != '\0') {
+         snprintf(iface_names[iface_count], sizeof(iface_names[iface_count]), "%s", net_resp);
+         iface_count++;
       }
    } while ((tok = strtok(NULL, " ")) != NULL);
+
+   for (i = 0; i < 16; i++) {
+      snprintf(net_resp, sizeof(net_resp), "brlan%d", i);
+      if (strcmp(net_resp, lan_ifname) == 0) {
+         continue;
+      }
+      if (get_iface_ipaddr(net_resp) == NULL) {
+         continue;
+      }
+      snprintf(iface_names[iface_count], sizeof(iface_names[iface_count]), "%s", net_resp);
+      iface_count++;
+   }
+
+   for (i = 0; i < iface_count; i++) {
+      src_ipaddr = get_iface_ipaddr(iface_names[i]);
+      if (src_ipaddr == NULL) {
+         continue;
+      }
+
+      for (j = 0; j < iface_count; j++) {
+         if (i == j) {
+            continue;
+         }
+
+         dst_ipaddr = get_iface_ipaddr(iface_names[j]);
+         if (dst_ipaddr != NULL) {
+            fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", src_ipaddr, dst_ipaddr);
+         }
+      }
+   }
 #else
    FIREWALL_DEBUG("lan2self_isolatedInterfaces: MULTILAN_FEATURE is disabled\n");
 #endif
