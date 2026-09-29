@@ -5916,7 +5916,6 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
    char net_resp[MAX_QUERY];
    char inst_resp[MAX_QUERY];
    char primary_inst[MAX_QUERY];
-   char *interface_ipaddr;
    char *src_ipaddr;
    char *dst_ipaddr;
    char iface_names[32][IFNAMSIZ];
@@ -5949,8 +5948,11 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
       net_resp[0] = 0;
       sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
       if (net_resp[0] != '\0') {
-         snprintf(iface_names[iface_count], sizeof(iface_names[iface_count]), "%s", net_resp);
-         iface_count++;
+         if (iface_count < (int)(sizeof(iface_names) / sizeof(iface_names[0]))) {
+            strncpy(iface_names[iface_count], net_resp, sizeof(iface_names[iface_count]) - 1);
+            iface_names[iface_count][sizeof(iface_names[iface_count]) - 1] = '\0';
+            iface_count++;
+         }
       }
    } while ((tok = strtok(NULL, " ")) != NULL);
 
@@ -5962,8 +5964,11 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
       if (get_iface_ipaddr(net_resp) == NULL) {
          continue;
       }
-      snprintf(iface_names[iface_count], sizeof(iface_names[iface_count]), "%s", net_resp);
-      iface_count++;
+      if (iface_count < (int)(sizeof(iface_names) / sizeof(iface_names[0]))) {
+         strncpy(iface_names[iface_count], net_resp, sizeof(iface_names[iface_count]) - 1);
+         iface_names[iface_count][sizeof(iface_names[iface_count]) - 1] = '\0';
+         iface_count++;
+      }
    }
 
    for (i = 0; i < iface_count; i++) {
