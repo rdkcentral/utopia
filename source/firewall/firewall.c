@@ -5915,10 +5915,9 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
    char net_query[MAX_QUERY];
    char net_resp[MAX_QUERY];
    char inst_resp[MAX_QUERY];
-   char primary_inst[MAX_QUERY];
-   char *src_ipaddr;
-   char *dst_ipaddr;
    char iface_names[32][IFNAMSIZ];
+   char iface_ipaddrs[32][INET_ADDRSTRLEN];
+   char *interface_ipaddr;
    int iface_count = 0;
    int i, j;
    int already_exists;
@@ -5927,16 +5926,8 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
    sysevent_get(sysevent_fd, sysevent_token, "multinet-instances", inst_resp, sizeof(inst_resp));
    FIREWALL_DEBUG("lan2self_isolatedInterfaces: multinet-instance\n");
 
-   primary_inst[0] = 0;
-   sysevent_get(sysevent_fd, sysevent_token, "primary_lan_l2net", primary_inst, sizeof(primary_inst));
-
    tok = strtok(inst_resp, " ");
    if (tok) do {
-      if (strcmp(primary_inst, tok) == 0) {
-         FIREWALL_DEBUG("lan2self_isolatedInterfaces: skipping primary instance \n");
-         continue;
-      }
-
       snprintf(net_query, sizeof(net_query), "multinet_%s-localready", tok);
       net_resp[0] = 0;
       sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
@@ -5948,62 +5939,34 @@ static int do_lan2self_isolatedInterfaces(FILE *filter_fp)
       snprintf(net_query, sizeof(net_query), "multinet_%s-name", tok);
       net_resp[0] = 0;
       sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
-      if (net_resp[0] != '\0') {
-         already_exists = 0;
-         for (i = 0; i < iface_count; i++) {
-            if (strcmp(iface_names[i], net_resp) == 0) {
-               already_exists = 1;
-               break;
-            }
-         }
-         if (!already_exists && iface_count < (int)(sizeof(iface_names) / sizeof(iface_names[0]))) {
-            strncpy(iface_names[iface_count], net_resp, sizeof(iface_names[iface_count]) - 1);
-            iface_names[iface_count][sizeof(iface_names[iface_count]) - 1] = '\0';
-            iface_count++;
-         }
-      }
-   } while ((tok = strtok(NULL, " ")) != NULL);
-
-   for (i = 0; i < 16; i++) {
-      snprintf(net_resp, sizeof(net_resp), "brlan%d", i);
-      if (strcmp(net_resp, lan_ifname) == 0) {
-         continue;
-      }
-      if (get_iface_ipaddr(net_resp) == NULL) {
+      interface_ipaddr = get_iface_ipaddr(net_resp);
+      if (interface_ipaddr == NULL) {
+         FIREWALL_DEBUG("lan2self_isolatedInterfaces: no IPv4 address found for interface\n");
          continue;
       }
 
       already_exists = 0;
-      for (j = 0; j < iface_count; j++) {
-         if (strcmp(iface_names[j], net_resp) == 0) {
+      for (i = 0; i < iface_count; i++) {
+         if (strcmp(iface_names[i], net_resp) == 0) {
             already_exists = 1;
             break;
          }
       }
       if (!already_exists && iface_count < (int)(sizeof(iface_names) / sizeof(iface_names[0]))) {
-         strncpy(iface_names[iface_count], net_resp, sizeof(iface_names[iface_count]) - 1);
-         iface_names[iface_count][sizeof(iface_names[iface_count]) - 1] = '\0';
+         snprintf(iface_names[iface_count], sizeof(iface_names[iface_count]), "%.*s", IFNAMSIZ - 1, net_resp);
+         snprintf(iface_ipaddrs[iface_count], sizeof(iface_ipaddrs[iface_count]), "%.*s", INET_ADDRSTRLEN - 1, interface_ipaddr);
          iface_count++;
       }
-   }
+   } while ((tok = strtok(NULL, " ")) != NULL);
 
    for (i = 0; i < iface_count; i++) {
-      src_ipaddr = get_iface_ipaddr(iface_names[i]);
-      if (src_ipaddr == NULL) {
-         continue;
-      }
-
       for (j = i + 1; j < iface_count; j++) {
-         dst_ipaddr = get_iface_ipaddr(iface_names[j]);
-         if (dst_ipaddr == NULL) {
-            continue;
-         }
-         if (strcmp(src_ipaddr, dst_ipaddr) == 0) {
+         if (strcmp(iface_ipaddrs[i], iface_ipaddrs[j]) == 0) {
             continue;
          }
 
-         fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", src_ipaddr, dst_ipaddr);
-         fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", dst_ipaddr, src_ipaddr);
+         fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", iface_ipaddrs[i], iface_ipaddrs[j]);
+         fprintf(filter_fp, "-A lan2self_isolatedInterfaces -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", iface_ipaddrs[j], iface_ipaddrs[i]);
       }
    }
 #else
@@ -11385,6 +11348,10 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     char inst_resp[MAX_QUERY];
     char primary_inst[MAX_QUERY];
     char ip[MAX_QUERY];
+   char bridge_names[32][IFNAMSIZ];
+   int bridge_count = 0;
+   int i, j;
+   int already_exists;
 
     FIREWALL_DEBUG("Entering prepare_multinet_filter_forward\n"); 	 
 
@@ -11602,10 +11569,28 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
         snprintf(net_query, sizeof(net_query), "multinet_%s-name", tok);
         net_resp[0] = 0;
         sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
-        
-        fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", net_resp, net_resp);
+
+      already_exists = 0;
+      for (i = 0; i < bridge_count; i++) {
+         if (strcmp(bridge_names[i], net_resp) == 0) {
+            already_exists = 1;
+            break;
+         }
+      }
+      if (!already_exists && bridge_count < (int)(sizeof(bridge_names) / sizeof(bridge_names[0]))) {
+         snprintf(bridge_names[bridge_count], sizeof(bridge_names[bridge_count]), "%.*s", IFNAMSIZ - 1, net_resp);
+         bridge_count++;
+      }
         
     } while ((tok = strtok(NULL, " ")) != NULL);
+
+   for (i = 0; i < bridge_count; i++) {
+      for (j = i + 1; j < bridge_count; j++) {
+         fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", bridge_names[i], bridge_names[j]);
+         fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", bridge_names[j], bridge_names[i]);
+      }
+      fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", bridge_names[i], bridge_names[i]);
+   }
 
     FIREWALL_DEBUG("Exiting prepare_multinet_filter_forward\n"); 	 
 
