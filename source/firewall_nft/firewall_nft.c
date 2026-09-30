@@ -5670,7 +5670,6 @@ static int do_multinet_lan2self_by_wanip (FILE *filter_fp)
 }
 #endif
 
-#if defined(MULTILAN_FEATURE)
 static int do_lan2self_isolatedBridges(FILE *filter_fp)
 {
    char *tok;
@@ -5722,7 +5721,6 @@ static int do_lan2self_isolatedBridges(FILE *filter_fp)
 
    return 0;
 }
-#endif
 
 static int do_lan2self_by_wanip(FILE *filter_fp, int family)
 {
@@ -5875,9 +5873,7 @@ static int do_lan2self_mgmt(FILE *fp)
 static int do_lan2self(FILE *fp)
 {
         // FIREWALL_DEBUG("Entering do_lan2self\n");     
-#if defined(MULTILAN_FEATURE)
    do_lan2self_isolatedBridges(fp);
-#endif
 #if (defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)) || defined(FEATURE_SUPPORT_MAPT_NAT46)
    if((!isMAPTReady) & isWanReady) // Pass for Dual Stack Line
 #else
@@ -11438,9 +11434,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    fprintf(filter_fp, "add chain ip filter %s\n", "lan2self");
    fprintf(filter_fp, "add chain ip filter %s\n", "lan2self_by_wanip");
-#if defined(MULTILAN_FEATURE)
    fprintf(filter_fp, "add chain ip filter %s\n", "lan2self_isolatedBridges");
-#endif
    fprintf(filter_fp, "add chain ip filter %s\n", "lan2self_mgmt");
    fprintf(filter_fp, "add chain ip filter %s\n", "host_detect");
    fprintf(filter_fp, "add chain ip filter %s\n", "lanattack");
@@ -12023,8 +12017,8 @@ fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"brlan112
 /* RDKB-57186 SNMP drop to XHS and LnF */
    fprintf(filter_fp, "add rule ip filter general_input iifname \"%s\" udp dport 161 jump xlog_drop_lan2self\n", XHS_IF_NAME);
    fprintf(filter_fp, "add rule ip filter general_input iifname \"%s\" udp dport 161 jump xlog_drop_lan2self\n", LNF_IF_NAME);
-   #if defined (MULTILAN_FEATURE)
    fprintf(filter_fp, "add rule ip filter lan2self counter jump lan2self_isolatedBridges\n");
+#if defined (MULTILAN_FEATURE)
    fprintf(filter_fp, " add rule ip filter lan2self counter jump lan2self_by_wanip\n");
 #else
    fprintf(filter_fp, "add rule ip filter lan2self ip daddr != %s counter jump lan2self_by_wanip\n", lan_ipaddr);
@@ -12970,9 +12964,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    {
        fprintf(filter_fp, "add chain ip filter %s\n", "lan2self");
        fprintf(filter_fp, "add chain ip filter %s\n", "lan2self_by_wanip");
-   #if defined(MULTILAN_FEATURE)
       fprintf(filter_fp, "add chain ip filter %s\n", "lan2self_isolatedBridges");
-   #endif
        fprintf(filter_fp, "add chain ip filter %s\n", "lanattack");
        fprintf(filter_fp, "add chain ip filter %s\n", "xlog_drop_lanattack");
        do_lan2self(filter_fp);
