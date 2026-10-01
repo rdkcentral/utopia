@@ -2390,8 +2390,6 @@ static int prepare_globals_from_configuration(void)
 	  if(wanInterface[0] != '\0'){   
 	     safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),wanInterface);
 		 ERR_CHK(safec_rc);
-		 safec_rc=strcpy_s(ecm_wan_ifname, sizeof(ecm_wan_ifname),wanInterface);
-		 ERR_CHK(safec_rc);  
 	  }
       else{
 		 if ('\0' == default_wan_ifname[0]) {
@@ -2402,15 +2400,8 @@ static int prepare_globals_from_configuration(void)
             safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),default_wan_ifname);
 			ERR_CHK(safec_rc);
          }
-		 safec_rc=strcpy_s(ecm_wan_ifname, sizeof(ecm_wan_ifname),current_wan_ifname);
-		 ERR_CHK(safec_rc);
-	  }
-	  
+	  } 
 	}
-	else {
-	  safec_rc=strcpy_s(ecm_wan_ifname, sizeof(ecm_wan_ifname),current_wan_ifname);	
-	  ERR_CHK(safec_rc);
-    }
 #else	
    if ('\0' == current_wan_ifname[0]) {
       if ('\0' == default_wan_ifname[0]) {
