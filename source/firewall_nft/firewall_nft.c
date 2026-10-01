@@ -10270,7 +10270,7 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     fprintf(filter_fp, "add rule ip filter INPUT iifname brlan113 pkttype != unicast counter accept\n");
     fprintf(filter_fp, "add rule ip filter INPUT iifname brebhaul ip daddr 169.254.85.0/24 counter  accept\n");
     fprintf(filter_fp, "add rule ip filter INPUT iifname brebhaul pkttype != unicast counter accept\n");
-#elif defined(_XB7_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_)
+#elif defined(_XB7_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
 
     fprintf(filter_fp, "add rule ip filter INPUT iifname brlan112 ip daddr 169.254.0.0/24 counter accept\n");
     fprintf(filter_fp, "add rule ip filter INPUT iifname brlan112 pkttype != unicast counter accept\n");

@@ -951,6 +951,7 @@ $Adv_TCPTrackerFilterDevicesRFCEnable=0
 $Adv_DoHBlockingRFCEnable=0
 $Adv_DNSECHBlockingRFCEnable=0
 $Adv_DFMLORFCEnable=0
+$Adv_AdvSecNetworkIntelligenceActivate=1
 
 #Firewall log settings
 $$FW_LOG_COMPRESSED_FILE_SIZE=10
