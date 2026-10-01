@@ -357,6 +357,7 @@ NOT_DEF:
 #include "ccsp_psm_helper.h"
 #include <ccsp_base_api.h>
 #include "ccsp_memory.h"
+#include <telemetry_busmessage_sender.h>
 
 
 #if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
@@ -12071,6 +12072,37 @@ int prepare_mape_rules(FILE *mangle_fp)
 }
 #endif
 
+/* Reject corrupt cmdiag_ifname data before writing it to an iptables rule. */
+int fw_validate_cmdiag_ifname(const char *ifname)
+{
+   char hexbuf[(sizeof(cmdiag_ifname) * 3) + 1] = {0};
+   size_t i;
+   size_t len;
+   size_t off = 0;
+
+   if (NULL != ifname)
+   {
+      len = strnlen(ifname, sizeof(cmdiag_ifname));
+      if (0 < len && len < sizeof(cmdiag_ifname))
+      {
+         for (i = 0; i < len; i++)
+         {
+            if (!isprint((unsigned char)ifname[i]))
+               break;
+         }
+         if (i == len)
+            return 1;
+      }
+
+      for (i = 0; i < sizeof(cmdiag_ifname) && '\0' != ifname[i] && off < sizeof(hexbuf) - 3; i++)
+         off += snprintf(hexbuf + off, sizeof(hexbuf) - off, "%02x ", (unsigned char)ifname[i]);
+   }
+
+   FIREWALL_DEBUG("Rejected corrupt cmdiag_ifname after -i: hex[%s]\n" COMMA hexbuf);
+   t2_event_s("SYS_ERR_FW_CmDiag_CorruptIfname", hexbuf);
+   return 0;
+}
+
 /*
  *  Procedure     : prepare_subtables
  *  Purpose       : prepare the iptables-restore file that establishes all
@@ -12476,7 +12508,8 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #ifdef CONFIG_CISCO_FEATURE_CISCOCONNECT
    fprintf(filter_fp, ":%s - [0:0]\n", "pp_disabled");
    if(isGuestNetworkEnabled) {
-       fprintf(filter_fp, "-A pp_disabled -s %s/%s -p tcp -m state --state ESTABLISHED -m connbytes --connbytes 0:5 --connbytes-dir original --connbytes-mode packets -j GWMETA --dis-pp\n", guest_network_ipaddr, guest_network_mask);
+  //rasina check here
+      	   fprintf(filter_fp, "-A pp_disabled -s %s/%s -p tcp -m state --state ESTABLISHED -m connbytes --connbytes 0:5 --connbytes-dir original --connbytes-mode packets -j GWMETA --dis-pp\n", guest_network_ipaddr, guest_network_mask);
        fprintf(filter_fp, "-A pp_disabled -d %s/%s -p tcp -m state --state ESTABLISHED -m connbytes --connbytes 0:5 --connbytes-dir reply --connbytes-mode packets -j GWMETA --dis-pp\n", guest_network_ipaddr, guest_network_mask);
    }
 
@@ -12721,7 +12754,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",ecm_wan_ifname);
    if (isCmDiagEnabled)
    {
-       fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);  
+       if (fw_validate_cmdiag_ifname(cmdiag_ifname))
+       {
+	   fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);  
+       }
    }
 
    #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
@@ -12844,7 +12880,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 
    if (isCmDiagEnabled)
    {
-      fprintf(filter_fp, "-A INPUT -i %s -d 192.168.100.1 -j ACCEPT\n", cmdiag_ifname);
+       fprintf(filter_fp, "-A INPUT -i %s -d 192.168.100.1 -j ACCEPT\n", cmdiag_ifname);
    }
 
    if(isComcastImage)
@@ -14502,7 +14538,10 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",ecm_wan_ifname);
    if (isCmDiagEnabled)
    {
-       fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);  
+       if (fw_validate_cmdiag_ifname(cmdiag_ifname))
+       {
+	   fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);  
+       }
    }
    #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
         #if !defined(_CBR_PRODUCT_REQ_) && !defined (_BWG_PRODUCT_REQ_) && !defined (_CBR2_PRODUCT_REQ_)
@@ -15722,9 +15761,10 @@ void updateManageWiFiRules(void * busHandle, char * pCurWanInterface, FILE * fil
 
     if (true == isManageWiFiEnabled())
     {
-        char aParamName[BUFF_LEN_64];
-        char aParamVal[BUFF_LEN_8];
-        char aV4Addr[BUFF_LEN_64];
+      char aParamName[BUFF_LEN_64] = {0};
+      char aParamVal[BUFF_LEN_8] = {0};
+      char aV4Addr[BUFF_LEN_64] = {0};
+      struct in_addr v4Addr;
 
         psmGet(bus_handle, MANAGE_WIFI_PSM_STR, aParamVal, sizeof(aParamVal));
         if ('\0' != aParamVal[0])
@@ -15736,7 +15776,16 @@ void updateManageWiFiRules(void * busHandle, char * pCurWanInterface, FILE * fil
             if ('\0' != aParamVal[0])
             {
                 fprintf(filterFp, "-A INPUT -p tcp -i %s --dport 22 -j DROP\n", aParamVal);
-                fprintf(filterFp, "-A INPUT -d %s/32 -i %s -j ACCEPT\n", aV4Addr,aParamVal);
+            if (1 == inet_pton(AF_INET, aV4Addr, &v4Addr))
+            {
+               fprintf(filterFp, "-A INPUT -d %s/32 -i %s -j ACCEPT\n", aV4Addr,aParamVal);
+            }
+            else
+            {
+               FIREWALL_DEBUG("Rejected managed-WiFi INPUT ACCEPT: -d %s/32 invalid IPv4 on bridge %s\n"
+                           COMMA ('\0' != aV4Addr[0]) ? aV4Addr : "(empty)" COMMA aParamVal);
+               t2_event_s("SYS_ERR_FW_MgdWiFi_EmptyIP", aParamVal);
+            }
                 fprintf(filterFp, "-A INPUT -i %s -j lan2self\n", aParamVal);
                 fprintf(filterFp, "-A FORWARD -i %s -o %s -j ACCEPT\n", aParamVal,aParamVal);
                 if (NULL != pCurWanInterface)
