@@ -2378,35 +2378,6 @@ static int prepare_globals_from_configuration(void)
    isComcastImage = bIsComcastImage();
    sysevent_get(sysevent_fd, sysevent_token, "wan_ifname", default_wan_ifname, sizeof(default_wan_ifname));
    sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_ifname, sizeof(current_wan_ifname));
-#ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
-    if ('\0' == current_wan_ifname[0]) {
-	  char wanInterface[20] = {'\0'};	
-      syscfg_get(NULL, "wan_physical_ifname", wanInterface, sizeof(wanInterface));
-	  if(wanInterface[0] != '\0'){   
-	     safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),wanInterface);
-		 ERR_CHK(safec_rc);
-		 safec_rc=strcpy_s(ecm_wan_ifname, sizeof(ecm_wan_ifname),wanInterface);
-		 ERR_CHK(safec_rc);  
-	  }
-      else{
-		 if ('\0' == default_wan_ifname[0]) {
-            safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),"erouter0");
-			ERR_CHK(safec_rc);
-         }
-         else {
-            safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),default_wan_ifname);
-			ERR_CHK(safec_rc);
-         }
-		 safec_rc=strcpy_s(ecm_wan_ifname, sizeof(ecm_wan_ifname),current_wan_ifname);
-		 ERR_CHK(safec_rc);
-	  }
-	  
-	}
-	else {
-	  safec_rc=strcpy_s(ecm_wan_ifname, sizeof(ecm_wan_ifname),current_wan_ifname);	
-	  ERR_CHK(safec_rc);
-    }
-#else	
    if ('\0' == current_wan_ifname[0]) {
       if ('\0' == default_wan_ifname[0]) {
          snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", "erouter0");
@@ -2415,7 +2386,6 @@ static int prepare_globals_from_configuration(void)
          snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", default_wan_ifname);
       }
    }
- #endif	
 
    sysevent_get(sysevent_fd, sysevent_token, "current_wan_ipaddr", current_wan_ipaddr, sizeof(current_wan_ipaddr));
 
@@ -2511,9 +2481,8 @@ static int prepare_globals_from_configuration(void)
 
    syscfg_get(NULL, "firewall_level", firewall_level, sizeof(firewall_level));
    syscfg_get(NULL, "firewall_levelv6", firewall_levelv6, sizeof(firewall_levelv6));
-#ifndef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
+
    syscfg_get(NULL, "ecm_wan_ifname", ecm_wan_ifname, sizeof(ecm_wan_ifname));
-#endif
 #if !defined (NO_MTA_FEATURE_SUPPORT)
    syscfg_get(NULL, "emta_wan_ifname", emta_wan_ifname, sizeof(emta_wan_ifname));
 #endif
@@ -11425,7 +11394,7 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     fprintf(filter_fp, "-A INPUT -i brlan113 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brebhaul -d 169.254.85.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brebhaul -m pkttype ! --pkt-type unicast -j ACCEPT\n");
-#elif defined(_XB7_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_)
+#elif defined(_XB7_PRODUCT_REQ_) || defined (_CBR2_PRODUCT_REQ_) || defined(_SCXF11BFL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
     fprintf(filter_fp, "-A INPUT -i brlan112 -d 169.254.0.0/24 -j ACCEPT\n");
     fprintf(filter_fp, "-A INPUT -i brlan112 -m pkttype ! --pkt-type unicast -j ACCEPT\n");
     fprintf(filter_fp, "-A FORWARD -i brlan112 -o erouter0 -j DROP\n");
@@ -12677,21 +12646,14 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    if(bEthWANEnable)
    {
            //ETH WAN is TC XB6 exclusive feature
-	   	   #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
-              if (current_wan_ifname[0] != '\0')
-                  fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", current_wan_ifname);
-              else
-                  fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", default_wan_ifname);	         
-	       #else
-              if (strcmp(current_wan_ifname, default_wan_ifname ) == 0)
-              {
-                  fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", current_wan_ifname);
-              }
-              else
-              {
-                  fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", default_wan_ifname);
-              }
-	       #endif
+            if (strcmp(current_wan_ifname, default_wan_ifname ) == 0)
+            {
+              fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", current_wan_ifname);
+            }
+            else
+            {
+              fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", default_wan_ifname);
+            }
    }
    else if (erouterSSHEnable)  // Applicable only for PUMA7 platforms
    {
