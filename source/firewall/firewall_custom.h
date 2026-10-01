@@ -82,18 +82,6 @@ void do_device_based_pp_disabled_ip_appendrule(FILE *fp, const char *ins_num, co
 int do_parcon_mgmt_lan2wan_pc_site_appendrule(FILE *fp);
 
 /**
-* @brief Insert parental control management LAN to WAN PC site rule at specified index.
-*
-* @param[in] fp - Pointer to the FILE stream for writing firewall rules.
-* @param[in] index - Index position where the rule should be inserted.
-* @param[in] nstdPort - Pointer to the non-standard port string.
-*
-* @return None.
-*
-*/
-void do_parcon_mgmt_lan2wan_pc_site_insertrule(FILE *fp, int index, char *nstdPort);
-
-/**
 * @brief Log firewall messages with variable arguments.
 *
 * This function logs a message to the firewall log file with a timestamp prefix.
