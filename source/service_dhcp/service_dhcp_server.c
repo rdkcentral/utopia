@@ -245,6 +245,23 @@ int dnsmasq_server_start()
 {
     char l_cSystemCmd[255] = {0};
     errno_t safec_rc = -1;
+    char l_cEdnsPacketSize[8] = {0};
+    char l_cEdnsConfig[16] = {0};
+    int l_iEdnsPacketSize = 1232;
+    int l_iValue = 0;
+
+    if (syscfg_get(NULL, "edns_packet_size", l_cEdnsConfig, sizeof(l_cEdnsConfig)) == 0)
+    {
+        /* Valid EDNS packet sizes are 512-65535 (3 to 5 digits). Reject empty,
+           non-numeric, out-of-range and truncated values; fall back to 1232 */
+        if ((strspn(l_cEdnsConfig, "0123456789") == strlen(l_cEdnsConfig)) &&
+            (strlen(l_cEdnsConfig) >= 1) && (strlen(l_cEdnsConfig) <= 5) &&
+            ((l_iValue = atoi(l_cEdnsConfig)) >= 512) && (l_iValue <= 65535))
+        {
+            l_iEdnsPacketSize = l_iValue;
+        }
+    }
+   snprintf(l_cEdnsPacketSize, sizeof(l_cEdnsPacketSize), "%d", l_iEdnsPacketSize);
 
     getRFC_Value (dnsOption);
     dnsOption[sizeof(dnsOption) - 1] = '\0'; // CID 340940 : String not null terminated (STRING_NULL)
@@ -264,14 +281,14 @@ int dnsmasq_server_start()
         syscfg_get(NULL, "XDNS_RefacCodeEnable", l_cXdnsRefacCodeEnable, sizeof(l_cXdnsRefacCodeEnable));
         syscfg_get(NULL, "X_RDKCENTRAL-COM_XDNS", l_cXdnsEnable, sizeof(l_cXdnsEnable));
         if (!strncmp(l_cXdnsRefacCodeEnable, "1", 1) && !strncmp(l_cXdnsEnable, "1", 1)){
-            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --xdns-refac-code",
-                    SERVER, DHCP_CONF,dnsOption);
+            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P %s -C %s %s --xdns-refac-code",
+                    SERVER, l_cEdnsPacketSize, DHCP_CONF,dnsOption);
             if(safec_rc < EOK){
                 ERR_CHK(safec_rc);
             }
         }else{
-            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s",
-                    SERVER, DHCP_CONF,dnsOption);
+            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P %s -C %s %s",
+                    SERVER, l_cEdnsPacketSize, DHCP_CONF,dnsOption);
             if(safec_rc < EOK){
                 ERR_CHK(safec_rc);
             }
@@ -280,7 +297,7 @@ int dnsmasq_server_start()
     else //If XDNS is not enabled 
 #endif
     {
-        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P 4096 -C %s %s", SERVER, DHCP_CONF,dnsOption);
+        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P %s -C %s %s", SERVER, l_cEdnsPacketSize, DHCP_CONF,dnsOption);
         if(safec_rc < EOK){
             ERR_CHK(safec_rc);
         }
@@ -305,7 +322,7 @@ int dnsmasq_server_start()
                 {
                     if(!strncmp(l_cXdnsRefacCodeEnable, "1", 1))
                     {
-                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --xdns-refac-code",SERVER, DHCP_CONF,dnsOption);
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P %s -C %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --xdns-refac-code",SERVER, l_cEdnsPacketSize, DHCP_CONF,dnsOption);
                         if(safec_rc < EOK)
                         {
                             ERR_CHK(safec_rc);
@@ -313,7 +330,7 @@ int dnsmasq_server_start()
                     }
                     else
                     {
-                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, DHCP_CONF,dnsOption);
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P %s -C %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, l_cEdnsPacketSize, DHCP_CONF,dnsOption);
                         if(safec_rc < EOK)
                         {
                             ERR_CHK(safec_rc);
@@ -324,7 +341,7 @@ int dnsmasq_server_start()
                 {
                     if(!strncmp(l_cXdnsRefacCodeEnable, "1", 1) && !strncasecmp(l_cXdnsEnable, "1", 1))
                     {
-                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, DHCP_CONF,dnsOption);
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P %s -C %s %s --dhcp-authoritative --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, l_cEdnsPacketSize, DHCP_CONF,dnsOption);
                         if(safec_rc < EOK)
                         {
                             ERR_CHK(safec_rc);
@@ -332,7 +349,7 @@ int dnsmasq_server_start()
                     }
                     else
                     {
-                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log ",SERVER, DHCP_CONF,dnsOption);
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P %s -C %s %s --dhcp-authoritative --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log ",SERVER, l_cEdnsPacketSize, DHCP_CONF,dnsOption);
                         if(safec_rc < EOK)
                         {
                             ERR_CHK(safec_rc);
@@ -347,7 +364,7 @@ int dnsmasq_server_start()
         else // XDNS not enabled
 #endif
         {
-            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P 4096 -C %s",SERVER, DHCP_CONF);
+            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P %s -C %s",SERVER, l_cEdnsPacketSize, DHCP_CONF);
             if(safec_rc < EOK)
             {
                 ERR_CHK(safec_rc);
