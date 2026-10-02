@@ -287,6 +287,27 @@ CheckAndReCreateDB()
 	fi 
 }
 
+# Call setstackmode binary to set stackmode marker (with optimization)
+if [ -x /usr/bin/setstackmode ]; then
+      SETSTACKMODE_INIT_FLAG="/nvram/.setstackmode_intialize"
+      
+      # Optimization: Check if initialization flag exists
+      if [ -f "$SETSTACKMODE_INIT_FLAG" ]; then
+          echo "[utopia][init] setstackmode already initialized, skipping binary execution"
+      else
+          echo "[utopia][init] Calling setstackmode binary to configure stack mode"
+          /usr/bin/setstackmode
+          ret=$?
+          if [ $ret -eq 0 ]; then
+              echo "[utopia][init] setstackmode binary executed successfully (return code: $ret)"
+          else
+              echo "[utopia][init] setstackmode binary failed with return code: $ret"
+          fi
+      fi
+else
+      echo "[utopia][init] setstackmode binary not found, skipping stack mode configuration"
+fi
+
 echo "[utopia][init] Starting syscfg using file store ($SYSCFG_NEW_FILE)"
 if [ -f $SYSCFG_NEW_FILE ]; then
         # Check and remove immutable attribute on syscfg.db if set
