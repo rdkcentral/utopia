@@ -38,6 +38,10 @@ source /lib/rdk/t2Shared_api.sh
 source /etc/waninfo.sh
 
 DHCP_CONF=/etc/dnsmasq.conf
+
+DHCP_CONF_WAN=/var/dnsmasq_wan.conf
+DHCP_CONF_LAN=/var/dnsmasq_lan.conf
+
 DHCP_STATIC_HOSTS_FILE=/etc/dhcp_static_hosts
 DHCP_OPTIONS_FILE=/var/dhcp_options
 SelfHealSupport=`sysevent get SelfhelpWANConnectionDiagSupport`
@@ -49,10 +53,16 @@ LOCAL_DHCP_STATIC_HOSTS_FILE=/tmp/dhcp_static_hosts
 LOCAL_DHCP_OPTIONS_FILE=/tmp/dhcp_options
 else
 LOCAL_DHCP_CONF=/tmp/dnsmasq.conf$$
+LOCAL_DHCP_CONF_WAN=/tmp/dnsmasq_wan.conf$$
+LOCAL_DHCP_CONF_LAN=/tmp/dnsmasq_lan.conf$$
 LOCAL_DHCP_STATIC_HOSTS_FILE=/tmp/dhcp_static_hosts$$
 LOCAL_DHCP_OPTIONS_FILE=/tmp/dhcp_options$$
 fi
 RESOLV_CONF=/etc/resolv.conf
+DNS_PROXY_RESOLV_CONF=/var/resolv_lan.dnsmasq
+DNS_PROXY_RESOLV_CONF_TMP=/tmp/resolv_lan.dnsmasq
+STATIC_DNS_IPv4=""
+STATIC_DNS_IPv6=""
 TMP_RESOLVE_CONF=/tmp/lte_resolv.conf
 WAN_INTERFACE=$(getWanInterfaceName)
 if [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "HUB4" ] || [  "$SelfHealSupport" = "true" ]; then
@@ -676,6 +686,55 @@ prepare_whitelist_urls()
 	fi
 }
 
+get_static_dns_ips(){
+  ind=1
+
+  if [ "$1" == "ipv6" ] ; then
+     STATIC_DNS_IPv6=""
+     delim=":"
+  else
+      STATIC_DNS_IPv4=""
+      delim="\."
+  fi
+
+  count=`syscfg get dns_forward_count`
+  if [ -z "$count" ] ; then
+        count="0"
+  fi
+
+  while [ "$ind" -le "$count" ]
+  do
+         DnsEnable=`psmcli get dmsb.dns.forwarding.$ind.enable`
+         if [ "$DnsEnable" = "1" ] ; then
+              ip=`psmcli get dmsb.dns.forwarding.$ind.dnsserver | grep $delim`
+              if [ -n "$ip" ] ; then
+                   static_ips=$static_ips""$ip" "
+              fi
+         fi
+         ((ind++))
+   done
+
+   if [ "$1" == "ipv6" ] ; then
+       STATIC_DNS_IPv6=$static_ips
+   else
+       STATIC_DNS_IPv4=$static_ips
+   fi
+}
+
+prepare_dns_proxy_conf()
+{
+    get_static_dns_ips ipv6
+    get_static_dns_ips ipv4
+    ind=0
+    for ip in $STATIC_DNS_IPv4;
+    do
+         ((ind++))
+         echo "nameserver $ip" >> $DNS_PROXY_RESOLV_CONF_TMP
+    done
+    cat $DNS_PROXY_RESOLV_CONF_TMP > $DNS_PROXY_RESOLV_CONF
+    rm $DNS_PROXY_RESOLV_CONF_TMP
+}
+
 prepare_static_dns_urls()
 {
   if [ -f $STATIC_DNS_URLS_FILE ]; then
@@ -1022,6 +1081,9 @@ fi
    then
        echo "domain-needed" >> $LOCAL_DHCP_CONF
        echo "bogus-priv" >> $LOCAL_DHCP_CONF
+       echo "domain-needed" >> $LOCAL_DHCP_CONF_WAN
+       echo "bogus-priv" >> $LOCAL_DHCP_CONF_WAN
+       echo "bind-interfaces" >> $LOCAL_DHCP_CONF_WAN
 
        PARTNER_ID=`syscfg get PartnerID`
        if [ "$BOX_TYPE" = "SR213" ] || [ "$PARTNER_ID" = "sky-uk" ] ; then
@@ -1039,6 +1101,7 @@ fi
         touch $DEFAULT_RESOLV_CONF
         echo "nameserver 127.0.0.1" > $DEFAULT_RESOLV_CONF
         echo "resolv-file=$DEFAULT_RESOLV_CONF" >> $LOCAL_DHCP_CONF
+        echo "resolv-file=$DEFAULT_RESOLV_CONF" >> $LOCAL_DHCP_CONF_WAN
         #echo "address=/#/$addr" >> $DHCP_CONF
        else
         if [ -e $DEFAULT_RESOLV_CONF ]
@@ -1048,9 +1111,23 @@ fi
 
         if [ "0" = "$NAMESERVERENABLED" ] && [ $isLocalDNSOnly -eq 0 ] ; then
             echo "resolv-file=$RESOLV_CONF" >> $LOCAL_DHCP_CONF
+            echo "resolv-file=$RESOLV_CONF" >> $LOCAL_DHCP_CONF_WAN
         fi
 
        fi
+
+      cat $LOCAL_DHCP_CONF_WAN >> $LOCAL_DHCP_CONF_LAN
+      resolvFile=$(mktemp)
+      for checkString in $LOCAL_DHCP_CONF_LAN; do
+         awk '!/resolv-file/' $checkString > $resolvFile
+         cp $resolvFile $checkString
+      done
+      rm $resolvFile
+
+      echo "resolv-file=$DNS_PROXY_RESOLV_CONF" >> $LOCAL_DHCP_CONF_LAN
+      echo "interface=lo" >> $LOCAL_DHCP_CONF_WAN
+      echo "except-interface=brlan0" >> $LOCAL_DHCP_CONF_WAN
+      echo "except-interface=lo" >> $LOCAL_DHCP_CONF_LAN
 
       # if we are provisioned to use the wan domain name, the we do so
       # otherwise we use the lan domain name
@@ -1070,6 +1147,8 @@ fi
          if [ -n "$LAN_DOMAIN" ] ; then
             echo "domain=$LAN_DOMAIN" >> $LOCAL_DHCP_CONF
             echo "local=/$LAN_DOMAIN/" >> $LOCAL_DHCP_CONF
+            echo "domain=$LAN_DOMAIN" >> $LOCAL_DHCP_CONF_LAN
+            echo "local=/$LAN_DOMAIN/" >> $LOCAL_DHCP_CONF_LAN
          fi
        fi  
    else
@@ -1079,6 +1158,8 @@ fi
    #echo "interface=$LAN_IFNAME" >> $LOCAL_DHCP_CONF
    echo "expand-hosts" >> $LOCAL_DHCP_CONF
    echo "address=/.c.f.ip6.arpa/" >> $LOCAL_DHCP_CONF
+   echo "expand-hosts" >> $LOCAL_DHCP_CONF_LAN
+   echo "address=/.c.f.ip6.arpa/" >> $LOCAL_DHCP_CONF_LAN
 
       LOG_LEVEL=`syscfg get log_level`
    if [ -z "$LOG_LEVEL" ] ; then
@@ -1087,12 +1168,15 @@ fi
 
    if [ "$3" = "dns_only" ] ; then
       echo "no-dhcp-interface=$LAN_IFNAME" >> $LOCAL_DHCP_CONF
+      echo "no-dhcp-interface=$LAN_IFNAME" >> $LOCAL_DHCP_CONF_WAN
    fi 
    #echo "$PREFIX""dhcp-range=$DHCP_START_ADDR,$DHCP_END_ADDR,$2,$DHCP_LEASE_TIME" >> $LOCAL_DHCP_CONF
    echo "dhcp-leasefile=$DHCP_LEASE_FILE" >> $LOCAL_DHCP_CONF
+   echo "dhcp-leasefile=$DHCP_LEASE_FILE" >> $LOCAL_DHCP_CONF_LAN
   # echo "$PREFIX""dhcp-script=$DHCP_ACTION_SCRIPT" >> $LOCAL_DHCP_CONF
   # echo "$PREFIX""dhcp-lease-max=$DHCP_NUM" >> $LOCAL_DHCP_CONF
    echo "dhcp-hostsfile=$DHCP_STATIC_HOSTS_FILE" >> $LOCAL_DHCP_CONF
+   echo "dhcp-hostsfile=$DHCP_STATIC_HOSTS_FILE" >> $LOCAL_DHCP_CONF_LAN
 
    if [ "$RF_CAPTIVE_PORTAL" != "true" ]
    then
@@ -1101,6 +1185,7 @@ fi
             if [ $isLocalDNSOnly -eq 0 ]
             then
             echo "dhcp-optsfile=$DHCP_OPTIONS_FILE" >> $LOCAL_DHCP_CONF
+            echo "dhcp-optsfile=$DHCP_OPTIONS_FILE" >> $LOCAL_DHCP_CONF_LAN
             fi
        fi
    fi
@@ -1144,14 +1229,18 @@ fi
    if [ "started" = "$CURRENT_LAN_STATE" ]; then
       calculate_dhcp_range "$LAN_IPADDR" "$LAN_NETMASK"
       echo "interface=$LAN_IFNAME" >> $LOCAL_DHCP_CONF
+      echo "interface=$LAN_IFNAME" >> $LOCAL_DHCP_CONF_LAN
 	  if [ $DHCP_LEASE_TIME == -1 ]; then
 	      echo "$PREFIX""dhcp-range=$DHCP_START_ADDR,$DHCP_END_ADDR,$LAN_NETMASK,infinite" >> $LOCAL_DHCP_CONF
+              echo "$PREFIX""dhcp-range=$DHCP_START_ADDR,$DHCP_END_ADDR,$LAN_NETMASK,infinite" >> $LOCAL_DHCP_CONF_LAN
 	  else
   	      echo "$PREFIX""dhcp-range=$DHCP_START_ADDR,$DHCP_END_ADDR,$LAN_NETMASK,$DHCP_LEASE_TIME" >> $LOCAL_DHCP_CONF
+              echo "$PREFIX""dhcp-range=$DHCP_START_ADDR,$DHCP_END_ADDR,$LAN_NETMASK,$DHCP_LEASE_TIME" >> $LOCAL_DHCP_CONF_LAN
 	  fi
 	  if [ "1" = "$NAMESERVERENABLED" ]; then
 		  DHCP_OPTION_FOR_LAN=`get_dhcp_option_for_brlan0`
 		  echo "$PREFIX""$DHCP_OPTION_FOR_LAN" >> $LOCAL_DHCP_CONF
+                  echo "$PREFIX""$DHCP_OPTION_FOR_LAN" >> $LOCAL_DHCP_CONF_LAN
 		  echo_t "DHCP_SERVER : $PREFIX$DHCP_OPTION_FOR_LAN"
                   SECUREWEBUI_ENABLED=`syscfg get SecureWebUI_Enable`
                   if [ "$SECUREWEBUI_ENABLED" = "true" ]; then
@@ -1159,6 +1248,8 @@ fi
                       LOCDOMAIN_NAME=`syscfg get SecureWebUI_LocalFqdn`
                       echo "address=/$LOCDOMAIN_NAME/$locaddr" >> $LOCAL_DHCP_CONF
                       echo "server=/$LOCDOMAIN_NAME/$locaddr" >> $LOCAL_DHCP_CONF
+                      echo "address=/$LOCDOMAIN_NAME/$locaddr" >> $LOCAL_DHCP_CONF_LAN
+                      echo "server=/$LOCDOMAIN_NAME/$locaddr" >> $LOCAL_DHCP_CONF_LAN
                       
                   fi 
           fi
@@ -1187,14 +1278,19 @@ fi
 	IOT_END_ADDR=`syscfg get iot_dhcp_end`
 	IOT_NETMASK=`syscfg get iot_netmask`
 	echo "interface=$IOT_IFNAME" >> $LOCAL_DHCP_CONF
+        echo "interface=$IOT_IFNAME" >> $LOCAL_DHCP_CONF_LAN
+        echo "except-interface=$IOT_IFNAME" >> $LOCAL_DHCP_CONF_WAN
 	  if [ $DHCP_LEASE_TIME == -1 ]; then
 		echo "$PREFIX""dhcp-range=$IOT_START_ADDR,$IOT_END_ADDR,$IOT_NETMASK,infinite" >> $LOCAL_DHCP_CONF
+                echo "$PREFIX""dhcp-range=$IOT_START_ADDR,$IOT_END_ADDR,$IOT_NETMASK,infinite" >> $LOCAL_DHCP_CONF_LAN
 	  else
 		echo "$PREFIX""dhcp-range=$IOT_START_ADDR,$IOT_END_ADDR,$IOT_NETMASK,86400" >> $LOCAL_DHCP_CONF
+                echo "$PREFIX""dhcp-range=$IOT_START_ADDR,$IOT_END_ADDR,$IOT_NETMASK,86400" >> $LOCAL_DHCP_CONF_LAN
 	  fi
 	  
 	   if [ "1" == "$NAMESERVERENABLED" ] && [ -n "$WAN_DHCP_NS" ]; then
 		   echo "${PREFIX}""dhcp-option=${IOT_IFNAME},6,$WAN_DHCP_NS" >> $LOCAL_DHCP_CONF
+                   echo "${PREFIX}""dhcp-option=${IOT_IFNAME},6,$WAN_DHCP_NS" >> $LOCAL_DHCP_CONF_LAN
 	   fi
    fi
 
@@ -1425,6 +1521,10 @@ fi
    cat $LOCAL_DHCP_CONF > $DHCP_CONF
    rm -f $LOCAL_DHCP_CONF
 
+   cat $LOCAL_DHCP_CONF_WAN > $DHCP_CONF_WAN
+   cat $LOCAL_DHCP_CONF_LAN > $DHCP_CONF_LAN
+   rm -f $LOCAL_DHCP_CONF_WAN $LOCAL_DHCP_CONF_LAN
+
    echo "DHCP SERVER : Completed preparing DHCP configuration"
 
     if [ "$WanFailOverSupportEnable" = true ] && [ "$rdkb_extender" != "true" ] &&
@@ -1505,6 +1605,8 @@ do_extra_pools () {
 	then
 		echo "${PREFIX}interface=${IFNAME}" >> $LOCAL_DHCP_CONF
 		echo "${PREFIX}""dhcp-range=set:$i,${m_DHCP_START_ADDR},${m_DHCP_END_ADDR},$m_LAN_SUBNET,${m_DHCP_LEASE_TIME}" >> $LOCAL_DHCP_CONF
+                echo "${PREFIX}""interface="${IFNAME} >> $LOCAL_DHCP_CONF_LAN
+                echo "${PREFIX}""dhcp-range=set:$i,${m_DHCP_START_ADDR},${m_DHCP_END_ADDR},$m_LAN_SUBNET,${m_DHCP_LEASE_TIME}" >> $LOCAL_DHCP_CONF_LAN
 		echo_t "DHCP_SERVER : [BRLAN1] ${PREFIX}""dhcp-range=set:$i,${m_DHCP_START_ADDR},${m_DHCP_END_ADDR},$m_LAN_SUBNET,${m_DHCP_LEASE_TIME}"
 	fi
 
