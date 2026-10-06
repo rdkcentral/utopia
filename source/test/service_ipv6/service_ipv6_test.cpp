@@ -965,7 +965,6 @@ TEST_F(Service_ipv6TestFixture, PositiveCaseDhcpv6sStop) {
         EXPECT_EQ(0, dhcpv6s_stop(&si6));
 }
 
-#if defined(_CBR2_PRODUCT_REQ_)
 TEST_F(Service_ipv6TestFixture, LanStoppedSkipsDhcpv6sStartCall) {
     struct serv_ipv6 si6 = {};
     char lan_status[16] = "stopped";
@@ -981,30 +980,50 @@ TEST_F(Service_ipv6TestFixture, LanStoppedSkipsDhcpv6sStartCall) {
 
     EXPECT_EQ(0, dhcpv6s_start_if_needed(&si6));
 }
-#endif
 
-TEST_F(Service_ipv6TestFixture, NegativeCaseDhcpv6sRestart) {
-        serv_ipv6 si6;
-        char evt_val[64]="error";
-     EXPECT_CALL(*g_syseventMock, sysevent_get(si6.sefd, si6.setok, StrEq("ipv6_prefix-divided"), _, _))
+TEST_F(Service_ipv6TestFixture, NegativeCaseDhcpv6sRestart)
+{
+    serv_ipv6 si6 = {};
+
+    char lan_status[16] = "started";
+    char evt_val[64] = "error";
+
+    EXPECT_CALL(*g_syseventMock,
+                sysevent_get(si6.sefd, si6.setok,
+                             StrEq("lan-status"), _, _))
+        .Times(1)
+        .WillOnce(::testing::DoAll(
+            SetArgNPointeeTo<3>(std::begin(lan_status), sizeof(lan_status)),
+            ::testing::Return(0)
+        ));
+
+    EXPECT_CALL(*g_syseventMock,
+                sysevent_get(si6.sefd, si6.setok,
+                             StrEq("ipv6_prefix-divided"), _, _))
         .Times(1)
         .WillOnce(::testing::DoAll(
             SetArgNPointeeTo<3>(std::begin(evt_val), sizeof(evt_val)),
             ::testing::Return(0)
         ));
-        EXPECT_CALL(*g_syseventMock, sysevent_set(si6.sefd, si6.setok, StrEq("ipv6_prefix-divided"), _, _))
+
+    EXPECT_CALL(*g_syseventMock,
+                sysevent_set(si6.sefd, si6.setok,
+                             StrEq("ipv6_prefix-divided"), _, _))
         .Times(1);
 
-         EXPECT_CALL(*g_utopiaMock,pid_of(_,_))
-                        .Times(1)
-                        .WillOnce(::testing::DoAll( ::testing::Return(567)))
-                        .WillOnce(::testing::DoAll( ::testing::Return(567)));
-        EXPECT_CALL(*g_syseventMock, sysevent_set(si6.sefd, si6.setok, StrEq("service_ipv6-status"), StrEq("error"), _))
+    EXPECT_CALL(*g_utopiaMock,
+                pid_of(_, _))
+        .Times(1)
+        .WillOnce(::testing::Return(567));
+
+    EXPECT_CALL(*g_syseventMock,
+                sysevent_set(si6.sefd, si6.setok,
+                             StrEq("service_ipv6-status"),
+                             StrEq("error"), _))
         .Times(1);
-        EXPECT_EQ(-1, dhcpv6s_restart(&si6));
+
+    EXPECT_EQ(-1, dhcpv6s_restart(&si6));
 }
-
-
 
 TEST_F(Service_ipv6TestFixture, NegativeCaseServIpv6Start_WanNotReady) {
     struct serv_ipv6 si6;

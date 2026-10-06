@@ -2094,12 +2094,22 @@ STATIC int dhcpv6s_start(struct serv_ipv6 *si6)
     return 0;
 }
 
-#if defined(_CBR2_PRODUCT_REQ_)
 STATIC bool is_lan_started(struct serv_ipv6 *si6)
 {
     char lan_status[16] = {0};
 
-    sysevent_get(si6->sefd, si6->setok, "lan-status", lan_status, sizeof(lan_status));
+    if(sysevent_get(si6->sefd, si6->setok, "lan-status", lan_status, sizeof(lan_status)) != 0)
+    {
+        fprintf(stderr, "%s: failed to read lan status \n", __FUNCTION__);
+         char bridge_status[16] = {0};
+        if (sysevent_get(si6->sefd, si6->setok, "bridge-status", bridge_status, sizeof(bridge_status)) == 0 &&
+            !strcmp(bridge_status, "started")) {
+            fprintf(stderr, "%s: bridge is started; Dibbler start is not required\n", __FUNCTION__);
+        } else {
+            fprintf(stderr, "%s: failed to read LAN/router state\n", __FUNCTION__);
+        }
+        return false;
+    }
     return !strcmp(lan_status, "started");
 }
 
@@ -2112,9 +2122,6 @@ STATIC int dhcpv6s_start_if_needed(struct serv_ipv6 *si6)
 
     return dhcpv6s_start(si6);
 }
-#else
-#define dhcpv6s_start_if_needed dhcpv6s_start
-#endif
 
 STATIC int dhcpv6s_stop(struct serv_ipv6 *si6)
 {
@@ -2130,7 +2137,6 @@ STATIC int dhcpv6s_restart(struct serv_ipv6 *si6)
     if (dhcpv6s_stop(si6) != 0)
         fprintf(stderr, "%s: dhcpv6s_stop error\n", __FUNCTION__);
 
-    //return dhcpv6s_start(si6);
     return dhcpv6s_start_if_needed(si6);
 }
 
@@ -2222,7 +2228,6 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
     /*start zebra*/
     sysevent_set(si6->sefd, si6->setok, "zebra-restart", NULL, 0);
 	
-   // if (dhcpv6s_start(si6) != 0) {
    if (dhcpv6s_start_if_needed(si6) != 0) {
         fprintf(stderr, "start dhcpv6 server error.\n");
         sysevent_set(si6->sefd, si6->setok, "service_ipv6-status", "error", 0);
