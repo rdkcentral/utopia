@@ -1633,6 +1633,8 @@ static void addInSysCfgdDB (char *key, char *value)
       }
    }
 
+#endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
+
    if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
    {
       if ( 0 == IsValuePresentinSyscfgDB( "lpm_enable" ) )
@@ -1640,7 +1642,6 @@ static void addInSysCfgdDB (char *key, char *value)
            set_syscfg_partner_values( value,"lpm_enable" );
       }
    }
-#endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
 
    //Check whether migration needs to be handled or not
    if( 1 == IsPSMMigrationNeeded )
@@ -1822,11 +1823,12 @@ static void updateSysCfgdDB (char *key, char *value)
          set_syscfg_partner_values( value,"lost_and_found_enable" );
    }
 
-   if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
-   {
-         set_syscfg_partner_values( value,"lpm_enable" );
-   }
 #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
+
+      if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
+      {
+         set_syscfg_partner_values( value,"lpm_enable" );
+      }
 
    //Check whether migration needs to be handled or not
    if( 1 == IsPSMMigrationNeeded )
@@ -3013,23 +3015,13 @@ int apply_partnerId_default_values (char *data, char *PartnerID)
                                                 }
                                         }
 
-                                        paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.Enable"), "ActiveValue");
-                                        if ( paramObjVal != NULL )
-                                        {
-                                                char *lpm = NULL;
-                                                lpm = paramObjVal->valuestring;
-
-                                                if (lpm != NULL)
-                                                {
-                                                         set_syscfg_partner_values(lpm,"lpm_enable");
-                                                         lpm = NULL;
-                                                }
-                                                else
-                                                {
-                                                        APPLY_PRINT("%s - lpm Value is NULL\n", __FUNCTION__ );
-                                                }
-                                        }
 #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */   
+
+                                       paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.Enable"), "ActiveValue");
+                                       if ( paramObjVal != NULL && paramObjVal->valuestring != NULL )
+                                       {
+                                          set_syscfg_partner_values(paramObjVal->valuestring, "lpm_enable");
+                                       }
 				}
 				if( 1 == isNeedToApplyPartnersDefault )
 				{
@@ -3321,6 +3313,26 @@ if ( paramObjVal != NULL )
           sleep(1);
        }
     } //For Loop
+
+   if (syscfg_supported == 1 && 0 == IsValuePresentinSyscfgDB("lpm_enable"))
+   {
+      alwaysJson = cJSON_Parse(data);
+      if (alwaysJson)
+      {
+         alwaysPartnerObj = cJSON_GetObjectItem(alwaysJson, PartnerID);
+         if (alwaysPartnerObj)
+         {
+            alwaysParamObjVal = cJSON_GetObjectItem(
+               cJSON_GetObjectItem(alwaysPartnerObj, "Device.X_RDK_Features.LowPowerMode.Enable"),
+               "ActiveValue");
+            if (alwaysParamObjVal && alwaysParamObjVal->valuestring)
+            {
+               set_syscfg_partner_values(alwaysParamObjVal->valuestring, "lpm_enable");
+            }
+         }
+         cJSON_Delete(alwaysJson);
+      }
+   }
 
     return 0;
 }
