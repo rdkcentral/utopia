@@ -348,7 +348,6 @@ NOT_DEF:
 
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <net/if.h>
 #include <netinet/in.h>
 #include <sys/file.h>
 #include <sys/mman.h>
@@ -364,6 +363,7 @@ NOT_DEF:
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
+#include <net/if.h>
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <rdkb_feature_mode_gate.h>
