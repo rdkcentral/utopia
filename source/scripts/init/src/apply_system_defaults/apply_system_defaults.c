@@ -1729,8 +1729,6 @@ STATIC void addInSysCfgdDB (char *key, char *value)
            IsPSMMigrationNeeded = 1;
        }
    }
-#endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */   
-
    if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
    {
       char currentLpmValue[16] = {0};
@@ -1748,6 +1746,7 @@ STATIC void addInSysCfgdDB (char *key, char *value)
                      __FUNCTION__, value ? value : "(null)", writeStatus);
       }
    }
+   #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
 
    //Check whether migration needs to be handled or not
    if( 1 == IsPSMMigrationNeeded )
@@ -3070,8 +3069,6 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                                         APPLY_PRINT("%s - lnf Value is NULL\n", __FUNCTION__ );
                                                 }
                                         }
-#endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
-
                                                 paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.Enable"), "ActiveValue");
                                                 if ( paramObjVal != NULL && paramObjVal->valuestring != NULL )
                                                 {
@@ -3085,6 +3082,7 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                                 {
                                                       APPLY_PRINT("%s: bootstrap LPM ActiveValue missing\n", __FUNCTION__);
                                                 }
+                                    #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
                                 }
 
 				if( 1 == isNeedToApplyPartnersDefault )
@@ -3465,6 +3463,7 @@ if ( paramObjVal != NULL )
       memset(jsonNTPItem, 0, sizeof(jsonNTPItem));
    }
 
+#if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
    if (0 == IsValuePresentinSyscfgDB("lpm_enable"))
    {
       APPLY_PRINT("%s: lpm_enable absent; attempting bootstrap backfill for partner=%s\n",
@@ -3509,6 +3508,7 @@ if ( paramObjVal != NULL )
       APPLY_PRINT("%s: lpm_enable already present (syscfg_get status=%d, value=%s)\n",
                   __FUNCTION__, readStatus, currentLpmValue);
    }
+   #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
 
     return 0;
 }
