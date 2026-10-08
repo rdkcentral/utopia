@@ -315,6 +315,24 @@ case "$1" in
             sysevent set multinet-up 9
         fi
 
+        # --------------------------------------------------------------------
+        # RPi specific change begin
+        # --------------------------------------------------------------------
+
+        PHY_BRIDGE_IFNAME=`syscfg get lan_ifname`
+        PHY_ETH_IFNAMES=`syscfg get lan_ethernet_physical_ifnames`
+        IFS=' ' read -r -a PHY_ETH_IFNAME_ARRAY <<< "$PHY_ETH_IFNAMES"
+        for PHY_ETH_IFNAME in "${PHY_ETH_IFNAME_ARRAY[@]}"
+        do
+            echo "LAN HANDLER : PHY_ETH_IFNAME = $PHY_ETH_IFNAME"
+            ifconfig $PHY_ETH_IFNAME up
+            brctl addif $PHY_BRIDGE_IFNAME $PHY_ETH_IFNAME
+        done
+
+        # --------------------------------------------------------------------
+        # RPi specific change end
+        # --------------------------------------------------------------------
+
         echo_t "LAN HANDLER : Triggering RDKB_FIREWALL_RESTART after nfqhandler"
 	t2CountNotify "RF_INFO_RDKB_FIREWALL_RESTART"
         sysevent set firewall-restart
