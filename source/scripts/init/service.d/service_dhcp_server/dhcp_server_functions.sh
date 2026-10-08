@@ -1133,7 +1133,7 @@ fi
       fi
    fi
   
-   if [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "turris" ]; then
+   if [ "$BOX_TYPE" = "rpi" ] || [ "$BOX_TYPE" = "bpi" ] || [ "$BOX_TYPE" = "turris" ] || [ "$BOX_TYPE" = "genericarm" ]; then
 	   LAN_STATUS=`sysevent get lan-status`
 	   BRIDGE_MODE=`syscfg get bridge_mode`
 	   if [ "$LAN_STATUS" = "stopped" ] && [ $BRIDGE_MODE == 0 ]; then                
