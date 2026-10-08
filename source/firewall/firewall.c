@@ -5747,6 +5747,9 @@ int lan_telnet_ssh(FILE *fp, int family)
        }
 
    }
+   else if(rc != 0 || (rc == 0 && '\0' != query[0] && 0 == strncmp(query, "1", sizeof(query))) ) { /* Enable LAN ssh access. */
+	   fprintf(fp, "-I %s -i %s -p tcp --dport 23 -j ACCEPT\n", "INPUT", lan_ifname);
+   }
    else if(family == AF_INET && isFirewallEnabled && !isBridgeMode && isWanServiceReady){ //only valid in router mode when wan is ready
        fprintf(fp, "-I %s -i %s -p tcp --dport 23 -j ACCEPT\n", "general_input", cmdiag_ifname);
    }
