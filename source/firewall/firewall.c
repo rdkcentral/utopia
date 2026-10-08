@@ -348,7 +348,6 @@ NOT_DEF:
 
 #include <netdb.h>
 #include <arpa/inet.h>
-#include <net/if.h>
 #include <netinet/in.h>
 #include <sys/file.h>
 #include <sys/mman.h>
@@ -364,6 +363,7 @@ NOT_DEF:
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
+#include <net/if.h>
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <rdkb_feature_mode_gate.h>
@@ -986,8 +986,7 @@ static int IsValidInterfaceName(const char *if_name, size_t length)
          return 0;
       }
    }
-
-return 1;
+   return 1;
 }
 
 
@@ -1010,7 +1009,6 @@ void do_xlat_rule(FILE *nat_fp)
 static void add_dslite_mss_clamping(FILE *fp);
 #endif
 
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 static int IsValidIPv4Addr(char* ip_addr_string)
 {
     int ret = 1;
@@ -1035,6 +1033,8 @@ static int IsValidIPv4Addr(char* ip_addr_string)
 
     return ret;
 }
+
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 
 /*
  ==========================================================================
@@ -13093,7 +13093,6 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
   
    if(0==strcmp("true",iot_enabled))
    {
-      struct in_addr iot_ipv4addr;
       int valid_iot_ipaddr;
       int valid_iot_ifname;
 
@@ -13105,8 +13104,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       }
       memset(iot_primaryAddress, 0, sizeof(iot_primaryAddress));
       syscfg_get(NULL, "iot_ipaddr", iot_primaryAddress, sizeof(iot_primaryAddress));
-      valid_iot_ipaddr = (inet_pton(AF_INET, iot_primaryAddress, &iot_ipv4addr) == 1);
+      valid_iot_ipaddr = IsValidIPv4Addr(iot_primaryAddress);
       valid_iot_ifname = IsValidInterfaceName(iot_ifName, strlen(iot_ifName));
+
       if (!valid_iot_ipaddr)
       {
          FIREWALL_DEBUG("IOT_LOG : Invalid iot_ipaddr '%s', skipping IPv4 IoT rules\n" COMMA iot_primaryAddress);
