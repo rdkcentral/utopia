@@ -252,11 +252,11 @@ int dnsmasq_server_start()
 
     if (syscfg_get(NULL, "edns_packet_size", l_cEdnsConfig, sizeof(l_cEdnsConfig)) == 0)
     {
-        /* Valid EDNS packet sizes are 512-65535 (3 to 5 digits). Reject empty,
+        /* Valid EDNS packet sizes are 512-4096. Reject empty,
            non-numeric, out-of-range and truncated values; fall back to 1232 */
         if ((strspn(l_cEdnsConfig, "0123456789") == strlen(l_cEdnsConfig)) &&
             (strlen(l_cEdnsConfig) >= 1) && (strlen(l_cEdnsConfig) <= 5) &&
-            ((l_iValue = atoi(l_cEdnsConfig)) >= 512) && (l_iValue <= 65535))
+            ((l_iValue = atoi(l_cEdnsConfig)) >= 512) && (l_iValue <= 4096))
         {
             l_iEdnsPacketSize = l_iValue;
         }
