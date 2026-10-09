@@ -11531,7 +11531,10 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
         
     } while ((tok = strtok(NULL, " ")) != NULL);
 
-   for (i = 0; i < bridge_count; i++) {
+    for (i = 0; i < bridge_count; i++) {
+        FIREWALL_DEBUG("PALAKSHA printing the bridges %s\n", bridge_names[i]);
+    }
+   for (i = 1; i < bridge_count; i++) {
       for (j = i + 1; j < bridge_count; j++) {
          fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", bridge_names[i], bridge_names[j]);
          fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", bridge_names[j], bridge_names[i]);
@@ -14706,15 +14709,15 @@ int prepare_ipv4_firewall(const char *fw_file)
    fclose(nat_fp);
    fclose(filter_fp);
 
-//snprintf(fname, sizeof(fname), "/tmp/raw_%x", ourpid);
-  // unlink(fname);
-   //snprintf(fname, sizeof(fname), "/tmp/mangle_%x", ourpid);
-   //unlink(fname);
-   //snprintf(fname, sizeof(fname), "/tmp/filter_%x", ourpid);
-   //unlink(fname);
-   //snprintf(fname, sizeof(fname), "/tmp/nat_%x", ourpid);
-   //unlink(fname);
- FIREWALL_DEBUG("Exiting prepare_ipv4_firewall \n"); 
+    snprintf(fname, sizeof(fname), "/tmp/raw_%x", ourpid);
+    unlink(fname);
+    snprintf(fname, sizeof(fname), "/tmp/mangle_%x", ourpid);
+    unlink(fname);
+    snprintf(fname, sizeof(fname), "/tmp/filter_%x", ourpid);
+    unlink(fname);
+    snprintf(fname, sizeof(fname), "/tmp/nat_%x", ourpid);
+    unlink(fname);
+    FIREWALL_DEBUG("Exiting prepare_ipv4_firewall \n"); 
    return(0);
 }
 
