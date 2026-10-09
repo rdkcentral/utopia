@@ -11532,10 +11532,11 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     } while ((tok = strtok(NULL, " ")) != NULL);
 
     for (i = 0; i < bridge_count; i++) {
-        FIREWALL_DEBUG("PALAKSHA printing the bridges %s\n", bridge_names[i]);
+        FIREWALL_DEBUG("PALAKSHA printing the bridges %s\n"COMMA bridge_names[i]);
     }
    for (i = 1; i < bridge_count; i++) {
       for (j = i + 1; j < bridge_count; j++) {
+           FIREWALL_DEBUG("PALAKSHA 2nd time printing the bridges %s %s\n" COMMA bridge_names[i] COMMA bridge_names[j]);
          fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", bridge_names[i], bridge_names[j]);
          fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", bridge_names[j], bridge_names[i]);
       }
