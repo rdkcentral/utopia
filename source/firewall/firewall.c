@@ -9374,11 +9374,13 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
     rc = syscfg_get(NULL, "managedsites_enabled", query, sizeof(query)); 
     if (rc == 0 && query[0] != '\0' && query[0] != '0') // managed site list enabled
     {
-        int count = 0, idx;
-#if !defined(_COSA_BCM_MIPS_)
-        // first, we let traffic from trusted user get through
-      do_parental_control_allow_trusted(fp, iptype, "ManagedSiteTrust", "lan2wan_pc_site");
-#endif
+         int count = 0, idx;
+      #if !defined(_COSA_BCM_MIPS_)
+         int ruleIndex = 0;
+
+         // first, we let traffic from trusted user get through
+         ruleIndex = do_parental_control_allow_trusted(fp, iptype, "ManagedSiteTrust", "lan2wan_pc_site");
+      #endif
 #ifdef CONFIG_CISCO_PARCON_WALLED_GARDEN
         if(iptype == 4){
           do_parental_control_allow_trusted(nat_fp, iptype, "ManagedSiteTrust", "managedsite_based_parcon");
@@ -9393,7 +9395,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
         if (count > MAX_SYSCFG_ENTRIES) count = MAX_SYSCFG_ENTRIES;
 
 #if !defined(_COSA_BCM_MIPS_) && !defined(_CBR_PRODUCT_REQ_) && !defined(_COSA_BCM_ARM_) && !defined(_PLATFORM_TURRIS_) && !defined(_COSA_QCA_ARM_) && !defined(_PLATFORM_BANANAPI_R4_)
-        do_parcon_mgmt_lan2wan_pc_site_appendrule(fp);
+      ruleIndex += do_parcon_mgmt_lan2wan_pc_site_appendrule(fp);
 #endif
 
         bool keywd_chains_exists = false;
@@ -9563,6 +9565,9 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                         }
                     }
                     
+#endif
+#if !defined(_COSA_BCM_MIPS_)
+                    do_parcon_mgmt_lan2wan_pc_site_insertrule(fp, ruleIndex, nstdPort);
 #endif
                 }
                 else
