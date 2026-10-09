@@ -939,6 +939,8 @@ void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype);
 */
 char *make_substitutions(char *in_str, char *out_str, const int size);
 
+int fw_validate_cmdiag_ifname(const char *ifname);
+
 // Global variables used in both files
 extern char current_wan_ifname[50];
 extern char wan6_ifname[50];
