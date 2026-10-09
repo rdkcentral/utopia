@@ -20,6 +20,9 @@
 lib_LTLIBRARIES = libmtrace_watcher.la libmtrace_watcher_thread.la
 libmtrace_watcher_la_SOURCES = mtrace_watcher.c
 libmtrace_watcher_thread_la_SOURCES = mtrace_watcher.c
-libmtrace_watcher_la_LDFLAGS = -shared -fPIC -lev
-libmtrace_watcher_thread_la_LDFLAGS = -shared -fPIC -lev -lpthread
-
+libmtrace_watcher_la_LDFLAGS = -shared -fPIC -lev -ldl
+libmtrace_watcher_la_CFLAGS  = -fno-omit-frame-pointer -fno-optimize-sibling-calls \
+                                 -fasynchronous-unwind-tables -funwind-tables
+libmtrace_watcher_thread_la_LDFLAGS = -shared -fPIC -lev -lpthread -ldl
+libmtrace_watcher_thread_la_CFLAGS  = -fno-omit-frame-pointer -fno-optimize-sibling-calls \
+                                       -fasynchronous-unwind-tables -funwind-tables
