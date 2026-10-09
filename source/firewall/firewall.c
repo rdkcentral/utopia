@@ -14706,14 +14706,14 @@ int prepare_ipv4_firewall(const char *fw_file)
    fclose(nat_fp);
    fclose(filter_fp);
 
-   snprintf(fname, sizeof(fname), "/tmp/raw_%x", ourpid);
-   unlink(fname);
-   snprintf(fname, sizeof(fname), "/tmp/mangle_%x", ourpid);
-   unlink(fname);
-   snprintf(fname, sizeof(fname), "/tmp/filter_%x", ourpid);
-   unlink(fname);
-   snprintf(fname, sizeof(fname), "/tmp/nat_%x", ourpid);
-   unlink(fname);
+//snprintf(fname, sizeof(fname), "/tmp/raw_%x", ourpid);
+  // unlink(fname);
+   //snprintf(fname, sizeof(fname), "/tmp/mangle_%x", ourpid);
+   //unlink(fname);
+   //snprintf(fname, sizeof(fname), "/tmp/filter_%x", ourpid);
+   //unlink(fname);
+   //snprintf(fname, sizeof(fname), "/tmp/nat_%x", ourpid);
+   //unlink(fname);
  FIREWALL_DEBUG("Exiting prepare_ipv4_firewall \n"); 
    return(0);
 }
