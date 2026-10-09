@@ -201,6 +201,10 @@ TEST_F(ServiceDhcpServerTest, syslog_restart_request)
         .Times(AnyNumber())
         .WillRepeatedly(Return(0));
 
+    EXPECT_CALL(*g_syscfgMock, syscfg_get(_, StrEq("edns_packet_size"), _, _))
+        .Times(AnyNumber())
+        .WillRepeatedly(DoAll(SetArrayArgument<2>("1232", "1232" + 5), Return(0)));
+
     EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq("dns-status"), StrEq("started"), 0))
         .Times(AtLeast(1));
 
