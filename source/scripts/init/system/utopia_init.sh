@@ -118,7 +118,7 @@ FACTORY_RESET_REASON=false
 
 HOTSPOT_BLOB="/nvram/hotspot_blob"
 HOTSPOT_JSON="/nvram/hotspot.json"
-MWO_PATH="/nvram/mwo"
+MWO_PATH="/opt/secure/mwo"
 CHANNEL_KEEPOUT_PATH="/nvram/mesh"
 
 ENCRYPT_SYSCFG=false
@@ -339,11 +339,11 @@ fi
    if [ -e "$MWO_PATH" ]; then
       rm -rf $MWO_PATH
    fi
-   if [ -f /nvram/steering.json ]; then
-      rm -f /nvram/steering.json
+   if [ -f /opt/secure/steering.json ]; then
+      rm -f /opt/secure/steering.json
    fi
-   if [ -f /nvram/device_profile.json ]; then
-      rm -f /nvram/device_profile.json
+   if [ -f /opt/secure/device_profile.json ]; then
+      rm -f /opt/secure/device_profile.json
    fi
    if [ -e "$CHANNEL_KEEPOUT_PATH" ]; then
       rm -rf $CHANNEL_KEEPOUT_PATH
