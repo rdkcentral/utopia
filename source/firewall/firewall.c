@@ -2501,7 +2501,7 @@ static int prepare_globals_from_configuration(void)
 
    syscfg_get(NULL, "cmdiag_ifname", cmdiag_ifname, sizeof(cmdiag_ifname));
    cmdiag_ifname_len = strnlen(cmdiag_ifname, sizeof(cmdiag_ifname));
-   if (!IsValidInterfaceName(cmdiag_ifname, cmdiag_ifname_len))
+   if (cmdiag_ifname_len != 0 && !IsValidInterfaceName(cmdiag_ifname, cmdiag_ifname_len))
    {
       memcpy(cmdiag_ifname_rejected, cmdiag_ifname, cmdiag_ifname_len);
 
@@ -7056,19 +7056,36 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
 #ifdef _COSA_INTEL_XB3_ARM_ 
    if(family == AF_INET)
         fprintf(filter_fp, "-A wan2self_mgmt -p tcp -m multiport --dports 21,23,%s,%s -j xlog_drop_wan2self\n", httpport, httpsport);
-   else if (isBridgeMode && cmdiag_ifname[0] == '\0')
-        fprintf(filter_fp, "-A INPUT -p tcp -m multiport --dports 21,23,%s,%s -j DROP\n", httpport, httpsport);
    else
-        fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 21,23,%s,%s -j DROP\n", isBridgeMode == 0 ? lan_ifname : cmdiag_ifname, httpport, httpsport);
-         FIREWALL_DEBUG("Exiting do_remote_access_control\n");    
-    return 0;
+   {
+       if (isBridgeMode == 0)
+       {
+           fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 21,23,%s,%s -j DROP\n", lan_ifname, httpport, httpsport);
+       }
+       else if (cmdiag_ifname[0] != '\0')
+       {
+           fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 21,23,%s,%s -j DROP\n", cmdiag_ifname, httpport, httpsport);
+       }
+   }
+   FIREWALL_DEBUG("Exiting do_remote_access_control\n");
+   return 0;
 #else
-    if(family == AF_INET)
-        fprintf(filter_fp, "-A wan2self_mgmt -p tcp -m multiport --dports 23,%s,%s -j xlog_drop_wan2self\n", httpport, httpsport);
-   else if (!isBridgeMode || cmdiag_ifname[0] != '\0')
-        fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 23,%s,%s -j DROP\n", isBridgeMode == 0 ? lan_ifname : cmdiag_ifname, httpport, httpsport);
-         FIREWALL_DEBUG("Exiting do_remote_access_control\n");
-    return 0;
+   if(family == AF_INET)
+       fprintf(filter_fp, "-A wan2self_mgmt -p tcp -m multiport --dports 23,%s,%s -j xlog_drop_wan2self\n", httpport, httpsport);
+   else
+   {
+       if (isBridgeMode == 0)
+       {
+           fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 23,%s,%s -j DROP\n", lan_ifname, httpport, httpsport);
+       }
+       else if (cmdiag_ifname[0] != '\0')
+       {
+           fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 23,%s,%s -j DROP\n", cmdiag_ifname, httpport, httpsport);
+       }
+       /* Skip the bridge rule when no CMDIAG interface is configured. */
+   }
+   FIREWALL_DEBUG("Exiting do_remote_access_control\n");
+   return 0;
 #endif
 }
 
@@ -14410,10 +14427,14 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 #if defined (MULTILAN_FEATURE)
        fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
 #else
-         if (isBridgeMode && cmdiag_ifname[0] == '\0')
-            fprintf(filter_fp, "-A INPUT -j wan2self_mgmt\n");
-         else
-            fprintf(filter_fp, "-A INPUT ! -i %s -j wan2self_mgmt\n", isBridgeMode == 0 ? lan_ifname : cmdiag_ifname);
+         if (isBridgeMode == 0)
+         {
+            fprintf(filter_fp, "-A INPUT ! -i %s -j wan2self_mgmt\n", lan_ifname);
+         }
+         else if (cmdiag_ifname[0] != '\0')
+         {
+            fprintf(filter_fp, "-A INPUT ! -i %s -j wan2self_mgmt\n", cmdiag_ifname);
+         }
 #endif
        do_webui_attack_filter(filter_fp);
        // Create iptable chain to ratelimit remote management packets
