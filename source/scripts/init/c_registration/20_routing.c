@@ -89,6 +89,7 @@ const char* SERVICE_CUSTOM_EVENTS_BUSINESS[] = {
 
 #else
 const char* SERVICE_CUSTOM_EVENTS[] = { 
+                                        "wan-status|/etc/utopia/service.d/service_routed.sh",
                                         "lan-status|/etc/utopia/service.d/service_routed.sh",
                                         "ipv6_nameserver|/etc/utopia/service.d/service_routed.sh",
                                         "ipv6_prefix|/etc/utopia/service.d/service_routed.sh",
