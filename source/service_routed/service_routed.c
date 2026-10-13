@@ -401,6 +401,7 @@ STATIC int daemon_stop(const char *pid_file, const char *prog)
         pid = pid_of(prog, NULL);
 
     if (pid > 0) {
+        ROUTED_LOG("%s: pid of zebra = %d \n", __FUNCTION__, pid);
         kill(pid, SIGTERM);
     }
     
@@ -2168,7 +2169,7 @@ STATIC int radv_start(struct serv_routed *sr)
             return -1;
         }
         if(ipv6_enable == 0) {
-            ROUTED_LOG("%s: Ipv6 is enabled \n", __FUNCTION__);
+            ROUTED_LOG("%s: Ipv6 is disabled \n", __FUNCTION__);
             daemon_stop(ZEBRA_PID_FILE, "zebra");
             return -1;
         }
@@ -2196,13 +2197,12 @@ if (conf) {
         return -1;
     }
 
-    char *conf = read_file_alloc(ZEBRA_CONF_FILE);
+    conf = read_file_alloc(ZEBRA_CONF_FILE);
 if (conf) {
     ROUTED_LOG("%s: zebra.conf:\n%s\n", __FUNCTION__, conf);
     free(conf);
 }
 
-    #if 0
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
 #if defined(_SCER11BEL_PRODUCT_REQ_)  || defined(_XER2_PRODUCT_REQ_)
     if( TRUE == IsThisCurrentPartnerID("sky-") ) 
@@ -2211,22 +2211,18 @@ if (conf) {
         /*
         *   signal zebra to update configuration
         */
-    #endif
-    #endif
         int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
         if(pid)
         {
-            ROUTED_LOG("%s: For sky, zebra pid stop \n", __FUNCTION__);
+            ROUTED_LOG("%s: For sky, zebra conf reload \n", __FUNCTION__);
             kill(pid, SIGUSR1);
-            char *conf = read_file_alloc(ZEBRA_CONF_FILE);
-            if (conf) {
-                ROUTED_LOG("%s: zebra.conf:\n%s\n", __FUNCTION__, conf);
-                free(conf);
-            }
             return 0;
         }
-//#endif
-    ROUTED_LOG("%s: Killing zebra using daemon stop for non-sky devices \n", __FUNCTION__);
+    }
+#endif
+    ROUTED_LOG("%s: Killing zebra PID using daemon stop for non-sky devices \n", __FUNCTION__);
+    int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
+    ROUTED_LOG("%s: Zebra PID %d \n", __FUNCTION__, pid);
     daemon_stop(ZEBRA_PID_FILE, "zebra");
 
 #if defined(_COSA_FOR_BCI_)
