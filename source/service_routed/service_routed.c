@@ -100,7 +100,8 @@ static const char* const service_routed_component_id = "ccsp.routed";
 #include <libnet.h>
 #endif
 
-#define ZEBRA_PID_FILE  "/var/zebra.pid"
+#define ZEBRA_PID_FILE  "/var/tmp/zebra.pid"
+#define DAEMON_STOP_WAIT_MS 3000
 #define RIPD_PID_FILE   "/var/ripd.pid"
 #define ZEBRA_CONF_FILE "/var/zebra.conf"
 
@@ -380,6 +381,7 @@ STATIC int getULAAddressFromInterface(char *ulaAddress)
 #endif
 STATIC int daemon_stop(const char *pid_file, const char *prog)
 {
+    ROUTED_LOG("%s: Entering\n", __FUNCTION__);
     FILE *fp;
     char pid_str[10];
     int pid = -1;
@@ -401,6 +403,23 @@ STATIC int daemon_stop(const char *pid_file, const char *prog)
 
     if (pid > 0) {
         kill(pid, SIGTERM);
+        ROUTED_LOG("%s: Killing pid : %d \n", __FUNCTION__, pid);
+        int waited_ms;
+        for (waited_ms = 0; waited_ms < DAEMON_STOP_WAIT_MS && kill(pid, 0) == 0; waited_ms += 50)
+        {
+            ROUTED_LOG("%s: Entering into wait loop until the process is killed \n", __FUNCTION__);
+            usleep(50 * 1000);
+        }
+        if (waited_ms >= DAEMON_STOP_WAIT_MS && kill(pid, 0) == 0) {
+            ROUTED_LOG("%s: wait time is exceeded \n", __FUNCTION__);
+            kill(pid, SIGKILL);
+            ROUTED_LOG("%s: SIGKILL issued for PID %d \n", __FUNCTION__, pid);
+            for (waited_ms = 0; waited_ms < 500 && kill(pid, 0) == 0; waited_ms += 50)
+            {
+                ROUTED_LOG("%s: Waiting for 0.5secs \n", __FUNCTION__);
+                usleep(50 * 1000);
+            }
+        }
     }
     
     if (pid_file)
@@ -2146,6 +2165,7 @@ STATIC int radv_start(struct serv_routed *sr)
             return -1;
         }
         if(ipv6_enable == 0) {
+            ROUTED_LOG("%s: Ipv6 is enabled \n", __FUNCTION__);
             daemon_stop(ZEBRA_PID_FILE, "zebra");
             return -1;
         }
@@ -2178,11 +2198,13 @@ STATIC int radv_start(struct serv_routed *sr)
         int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
         if(pid)
         {
+            ROUTED_LOG("%s: For sky, zebra pid stop \n", __FUNCTION__);
             kill(pid, SIGUSR1);
             return 0;
         }   
     }
 #endif
+    ROUTED_LOG("%s: Killing zebra using daemon stop for non-sky devices \n", __FUNCTION__);
     daemon_stop(ZEBRA_PID_FILE, "zebra");
 
 #if defined(_COSA_FOR_BCI_)
@@ -2192,6 +2214,7 @@ STATIC int radv_start(struct serv_routed *sr)
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
 #else
+    ROUTED_LOG("%s: Starting zebra \n", __FUNCTION__);
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
     ROUTED_LOG("%s: zebra started\n", __FUNCTION__);
 #endif
@@ -2210,6 +2233,7 @@ STATIC int radv_stop(struct serv_routed *sr)
 
 STATIC int radv_restart(struct serv_routed *sr)
 {
+    ROUTED_LOG("%s: Entering\n", __FUNCTION__);
     if (radv_stop(sr) != 0){
         fprintf(logfptr, "%s: radv_stop error\n", __FUNCTION__);
     }
