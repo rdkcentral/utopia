@@ -285,6 +285,7 @@ fi
 
    # Remove DHCP lease file
    rm -f /nvram/dnsmasq.leases
+   rm -f /nvram/dns_failover.conf
    rm -f /nvram/server-IfaceMgr.xml
    rm -f /nvram/server-AddrMgr.xml
    rm -f /nvram/server-CfgMgr.xml
