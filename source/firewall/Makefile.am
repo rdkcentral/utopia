@@ -47,7 +47,8 @@ nfq_handler_SOURCES = raw_socket_send.c nfq_handler.c
 firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                  $(top_builddir)/source/sysevent/lib/libsysevent.la \
                  $(top_builddir)/source/ulog/libulog.la \
-                 $(top_builddir)/source/util/utils/libutopiautil.la
+                 $(top_builddir)/source/util/utils/libutopiautil.la \
+                 -ltelemetry_msgsender
 
 if ONESTACK_PRODUCT_REQ
 firewall_LDADD += -lrdkb_feature_mode_gate
