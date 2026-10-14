@@ -2363,26 +2363,6 @@ static int prepare_multinet_prerouting_raw (FILE *raw_fp)
 }
 #endif
 
-static int IsValidInterfaceName(const char *if_name, size_t length)
-{
-   size_t index;
-
-   if (length == 0 || length >= IFNAMSIZ)
-      return 0;
-
-   for (index = 0; index < length; index++)
-   {
-      if (!isalnum((unsigned char)if_name[index]) &&
-         if_name[index] != '.' && if_name[index] != '-' &&
-         if_name[index] != '_' &&
-         if_name[index] != ':')
-      {
-         return 0;
-      }
-   }
-   return 1;
-}
-
 /*
  *  Procedure     : prepare_globals_from_configuration
  *  Purpose       : use syscfg and sysevent to prepare information such as
