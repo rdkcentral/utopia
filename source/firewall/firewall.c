@@ -970,6 +970,26 @@ int IsValidIPv6Addr(char* ip_addr_string)
 	return 1;
 }
 
+static int IsValidInterfaceName(const char *if_name, size_t length)
+{
+   size_t index;
+
+   if (length == 0 || length >= IFNAMSIZ)
+      return 0;
+
+   for (index = 0; index < length; index++)
+   {
+      if (!isalnum((unsigned char)if_name[index]) &&
+         if_name[index] != '.' && if_name[index] != '-' &&
+         if_name[index] != '_' && if_name[index] != '+' &&
+         if_name[index] != ':')
+      {
+         return 0;
+      }
+   }
+   return 1;
+}
+
 
 #ifdef FEATURE_464XLAT
 void do_xlat_rule(FILE *nat_fp)
@@ -990,7 +1010,6 @@ void do_xlat_rule(FILE *nat_fp)
 static void add_dslite_mss_clamping(FILE *fp);
 #endif
 
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 static int IsValidIPv4Addr(char* ip_addr_string)
 {
     int ret = 1;
@@ -1015,6 +1034,8 @@ static int IsValidIPv4Addr(char* ip_addr_string)
 
     return ret;
 }
+
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 
 /*
  ==========================================================================
@@ -9623,7 +9644,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                     
 #endif
 #if !defined(_COSA_BCM_MIPS_)
-                    do_parcon_mgmt_lan2wan_pc_site_insertrule(fp, ruleIndex, nstdPort);
+                    do_parcon_mgmt_lan2wan_pc_site_insertrule(fp, ruleIndex+1, nstdPort);
 #endif
                 }
                 else
@@ -13129,6 +13150,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
   
    if(0==strcmp("true",iot_enabled))
    {
+      int valid_iot_ipaddr;
+      int valid_iot_ifname;
+
       FIREWALL_DEBUG("IOT_LOG : Adding iptable rules for IOT\n");
       memset(iot_ifName, 0, sizeof(iot_ifName));
       syscfg_get(NULL, "iot_ifname", iot_ifName, sizeof(iot_ifName));
@@ -13137,6 +13161,19 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       }
       memset(iot_primaryAddress, 0, sizeof(iot_primaryAddress));
       syscfg_get(NULL, "iot_ipaddr", iot_primaryAddress, sizeof(iot_primaryAddress));
+      valid_iot_ipaddr = IsValidIPv4Addr(iot_primaryAddress);
+      valid_iot_ifname = IsValidInterfaceName(iot_ifName, strlen(iot_ifName));
+
+      if (!valid_iot_ipaddr)
+      {
+         FIREWALL_DEBUG("IOT_LOG : Invalid iot_ipaddr '%s', skipping IPv4 IoT rules\n" COMMA iot_primaryAddress);
+      }
+      if (!valid_iot_ifname)
+      {
+         FIREWALL_DEBUG("IOT_LOG : Invalid IoT interface '%s', skipping IPv4 IoT rules\n" COMMA iot_ifName);
+      }
+      if (valid_iot_ipaddr && valid_iot_ifname)
+      {
       fprintf(filter_fp,"-A INPUT -d %s/24 -i %s -j ACCEPT\n",iot_primaryAddress,iot_ifName);
       fprintf(filter_fp,"-A INPUT -i %s -m pkttype ! --pkt-type unicast -j ACCEPT\n",iot_ifName);
       //fprintf(filter_fp,"-A FORWARD -i %s -o %s -j ACCEPT\n",iot_ifName,iot_ifName);
@@ -13153,6 +13190,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", iot_ifName, lan_ifname);
       fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", iot_ifName, XHS_IF_NAME);
 #endif
+      }
    }
 
    /*
