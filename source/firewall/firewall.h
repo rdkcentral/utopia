@@ -62,6 +62,7 @@
 #include "safec_lib_common.h"
 #include "ansc_status.h"
 
+int IsValidInterfaceName(const char *if_name, size_t length);
 /**
 * @brief Apply logging rules to the filter table.
 *
@@ -784,6 +785,18 @@ void do_openPorts(FILE *fp);
 void do_forwardPorts(FILE *fp);
 
 // Utility functions
+/**
+* @brief Validate IPv4 address format.
+*
+* @param[in] ip_addr_string - Pointer to the IPv4 address string to validate.
+*
+* @return The validation status.
+* @retval 1 if the IPv4 address is valid.
+* @retval 0 if the IPv4 address is invalid.
+*
+*/
+int IsValidIPv4Addr(char* ip_addr_string);
+
 /**
 * @brief Validate IPv6 address format.
 *
