@@ -1303,12 +1303,12 @@ v6GPFirewallRuleNext:
 #endif
 #endif
 #ifdef FEATURE_MAPE
-      if (prev_prefix[0] != '\0' && prefix[0] != '\0' && strcmp(prev_prefix, prefix) != 0)
+      if (prev_prefix[0] != '\0' && prev_prefix[0] != '/' && prefix[0] != '\0' && strcmp(prev_prefix, prefix) != 0)
       {
          fprintf(fp, "-A FORWARD -i brlan0 -o erouter0 -s %s -j REJECT --reject-with icmp6-policy-fail\n", prev_prefix);
       }
 #endif
-      if ( '\0' != prefix[0] ) {
+      if (prefix[0] != '\0' && prefix[0] != '/') {
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j LOG --log-level %d --log-prefix \"UTOPIA: FW. IPv6 FORWARD anti-spoofing\"\n", prefix, lan_ifname,syslog_level);
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j REJECT --reject-with icmp6-adm-prohibited\n", prefix, lan_ifname);
 #if defined (_COSA_FOR_BCI_) || defined (_ONESTACK_PRODUCT_REQ_)
