@@ -318,6 +318,8 @@ int prepare_ipv6_firewall(const char *fw_file)
 #ifdef XDNS_ENABLE
     do_dns_route(nat_fp, 6);
 #endif
+    /* Unbound DNS redirect - rules present only while feature is enabled */
+    prepare_unbound_rules(nat_fp, IP_V6);
 #ifdef INTEL_PUMA7
     prepare_multinet_mangle_v6(mangle_fp);
 #endif 

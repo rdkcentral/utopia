@@ -152,6 +152,7 @@ int do_ipflooddetectv4(FILE *fp);
 int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
 int prepare_rabid_rules_v2020Q3B(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
 int prepare_rabid_rules_for_mapt(FILE *filter_fp, ip_ver_t ver);
+int prepare_unbound_rules(FILE *nat_fp, ip_ver_t ver);
 int do_parental_control(FILE *fp, FILE *nat_fp, int iptype);
 int prepare_lnf_internet_rules(FILE *mangle_fp, int iptype);
 void do_container_allow(FILE *pFilter, FILE *pMangle, FILE *pNat, int family);

@@ -433,6 +433,24 @@ int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
 int prepare_rabid_rules_for_mapt(FILE *filter_fp, ip_ver_t ver);
 
 /**
+* @brief Prepare Unbound DNS redirect rules.
+*
+* Weak hook. The default implementation emits nothing. A vendor library may
+* provide a strong implementation that writes nat table rules redirecting DNS
+* traffic to a local Unbound resolver only while the feature is enabled.
+* Rules are regenerated on every firewall restart, so disabling the feature
+* removes the rules.
+*
+* @param[in] nat_fp - Pointer to the FILE stream for writing NAT table rules.
+* @param[in] ver - IP version type.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+*
+*/
+int prepare_unbound_rules(FILE *nat_fp, ip_ver_t ver);
+
+/**
 * @brief Apply parental control firewall rules.
 *
 * @param[in] fp - Pointer to the FILE stream for writing filter rules.

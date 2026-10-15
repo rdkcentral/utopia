@@ -145,6 +145,19 @@ int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver)
     return 0;
 }
 
+/*
+ ==========================================================================
+                Unbound DNS Rules
+ ==========================================================================
+ */
+__attribute__((weak))
+int prepare_unbound_rules(FILE *nat_fp, ip_ver_t ver)
+{
+    FIREWALL_DEBUG("Entering prepare_unbound_rules \n");
+    FIREWALL_DEBUG("Exiting prepare_unbound_rules \n");
+    return 0;
+}
+
 __attribute__((weak))
 void update_rabid_features_status()
 {

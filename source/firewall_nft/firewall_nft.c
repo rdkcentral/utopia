@@ -9301,6 +9301,8 @@ static int do_lan2wan(FILE *mangle_fp, FILE *filter_fp, FILE *nat_fp)
 #ifdef XDNS_ENABLE
    do_dns_route(nat_fp, 4);
 #endif
+   /* Unbound DNS redirect - rules present only while feature is enabled */
+   prepare_unbound_rules(nat_fp, IP_V4);
 
    #ifdef CISCO_CONFIG_TRUE_STATIC_IP
    do_lan2wan_staticip(filter_fp);
