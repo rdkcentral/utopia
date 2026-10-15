@@ -652,10 +652,14 @@ void do_ipv6_filter_table(FILE *fp){
    // Create iptable chain to ratelimit remote management packets
    do_webui_rate_limit(fp);
    // Rate limiting the webui-access lan side
+   int cmdiag_valid = (cmdiag_ifname[0] != '\0');
    if(isBridgeMode)
    {
-       lan_access_set_proto(fp, "80",cmdiag_ifname);
-       lan_access_set_proto(fp, "443",cmdiag_ifname);
+       if (cmdiag_valid)
+       {
+	   lan_access_set_proto(fp, "80",cmdiag_ifname);
+	   lan_access_set_proto(fp, "443",cmdiag_ifname);
+       }
    }
    else
    {
@@ -665,7 +669,7 @@ void do_ipv6_filter_table(FILE *fp){
    // Blocking webui access to unnecessary interfaces
    fprintf(fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",lan_ifname);
    fprintf(fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",ecm_wan_ifname);
-   if (isCmDiagEnabled)
+   if (isCmDiagEnabled && cmdiag_valid)
    {
       fprintf(fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);
    }
