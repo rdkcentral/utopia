@@ -62,6 +62,7 @@
 #include "safec_lib_common.h"
 #include "ansc_status.h"
 
+int IsValidInterfaceName(const char *if_name, size_t length);
 /**
 * @brief Apply logging rules to the filter table.
 *

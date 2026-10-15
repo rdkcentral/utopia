@@ -970,7 +970,7 @@ int IsValidIPv6Addr(char* ip_addr_string)
 	return 1;
 }
 
-static int IsValidInterfaceName(const char *if_name, size_t length)
+int IsValidInterfaceName(const char *if_name, size_t length)
 {
    size_t index;
 
@@ -15672,6 +15672,7 @@ int main(int argc, char **argv)
    
    process_id = getpid();
 
+   t2_init("firewall");
    ulogf(ULOG_FIREWALL, UL_INFO, "%s called with %s", service_name, (argc > 1) ? argv[1] : "no arg");
 
    // defualt command if first argument is missing
