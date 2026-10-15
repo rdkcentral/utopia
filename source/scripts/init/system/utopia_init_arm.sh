@@ -299,11 +299,11 @@ fi
    if [ -e "$MWO_PATH" ]; then
       rm -rf $MWO_PATH
    fi
-   if [ -f /opt/secure/steering.json ]; then
-      rm -f /opt/secure/steering.json
+   if [ -f /opt/secure/mwo/steering.json ]; then
+      rm -f /opt/secure/mwo/steering.json
    fi
-   if [ -f /opt/secure/device_profile.json ]; then
-      rm -f /opt/secure/device_profile.json
+   if [ -f /opt/secure/mwo/device_profile.json ]; then
+      rm -f /opt/secure/mwo/device_profile.json
    fi
    if [ -e "$CHANNEL_KEEPOUT_PATH" ]; then
       rm -rf $CHANNEL_KEEPOUT_PATH
