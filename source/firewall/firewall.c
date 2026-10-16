@@ -12378,6 +12378,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(nat_fp, "-A POSTROUTING -m physdev --physdev-out %s -j ACCEPT\n", emta_wan_ifname);
 #endif
 
+   /* Must precede other port-53 DNAT/REDIRECT rules (proxy_dns, extender) to take effect */
+   prepare_unbound_nat_rules(nat_fp, IP_V4);
+
 #if WAN_FAILOVER_SUPPORTED
 #if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_)
    redirect_dns_to_extender(nat_fp,AF_INET);
@@ -12543,6 +12546,8 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, ":%s DROP [0:0]\n", "INPUT");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "FORWARD");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "OUTPUT");
+
+   prepare_unbound_filter_rules(filter_fp, IP_V4);
 
     prepare_rabid_rules(filter_fp, mangle_fp, IP_V4);
 
