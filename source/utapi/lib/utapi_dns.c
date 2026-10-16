@@ -44,6 +44,7 @@
 #include "DM_TR181.h"
 #include <arpa/inet.h>
 #include "safec_lib_common.h"
+#include "utapi_dns.h"
 
 int Utopia_Get_DeviceDnsRelayForwarding(UtopiaContext *pCtx, int index, void *str_handle)
 {
@@ -133,4 +134,25 @@ int Utopia_Set_DeviceDnsRelayForwarding(UtopiaContext *pCtx, int index, void *st
     Utopia_RawSet(pCtx, NULL, tokenBuf, deviceDnsRelay->Interface);
 
     return UT_SUCCESS;
+}
+
+int Utopia_GetDnsRelayEnabled(UtopiaContext *ctx, boolean_t *enabled)
+{
+    return Utopia_GetBool(ctx, UtopiaValue_Dns_Relay_Enable, enabled);
+}
+
+int Utopia_SetDnsRelayEnabled(UtopiaContext *ctx, boolean_t enabled)
+{
+    return Utopia_SetBool(ctx, UtopiaValue_Dns_Relay_Enable, enabled);
+}
+
+static int g_Dns_ForwardCount = 0;
+
+int Utopia_GetNumberOfDnsForwards(UtopiaContext *ctx)
+{
+    if(g_Dns_ForwardCount == 0)
+    {
+        Utopia_GetInt(ctx, UtopiaValue_Dns_ForwardCount, &g_Dns_ForwardCount);
+    }
+    return g_Dns_ForwardCount;
 }
