@@ -160,6 +160,27 @@ int prepare_rabid_rules_for_mapt(FILE *filter_fp, ip_ver_t ver)
     return 0;
 }
 
+/*
+ ==========================================================================
+                Unbound DNS redirect
+ ==========================================================================
+ */
+__attribute__((weak))
+int prepare_unbound_nat_rules(FILE *nat_fp, ip_ver_t ver)
+{
+    FIREWALL_DEBUG("Entering prepare_unbound_nat_rules\n");
+    FIREWALL_DEBUG("Exiting prepare_unbound_nat_rules\n");
+    return 0;
+}
+
+__attribute__((weak))
+int prepare_unbound_filter_rules(FILE *filter_fp, ip_ver_t ver)
+{
+    FIREWALL_DEBUG("Entering prepare_unbound_filter_rules\n");
+    FIREWALL_DEBUG("Exiting prepare_unbound_filter_rules\n");
+    return 0;
+}
+
 
 /*              
  ==========================================================================
