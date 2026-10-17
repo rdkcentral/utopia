@@ -888,45 +888,6 @@ static int get_PartnerID (char *PartnerID)
 
     memset(buf, 0, sizeof(buf));
     //int isValidPartner = 0;
-
-#ifdef _ONESTACK_PRODUCT_REQ_
-    /*
-     * Handle non-onestack -> onestack firmware upgrade and factory-reset
-     */
-    {
-        char devicemode[32] = {0};
-
-        onestackutils_get_syscfg_devicemode(devicemode, sizeof(devicemode));
-        if ('\0' == devicemode[0])
-        {
-            FILE *pPartnerIdFile = fopen(PARTNERID_FILE, "r");
-            if (NULL != pPartnerIdFile)
-            {
-                char filePartnerId[PARTNER_ID_LEN] = {0};
-                char factoryPartnerId[PARTNER_ID_LEN] = {0};
-                char *nl = NULL;
-
-                if (NULL != fgets(filePartnerId, sizeof(filePartnerId), pPartnerIdFile))
-                {
-                    if ((nl = strchr(filePartnerId, '\n')) != NULL)
-                        *nl = '\0';
-                }
-                fclose(pPartnerIdFile);
-                pPartnerIdFile = NULL;
-
-                if ((0 == getFactoryPartnerId(factoryPartnerId)) && (factoryPartnerId[0] != '\0') &&
-                    (0 != strcasecmp(filePartnerId, factoryPartnerId)))
-                {
-                    APPLY_PRINT("%s - devicemode is empty and partner ID file value '%s' does not match factory partner ID '%s', removing %s\n",
-                                __FUNCTION__, filePartnerId, factoryPartnerId, PARTNERID_FILE);
-                    unlink(PARTNERID_FILE);
-                }
-            }
-        }
-    }
-#endif // _ONESTACK_PRODUCT_REQ_
-
-	
     /*
      *  Check whether /nvram/.partner_ID file is available or not.
      *  If available then read it and apply defaults based on new partnerID
@@ -942,11 +903,9 @@ static int get_PartnerID (char *PartnerID)
         {
             APPLY_PRINT("%s - PartnerID from HAL: %s\n",__FUNCTION__,PartnerID );
 #ifdef _ONESTACK_PRODUCT_REQ_
-            // Override PartnerID if needed and set devicemode
-            // Must be called BEFORE set_syscfg_partner_values to ensure syscfg gets the correct PartnerID
-            APPLY_PRINT("%s - Calling onestackutils_override_partnerid_and_set_devicemode with PartnerID from HAL: %s\n", __FUNCTION__, PartnerID);
-            onestackutils_override_partnerid_and_set_devicemode(PartnerID);
-            APPLY_PRINT("%s - onestackutils_override_partnerid_and_set_devicemode completed. PartnerID from HAL: %s\n", __FUNCTION__, PartnerID);
+            APPLY_PRINT("%s - normalizing PartnerID '%s' from HAL and setting devicemode via onestack API\n", __FUNCTION__, PartnerID);
+            onestackutils_normalize_partnerid_and_set_devicemode(PartnerID);
+            APPLY_PRINT("%s - onestackutils_normalize_partnerid_and_set_devicemode completed\n", __FUNCTION__);
 #endif // _ONESTACK_PRODUCT_REQ_
             validatePartnerId ( PartnerID );
         }
@@ -1001,11 +960,9 @@ static int get_PartnerID (char *PartnerID)
 
         APPLY_PRINT("%s - PartnerID from File: %s\n",__FUNCTION__,PartnerID );
 #ifdef _ONESTACK_PRODUCT_REQ_
-            // Override PartnerID if needed and set devicemode
-            // Must be called BEFORE set_syscfg_partner_values to ensure syscfg gets the correct PartnerID
-            APPLY_PRINT("%s - Calling onestackutils_override_partnerid_and_set_devicemode with PartnerID: %s\n", __FUNCTION__, PartnerID);
-            onestackutils_override_partnerid_and_set_devicemode(PartnerID);
-            APPLY_PRINT("%s - onestackutils_override_partnerid_and_set_devicemode completed. PartnerID: %s\n", __FUNCTION__, PartnerID);
+            APPLY_PRINT("%s - normalizing PartnerID '%s' from PartnerID file and setting devicemode via onestack API\n", __FUNCTION__, PartnerID);
+            onestackutils_normalize_partnerid_and_set_devicemode(PartnerID);
+            APPLY_PRINT("%s - onestackutils_normalize_partnerid_and_set_devicemode completed\n", __FUNCTION__);
 #endif // _ONESTACK_PRODUCT_REQ_
 
         validatePartnerId ( PartnerID );
@@ -3528,18 +3485,6 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 		isMigrationReq = 1;
 		APPLY_PRINT("%s - Device in Reboot mode, Syndication Migration Required\n", __FUNCTION__ )
 	}
-#ifdef _ONESTACK_PRODUCT_REQ_
-	else // For OneStack, an empty devicemode indicates migration is required
-	{
-		char deviceMode[16] = {0};
-		if ( !((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0')) )
-		{
-			isMigrationReq = 1;
-			APPLY_PRINT("%s -  devicemode is empty, Migration Required\n", __FUNCTION__ )
-		}
-	}
-#endif
-
   }
   else
   {
@@ -3598,28 +3543,58 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
   }
 
 #ifdef _ONESTACK_PRODUCT_REQ_
+char deviceMode[16] = {0};
+syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode));
 
-   char deviceMode[16] = {0};
+/*
+ * devicemode is empty on reboot only on first boot after upgrade from a non-onestack build.
+ * In that case:
+ *  - If syscfg PartnerID differs from factory (OTP) PartnerID (partner was changed on the
+ *    non-onestack build, e.g. OTP shaw, PartnerID rogers) and PARTNERID_FILE does not exist,
+ *    create it from syscfg PartnerID so that factory reset retains the partner.
+ *  - Set devicemode from syscfg PartnerID via onestack API (temp copy, PartnerID unaffected).
+ */
+if ((deviceMode[0] == '\0') && (0 == isNeedToApplyPartnersDefault))
+{
+   char factoryPartnerID[PARTNER_ID_LEN] = {0};
+   char tmpPartnerID[sizeof(PartnerID)] = {0};
 
-   if ((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0'))
+   if ((PartnerID[0] != '\0') && (0 != strcasecmp(PartnerID, "Unknown")) &&
+       (access(PARTNERID_FILE, F_OK) != 0) &&
+       (0 == getFactoryPartnerId(factoryPartnerID)) && (factoryPartnerID[0] != '\0') &&
+       (0 != strcasecmp(PartnerID, factoryPartnerID)))
    {
-      APPLY_PRINT("Devicemode is: %s\n", deviceMode);
+      FILE *pPartnerIdFile = fopen(PARTNERID_FILE, "w");
+      if (NULL != pPartnerIdFile)
+      {
+         fprintf(pPartnerIdFile, "%s", PartnerID);
+         fclose(pPartnerIdFile);
+         APPLY_PRINT("%s - syscfg PartnerID '%s' differs from factory PartnerID '%s', created %s\n",
+                     __FUNCTION__, PartnerID, factoryPartnerID, PARTNERID_FILE);
+      }
+      else
+      {
+         APPLY_PRINT("%s - Failed to create %s\n", __FUNCTION__, PARTNERID_FILE);
+      }
    }
-   else
-   {
-      APPLY_PRINT("Failed to fetch devicemode from syscfg\n");
-   }
-   t2_event_s("OneStack_DeviceMode_split", deviceMode);
 
-   // For OneStack products, set_defaults() must be called after get_PartnerID() to ensure the partner ID and device mode are correctly configured
-   set_defaults();
+   snprintf(tmpPartnerID, sizeof(tmpPartnerID), "%s", PartnerID);
+   APPLY_PRINT("%s - devicemode is not set in syscfg, setting it from PartnerID '%s'\n", __FUNCTION__, PartnerID);
+   onestackutils_normalize_partnerid_and_set_devicemode(tmpPartnerID);
+   onestackutils_get_syscfg_devicemode(deviceMode, sizeof(deviceMode));
+}
 
-   if (syscfg_dirty)
-   {
-      printf("[utopia] [init] committing default syscfg values\n");
-      syscfg_commit();
-      APPLY_PRINT("Number_Of_Entries_Commited_to_Sysconfig_Database=%d\n",syscfg_dirty);
-   }
+APPLY_PRINT("%s - devicemode is: %s\n", __FUNCTION__, deviceMode);
+t2_event_s("OneStack_DeviceMode_split", deviceMode);
+
+set_defaults();
+
+if (syscfg_dirty)
+{
+   printf("[utopia] [init] committing default syscfg values\n");
+   syscfg_commit();
+   APPLY_PRINT("Number_Of_Entries_Commited_to_Sysconfig_Database=%d\n",syscfg_dirty);
+}
 #endif
 
 
