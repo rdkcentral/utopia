@@ -267,6 +267,10 @@ $$lan_ifname=brlan0
 #    This setting is not meant for users to manipulate.
 #$lan_ethernet_virtual_ifnums=1
 
++$$vlan_id_pvt =12
++$$vlan_id_mesh=13
++$$vlan_id_iot=14
+
 # lan_ethernet_physical_ifnames - a list of names of ethernet interfaces,
 #    which will be enslaved into the lan bridge (which is known as lan_ifname
 #    as described above)
