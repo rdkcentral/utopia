@@ -1729,7 +1729,31 @@ STATIC void addInSysCfgdDB (char *key, char *value)
            IsPSMMigrationNeeded = 1;
        }
    }
-#endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */   
+#endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
+   if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
+   {
+      char currentLpmValue[16] = {0};
+      int readStatus = syscfg_get(NULL, "lpm_enable", currentLpmValue, sizeof(currentLpmValue));
+      APPLY_PRINT("%s: LPM mapping reached, partner key value=%s, syscfg_get status=%d\n",
+                  __FUNCTION__, value ? value : "(null)", readStatus);
+      if (readStatus == 0 && currentLpmValue[0] != '\0')
+      {
+         APPLY_PRINT("%s: preserving existing lpm_enable=%s\n", __FUNCTION__, currentLpmValue);
+      }
+      else
+      {
+         int writeStatus = set_syscfg_partner_values(value, "lpm_enable");
+         APPLY_PRINT("%s: seeded lpm_enable=%s, setter status=%d\n",
+                     __FUNCTION__, value ? value : "(null)", writeStatus);
+      }
+   }
+   if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime") )
+   {
+      if ( 0 == IsValuePresentinSyscfgDB( "lpm_trigger_wait_time" ) )
+      {
+         set_syscfg_partner_values( value,"lpm_trigger_wait_time" );
+      }
+   }
 
    //Check whether migration needs to be handled or not
    if( 1 == IsPSMMigrationNeeded )
@@ -3052,7 +3076,25 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                                         APPLY_PRINT("%s - lnf Value is NULL\n", __FUNCTION__ );
                                                 }
                                         }
-#endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
+         #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
+                                                 paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.Enable"), "ActiveValue");
+                                                if ( paramObjVal != NULL && paramObjVal->valuestring != NULL )
+                                                {
+                                                      APPLY_PRINT("%s: applying bootstrap LPM ActiveValue=%s\n",
+                                                             __FUNCTION__, paramObjVal->valuestring);
+                                                      int writeStatus = set_syscfg_partner_values(paramObjVal->valuestring, "lpm_enable");
+                                                      APPLY_PRINT("%s: bootstrap lpm_enable setter status=%d\n",
+                                                             __FUNCTION__, writeStatus);
+                                                }
+                                                else
+                                                {
+                                                      APPLY_PRINT("%s: bootstrap LPM ActiveValue missing\n", __FUNCTION__);
+                                                }
+                                                paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime"), "ActiveValue");
+                                                if ( paramObjVal != NULL && paramObjVal->valuestring != NULL )
+                                                {
+                                                       set_syscfg_partner_values(paramObjVal->valuestring, "lpm_trigger_wait_time");
+                                                }
                                 }
 
 				if( 1 == isNeedToApplyPartnersDefault )
@@ -3432,6 +3474,70 @@ if ( paramObjVal != NULL )
       memset(ntpServerName, 0, sizeof(ntpServerName));
       memset(jsonNTPItem, 0, sizeof(jsonNTPItem));
    }
+
+   if (0 == IsValuePresentinSyscfgDB("lpm_enable"))
+   {
+      APPLY_PRINT("%s: lpm_enable absent; attempting bootstrap backfill for partner=%s\n",
+                  __FUNCTION__, PartnerID);
+      alwaysJson = cJSON_Parse(data);
+      if (alwaysJson)
+      {
+         alwaysPartnerObj = cJSON_GetObjectItem(alwaysJson, PartnerID);
+         if (alwaysPartnerObj)
+         {
+            alwaysParamObjVal = cJSON_GetObjectItem(
+                cJSON_GetObjectItem(alwaysPartnerObj, "Device.X_RDK_Features.LowPowerMode.Enable"),
+                "ActiveValue");
+            if (alwaysParamObjVal && alwaysParamObjVal->valuestring)
+            {
+               int writeStatus = set_syscfg_partner_values(alwaysParamObjVal->valuestring, "lpm_enable");
+               APPLY_PRINT("%s: bootstrap backfill lpm_enable=%s, setter status=%d\n",
+                           __FUNCTION__, alwaysParamObjVal->valuestring, writeStatus);
+            }
+            else
+            {
+               APPLY_PRINT("%s: bootstrap has no LPM ActiveValue for partner=%s\n",
+                           __FUNCTION__, PartnerID);
+            }
+         }
+         else
+         {
+            APPLY_PRINT("%s: bootstrap has no partner object for partner=%s\n",
+                        __FUNCTION__, PartnerID);
+         }
+         cJSON_Delete(alwaysJson);
+      }
+      else
+      {
+         APPLY_PRINT("%s: failed to parse bootstrap data for lpm_enable backfill\n", __FUNCTION__);
+      }
+   }
+   else
+   {
+      char currentLpmValue[16] = {0};
+      int readStatus = syscfg_get(NULL, "lpm_enable", currentLpmValue, sizeof(currentLpmValue));
+      APPLY_PRINT("%s: lpm_enable already present (syscfg_get status=%d, value=%s)\n",
+                  __FUNCTION__, readStatus, currentLpmValue);
+   }
+
+   if (0 == IsValuePresentinSyscfgDB("lpm_trigger_wait_time"))
+   {
+      alwaysJson = cJSON_Parse(data);
+      if (alwaysJson)
+      {
+         alwaysParamObjVal = cJSON_GetObjectItem(
+             cJSON_GetObjectItem(cJSON_GetObjectItem(alwaysJson, PartnerID), "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime"),
+             "ActiveValue");
+         if (alwaysParamObjVal && alwaysParamObjVal->valuestring)
+         {
+            int writeStatus = set_syscfg_partner_values(alwaysParamObjVal->valuestring, "lpm_trigger_wait_time");
+            APPLY_PRINT("%s: bootstrap backfill lpm_trigger_wait_time=%s, setter status=%d\n",
+                        __FUNCTION__, alwaysParamObjVal->valuestring, writeStatus);
+         }
+         cJSON_Delete(alwaysJson);
+      }
+   }
+
     return 0;
 }
 #if defined (_XB6_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_) || defined (_RDKB_GLOBAL_PRODUCT_REQ_)
