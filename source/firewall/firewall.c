@@ -970,7 +970,7 @@ int IsValidIPv6Addr(char* ip_addr_string)
 	return 1;
 }
 
-static int IsValidInterfaceName(const char *if_name, size_t length)
+int IsValidInterfaceName(const char *if_name, size_t length)
 {
    size_t index;
 
