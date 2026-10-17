@@ -1260,6 +1260,9 @@ $xMemEnable=false
 $xMemArgs=
 $xMemTrigger=stop
 
+#Defaults for RDKDownloadManager
+$PackageExpiryTime=3600
+
 #RDM Module Default URL
 $CDLModuleUrl=
 #low_queue_reboot_threshold
