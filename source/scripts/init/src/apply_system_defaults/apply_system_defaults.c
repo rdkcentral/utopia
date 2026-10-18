@@ -3564,19 +3564,43 @@ if ((deviceMode[0] == '\0') && (0 == isNeedToApplyPartnersDefault))
 {
    char factoryPartnerID[PARTNER_ID_LEN] = {0};
    char tmpPartnerID[sizeof(PartnerID)] = {0};
+   int  isPartnerRetained = 1;   /* default: nothing to retain => treat as success */
 
+   /* Only create the file when it is NOT already present (access(..., F_OK) != 0),
+    * the partner was changed (syscfg PartnerID differs from factory PartnerID),
+    * and the current PartnerID is valid. */
    if ((PartnerID[0] != '\0') && (0 != strcasecmp(PartnerID, "Unknown")) &&
        (access(PARTNERID_FILE, F_OK) != 0) &&
        (0 == getFactoryPartnerId(factoryPartnerID)) && (factoryPartnerID[0] != '\0') &&
        (0 != strcasecmp(PartnerID, factoryPartnerID)))
    {
+      /* Retention is required now; assume failure until fully verified. */
+      isPartnerRetained = 0;
+
+      /* File is guaranteed absent here (checked by access() above), so fopen("w")
+       * is creating a new file, not truncating an existing valid one. */
       FILE *pPartnerIdFile = fopen(PARTNERID_FILE, "w");
       if (NULL != pPartnerIdFile)
       {
-         fprintf(pPartnerIdFile, "%s", PartnerID);
-         fclose(pPartnerIdFile);
-         APPLY_PRINT("%s - syscfg PartnerID '%s' differs from factory PartnerID '%s', created %s\n",
-                     __FUNCTION__, PartnerID, factoryPartnerID, PARTNERID_FILE);
+         size_t len     = strlen(PartnerID);
+         int    written = fprintf(pPartnerIdFile, "%s", PartnerID);
+         int    flushOk = (0 == fflush(pPartnerIdFile));
+         int    closeOk = (0 == fclose(pPartnerIdFile));
+
+         if ((written == (int)len) && flushOk && closeOk)
+         {
+            isPartnerRetained = 1;
+            APPLY_PRINT("%s - syscfg PartnerID '%s' differs from factory PartnerID '%s', created %s\n",
+                        __FUNCTION__, PartnerID, factoryPartnerID, PARTNERID_FILE);
+         }
+         else
+         {
+            /* Write/close failed: remove the incomplete file so no empty/partial
+             * .partner_ID remains, leaving retention retryable on next boot. */
+            unlink(PARTNERID_FILE);
+            APPLY_PRINT("%s - Failed to write %s (written=%d expected=%zu flushOk=%d closeOk=%d), removed partial file\n",
+                        __FUNCTION__, PARTNERID_FILE, written, len, flushOk, closeOk);
+         }
       }
       else
       {
@@ -3584,10 +3608,19 @@ if ((deviceMode[0] == '\0') && (0 == isNeedToApplyPartnersDefault))
       }
    }
 
-   snprintf(tmpPartnerID, sizeof(tmpPartnerID), "%s", PartnerID);
-   APPLY_PRINT("%s - devicemode is not set in syscfg, setting it from PartnerID '%s'\n", __FUNCTION__, PartnerID);
-   onestackutils_normalize_partnerid_and_set_devicemode(tmpPartnerID);
-   onestackutils_get_syscfg_devicemode(deviceMode, sizeof(deviceMode));
+   /* Only initialize devicemode when retention succeeded (or was not needed).
+    * On failure, leave devicemode unset so the next boot retries retention. */
+   if (isPartnerRetained)
+   {
+      snprintf(tmpPartnerID, sizeof(tmpPartnerID), "%s", PartnerID);
+      APPLY_PRINT("%s - devicemode is not set in syscfg, setting it from PartnerID '%s'\n", __FUNCTION__, PartnerID);
+      onestackutils_normalize_partnerid_and_set_devicemode(tmpPartnerID);
+      onestackutils_get_syscfg_devicemode(deviceMode, sizeof(deviceMode));
+   }
+   else
+   {
+      APPLY_PRINT("%s - PartnerID retention failed; leaving devicemode unset to retry on next boot\n", __FUNCTION__);
+   }
 }
 
 APPLY_PRINT("%s - devicemode is: %s\n", __FUNCTION__, deviceMode);
