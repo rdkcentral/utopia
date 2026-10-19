@@ -359,15 +359,12 @@ NOT_DEF:
 #include "ccsp_memory.h"
 
 
-#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/if.h>
-
-#endif
+#include <telemetry_busmessage_sender.h>
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 #include <rdkb_feature_mode_gate.h>
@@ -887,8 +884,6 @@ unsigned int Get_Device_Mode()
 }
 #endif
 
-#ifdef WAN_FAILOVER_SUPPORTED
-
 int create_socket() 
 {
    int sockfd = 0;
@@ -925,6 +920,7 @@ char* get_iface_ipaddr(const char* iface_name)
       return (inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 }
 
+   #ifdef WAN_FAILOVER_SUPPORTED
 bool isServiceNeeded()
 {
         if (Get_Device_Mode()==EXTENDER_MODE)
@@ -974,6 +970,26 @@ int IsValidIPv6Addr(char* ip_addr_string)
 	return 1;
 }
 
+static int IsValidInterfaceName(const char *if_name, size_t length)
+{
+   size_t index;
+
+   if (length == 0 || length >= IFNAMSIZ)
+      return 0;
+
+   for (index = 0; index < length; index++)
+   {
+      if (!isalnum((unsigned char)if_name[index]) &&
+         if_name[index] != '.' && if_name[index] != '-' &&
+         if_name[index] != '_' && if_name[index] != '+' &&
+         if_name[index] != ':')
+      {
+         return 0;
+      }
+   }
+   return 1;
+}
+
 
 #ifdef FEATURE_464XLAT
 void do_xlat_rule(FILE *nat_fp)
@@ -994,7 +1010,6 @@ void do_xlat_rule(FILE *nat_fp)
 static void add_dslite_mss_clamping(FILE *fp);
 #endif
 
-#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 static int IsValidIPv4Addr(char* ip_addr_string)
 {
     int ret = 1;
@@ -1019,6 +1034,8 @@ static int IsValidIPv4Addr(char* ip_addr_string)
 
     return ret;
 }
+
+#if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 
 /*
  ==========================================================================
@@ -2357,6 +2374,8 @@ static int prepare_globals_from_configuration(void)
    char tmp[100];
    char *pStr = NULL;
    int i;
+   char cmdiag_ifname_rejected[sizeof(cmdiag_ifname) + 1] = {0};
+   size_t cmdiag_ifname_len;
    errno_t  safec_rc  = -1;
    FIREWALL_DEBUG("Entering prepare_globals_from_configuration\n");       
    tmp[0] = '\0';
@@ -2503,6 +2522,17 @@ static int prepare_globals_from_configuration(void)
    }
 
    syscfg_get(NULL, "cmdiag_ifname", cmdiag_ifname, sizeof(cmdiag_ifname));
+   cmdiag_ifname_len = strnlen(cmdiag_ifname, sizeof(cmdiag_ifname));
+   if (cmdiag_ifname_len != 0 && !IsValidInterfaceName(cmdiag_ifname, cmdiag_ifname_len))
+   {
+      memcpy(cmdiag_ifname_rejected, cmdiag_ifname, cmdiag_ifname_len);
+
+      FIREWALL_DEBUG(
+         "Rejected corrupt cmdiag_ifname: [%s]\n"
+         COMMA cmdiag_ifname_rejected);
+      t2_event_s("SYS_ERR_FW_CmDiag_CorruptIfname", cmdiag_ifname_rejected);
+      memset(cmdiag_ifname, 0, sizeof(cmdiag_ifname));
+   }
    syscfg_get(NULL, "cmdiag_enabled", cmdiag_enabled, sizeof(cmdiag_enabled));
 
    syscfg_get(NULL, "firewall_level", firewall_level, sizeof(firewall_level));
@@ -5765,14 +5795,15 @@ int lan_telnet_ssh(FILE *fp, int family)
            if(!isBridgeMode) //brlan0 exists
                fprintf(fp, "-A %s -i %s -p tcp --dport 23 -j DROP\n", "INPUT", lan_ifname);
 
-           fprintf(fp, "-A %s -i %s -p tcp --dport 23 -j DROP\n", "INPUT", cmdiag_ifname); //lan0 always exist
+            if (cmdiag_ifname[0] != '\0')
+               fprintf(fp, "-A %s -i %s -p tcp --dport 23 -j DROP\n", "INPUT", cmdiag_ifname); //lan0 always exist
        }
        else {
            fprintf(fp, "-A %s -p tcp --dport 23 -j DROP\n", "lan2self_mgmt");
        }
 
    }
-   else if(family == AF_INET && isFirewallEnabled && !isBridgeMode && isWanServiceReady){ //only valid in router mode when wan is ready
+   else if(family == AF_INET && isFirewallEnabled && !isBridgeMode && isWanServiceReady && cmdiag_ifname[0] != '\0'){ //only valid in router mode when wan is ready
        fprintf(fp, "-I %s -i %s -p tcp --dport 23 -j ACCEPT\n", "general_input", cmdiag_ifname);
    }
 
@@ -5785,7 +5816,8 @@ int lan_telnet_ssh(FILE *fp, int family)
            if(!isBridgeMode) //brlan0 exists
                fprintf(fp, "-A %s -i %s -p tcp --dport 22 -j DROP\n", "INPUT", lan_ifname);
 
-           fprintf(fp, "-A %s -i %s -p tcp --dport 22 -j DROP\n", "INPUT", cmdiag_ifname); //lan0 always exist
+            if (cmdiag_ifname[0] != '\0')
+               fprintf(fp, "-A %s -i %s -p tcp --dport 22 -j DROP\n", "INPUT", cmdiag_ifname); //lan0 always exist
        }
        else {
            fprintf(fp, "-A %s -p tcp --dport 22 -j DROP\n", "lan2self_mgmt");
@@ -5810,7 +5842,8 @@ int lan_telnet_ssh(FILE *fp, int family)
                if(!isBridgeMode) //brlan0 exists
                    fprintf(fp, "-A %s -i %s -p tcp --dport 22 -j DROP\n", "INPUT", lan_ifname);
 
-               fprintf(fp, "-A %s -i %s -p tcp --dport 22 -j DROP\n", "INPUT", cmdiag_ifname); //lan0 always exist
+                  if (cmdiag_ifname[0] != '\0')
+                     fprintf(fp, "-A %s -i %s -p tcp --dport 22 -j DROP\n", "INPUT", cmdiag_ifname); //lan0 always exist
            }
            else {
                fprintf(fp, "-A %s -p tcp --dport 22 -j DROP\n", "lan2self_mgmt");
@@ -5901,6 +5934,64 @@ static int do_multinet_lan2self_by_wanip (FILE *filter_fp)
 }
 #endif
 
+static int do_lan2self_isolatedBridges(FILE *filter_fp)
+{
+   FIREWALL_DEBUG("Entering do_lan2self_isolatedBridges\n");
+   char *tok;
+   char net_query[MAX_QUERY];
+   char net_resp[MAX_QUERY];
+   char inst_resp[MAX_QUERY];
+   char iface_names[32][IFNAMSIZ];
+   char iface_ipaddrs[32][INET_ADDRSTRLEN];
+   char *interface_ipaddr;
+   int iface_count = 0;
+   int i, j;
+   int already_exists;
+
+   inst_resp[0] = 0;
+   sysevent_get(sysevent_fd, sysevent_token, "multinet-instances", inst_resp, sizeof(inst_resp));
+   FIREWALL_DEBUG("lan2self_isolatedBridges: multinet-instance\n");
+
+   tok = strtok(inst_resp, " ");
+   if (tok) do {
+      snprintf(net_query, sizeof(net_query), "multinet_%s-name", tok);
+      net_resp[0] = 0;
+      sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
+      interface_ipaddr = get_iface_ipaddr(net_resp);
+      if (interface_ipaddr == NULL) {
+         FIREWALL_DEBUG("lan2self_isolatedBridges: no IPv4 address found for interface\n");
+         continue;
+      }
+
+      already_exists = 0;
+      for (i = 0; i < iface_count; i++) {
+         if (strcmp(iface_names[i], net_resp) == 0) {
+            already_exists = 1;
+            break;
+         }
+      }
+      if (!already_exists && iface_count < (int)(sizeof(iface_names) / sizeof(iface_names[0]))) {
+         snprintf(iface_names[iface_count], sizeof(iface_names[iface_count]), "%.*s", IFNAMSIZ - 1, net_resp);
+         snprintf(iface_ipaddrs[iface_count], sizeof(iface_ipaddrs[iface_count]), "%.*s", INET_ADDRSTRLEN - 1, interface_ipaddr);
+         iface_count++;
+      }
+   } while ((tok = strtok(NULL, " ")) != NULL);
+
+   for (i = 0; i < iface_count; i++) {
+      for (j = i + 1; j < iface_count; j++) {
+         if (strcmp(iface_ipaddrs[i], iface_ipaddrs[j]) == 0) {
+            continue;
+         }
+
+         fprintf(filter_fp, "-A lan2self_isolatedBridges -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", iface_ipaddrs[i], iface_ipaddrs[j]);
+         fprintf(filter_fp, "-A lan2self_isolatedBridges -s %s/24 -d %s/32 -j xlog_drop_lan2self\n", iface_ipaddrs[j], iface_ipaddrs[i]);
+      }
+   }
+
+   FIREWALL_DEBUG("Exiting do_lan2self_isolatedBridges\n");
+   return 0;
+}
+
 static int do_lan2self_by_wanip(FILE *filter_fp, int family)
 {
    //As requested, we don't allow SNMP/HTTP/HTTPs/Ping
@@ -5941,15 +6032,6 @@ static int do_lan2self_by_wanip(FILE *filter_fp, int family)
    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.101.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.101.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
    //<<
-#if defined(_WNXL11BWL_PRODUCT_REQ_) 
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.70.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.71.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-#else
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.0.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 169.254.1.254/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-#endif
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 172.16.12.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
-   fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.106.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
    fprintf(filter_fp, "-A lan2self_by_wanip -s %s/24 -d 192.168.251.1/32 -j xlog_drop_lan2self\n", lan_ipaddr);
 
    if (rc == 0 && httpport[0] != '\0' && atoi(httpport) != 80 && (atoi(httpport) >= 0 && atoi(httpport) <= 65535 ))
@@ -5996,7 +6078,8 @@ void lan_http_access(FILE *fp) {
            if(!isBridgeMode) //brlan0 exists
                fprintf(fp, "-A %s -i %s -p tcp --dport %s -j xlog_drop_lan2self\n", "lan2self_mgmt", lan_ifname, reserved_mgmt_port);
 
-           fprintf(fp, "-A %s -i %s -p tcp --dport %s -j xlog_drop_lan2self\n", "lan2self_mgmt", cmdiag_ifname, reserved_mgmt_port); //lan0 always exist
+            if (cmdiag_ifname[0] != '\0')
+               fprintf(fp, "-A %s -i %s -p tcp --dport %s -j xlog_drop_lan2self\n", "lan2self_mgmt", cmdiag_ifname, reserved_mgmt_port); //lan0 always exist
        }
    } 
            FIREWALL_DEBUG("Exiting lan_http_access\n");     
@@ -6058,6 +6141,7 @@ static int do_lan2self_mgmt(FILE *fp)
 static int do_lan2self(FILE *fp)
 {
         // FIREWALL_DEBUG("Entering do_lan2self\n");     
+   do_lan2self_isolatedBridges(fp);
 #if (defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)) || defined(FEATURE_SUPPORT_MAPT_NAT46)
    if((!isMAPTReady) & isWanReady) // Pass for Dual Stack Line
 #else
@@ -6993,17 +7077,36 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
 #ifdef _COSA_INTEL_XB3_ARM_ 
    if(family == AF_INET)
         fprintf(filter_fp, "-A wan2self_mgmt -p tcp -m multiport --dports 21,23,%s,%s -j xlog_drop_wan2self\n", httpport, httpsport);
-    else
-        fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 21,23,%s,%s -j DROP\n", isBridgeMode == 0 ? lan_ifname : cmdiag_ifname, httpport, httpsport);
-         FIREWALL_DEBUG("Exiting do_remote_access_control\n");    
-    return 0;
+   else
+   {
+       if (isBridgeMode == 0)
+       {
+           fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 21,23,%s,%s -j DROP\n", lan_ifname, httpport, httpsport);
+       }
+       else if (cmdiag_ifname[0] != '\0')
+       {
+           fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 21,23,%s,%s -j DROP\n", cmdiag_ifname, httpport, httpsport);
+       }
+   }
+   FIREWALL_DEBUG("Exiting do_remote_access_control\n");
+   return 0;
 #else
-    if(family == AF_INET)
-        fprintf(filter_fp, "-A wan2self_mgmt -p tcp -m multiport --dports 23,%s,%s -j xlog_drop_wan2self\n", httpport, httpsport);
-    else
-        fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 23,%s,%s -j DROP\n", isBridgeMode == 0 ? lan_ifname : cmdiag_ifname, httpport, httpsport);
-         FIREWALL_DEBUG("Exiting do_remote_access_control\n");
-    return 0;
+   if(family == AF_INET)
+       fprintf(filter_fp, "-A wan2self_mgmt -p tcp -m multiport --dports 23,%s,%s -j xlog_drop_wan2self\n", httpport, httpsport);
+   else
+   {
+       if (isBridgeMode == 0)
+       {
+           fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 23,%s,%s -j DROP\n", lan_ifname, httpport, httpsport);
+       }
+       else if (cmdiag_ifname[0] != '\0')
+       {
+           fprintf(filter_fp, "-A INPUT ! -i %s -p tcp -m multiport --dports 23,%s,%s -j DROP\n", cmdiag_ifname, httpport, httpsport);
+       }
+       /* Skip the bridge rule when no CMDIAG interface is configured. */
+   }
+   FIREWALL_DEBUG("Exiting do_remote_access_control\n");
+   return 0;
 #endif
 }
 
@@ -9541,7 +9644,7 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                     
 #endif
 #if !defined(_COSA_BCM_MIPS_)
-                    do_parcon_mgmt_lan2wan_pc_site_insertrule(fp, ruleIndex, nstdPort);
+                    do_parcon_mgmt_lan2wan_pc_site_insertrule(fp, ruleIndex+1, nstdPort);
 #endif
                 }
                 else
@@ -11276,6 +11379,10 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     char inst_resp[MAX_QUERY];
     char primary_inst[MAX_QUERY];
     char ip[MAX_QUERY];
+   char bridge_names[32][IFNAMSIZ];
+   int bridge_count = 0;
+   int i, j;
+   int already_exists;
 
     FIREWALL_DEBUG("Entering prepare_multinet_filter_forward\n"); 	 
 
@@ -11484,19 +11591,39 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     tok = strtok(inst_resp, " ");
     
     if (tok) do {
-        snprintf(net_query, sizeof(net_query), "multinet_%s-localready", tok);
-        net_resp[0] = 0;
-        sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
-        if (strcmp("1", net_resp) != 0)
-            continue;
-        
         snprintf(net_query, sizeof(net_query), "multinet_%s-name", tok);
         net_resp[0] = 0;
         sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
-        
-        fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", net_resp, net_resp);
+
+      already_exists = 0;
+      for (i = 0; i < bridge_count; i++) {
+         if (strcmp(bridge_names[i], net_resp) == 0) {
+            already_exists = 1;
+            break;
+         }
+      }
+      if (!already_exists && bridge_count < (int)(sizeof(bridge_names) / sizeof(bridge_names[0]))) {
+         snprintf(bridge_names[bridge_count], sizeof(bridge_names[bridge_count]), "%.*s", IFNAMSIZ - 1, net_resp);
+         bridge_count++;
+      }
         
     } while ((tok = strtok(NULL, " ")) != NULL);
+
+   for (i = 0; i < bridge_count; i++) {
+      bridge_names[i][strcspn(bridge_names[i], "\r\n")] = '\0';
+      if(bridge_names[i][0] == '\0') {
+          continue;
+      }
+      for (j = i + 1; j < bridge_count; j++) {
+         bridge_names[j][strcspn(bridge_names[j], "\r\n")] = '\0';
+         if(bridge_names[j][0] == '\0') {
+             continue;
+         }
+         fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", bridge_names[i], bridge_names[j]);
+         fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", bridge_names[j], bridge_names[i]);
+      }
+      fprintf(filter_fp, "-A FORWARD -i %s -o %s -j ACCEPT\n", bridge_names[i], bridge_names[i]);
+   }
 
     FIREWALL_DEBUG("Exiting prepare_multinet_filter_forward\n"); 	 
 
@@ -12533,6 +12660,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self");
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_by_wanip");
+   fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_isolatedBridges");
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_mgmt");
    fprintf(filter_fp, ":%s - [0:0]\n", "host_detect");
    fprintf(filter_fp, ":%s - [0:0]\n", "lanattack");
@@ -12708,9 +12836,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    // Blocking webui access to unnecessary interfaces
    fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",lan_ifname);
    fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",ecm_wan_ifname);
-   if (isCmDiagEnabled)
+   if (isCmDiagEnabled && cmdiag_ifname[0] != '\0')
    {
-       fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);  
+       fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);
    }
 
    #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
@@ -12831,7 +12959,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif /*_HUB4_PRODUCT_REQ_*/
    fprintf(filter_fp, "-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT\n");
 
-   if (isCmDiagEnabled)
+   if (isCmDiagEnabled && cmdiag_ifname[0] != '\0')
    {
       fprintf(filter_fp, "-A INPUT -i %s -d 192.168.100.1 -j ACCEPT\n", cmdiag_ifname);
    }
@@ -13037,6 +13165,9 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
   
    if(0==strcmp("true",iot_enabled))
    {
+      int valid_iot_ipaddr;
+      int valid_iot_ifname;
+
       FIREWALL_DEBUG("IOT_LOG : Adding iptable rules for IOT\n");
       memset(iot_ifName, 0, sizeof(iot_ifName));
       syscfg_get(NULL, "iot_ifname", iot_ifName, sizeof(iot_ifName));
@@ -13045,6 +13176,19 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       }
       memset(iot_primaryAddress, 0, sizeof(iot_primaryAddress));
       syscfg_get(NULL, "iot_ipaddr", iot_primaryAddress, sizeof(iot_primaryAddress));
+      valid_iot_ipaddr = IsValidIPv4Addr(iot_primaryAddress);
+      valid_iot_ifname = IsValidInterfaceName(iot_ifName, strlen(iot_ifName));
+
+      if (!valid_iot_ipaddr)
+      {
+         FIREWALL_DEBUG("IOT_LOG : Invalid iot_ipaddr '%s', skipping IPv4 IoT rules\n" COMMA iot_primaryAddress);
+      }
+      if (!valid_iot_ifname)
+      {
+         FIREWALL_DEBUG("IOT_LOG : Invalid IoT interface '%s', skipping IPv4 IoT rules\n" COMMA iot_ifName);
+      }
+      if (valid_iot_ipaddr && valid_iot_ifname)
+      {
       fprintf(filter_fp,"-A INPUT -d %s/24 -i %s -j ACCEPT\n",iot_primaryAddress,iot_ifName);
       fprintf(filter_fp,"-A INPUT -i %s -m pkttype ! --pkt-type unicast -j ACCEPT\n",iot_ifName);
       //fprintf(filter_fp,"-A FORWARD -i %s -o %s -j ACCEPT\n",iot_ifName,iot_ifName);
@@ -13061,6 +13205,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
       fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", iot_ifName, lan_ifname);
       fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", iot_ifName, XHS_IF_NAME);
 #endif
+      }
    }
 
    /*
@@ -13183,6 +13328,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    /* RDKB-57186 SNMP drop to XHS and LnF */
    fprintf(filter_fp, "-A general_input -i %s -p udp -m udp --dport 161 -j xlog_drop_lan2self\n", XHS_IF_NAME);
    fprintf(filter_fp, "-A general_input -i %s -p udp -m udp --dport 161 -j xlog_drop_lan2self\n", LNF_IF_NAME);
+   fprintf(filter_fp, "-A lan2self -j lan2self_isolatedBridges\n");
 #if defined (MULTILAN_FEATURE)
    fprintf(filter_fp, "-A lan2self -j lan2self_by_wanip\n");
 #else
@@ -14287,6 +14433,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
       {
          fprintf(filter_fp, ":%s - [0:0]\n", "lan2self");
          fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_by_wanip");
+         fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_isolatedBridges");
          fprintf(filter_fp, ":%s - [0:0]\n", "lanattack");
          fprintf(filter_fp, ":%s - [0:0]\n", "xlog_drop_lanattack");
          do_lan2self(filter_fp);
@@ -14333,7 +14480,14 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 #if defined (MULTILAN_FEATURE)
        fprintf(filter_fp, "-A INPUT -i %s -j wan2self_mgmt\n", isMAPEReady?MAPE_TUNNEL_INTERFACE:current_wan_ifname);
 #else
-       fprintf(filter_fp, "-A INPUT ! -i %s -j wan2self_mgmt\n", isBridgeMode == 0 ? lan_ifname : cmdiag_ifname);
+         if (isBridgeMode == 0)
+         {
+            fprintf(filter_fp, "-A INPUT ! -i %s -j wan2self_mgmt\n", lan_ifname);
+         }
+         else if (cmdiag_ifname[0] != '\0')
+         {
+            fprintf(filter_fp, "-A INPUT ! -i %s -j wan2self_mgmt\n", cmdiag_ifname);
+         }
 #endif
        do_webui_attack_filter(filter_fp);
        // Create iptable chain to ratelimit remote management packets
@@ -14370,7 +14524,8 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    fprintf(filter_fp, "-A LOG_SSH_DROP -j LOG --log-prefix \"SSH Connection Blocked: \" --log-level %d --log-tcp-sequence --log-tcp-options --log-ip-options -m limit --limit 1/minute --limit-burst 1\n", syslog_level);
    fprintf(filter_fp, "-A LOG_SSH_DROP -j DROP\n");
 
-   fprintf(filter_fp, "-A INPUT -i %s -p udp -m udp --dport 161 -j xlog_drop_lan2self\n", cmdiag_ifname); //SNMP filter
+   if (cmdiag_ifname[0] != '\0')
+       fprintf(filter_fp, "-A INPUT -i %s -p udp -m udp --dport 161 -j xlog_drop_lan2self\n", cmdiag_ifname); //SNMP filter
    /* RDKB-57186 SNMP drop to XHS and LnF */
    fprintf(filter_fp, "-A INPUT -i %s -p udp -m udp --dport 161 -j xlog_drop_lan2self\n", XHS_IF_NAME);
    fprintf(filter_fp, "-A INPUT -i %s -p udp -m udp --dport 161 -j xlog_drop_lan2self\n", LNF_IF_NAME);
@@ -14444,7 +14599,8 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
       #endif
    }
 
-   fprintf(filter_fp, "-A INPUT -i %s -j lan2self_mgmt\n", cmdiag_ifname); //lan0 always exist
+   if (cmdiag_ifname[0] != '\0')
+       fprintf(filter_fp, "-A INPUT -i %s -j lan2self_mgmt\n", cmdiag_ifname); //lan0 always exist
 
    lan_telnet_ssh(filter_fp, AF_INET);
 
@@ -14482,16 +14638,20 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 #endif
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "FORWARD");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "OUTPUT");
-   wan_lan_webui_attack(filter_fp,cmdiag_ifname);
+   if (cmdiag_ifname[0] != '\0')
+       wan_lan_webui_attack(filter_fp,cmdiag_ifname);
    // Rate limiting the webui-access lan side
-   lan_access_set_proto(filter_fp, "80",cmdiag_ifname);
-   lan_access_set_proto(filter_fp, "443",cmdiag_ifname);
+   if (cmdiag_ifname[0] != '\0')
+   {
+       lan_access_set_proto(filter_fp, "80",cmdiag_ifname);
+       lan_access_set_proto(filter_fp, "443",cmdiag_ifname);
+   }
    // Blocking webui access to unnecessary interfaces
    fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",lan_ifname);
    fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",ecm_wan_ifname);
-   if (isCmDiagEnabled)
+   if (isCmDiagEnabled && cmdiag_ifname[0] != '\0')
    {
-       fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);  
+       fprintf(filter_fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);
    }
    #if defined(_COSA_BCM_ARM_) || defined(_PLATFORM_TURRIS_) || defined(_PLATFORM_BANANAPI_R4_)
         #if !defined(_CBR_PRODUCT_REQ_) && !defined (_BWG_PRODUCT_REQ_) && !defined (_CBR2_PRODUCT_REQ_)
@@ -14507,7 +14667,8 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
        #endif
        fprintf(filter_fp, "-A INPUT -p tcp -i privbr --match multiport  --dport 80,443 -j ACCEPT\n");
        fprintf(filter_fp, "-I FORWARD -d 172.31.255.0/24 -j DROP\n");
-       fprintf(filter_fp, "-I INPUT -d 172.31.255.0/24 -i %s -j DROP\n", cmdiag_ifname);
+          if (cmdiag_ifname[0] != '\0')
+                fprintf(filter_fp, "-I INPUT -d 172.31.255.0/24 -i %s -j DROP\n", cmdiag_ifname);
    #endif
    fprintf(filter_fp,"-A INPUT -p tcp --match multiport  --dport 80,443 -j DROP\n");
    int ret = 0;

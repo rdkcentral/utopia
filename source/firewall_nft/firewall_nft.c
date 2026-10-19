@@ -355,15 +355,11 @@ NOT_DEF:
 #include "util.h"
 
 
-#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/if.h>
-
-#endif
 
 #ifdef FEATURE_464XLAT
 #define XLAT_IF "xlat"
@@ -919,8 +915,6 @@ unsigned int Get_Device_Mode()
 }
 #endif
 
-#ifdef WAN_FAILOVER_SUPPORTED
-
 int create_socket() 
 {
    int sockfd = 0;
@@ -957,6 +951,7 @@ char* get_iface_ipaddr(const char* iface_name)
       return (inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
 }
 
+   #ifdef WAN_FAILOVER_SUPPORTED
 bool isServiceNeeded()
 {
         FIREWALL_DEBUG("Inside isServiceNeeded\n");
@@ -5675,6 +5670,58 @@ static int do_multinet_lan2self_by_wanip (FILE *filter_fp)
 }
 #endif
 
+static int do_lan2self_isolatedBridges(FILE *filter_fp)
+{
+   char *tok;
+   char net_query[MAX_QUERY];
+   char net_resp[MAX_QUERY];
+   char inst_resp[MAX_QUERY];
+   char iface_names[32][IFNAMSIZ];
+   char iface_ipaddrs[32][INET_ADDRSTRLEN];
+   char *interface_ipaddr;
+   int iface_count = 0;
+   int i, j;
+   int already_exists;
+
+   inst_resp[0] = 0;
+   sysevent_get(sysevent_fd, sysevent_token, "multinet-instances", inst_resp, sizeof(inst_resp));
+
+   tok = strtok(inst_resp, " ");
+   if (tok) do {
+      snprintf(net_query, sizeof(net_query), "multinet_%s-name", tok);
+      net_resp[0] = 0;
+      sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
+      interface_ipaddr = get_iface_ipaddr(net_resp);
+      if (interface_ipaddr == NULL)
+         continue;
+
+      already_exists = 0;
+      for (i = 0; i < iface_count; i++) {
+         if (strcmp(iface_names[i], net_resp) == 0) {
+            already_exists = 1;
+            break;
+         }
+      }
+      if (!already_exists && iface_count < (int)(sizeof(iface_names) / sizeof(iface_names[0]))) {
+         snprintf(iface_names[iface_count], sizeof(iface_names[iface_count]), "%.*s", IFNAMSIZ - 1, net_resp);
+         snprintf(iface_ipaddrs[iface_count], sizeof(iface_ipaddrs[iface_count]), "%.*s", INET_ADDRSTRLEN - 1, interface_ipaddr);
+         iface_count++;
+      }
+   } while ((tok = strtok(NULL, " ")) != NULL);
+
+   for (i = 0; i < iface_count; i++) {
+      for (j = i + 1; j < iface_count; j++) {
+         if (strcmp(iface_ipaddrs[i], iface_ipaddrs[j]) == 0)
+            continue;
+
+         fprintf(filter_fp, "add rule ip filter lan2self_isolatedBridges ip saddr %s/24 ip daddr %s/32 counter jump xlog_drop_lan2self\n", iface_ipaddrs[i], iface_ipaddrs[j]);
+         fprintf(filter_fp, "add rule ip filter lan2self_isolatedBridges ip saddr %s/24 ip daddr %s/32 counter jump xlog_drop_lan2self\n", iface_ipaddrs[j], iface_ipaddrs[i]);
+      }
+   }
+
+   return 0;
+}
+
 static int do_lan2self_by_wanip(FILE *filter_fp, int family)
 {
    //As requested, we don't allow SNMP/HTTP/HTTPs/Ping
@@ -5717,12 +5764,7 @@ static int do_lan2self_by_wanip(FILE *filter_fp, int family)
 #if defined(_WNXL11BWL_PRODUCT_REQ_) 
    fprintf(filter_fp, "add rule ip filter lan2self_by_wanip ip saddr %s/24 ip daddr 169.254.70.254/32 counter xlog_drop_lan2self\n", lan_ipaddr);
    fprintf(filter_fp, "add rule ip filter lan2self_by_wanip ip saddr %s/24 ip daddr 169.254.71.254/32 counter jump xlog_drop_lan2self\n", lan_ipaddr);
-#else
-   fprintf(filter_fp, "add rule ip filter lan2self_by_wanip ip saddr %s/24 ip daddr 169.254.0.254/32 counter jump xlog_drop_lan2self\n", lan_ipaddr);
-   fprintf(filter_fp, "add rule ip filter lan2self_by_wanip ip saddr %s/24 ip daddr 169.254.1.254 /32 counter jump xlog_drop_lan2self\n", lan_ipaddr);
 #endif
-   fprintf(filter_fp, "add rule ip filter lan2self_by_wanip ip saddr %s/24 ip daddr 172.16.12.1/32 counter jump xlog_drop_lan2self\n", lan_ipaddr);
-   fprintf(filter_fp, "add rule ip filter lan2self_by_wanip ip saddr %s/24 ip daddr 192.168.106.1/32 counter jump xlog_drop_lan2self\n", lan_ipaddr);
    fprintf(filter_fp, "add rule ip filter lan2self_by_wanip ip saddr %s/24 ip daddr 192.168.251.1/32 counter jump xlog_drop_lan2self\n", lan_ipaddr);
 
    if (rc == 0 && httpport[0] != '\0' && atoi(httpport) != 80 && (atoi(httpport) >= 0 && atoi(httpport) <= 65535 ))
@@ -5831,6 +5873,7 @@ static int do_lan2self_mgmt(FILE *fp)
 static int do_lan2self(FILE *fp)
 {
         // FIREWALL_DEBUG("Entering do_lan2self\n");     
+   do_lan2self_isolatedBridges(fp);
 #if (defined(FEATURE_MAPT) && defined(NAT46_KERNEL_SUPPORT)) || defined(FEATURE_SUPPORT_MAPT_NAT46)
    if((!isMAPTReady) & isWanReady) // Pass for Dual Stack Line
 #else
@@ -10181,6 +10224,10 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     char inst_resp[MAX_QUERY];
     char primary_inst[MAX_QUERY];
     char ip[MAX_QUERY];
+   char bridge_names[32][IFNAMSIZ];
+   int bridge_count = 0;
+   int i, j;
+   int already_exists;
 
     FIREWALL_DEBUG("Entering prepare_multinet_filter_forward\n"); 	 
 
@@ -10392,19 +10439,31 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     tok = strtok(inst_resp, " ");
     
     if (tok) do {
-        snprintf(net_query, sizeof(net_query), "multinet_%s-localready", tok);
-        net_resp[0] = 0;
-        sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
-        if (strcmp("1", net_resp) != 0)
-            continue;
-        
         snprintf(net_query, sizeof(net_query), "multinet_%s-name", tok);
         net_resp[0] = 0;
         sysevent_get(sysevent_fd, sysevent_token, net_query, net_resp, sizeof(net_resp));
-        
-        fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"%s\" counter accept\n", net_resp, net_resp);
+
+      already_exists = 0;
+      for (i = 0; i < bridge_count; i++) {
+         if (strcmp(bridge_names[i], net_resp) == 0) {
+            already_exists = 1;
+            break;
+         }
+      }
+      if (!already_exists && bridge_count < (int)(sizeof(bridge_names) / sizeof(bridge_names[0]))) {
+         snprintf(bridge_names[bridge_count], sizeof(bridge_names[bridge_count]), "%.*s", IFNAMSIZ - 1, net_resp);
+         bridge_count++;
+      }
         
     } while ((tok = strtok(NULL, " ")) != NULL);
+
+   for (i = 0; i < bridge_count; i++) {
+      for (j = i + 1; j < bridge_count; j++) {
+         fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"%s\" counter drop\n", bridge_names[i], bridge_names[j]);
+         fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"%s\" counter drop\n", bridge_names[j], bridge_names[i]);
+      }
+      fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"%s\" counter accept\n", bridge_names[i], bridge_names[i]);
+   }
 
     FIREWALL_DEBUG("Exiting prepare_multinet_filter_forward\n"); 	 
 
@@ -11375,6 +11434,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
    fprintf(filter_fp, "add chain ip filter %s\n", "lan2self");
    fprintf(filter_fp, "add chain ip filter %s\n", "lan2self_by_wanip");
+   fprintf(filter_fp, "add chain ip filter %s\n", "lan2self_isolatedBridges");
    fprintf(filter_fp, "add chain ip filter %s\n", "lan2self_mgmt");
    fprintf(filter_fp, "add chain ip filter %s\n", "host_detect");
    fprintf(filter_fp, "add chain ip filter %s\n", "lanattack");
@@ -11957,7 +12017,8 @@ fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"brlan112
 /* RDKB-57186 SNMP drop to XHS and LnF */
    fprintf(filter_fp, "add rule ip filter general_input iifname \"%s\" udp dport 161 jump xlog_drop_lan2self\n", XHS_IF_NAME);
    fprintf(filter_fp, "add rule ip filter general_input iifname \"%s\" udp dport 161 jump xlog_drop_lan2self\n", LNF_IF_NAME);
-   #if defined (MULTILAN_FEATURE)
+   fprintf(filter_fp, "add rule ip filter lan2self counter jump lan2self_isolatedBridges\n");
+#if defined (MULTILAN_FEATURE)
    fprintf(filter_fp, " add rule ip filter lan2self counter jump lan2self_by_wanip\n");
 #else
    fprintf(filter_fp, "add rule ip filter lan2self ip daddr != %s counter jump lan2self_by_wanip\n", lan_ipaddr);
@@ -12903,6 +12964,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    {
        fprintf(filter_fp, "add chain ip filter %s\n", "lan2self");
        fprintf(filter_fp, "add chain ip filter %s\n", "lan2self_by_wanip");
+      fprintf(filter_fp, "add chain ip filter %s\n", "lan2self_isolatedBridges");
        fprintf(filter_fp, "add chain ip filter %s\n", "lanattack");
        fprintf(filter_fp, "add chain ip filter %s\n", "xlog_drop_lanattack");
        do_lan2self(filter_fp);
