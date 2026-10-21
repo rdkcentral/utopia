@@ -11590,7 +11590,15 @@ static int prepare_multinet_filter_forward (FILE *filter_fp)
     } while ((tok = strtok(NULL, " ")) != NULL);
 
    for (i = 0; i < bridge_count; i++) {
+      bridge_names[i][strcspn(bridge_names[i], "\r\n")] = '\0';
+      if(bridge_names[i][0] == '\0') {
+          continue;
+      }
       for (j = i + 1; j < bridge_count; j++) {
+         bridge_names[j][strcspn(bridge_names[j], "\r\n")] = '\0';
+         if(bridge_names[j][0] == '\0') {
+             continue;
+         }
          fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", bridge_names[i], bridge_names[j]);
          fprintf(filter_fp, "-A FORWARD -i %s -o %s -j DROP\n", bridge_names[j], bridge_names[i]);
       }
