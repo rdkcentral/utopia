@@ -21,10 +21,14 @@ AM_CFLAGS += -pthread
 AM_CPPFLAGS = -I$(top_srcdir)/source/include -I$(top_srcdir)/source/util/utils $(DBUS_CFLAGS)
 AM_LDFLAGS = -lccsp_common -lsecure_wrapper -lnetfilter_queue -lnfnetlink $(DBUS_LIBS) -pthread -lrt
 
-bin_PROGRAMS = firewall nfq_handler
-
 if ONESTACK_PRODUCT_REQ
 AM_LDFLAGS += -L${PKG_CONFIG_SYSROOT_DIR}$(libdir)
+endif
+
+if FIREWALL_NFT
+bin_PROGRAMS = firewall_ipt nfq_handler
+else
+bin_PROGRAMS = firewall nfq_handler
 endif
 
 firewall_SOURCES = firewall_ipv6.c firewall.c firewall_priv.c firewall_interface.c  firewall_ext.c firewall_utils.c
@@ -33,12 +37,18 @@ firewall_SOURCES += firewall_lib.c firewall_dsl.c rabid.c
 AM_LDFLAGS += -lrdkconfig
 endif
 
+if FIREWALL_NFT
+firewall_ipt_SOURCES = $(firewall_SOURCES)
+firewall_ipt_LDADD   = $(firewall_LDADD)
+endif
+
 nfq_handler_SOURCES = raw_socket_send.c nfq_handler.c
 
 firewall_LDADD = $(top_builddir)/source/syscfg/lib/libsyscfg.la \
                  $(top_builddir)/source/sysevent/lib/libsysevent.la \
                  $(top_builddir)/source/ulog/libulog.la \
-                 $(top_builddir)/source/util/utils/libutopiautil.la
+                 $(top_builddir)/source/util/utils/libutopiautil.la \
+                 -ltelemetry_msgsender
 
 if ONESTACK_PRODUCT_REQ
 firewall_LDADD += -lrdkb_feature_mode_gate

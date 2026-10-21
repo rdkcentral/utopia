@@ -41,7 +41,7 @@
 ################################################################################
 
 # Version of the database.
-$$Version=17
+$$Version=18
 
 #-------------------------------------------------------------------
 #     sysevent namespace
@@ -1374,7 +1374,7 @@ $AutoExcludedURL=https://xconf.xcal.tv/xconf/swu/stb
 $hwHealthTest=false
 
 #BridgeUtilEnableParam
-$bridge_util_enable=false
+$$bridge_util_enable=true
 
 #TDK Enable default value
 $TDKEnable=false

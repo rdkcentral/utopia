@@ -293,7 +293,7 @@ set_ntp_driftsync_status ()
             ntpq_value=`ntpq -4 -c rv`
         fi
         if [ -n "$ntpq_value" ]; then
-            sync_status=`"$ntpq_value" | grep "stratum=16"`
+            sync_status=$(echo "$ntpq_value" | grep "stratum=16")
             if [ -z "$sync_status" ]; then
             echo_t "SERVICE_NTPD : ntpd time synced , setting the status" >> $NTPD_LOG_NAME
             syscfg set ntp_status 3
@@ -342,6 +342,10 @@ service_start ()
         return 0
     fi
 
+   # stop chrony metrics collection timer when NTPd is the active NTP client
+   if systemctl is-active --quiet chrony-ntp-metrics.timer; then
+       systemctl stop chrony-ntp-metrics.timer
+   fi
    local NTP_SERVER_URL_RESTORE="false"
    # Wait for connectivitycheck to complete
    if [ -f $CONNCHECK_FILE ]; then
@@ -538,7 +542,11 @@ service_start ()
            else
                MASK=$(ifconfig $SOURCE_PING_INTF | sed -rn '2s/ .*:(.*)$/\1/p')
            fi
-           echo "restrict $PEER_INTERFACE_IP mask $MASK nomodify notrap" >> $NTP_CONF_TMP
+           if [ -n "$MASK" ]; then
+               echo "restrict $PEER_INTERFACE_IP mask $MASK nomodify notrap" >> $NTP_CONF_TMP
+           else
+               echo "restrict $PEER_INTERFACE_IP nomodify notrap" >> $NTP_CONF_TMP
+           fi
        fi
    fi
 
