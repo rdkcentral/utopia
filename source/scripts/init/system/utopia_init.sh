@@ -339,11 +339,11 @@ fi
    if [ -e "$MWO_PATH" ]; then
       rm -rf $MWO_PATH
    fi
-   if [ -f /opt/secure/mwo/steering.json ]; then
-      rm -f /opt/secure/mwo/steering.json
+   if [ -f /opt/secure/mwo/tos/override_profile.json ]; then
+      rm -f /opt/secure/mwo/tos/override_profile.json
    fi
-   if [ -f /opt/secure/mwo/device_profile.json ]; then
-      rm -f /opt/secure/mwo/device_profile.json
+   if [ -f /opt/secure/mwo/tos/client_profile_map.json ]; then
+      rm -f /opt/secure/mwo/tos/client_profile_map.json
    fi
    if [ -e "$CHANNEL_KEEPOUT_PATH" ]; then
       rm -rf $CHANNEL_KEEPOUT_PATH
