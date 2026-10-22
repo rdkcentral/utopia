@@ -990,6 +990,24 @@ static int IsValidInterfaceName(const char *if_name, size_t length)
    return 1;
 }
 
+static int is_valid_blocked_site_host(const char *host)
+{
+    const unsigned char *p;
+
+    if (host == NULL || *host == '\0')
+        return 0;
+
+    for (p = (const unsigned char *)host; *p != '\0'; ++p)
+    {
+        if (isalnum(*p) || *p == '.' || *p == '-' || *p == ':' || *p == '[' || *p == ']')
+            continue;
+
+        return 0;
+    }
+
+    return 1;
+}
+
 
 #ifdef FEATURE_464XLAT
 void do_xlat_rule(FILE *nat_fp)
@@ -9565,6 +9583,12 @@ static int do_parcon_mgmt_site_keywd(FILE *fp, FILE *nat_fp, int iptype, FILE *c
                 enum urlType_t {TEXT_URL, IPv4_URL, IPv6_URL} urlType = IPv4_URL;
                 char *urlStart = query + host_name_offset;
                 int pos = 0, len = strlen(urlStart);
+
+                if (!is_valid_blocked_site_host(query + host_name_offset))
+                {
+                    FIREWALL_DEBUG("Rejecting invalid managed site host\n");
+                    continue;
+                }
 
                 if(*urlStart == '[')
                     urlType = IPv6_URL;
