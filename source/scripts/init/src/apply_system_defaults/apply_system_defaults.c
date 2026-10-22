@@ -1938,6 +1938,16 @@ STATIC void updateSysCfgdDB (char *key, char *value)
 
 #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */   
 
+   if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
+   {
+      set_syscfg_partner_values( value, "lpm_enable" );
+   }
+
+   if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime") )
+   {
+      set_syscfg_partner_values( value, "lpm_trigger_wait_time" );
+   }
+
    //Check whether migration needs to be handled or not
    if( 1 == IsPSMMigrationNeeded )
    {
@@ -3034,23 +3044,26 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                                 }
                                         }
          #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
-                                                 paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.Enable"), "ActiveValue");
-                                                if ( paramObjVal != NULL && paramObjVal->valuestring != NULL )
+                                                if ( 1 == isNeedToApplyPartnersDefault )
                                                 {
-                                                      APPLY_PRINT("%s: applying bootstrap LPM ActiveValue=%s\n",
-                                                             __FUNCTION__, paramObjVal->valuestring);
-                                                      int writeStatus = set_syscfg_partner_values(paramObjVal->valuestring, "lpm_enable");
-                                                      APPLY_PRINT("%s: bootstrap lpm_enable setter status=%d\n",
-                                                             __FUNCTION__, writeStatus);
-                                                }
-                                                else
-                                                {
-                                                      APPLY_PRINT("%s: bootstrap LPM ActiveValue missing\n", __FUNCTION__);
-                                                }
-                                                paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime"), "ActiveValue");
-                                                if ( paramObjVal != NULL && paramObjVal->valuestring != NULL )
-                                                {
-                                                       set_syscfg_partner_values(paramObjVal->valuestring, "lpm_trigger_wait_time");
+                                                      paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.Enable"), "ActiveValue");
+                                                      if ( paramObjVal != NULL && paramObjVal->valuestring != NULL )
+                                                      {
+                                                            APPLY_PRINT("%s: applying bootstrap LPM ActiveValue=%s\n",
+                                                                  __FUNCTION__, paramObjVal->valuestring);
+                                                            int writeStatus = set_syscfg_partner_values(paramObjVal->valuestring, "lpm_enable");
+                                                            APPLY_PRINT("%s: bootstrap lpm_enable setter status=%d\n",
+                                                                  __FUNCTION__, writeStatus);
+                                                      }
+                                                      else
+                                                      {
+                                                            APPLY_PRINT("%s: bootstrap LPM ActiveValue missing\n", __FUNCTION__);
+                                                      }
+                                                      paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime"), "ActiveValue");
+                                                      if ( paramObjVal != NULL && paramObjVal->valuestring != NULL )
+                                                      {
+                                                            set_syscfg_partner_values(paramObjVal->valuestring, "lpm_trigger_wait_time");
+                                                      }
                                                 }
                                 }
 
@@ -3856,4 +3869,3 @@ if (syscfg_dirty)
 
    return(0);
 }
-

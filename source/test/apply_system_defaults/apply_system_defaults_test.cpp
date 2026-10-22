@@ -76,6 +76,22 @@ TEST_F(apply_system_defaults_test, updateSysCfgdDB) {
     updateSysCfgdDB(key, value);
 }
 
+TEST_F(apply_system_defaults_test, updateSysCfgdDBLowPowerModeEnable) {
+    char key[] = "Device.X_RDK_Features.LowPowerMode.Enable";
+    char value[] = "true";
+
+    EXPECT_CALL(*g_syscfgMock, syscfg_set_nns_commit(StrEq("lpm_enable"), StrEq(value))).WillOnce(Return(0));
+    updateSysCfgdDB(key, value);
+}
+
+TEST_F(apply_system_defaults_test, updateSysCfgdDBLowPowerModeTriggerWaitTime) {
+    char key[] = "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime";
+    char value[] = "300";
+
+    EXPECT_CALL(*g_syscfgMock, syscfg_set_nns_commit(StrEq("lpm_trigger_wait_time"), StrEq(value))).WillOnce(Return(0));
+    updateSysCfgdDB(key, value);
+}
+
 TEST_F(apply_system_defaults_test, compare_partner_json_param_FALSE) {
     char partner_nvram_bs_obj[] = "{\"WiFiPersonalization\":{\"Support\":\"false\"}}";
     char partner_etc_obj[] = "{\"WiFiPersonalization\":{\"Support\":\"true\"}}";
