@@ -1687,31 +1687,6 @@ STATIC void addInSysCfgdDB (char *key, char *value)
        }
    }
 #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
-   if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
-   {
-      char currentLpmValue[16] = {0};
-      int readStatus = syscfg_get(NULL, "lpm_enable", currentLpmValue, sizeof(currentLpmValue));
-      APPLY_PRINT("%s: LPM mapping reached, partner key value=%s, syscfg_get status=%d\n",
-                  __FUNCTION__, value ? value : "(null)", readStatus);
-      if (readStatus == 0 && currentLpmValue[0] != '\0')
-      {
-         APPLY_PRINT("%s: preserving existing lpm_enable=%s\n", __FUNCTION__, currentLpmValue);
-      }
-      else
-      {
-         int writeStatus = set_syscfg_partner_values(value, "lpm_enable");
-         APPLY_PRINT("%s: seeded lpm_enable=%s, setter status=%d\n",
-                     __FUNCTION__, value ? value : "(null)", writeStatus);
-      }
-   }
-   if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime") )
-   {
-      if ( 0 == IsValuePresentinSyscfgDB( "lpm_trigger_wait_time" ) )
-      {
-         set_syscfg_partner_values( value,"lpm_trigger_wait_time" );
-      }
-   }
-
    //Check whether migration needs to be handled or not
    if( 1 == IsPSMMigrationNeeded )
    {
