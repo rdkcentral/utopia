@@ -769,6 +769,8 @@ static struct
     { Utopia_Type_IndexedConfig, Utopia_Event_Firewall_Restart,   Utopia_Static__NONE__, Utopia_Index_For_NS,  1, "prev_rule_enabled_state",          UtopiaValue_PortRangeForward },     /* UtopiaValue_PFR_PrevRuleEnabledState */        
     { Utopia_Type_IndexedConfig, Utopia_Event_Firewall_Restart,   Utopia_Static__NONE__, Utopia_Index_For_NS,  1, "prev_rule_enabled_state",          UtopiaValue_PortRangeTrigger },     /* UtopiaValue_PRT_PrevRuleEnabledState */
     	{ Utopia_Type_IndexedConfig, Utopia_Event__NONE__, Utopia_Static__NONE__, Utopia_Index_For_Key, 1, "hash_password_%d", UtopiaValue__UNKNOWN__ },  /* UtopiaValue_HashPassword */
+    { Utopia_Type_Config,        Utopia_Event__NONE__,   Utopia_Static__NONE__, Utopia_For__NONE__,   1, "dns_relay_enable",   UtopiaValue__UNKNOWN__ }, /* UtopiaValue_Dns_Relay_Enable*/
+    { Utopia_Type_Config,        Utopia_Event__NONE__,   Utopia_Static__NONE__, Utopia_For__NONE__,   1, "dns_forward_count",  UtopiaValue__UNKNOWN__ }, /* UtopiaValue_Dns_ForwardCount */
 #if defined(_WAN_MANAGER_ENABLED_)
       { Utopia_Type_Config, Utopia_Event__NONE__, Utopia_Static__NONE__, Utopia_For__NONE__, 1, "wan_mode",  UtopiaValue__UNKNOWN__ }, /* UtopiaValue_WanMode */
       { Utopia_Type_Config, Utopia_Event__NONE__, Utopia_Static__NONE__, Utopia_For__NONE__, 1, "wan_conn_enabled",  UtopiaValue__UNKNOWN__ }, /* UtopiaValue_WanConnEnabled */
