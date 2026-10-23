@@ -1822,6 +1822,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
 #endif
 					syscfg_get(NULL, "dhcpv6spool00::X_RDKCENTRAL_COM_DNSServers", name_servs, sizeof(name_servs));
+
                         v_secure_system("echo AADHI-DEBUG configured static DNS servers=%s >> /rdklogs/logs/aadhi.txt", name_servs);
 
 				fprintf(stderr,"%s %d - DNSServersEnabled:%d DNSServers:%s\n", __FUNCTION__, 
@@ -1934,7 +1935,6 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 			{
 				v_secure_system("echo AADHI-DEBUG no DNS values available for RDNSS emission >> /rdklogs/logs/aadhi.txt");
 			}
-	}
 
                 if (atoi(valid_lft) <= 3*atoi(ra_interval))
                 {
