@@ -1936,6 +1936,34 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    }
 }
 
+#ifdef LPM_MANAGER_SUPPORT
+STATIC int shouldUpdateLpmSyscfgAlias (const char *key, const char *previousValue)
+{
+   const char *alias = NULL;
+   char currentValue[256] = {0};
+
+   if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
+   {
+      alias = "lpm_enable";
+   }
+   else if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime") )
+   {
+      alias = "lpm_trigger_wait_time";
+   }
+   else
+   {
+      return 1;
+   }
+
+   if ( 0 != syscfg_get(NULL, alias, currentValue, sizeof(currentValue)) || currentValue[0] == '\0' )
+   {
+      return 1;
+   }
+
+   return ( 0 == strcmp(currentValue, previousValue) );
+}
+#endif /* LPM_MANAGER_SUPPORT */
+
 // This function can be removed after a few release cycles
 static int init_bootstrap_json (char *partner_nvram_obj, char *partner_etc_obj, char *PartnerID)
 {
@@ -2315,6 +2343,10 @@ STATIC int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner
             //printf("value_bs = %s, source_bs = %s\n", value_bs, source_bs);
             if (strcmp(value, value_bs))
             {
+#ifdef LPM_MANAGER_SUPPORT
+               char previousValue[MAX_VALUESTR_LEN] = {0};
+               strcpy_s(previousValue, sizeof(previousValue), value_bs);
+#endif
                APPLY_PRINT("** Param %s value changed in firmware **\n", key);
                cJSON_ReplaceItemInObject(bs_obj,"DefaultValue", cJSON_CreateString(value));
                cJSON_ReplaceItemInObject(bs_obj,"BuildTime", cJSON_CreateString(getBuildTime()));
@@ -2322,7 +2354,18 @@ STATIC int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner
                {
                   APPLY_PRINT(" ** Param was not overridden previously. Update the active value..\n");
                   cJSON_ReplaceItemInObject(bs_obj,"ActiveValue", cJSON_CreateString(value));
+#ifdef LPM_MANAGER_SUPPORT
+                  if ( shouldUpdateLpmSyscfgAlias(key, previousValue) )
+                  {
+                     updateSysCfgdDB(key, value);
+                  }
+                  else
+                  {
+                     APPLY_PRINT("Preserving LPM syscfg alias override for param %s\n", key);
+                  }
+#else
                   updateSysCfgdDB(key, value);
+#endif /* LPM_MANAGER_SUPPORT */
                }
             }
          }

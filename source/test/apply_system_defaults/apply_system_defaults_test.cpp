@@ -92,6 +92,34 @@ TEST_F(apply_system_defaults_test, updateSysCfgdDBLowPowerModeTriggerWaitTime) {
     EXPECT_CALL(*g_syscfgMock, syscfg_set_nns_commit(StrEq("lpm_trigger_wait_time"), StrEq(value))).WillOnce(Return(0));
     updateSysCfgdDB(key, value);
 }
+
+TEST_F(apply_system_defaults_test, shouldUpdateLpmSyscfgAliasPreservesOverride) {
+    const char currentValue[] = "300";
+
+    EXPECT_CALL(*g_syscfgMock, syscfg_get(nullptr, StrEq("lpm_trigger_wait_time"), _, _))
+        .WillOnce(DoAll(SetArrayArgument<2>(currentValue, currentValue + sizeof(currentValue)), Return(0)));
+
+    EXPECT_EQ(shouldUpdateLpmSyscfgAlias(
+        "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime", "960"), 0);
+}
+
+TEST_F(apply_system_defaults_test, shouldUpdateLpmSyscfgAliasAdvancesDefault) {
+    const char currentValue[] = "960";
+
+    EXPECT_CALL(*g_syscfgMock, syscfg_get(nullptr, StrEq("lpm_trigger_wait_time"), _, _))
+        .WillOnce(DoAll(SetArrayArgument<2>(currentValue, currentValue + sizeof(currentValue)), Return(0)));
+
+    EXPECT_EQ(shouldUpdateLpmSyscfgAlias(
+        "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime", "960"), 1);
+}
+
+TEST_F(apply_system_defaults_test, shouldUpdateLpmSyscfgAliasInitializesMissingValue) {
+    EXPECT_CALL(*g_syscfgMock, syscfg_get(nullptr, StrEq("lpm_enable"), _, _))
+        .WillOnce(Return(1));
+
+    EXPECT_EQ(shouldUpdateLpmSyscfgAlias(
+        "Device.X_RDK_Features.LowPowerMode.Enable", "false"), 1);
+}
 #endif /* LPM_MANAGER_SUPPORT */
 
 TEST_F(apply_system_defaults_test, compare_partner_json_param_FALSE) {
