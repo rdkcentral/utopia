@@ -862,6 +862,7 @@ STATIC int updateExtenderConf(FILE *pFp, int sefd, token_t setok, int deviceMode
 
 STATIC int gen_zebra_conf(int sefd, token_t setok)
 {
+    v_secure_system("echo AADHI-DEBUG gen_zebra_conf entered sefd=%d >> /rdklogs/logs/aadhi.txt", sefd);
     char l_cSecWebUI_Enabled[8] = {0};
     syscfg_get(NULL, "SecureWebUI_Enable", l_cSecWebUI_Enabled, sizeof(l_cSecWebUI_Enabled));
     if (!strncmp(l_cSecWebUI_Enabled, "true", 4))	
@@ -983,12 +984,16 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif
  
 
+    v_secure_system("echo AADHI-DEBUG opening zebra config path=%s >> /rdklogs/logs/aadhi.txt", ZEBRA_CONF_FILE);
     if ((fp = fopen(ZEBRA_CONF_FILE, "wb")) == NULL) {
+        v_secure_system("echo AADHI-DEBUG failed to open zebra config path=%s >> /rdklogs/logs/aadhi.txt", ZEBRA_CONF_FILE);
         fprintf(logfptr, "%s: fail to open file %s\n", __FUNCTION__, ZEBRA_CONF_FILE);
         return -1;
     }
+    v_secure_system("echo AADHI-DEBUG zebra config opened path=%s >> /rdklogs/logs/aadhi.txt", ZEBRA_CONF_FILE);
 
     if (fwrite(zebra_conf_base, strlen(zebra_conf_base), 1, fp) != 1) {
+        v_secure_system("echo AADHI-DEBUG failed to write zebra config header >> /rdklogs/logs/aadhi.txt");
         fclose(fp);
         return -1;
     }
@@ -1003,10 +1008,13 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     /* TODO: static route */
 
     syscfg_get(NULL, "router_adv_enable", ra_en, sizeof(ra_en));
+    v_secure_system("echo AADHI-DEBUG router_adv_enable=%s >> /rdklogs/logs/aadhi.txt", ra_en);
     if (strcmp(ra_en, "1") != 0) {
+        v_secure_system("echo AADHI-DEBUG zebra config generation stopped because router advertisements are disabled >> /rdklogs/logs/aadhi.txt");
         fclose(fp);
         return 0;
     }
+    v_secure_system("echo AADHI-DEBUG router advertisements enabled; continue zebra config generation >> /rdklogs/logs/aadhi.txt");
     
 #ifdef RDKB_EXTENDER_ENABLED
 #if 0
@@ -1188,10 +1196,12 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     #ifdef _ONESTACK_PRODUCT_REQ_
     if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
     {
+        v_secure_system("echo AADHI-DEBUG IPv6 delegation feature enabled for LAN interface discovery >> /rdklogs/logs/aadhi.txt");
         multilan_pd_enabled = true;   // runtime-controlled
     }
     else
     {
+        v_secure_system("echo AADHI-DEBUG IPv6 delegation feature disabled; using one LAN interface >> /rdklogs/logs/aadhi.txt");
         enabled_iface_num = 1;            // single execution
     }
     #else
@@ -1200,9 +1210,13 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #else 
     enabled_iface_num = 1;            // single execution
 #endif 
+    v_secure_system("echo AADHI-DEBUG LAN interface loop count=%u >> /rdklogs/logs/aadhi.txt", enabled_iface_num);
+    if (enabled_iface_num == 0)
+        v_secure_system("echo AADHI-DEBUG no LAN interfaces selected; RDNSS generation loop will not run >> /rdklogs/logs/aadhi.txt");
 
     for (i = 0; i < enabled_iface_num; i++)
     {
+        v_secure_system("echo AADHI-DEBUG interface loop i=%d enabled_iface_num=%u lan_if=%s prefix=%s lan_addr=%s >> /rdklogs/logs/aadhi.txt", i, enabled_iface_num, lan_if, prefix, lan_addr);
 #if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
 	if (multilan_pd_enabled )
 	{
@@ -1212,7 +1226,12 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 	    sysevent_get(sefd, setok, evt_name, prefix, sizeof(prefix));
 	    snprintf(evt_name, sizeof(evt_name), "ipv6_%s-addr", lan_if);
 	    sysevent_get(sefd, setok, evt_name, lan_addr, sizeof(lan_addr));
+        v_secure_system("echo AADHI-DEBUG multilan interface values interface=%s prefix=%s lan_addr=%s >> /rdklogs/logs/aadhi.txt", lan_if, prefix, lan_addr);
 	}
+        else
+        {
+            v_secure_system("echo AADHI-DEBUG multilan_pd_enabled=0 interface=%s >> /rdklogs/logs/aadhi.txt", lan_if);
+        }
 #endif 
 	//RDKB-47758
 #ifdef WAN_FAILOVER_SUPPORTED
@@ -1251,15 +1270,26 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif
 
 #if defined(_COSA_FOR_BCI_)
+    if (!((strlen(prefix) || strlen(orig_prefix)) && bEnabled))
+        v_secure_system("echo AADHI-DEBUG prefix gate blocked prefix=%s previous_prefix=%s >> /rdklogs/logs/aadhi.txt", prefix, orig_prefix);
     if ((strlen(prefix) || strlen(orig_prefix)) && bEnabled)
 #else
 #if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_RDKB_GLOBAL_PRODUCT_REQ_)) || defined (_WNXL11BWL_PRODUCT_REQ_)
+    if (!(strlen(prefix) || strlen(orig_prefix)))
+        v_secure_system("echo AADHI-DEBUG prefix gate blocked prefix=%s previous_prefix=%s >> /rdklogs/logs/aadhi.txt", prefix, orig_prefix);
     if (strlen(prefix) || strlen(orig_prefix))
 #else
+    if (!(strlen(prefix) || strlen(orig_prefix) || strlen(lan_addr_prefix)))
+        v_secure_system("echo AADHI-DEBUG prefix gate blocked prefix=%s previous_prefix=%s lan_addr_prefix=%s >> /rdklogs/logs/aadhi.txt", prefix, orig_prefix, lan_addr_prefix);
     if (strlen(prefix) || strlen(orig_prefix) || strlen(lan_addr_prefix))
 #endif
 #endif
 	{
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+        v_secure_system("echo AADHI-DEBUG prefix gate entered prefix=%s previous_prefix=%s lan_addr_prefix=%s lan_addr=%s >> /rdklogs/logs/aadhi.txt", prefix, orig_prefix, lan_addr_prefix, lan_addr);
+#else
+        v_secure_system("echo AADHI-DEBUG prefix gate entered prefix=%s previous_prefix=%s lan_addr=%s >> /rdklogs/logs/aadhi.txt", prefix, orig_prefix, lan_addr);
+#endif
 		char val_DNSServersEnabled[ 32 ];
 
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
@@ -1496,19 +1526,31 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
 	// During captive portal no need to pass DNS
 	// Check the reponse code received from Web Service
-   	if((responsefd = fopen(networkResponse, "r")) != NULL) 
+    if((responsefd = fopen(networkResponse, "r")) != NULL)
    	{
+        v_secure_system("echo AADHI-DEBUG captive-portal response file opened path=%s >> /rdklogs/logs/aadhi.txt", networkResponse);
        		if(fgets(responseCode, sizeof(responseCode), responsefd) != NULL)
        		{
 		  	iresCode = atoi(responseCode);
+            v_secure_system("echo AADHI-DEBUG captive-portal response code raw=%s parsed=%d >> /rdklogs/logs/aadhi.txt", responseCode, iresCode);
           	}
+        else
+        {
+            v_secure_system("echo AADHI-DEBUG captive-portal response file has no readable response code >> /rdklogs/logs/aadhi.txt");
+        }
             fclose(responsefd); /*RDKB-7136, CID-33268, free resource after use*/
             responsefd = NULL;
    	}
+    else
+    {
+        v_secure_system("echo AADHI-DEBUG captive-portal response file missing path=%s >> /rdklogs/logs/aadhi.txt", networkResponse);
+    }
         syscfg_get( NULL, "redirection_flag", buf, sizeof(buf));
 
+        v_secure_system("echo AADHI-DEBUG captive-portal redirect flag=%s response_code=%d >> /rdklogs/logs/aadhi.txt", buf, iresCode);
         if ((strncmp(buf,"true",4) == 0) && iresCode == 204)
         {
+            v_secure_system("echo AADHI-DEBUG captive-portal redirect condition matched >> /rdklogs/logs/aadhi.txt");
 #if defined (_COSA_BCM_MIPS_) 
 #if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION)
 	    // For CBR platform, the captive portal redirection feature was removed
@@ -1520,18 +1562,29 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 	    inWifiCp = 1;
 #endif
 	}
+	else
+	{
+		v_secure_system("echo AADHI-DEBUG captive-portal redirect condition not matched flag=%s response_code=%d >> /rdklogs/logs/aadhi.txt", buf, iresCode);
+	}
 #if defined (_XB6_PROD_REQ_)
         syscfg_get(NULL, "enableRFCaptivePortal", rfCpEnable, sizeof(rfCpEnable));
+        v_secure_system("echo AADHI-DEBUG RF captive-portal enable flag=%s >> /rdklogs/logs/aadhi.txt", rfCpEnable);
         if(rfCpEnable != NULL)
         {
           if (strncmp(rfCpEnable,"true",4) == 0)
           {
               syscfg_get(NULL, "rf_captive_portal", rfCpMode,sizeof(rfCpMode));
+              v_secure_system("echo AADHI-DEBUG RF captive-portal mode=%s >> /rdklogs/logs/aadhi.txt", rfCpMode);
               if(rfCpMode != NULL)
               {
                  if (strncmp(rfCpMode,"true",4) == 0)
                  {
                     inRfCaptivePortal = 1;
+                    v_secure_system("echo AADHI-DEBUG RF captive-portal mode enabled >> /rdklogs/logs/aadhi.txt");
+                 }
+                 else
+                 {
+                     v_secure_system("echo AADHI-DEBUG RF captive-portal mode disabled >> /rdklogs/logs/aadhi.txt");
                  }
               }
           } 
@@ -1540,9 +1593,13 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         {
             inCaptivePortal = 1;
         }
+        v_secure_system("echo AADHI-DEBUG captive-portal states wifi=%d RF=%d combined=%d >> /rdklogs/logs/aadhi.txt", inWifiCp, inRfCaptivePortal, inCaptivePortal);
 #else
         if(inWifiCp == 1)
+        {
            inCaptivePortal = 1;
+		}
+        v_secure_system("echo AADHI-DEBUG captive-portal states wifi=%d combined=%d >> /rdklogs/logs/aadhi.txt", inWifiCp, inCaptivePortal);
 #endif
 		/* Static DNS for DHCPv6 
 		  *   dhcpv6spool00::X_RDKCENTRAL_COM_DNSServers 
@@ -1556,27 +1613,48 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 		   )
 		{
 			StaticDNSServersEnabled = 1;
+            v_secure_system("echo AADHI-DEBUG static DNS enabled syscfg_value=%s >> /rdklogs/logs/aadhi.txt", val_DNSServersEnabled);
 		}
+        else
+        {
+            v_secure_system("echo AADHI-DEBUG static DNS disabled syscfg_value=%s >> /rdklogs/logs/aadhi.txt", val_DNSServersEnabled);
+        }
 
 // Modifying rdnss value to fix the zebra config.
-	if( ( inCaptivePortal != 1 )  && \
+        v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS gate captive_portal=%d static_dns_enabled=%d lan_addr=%s >> /rdklogs/logs/aadhi.txt", inCaptivePortal, StaticDNSServersEnabled, lan_addr);
+#if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+        v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS ULA gate ula_enabled=%d >> /rdklogs/logs/aadhi.txt", ula_enable);
+#endif
+		if( ( inCaptivePortal != 1 )  && \
 		( StaticDNSServersEnabled != 1 )
 	  )
 	{
+		v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS gate passed >> /rdklogs/logs/aadhi.txt");
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
         if (strlen(lan_addr))
         {
+            v_secure_system("echo AADHI-DEBUG global-product LAN address present lan_addr=%s ula_supported=%d ula_enabled=%d >> /rdklogs/logs/aadhi.txt", lan_addr, gIsLANULAFeatureSupported, ula_enable);
             if ( TRUE == gIsLANULAFeatureSupported ) 
             {
                 if ( ula_enable )
                 {
+                    v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS emitted lan_addr=%s lifetime=%u >> /rdklogs/logs/aadhi.txt", lan_addr, rdnsslft);
                     fprintf(fp, "   ipv6 nd rdnss %s %d\n", lan_addr, rdnsslft);
+                }
+                else
+                {
+                    v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS skipped ula_enabled=%d >> /rdklogs/logs/aadhi.txt", ula_enable);
                 }
             }
             else
             {
+                v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS emitted because ULA feature unsupported lan_addr=%s lifetime=%u >> /rdklogs/logs/aadhi.txt", lan_addr, rdnsslft);
                 fprintf(fp, "   ipv6 nd rdnss %s %d\n", lan_addr, rdnsslft);
             }
+        }
+        else
+        {
+            v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS skipped empty lan_addr ula_supported=%d ula_enabled=%d >> /rdklogs/logs/aadhi.txt", gIsLANULAFeatureSupported, ula_enable);
         }
 #else
 #if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
@@ -1584,8 +1662,27 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #else
                 if (strlen(lan_addr) && ula_enable)
 #endif 
+                {
+#if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
+                    v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS emitted lan_addr=%s lifetime=%u >> /rdklogs/logs/aadhi.txt", lan_addr, rdnsslft);
+#else
+                    v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS emitted lan_addr=%s ula_enabled=%d lifetime=%u >> /rdklogs/logs/aadhi.txt", lan_addr, ula_enable, rdnsslft);
+#endif
                     fprintf(fp, "   ipv6 nd rdnss %s %d\n", lan_addr, rdnsslft);
+                }
+                else
+                {
+#if !defined (_HUB4_PRODUCT_REQ_) || defined (_WNXL11BWL_PRODUCT_REQ_)
+                    v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS skipped lan_addr=%s >> /rdklogs/logs/aadhi.txt", lan_addr);
+#else
+                    v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS skipped lan_addr=%s ula_enabled=%d >> /rdklogs/logs/aadhi.txt", lan_addr, ula_enable);
+#endif
+                }
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
+	}
+	else
+	{
+		v_secure_system("echo AADHI-DEBUG direct-LAN RDNSS gate blocked captive_portal=%d static_dns_enabled=%d >> /rdklogs/logs/aadhi.txt", inCaptivePortal, StaticDNSServersEnabled);
 	}
 
 #if defined (SPEED_BOOST_SUPPORTED)
@@ -1647,7 +1744,9 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     }
 #endif
         nopt = atoi(val);
+    v_secure_system("echo AADHI-DEBUG static DNS option count interface=%s nopt=%d raw=%s >> /rdklogs/logs/aadhi.txt", lan_if, nopt, val);
         for (j = 0; j < nopt; j++) {
+        v_secure_system("echo AADHI-DEBUG static DNS option loop j=%d nopt=%d >> /rdklogs/logs/aadhi.txt", j, nopt);
 #if defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
     #if defined(_ONESTACK_PRODUCT_REQ_)
     if (isFeatureSupportedInCurrentMode(FEATURE_IPV6_DELEGATION))
@@ -1659,34 +1758,59 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
             snprintf(rec, sizeof(rec), "dhcpv6spool0option%d::bEnabled", j); /*RDKB-12965 & CID:-34147*/
             syscfg_get(NULL, rec, val, sizeof(val));
             if (atoi(val) != 1)
+            {
+                v_secure_system("echo AADHI-DEBUG option skipped key=%s enabled=%s >> /rdklogs/logs/aadhi.txt", rec, val);
                 continue;
+            }
+            v_secure_system("echo AADHI-DEBUG option enabled key=%s value=%s >> /rdklogs/logs/aadhi.txt", rec, val);
 
             snprintf(rec, sizeof(rec), "dhcpv6spool0option%d::Tag", j);
             syscfg_get(NULL, rec, val, sizeof(val));
             if (atoi(val) != 23)
+            {
+                v_secure_system("echo AADHI-DEBUG option skipped non-RDNSS tag key=%s tag=%s >> /rdklogs/logs/aadhi.txt", rec, val);
                 continue;
+            }
+            v_secure_system("echo AADHI-DEBUG RDNSS option tag accepted key=%s tag=%s >> /rdklogs/logs/aadhi.txt", rec, val);
 
             snprintf(rec, sizeof(rec), "dhcpv6spool0option%d::PassthroughClient", j);
             syscfg_get(NULL, rec, val, sizeof(val));
             if (strlen(val) > 0)
+            {
+                v_secure_system("echo AADHI-DEBUG option skipped passthrough key=%s client=%s >> /rdklogs/logs/aadhi.txt", rec, val);
                 continue;
+            }
+            v_secure_system("echo AADHI-DEBUG option is not passthrough index=%d >> /rdklogs/logs/aadhi.txt", j);
 
             snprintf(rec, sizeof(rec), "dhcpv6spool0option%d::Value", j);
             syscfg_get(NULL, rec, val, sizeof(val));
             if (strlen(val) == 0)
+            {
+                v_secure_system("echo AADHI-DEBUG option skipped empty value key=%s >> /rdklogs/logs/aadhi.txt", rec);
                 continue;
+            }
+            v_secure_system("echo AADHI-DEBUG RDNSS option value key=%s value=%s >> /rdklogs/logs/aadhi.txt", rec, val);
 
             for (start = val; (tok = strtok_r(start, ", \r\t\n", &sp)); start = NULL) {
+                v_secure_system("echo AADHI-DEBUG option DNS token=%s >> /rdklogs/logs/aadhi.txt", tok);
                 snprintf(name_servs + strlen(name_servs), 
                         sizeof(name_servs) - strlen(name_servs), "%s ", tok);
             }
         }
+        v_secure_system("echo AADHI-DEBUG collected option DNS servers=%s >> /rdklogs/logs/aadhi.txt", name_servs);
 
+     v_secure_system("echo AADHI-DEBUG DNS selection captive_portal=%d static_dns_enabled=%d current_dns=%s >> /rdklogs/logs/aadhi.txt", inCaptivePortal, StaticDNSServersEnabled, name_servs);
+    if(inCaptivePortal == 1)
+    {
+        v_secure_system("echo AADHI-DEBUG DNS selection skipped captive_portal=%d >> /rdklogs/logs/aadhi.txt", inCaptivePortal);
+    }
 	if(inCaptivePortal != 1)
 	{
+		v_secure_system("echo AADHI-DEBUG DNS selection allowed outside captive portal >> /rdklogs/logs/aadhi.txt");
 			/* Static DNS Enabled case */
 			if( 1 == StaticDNSServersEnabled )
 			{
+				v_secure_system("echo AADHI-DEBUG static DNS branch selected >> /rdklogs/logs/aadhi.txt");
 				memset( name_servs, 0, sizeof( name_servs ) );
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
@@ -1698,6 +1822,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
 #endif
 					syscfg_get(NULL, "dhcpv6spool00::X_RDKCENTRAL_COM_DNSServers", name_servs, sizeof(name_servs));
+                        v_secure_system("echo AADHI-DEBUG configured static DNS servers=%s >> /rdklogs/logs/aadhi.txt", name_servs);
 
 				fprintf(stderr,"%s %d - DNSServersEnabled:%d DNSServers:%s\n", __FUNCTION__, 
 																			   __LINE__,
@@ -1711,32 +1836,45 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
                                 {
                                     char static_dns[256] = {0};
                                     sysevent_get(sefd, setok, "lan_ipaddr_v6", static_dns, sizeof(static_dns));
+                                    v_secure_system("echo AADHI-DEBUG SecureWebUI LAN RDNSS branch entered setting=%s lan_ipv6=%s >> /rdklogs/logs/aadhi.txt", l_cSecWebUI_Enabled, static_dns);
                                     fprintf(fp, "   ipv6 nd rdnss %s %d\n", static_dns, rdnsslft);
                                     if (strlen(name_servs) == 0) {
+                                        v_secure_system("echo AADHI-DEBUG static DNS empty; fallback to ipv6_nameserver >> /rdklogs/logs/aadhi.txt");
                                         sysevent_get(sefd, setok, "ipv6_nameserver", name_servs + strlen(name_servs),
                                                 sizeof(name_servs) - strlen(name_servs));
                                     }
+                                    v_secure_system("echo AADHI-DEBUG DNS after SecureWebUI fallback=%s >> /rdklogs/logs/aadhi.txt", name_servs);
+                                }
+                                else
+                                {
+                                    v_secure_system("echo AADHI-DEBUG SecureWebUI LAN RDNSS branch skipped setting=%s >> /rdklogs/logs/aadhi.txt", l_cSecWebUI_Enabled);
                                 }
                                     
 			}
 			else
 			{
+				v_secure_system("echo AADHI-DEBUG static DNS disabled; use option/WAN DNS current=%s >> /rdklogs/logs/aadhi.txt", name_servs);
 
 				/* DNS from WAN (if no static DNS) */
 				if (strlen(name_servs) == 0) {
+					v_secure_system("echo AADHI-DEBUG DNS server list empty; reading WAN nameserver >> /rdklogs/logs/aadhi.txt");
                     #ifdef WAN_FAILOVER_SUPPORTED
                     if ( gIpv6AddrAssignment == ULA_IPV6 )
                     {
+                            v_secure_system("echo AADHI-DEBUG WAN failover selected ULA assignment=%d >> /rdklogs/logs/aadhi.txt", gIpv6AddrAssignment);
                             sysevent_get(sefd, setok, "backup_wan_ipv6_nameserver", name_servs + strlen(name_servs), 
                             sizeof(name_servs) - strlen(name_servs));
                             if (strlen(name_servs) == 0 )
                             {
+                                v_secure_system("echo AADHI-DEBUG backup WAN DNS empty; fallback to ipv6_nameserver >> /rdklogs/logs/aadhi.txt");
                                 sysevent_get(sefd, setok, "ipv6_nameserver", name_servs + strlen(name_servs), 
                                     sizeof(name_servs) - strlen(name_servs));    
                             }
+                            v_secure_system("echo AADHI-DEBUG DNS after ULA WAN lookup=%s >> /rdklogs/logs/aadhi.txt", name_servs);
                     }
                     else
                     {
+                            v_secure_system("echo AADHI-DEBUG WAN failover not using ULA assignment=%d; use ipv6_nameserver >> /rdklogs/logs/aadhi.txt", gIpv6AddrAssignment);
                     #endif 
                             sysevent_get(sefd, setok, "ipv6_nameserver", name_servs + strlen(name_servs), 
                             sizeof(name_servs) - strlen(name_servs));
@@ -1744,35 +1882,59 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
                     }
                     #endif
 				}
+				else
+				{
+					v_secure_system("echo AADHI-DEBUG WAN DNS lookup skipped; option DNS already populated=%s >> /rdklogs/logs/aadhi.txt", name_servs);
+				}
 			}
 
+            v_secure_system("echo AADHI-DEBUG final DNS list before RDNSS token loop=%s lifetime=%u >> /rdklogs/logs/aadhi.txt", name_servs, rdnsslft);
 			for (start = name_servs; (tok = strtok_r(start, " ", &sp)); start = NULL)
 			{
+				v_secure_system("echo AADHI-DEBUG RDNSS candidate token=%s LAN address=%s >> /rdklogs/logs/aadhi.txt", tok, lan_addr);
 			// Modifying rdnss value to fix the zebra config.
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
 #if defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)				
                         if( TRUE == IsThisCurrentPartnerID("sky-") ) 
                         {
+                            v_secure_system("echo AADHI-DEBUG SKY partner RDNSS filter enabled token=%s >> /rdklogs/logs/aadhi.txt", tok);
                             if (0 == strncmp(lan_addr, tok, strlen(lan_addr)))
                             {
+                                v_secure_system("echo AADHI-DEBUG RDNSS token accepted by LAN-prefix filter token=%s lan_addr=%s lifetime=%u >> /rdklogs/logs/aadhi.txt", tok, lan_addr, rdnsslft);
                                 fprintf(fp, "   ipv6 nd rdnss %s %d\n", tok, rdnsslft);
+                            }
+                            else
+                            {
+                                v_secure_system("echo AADHI-DEBUG RDNSS token rejected by LAN-prefix filter token=%s lan_addr=%s >> /rdklogs/logs/aadhi.txt", tok, lan_addr);
                             }
                         }
                         else
                         {
+                            v_secure_system("echo AADHI-DEBUG non-SKY partner RDNSS token emitted token=%s lifetime=%u >> /rdklogs/logs/aadhi.txt", tok, rdnsslft);
                             fprintf(fp, "   ipv6 nd rdnss %s %d\n", tok, rdnsslft);
                         }
 #else
                         if (0 == strncmp(lan_addr, tok, strlen(lan_addr)))
                         {
+                            v_secure_system("echo AADHI-DEBUG RDNSS token accepted by LAN-prefix filter token=%s lan_addr=%s lifetime=%u >> /rdklogs/logs/aadhi.txt", tok, lan_addr, rdnsslft);
                             fprintf(fp, "   ipv6 nd rdnss %s %d\n", tok, rdnsslft);
 
                         }
+                        else
+                        {
+                            v_secure_system("echo AADHI-DEBUG RDNSS token rejected by LAN-prefix filter token=%s lan_addr=%s >> /rdklogs/logs/aadhi.txt", tok, lan_addr);
+                        }
 #endif /** _SCER11BEL_PRODUCT_REQ_, _XER2_PRODUCT_REQ_ */			 
 #else
+                        v_secure_system("echo AADHI-DEBUG RDNSS token emitted token=%s lifetime=%u >> /rdklogs/logs/aadhi.txt", tok, rdnsslft);
                         fprintf(fp, "   ipv6 nd rdnss %s %d\n", tok, rdnsslft);
 #endif
                 }
+			if (name_servs[0] == '\0')
+			{
+				v_secure_system("echo AADHI-DEBUG no DNS values available for RDNSS emission >> /rdklogs/logs/aadhi.txt");
+			}
+	}
 
                 if (atoi(valid_lft) <= 3*atoi(ra_interval))
                 {
