@@ -55,6 +55,7 @@
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -2093,23 +2094,57 @@ STATIC int wan_static_stop(struct serv_wan *sw)
 }
 #endif
 
+/*
+ * Validate a syscfg-sourced IPv6 literal. Returns 1 when valid, 0 otherwise.
+ * Rejects empty and malformed values so they never reach a command line.
+ */
+STATIC int is_valid_ipv6_addr(const char *val)
+{
+    struct in6_addr addr;
+    if (val == NULL || val[0] == '\0')
+        return 0;
+    return inet_pton(AF_INET6, val, &addr) == 1;
+}
+
+/*
+ * Validate an IPv6 prefix length string (0-128, decimal only).
+ * Returns 1 when valid, 0 otherwise.
+ */
+STATIC int is_valid_ipv6_prefix(const char *val)
+{
+    char *end = NULL;
+    long plen;
+    if (val == NULL || val[0] == '\0')
+        return 0;
+    plen = strtol(val, &end, 10);
+    if (end == val || *end != '\0')
+        return 0;
+    return (plen >= 0 && plen <= 128);
+}
+
 STATIC int wan_static_start_v6(struct serv_wan *sw)
 {
-    unsigned char wan_ipaddr_v6[16] = {0};
-    unsigned char wan_prefix_v6[16] = {0};
-    unsigned char wan_default_gw_v6[16] = {0};
+    char wan_ipaddr_v6[INET6_ADDRSTRLEN] = {0};
+    char wan_prefix_v6[8] = {0};
+    char wan_default_gw_v6[INET6_ADDRSTRLEN] = {0};
 
     /* get static ipv6 config */
     syscfg_get(NULL, "wan_ipv6addr", wan_ipaddr_v6, sizeof(wan_ipaddr_v6));
     syscfg_get(NULL, "wan_ipv6_prefix", wan_prefix_v6, sizeof(wan_prefix_v6));
     syscfg_get(NULL, "wan_ipv6_default_gateway", wan_default_gw_v6, sizeof(wan_default_gw_v6));
 
+    if (!is_valid_ipv6_addr(wan_ipaddr_v6) || !is_valid_ipv6_prefix(wan_prefix_v6) ||
+        !is_valid_ipv6_addr(wan_default_gw_v6)) {
+        fprintf(stderr, "%s: invalid static IPv6 configuration, aborting\n", __FUNCTION__);
+        return -1;
+    }
+
     /*
      * NOTE : Not checking for return, as it always returns -1
      */
-    vsystem("ip -6 addr add %s/%s dev %s", wan_ipaddr_v6, wan_prefix_v6, sw->ifname);
+    v_secure_system("ip -6 addr add %s/%s dev %s", wan_ipaddr_v6, wan_prefix_v6, sw->ifname);
 
-    vsystem("ip -6 route add table erouter default dev %s via %s && "
+    v_secure_system("ip -6 route add table erouter default dev %s via %s && "
                 "ip -6 rule add from %s lookup erouter", sw->ifname, wan_default_gw_v6, wan_ipaddr_v6);
 
     if (sw->rtmod == WAN_RTMOD_IPV6)
@@ -2120,21 +2155,27 @@ STATIC int wan_static_start_v6(struct serv_wan *sw)
 
 STATIC int wan_static_stop_v6(struct serv_wan *sw)
 {
-    unsigned char wan_ipaddr_v6[16] = {0};
-    unsigned char wan_prefix_v6[16] = {0};
-    unsigned char wan_default_gw_v6[16] = {0};
+    char wan_ipaddr_v6[INET6_ADDRSTRLEN] = {0};
+    char wan_prefix_v6[8] = {0};
+    char wan_default_gw_v6[INET6_ADDRSTRLEN] = {0};
 
     /* get static ipv6 config */
     syscfg_get(NULL, "wan_ipv6addr", wan_ipaddr_v6, sizeof(wan_ipaddr_v6));
     syscfg_get(NULL, "wan_ipv6_prefix", wan_prefix_v6, sizeof(wan_prefix_v6));
     syscfg_get(NULL, "wan_ipv6_default_gateway", wan_default_gw_v6, sizeof(wan_default_gw_v6));
 
+    if (!is_valid_ipv6_addr(wan_ipaddr_v6) || !is_valid_ipv6_prefix(wan_prefix_v6) ||
+        !is_valid_ipv6_addr(wan_default_gw_v6)) {
+        fprintf(stderr, "%s: invalid static IPv6 configuration, aborting\n", __FUNCTION__);
+        return -1;
+    }
+
     /*
      * NOTE : Not checking for return, as it always returns -1
      */
-    vsystem("ip -6 addr del %s/%s dev %s", wan_ipaddr_v6, wan_prefix_v6, sw->ifname);
+    v_secure_system("ip -6 addr del %s/%s dev %s", wan_ipaddr_v6, wan_prefix_v6, sw->ifname);
 
-    vsystem("ip -6 route del table erouter default dev %s via %s && "
+    v_secure_system("ip -6 route del table erouter default dev %s via %s && "
                 "ip -6 rule del from %s lookup erouter", sw->ifname, wan_default_gw_v6, wan_ipaddr_v6);
 
     if (sw->rtmod == WAN_RTMOD_IPV6)
