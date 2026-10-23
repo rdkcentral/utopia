@@ -82,7 +82,7 @@ case "$1" in
        service_routed rip-restart
        ;;
    zebra-restart)
-       service_routed radv-restart
+       service_routed radv-zebra-restart
        ;;
    staticroute-restart)
        service_routed radv-restart
