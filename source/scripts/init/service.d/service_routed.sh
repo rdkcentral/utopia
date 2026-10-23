@@ -40,9 +40,11 @@
 #------------------------------------------------------------------
 
 source /etc/device.properties
+source /etc/utopia/service.d/log_capture_path.sh
 
 SERVICE_NAME="routed"
 LANULASupport=`sysevent get LANULASupport`
+echo "[routed] service_routed.sh \$1=$1 SERVICE_NAME=${SERVICE_NAME} pid=$$"
 case "$1" in
    "${SERVICE_NAME}-start")
       service_routed start
@@ -82,7 +84,9 @@ case "$1" in
        service_routed rip-restart
        ;;
    zebra-restart)
-       service_routed radv-restart
+       echo "[routed] zebra-restart: calling radv-zebra-restart"
+       service_routed radv-zebra-restart
+       echo "[routed] zebra-restart: radv-zebra-restart rc=$?"
        ;;
    staticroute-restart)
        service_routed radv-restart

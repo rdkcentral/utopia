@@ -380,6 +380,7 @@ STATIC int getULAAddressFromInterface(char *ulaAddress)
 #endif
 STATIC int daemon_stop(const char *pid_file, const char *prog)
 {
+    ROUTED_LOG("%s: Entering\n", __FUNCTION__);
     FILE *fp;
     char pid_str[10];
     int pid = -1;
@@ -400,6 +401,7 @@ STATIC int daemon_stop(const char *pid_file, const char *prog)
         pid = pid_of(prog, NULL);
 
     if (pid > 0) {
+        ROUTED_LOG("%s: pid of zebra = %d \n", __FUNCTION__, pid);
         kill(pid, SIGTERM);
     }
     
@@ -2087,6 +2089,28 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 }
 
 #endif 
+
+/* Returns malloc'd file contents, or NULL if the file is missing. */
+STATIC char *read_file_alloc(const char *path)
+{
+    FILE *fp = fopen(path, "rb");
+    long len;
+    char *buf = NULL;
+
+    if (!fp)
+        return NULL;
+    if (fseek(fp, 0, SEEK_END) == 0 && (len = ftell(fp)) >= 0 && fseek(fp, 0, SEEK_SET) == 0) {
+        buf = calloc(1, len + 1);
+        if (buf && fread(buf, 1, len, fp) != (size_t)len) {
+            free(buf);
+            buf = NULL;
+        }
+    }
+    fclose(fp);
+    return buf;
+}
+
+static int gZebraRestartRequested = 0;
 STATIC int radv_start(struct serv_routed *sr)
 {
     ROUTED_LOG("%s: Entering\n", __FUNCTION__);
@@ -2146,6 +2170,7 @@ STATIC int radv_start(struct serv_routed *sr)
             return -1;
         }
         if(ipv6_enable == 0) {
+            ROUTED_LOG("%s: Ipv6 is disabled \n", __FUNCTION__);
             daemon_stop(ZEBRA_PID_FILE, "zebra");
             return -1;
         }
@@ -2162,10 +2187,22 @@ STATIC int radv_start(struct serv_routed *sr)
 
 #endif 
 
+char *conf = read_file_alloc(ZEBRA_CONF_FILE);
+if (conf) {
+    ROUTED_LOG("%s: zebra.conf:\n%s\n", __FUNCTION__, conf);
+    free(conf);
+}
+
     if (gen_zebra_conf(sr->sefd, sr->setok) != 0) {
         fprintf(logfptr, "%s: fail to save zebra config\n", __FUNCTION__);
         return -1;
     }
+
+    conf = read_file_alloc(ZEBRA_CONF_FILE);
+if (conf) {
+    ROUTED_LOG("%s: zebra.conf:\n%s\n", __FUNCTION__, conf);
+    free(conf);
+}
 
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
 #if defined(_SCER11BEL_PRODUCT_REQ_)  || defined(_XER2_PRODUCT_REQ_)
@@ -2178,11 +2215,26 @@ STATIC int radv_start(struct serv_routed *sr)
         int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
         if(pid)
         {
+            ROUTED_LOG("%s: For sky, zebra conf reload \n", __FUNCTION__);
             kill(pid, SIGUSR1);
             return 0;
-        }   
+        }
     }
 #endif
+    int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
+    ROUTED_LOG("%s: Zebra PID: %d and restart value = %d \n", __FUNCTION__, pid, gZebraRestartRequested);
+        if(pid && !gZebraRestartRequested)
+        {
+            ROUTED_LOG("%s: For sky, zebra conf reload \n", __FUNCTION__);
+            kill(pid, SIGUSR1);
+            conf = read_file_alloc(ZEBRA_CONF_FILE);
+            if (conf) {
+                ROUTED_LOG("%s: zebra.conf:\n%s\n", __FUNCTION__, conf);
+                free(conf);
+            }
+            return 0;
+        }
+    ROUTED_LOG("%s: Killing zebra PID for zebra-restart event \n", __FUNCTION__);
     daemon_stop(ZEBRA_PID_FILE, "zebra");
 
 #if defined(_COSA_FOR_BCI_)
@@ -2192,6 +2244,7 @@ STATIC int radv_start(struct serv_routed *sr)
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
     printf("DHCPv6 is %s. Starting zebra Process\n", (bEnabled?"Enabled":"Disabled"));
 #else
+    ROUTED_LOG("%s: Starting zebra \n", __FUNCTION__);
     v_secure_system("zebra -d -f %s -P 0 2> /tmp/.zedra_error", ZEBRA_CONF_FILE);
     ROUTED_LOG("%s: zebra started\n", __FUNCTION__);
 #endif
@@ -2210,10 +2263,17 @@ STATIC int radv_stop(struct serv_routed *sr)
 
 STATIC int radv_restart(struct serv_routed *sr)
 {
+    ROUTED_LOG("%s: Entering\n", __FUNCTION__);
     if (radv_stop(sr) != 0){
         fprintf(logfptr, "%s: radv_stop error\n", __FUNCTION__);
     }
     return radv_start(sr);
+}
+
+STATIC int radv_zebra_restart(struct serv_routed *sr)
+{
+    gZebraRestartRequested = 1;
+    return radv_restart(sr);
 }
 
 STATIC int rip_start(struct serv_routed *sr)
@@ -2750,6 +2810,7 @@ STATIC struct cmd_op cmd_ops[] = {
     {"radv-start",  radv_start,     "start RA daemon"},
     {"radv-stop",   radv_stop,      "stop RA daemon"},
     {"radv-restart",radv_restart,   "restart RA daemon"},
+    {"radv-zebra-restart",radv_zebra_restart, "restart RA daemon and zebra, bypassing SIGUSR1 reload"},
     #ifdef WAN_FAILOVER_SUPPORTED
     {"routeset-ula",routeset_ula,   "route set for ula"},
     {"routeunset-ula",routeunset_ula,   "route unset for ula"},
@@ -2772,6 +2833,7 @@ STATIC void usage(void)
 
 int service_routed_main(int argc, char *argv[])
 {
+    ROUTED_LOG("%s : Entering into main", __FUNCTION__);
     int i;
     struct serv_routed sr;
    logfptr = fopen ( LOG_FILE_NAME , "a+");
