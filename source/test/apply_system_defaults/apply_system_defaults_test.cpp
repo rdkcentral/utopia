@@ -76,6 +76,7 @@ TEST_F(apply_system_defaults_test, updateSysCfgdDB) {
     updateSysCfgdDB(key, value);
 }
 
+#ifdef LPM_MANAGER_SUPPORT
 TEST_F(apply_system_defaults_test, updateSysCfgdDBLowPowerModeEnable) {
     char key[] = "Device.X_RDK_Features.LowPowerMode.Enable";
     char value[] = "true";
@@ -91,6 +92,7 @@ TEST_F(apply_system_defaults_test, updateSysCfgdDBLowPowerModeTriggerWaitTime) {
     EXPECT_CALL(*g_syscfgMock, syscfg_set_nns_commit(StrEq("lpm_trigger_wait_time"), StrEq(value))).WillOnce(Return(0));
     updateSysCfgdDB(key, value);
 }
+#endif /* LPM_MANAGER_SUPPORT */
 
 TEST_F(apply_system_defaults_test, compare_partner_json_param_FALSE) {
     char partner_nvram_bs_obj[] = "{\"WiFiPersonalization\":{\"Support\":\"false\"}}";

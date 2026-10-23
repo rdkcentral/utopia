@@ -2294,6 +2294,7 @@ int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner_etc_ob
                           {
                               APPLY_PRINT("updating the value for param %s to %s.\n", key, value);
                               set_syscfg_partner_values( value, key );
+#ifdef LPM_MANAGER_SUPPORT
                               if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
                               {
                                   set_syscfg_partner_values( value, "lpm_enable" );
@@ -2302,6 +2303,7 @@ int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner_etc_ob
                               {
                                   set_syscfg_partner_values( value, "lpm_trigger_wait_time" );
                               }
+#endif /* LPM_MANAGER_SUPPORT */
                           }
                       }
                   }
@@ -3010,6 +3012,7 @@ int apply_partnerId_default_values (char *data, char *PartnerID)
                                         }
 
 #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
+#ifdef LPM_MANAGER_SUPPORT
                                        if ( syscfg_supported == 1 && isNeedToApplyPartnersDefault == 1 )
                                        {
                                           paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.Enable"), "ActiveValue");
@@ -3031,6 +3034,7 @@ int apply_partnerId_default_values (char *data, char *PartnerID)
                                              set_syscfg_partner_values(paramObjVal->valuestring, "lpm_trigger_wait_time");
                                           }
                                        }
+#endif /* LPM_MANAGER_SUPPORT */
 				}
 				if( 1 == isNeedToApplyPartnersDefault )
 				{
@@ -3323,6 +3327,7 @@ if ( paramObjVal != NULL )
        }
     } //For Loop
 
+#ifdef LPM_MANAGER_SUPPORT
    if (syscfg_supported == 1 && 0 == IsValuePresentinSyscfgDB("lpm_enable"))
    {
       APPLY_PRINT("%s: lpm_enable absent; attempting bootstrap backfill for partner=%s\n",
@@ -3385,6 +3390,7 @@ if ( paramObjVal != NULL )
          cJSON_Delete(alwaysJson);
       }
    }
+#endif /* LPM_MANAGER_SUPPORT */
 
     return 0;
 }

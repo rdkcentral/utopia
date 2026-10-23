@@ -1913,6 +1913,7 @@ STATIC void updateSysCfgdDB (char *key, char *value)
 
 #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */   
 
+#ifdef LPM_MANAGER_SUPPORT
    if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
    {
       set_syscfg_partner_values( value, "lpm_enable" );
@@ -1922,6 +1923,7 @@ STATIC void updateSysCfgdDB (char *key, char *value)
    {
       set_syscfg_partner_values( value, "lpm_trigger_wait_time" );
    }
+#endif /* LPM_MANAGER_SUPPORT */
 
    //Check whether migration needs to be handled or not
    if( 1 == IsPSMMigrationNeeded )
@@ -3019,6 +3021,7 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                                 }
                                         }
          #endif /* _RDKB_GLOBAL_PRODUCT_REQ_ */
+#ifdef LPM_MANAGER_SUPPORT
                                                 if ( 1 == isNeedToApplyPartnersDefault )
                                                 {
                                                       paramObjVal = cJSON_GetObjectItem(cJSON_GetObjectItem( partnerObj, "Device.X_RDK_Features.LowPowerMode.Enable"), "ActiveValue");
@@ -3040,6 +3043,7 @@ static int apply_partnerId_default_values (char *data, char *PartnerID)
                                                             set_syscfg_partner_values(paramObjVal->valuestring, "lpm_trigger_wait_time");
                                                       }
                                                 }
+#endif /* LPM_MANAGER_SUPPORT */
                                 }
 
 				if( 1 == isNeedToApplyPartnersDefault )
@@ -3420,6 +3424,7 @@ if ( paramObjVal != NULL )
       memset(jsonNTPItem, 0, sizeof(jsonNTPItem));
    }
 
+#ifdef LPM_MANAGER_SUPPORT
    if (0 == IsValuePresentinSyscfgDB("lpm_enable"))
    {
       APPLY_PRINT("%s: lpm_enable absent; attempting bootstrap backfill for partner=%s\n",
@@ -3482,6 +3487,7 @@ if ( paramObjVal != NULL )
          cJSON_Delete(alwaysJson);
       }
    }
+#endif /* LPM_MANAGER_SUPPORT */
 
     return 0;
 }
