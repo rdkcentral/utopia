@@ -2283,11 +2283,22 @@ int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner_etc_ob
                           APPLY_PRINT(" ** Param was not overridden previously. Update the active value..\n");
                           cJSON_ReplaceItemInObject(bs_obj,"ActiveValue", cJSON_CreateString(value));
                           char curr_syscfg_value[256] = {0};
-                          syscfg_get(NULL, key, curr_syscfg_value, sizeof(curr_syscfg_value));
+                          const char *syscfg_key = key;
+#ifdef LPM_MANAGER_SUPPORT
+                          if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.Enable") )
+                          {
+                              syscfg_key = "lpm_enable";
+                          }
+                          else if ( 0 == strcmp ( key, "Device.X_RDK_Features.LowPowerMode.TriggerWaitTime") )
+                          {
+                              syscfg_key = "lpm_trigger_wait_time";
+                          }
+#endif /* LPM_MANAGER_SUPPORT */
+                          syscfg_get(NULL, syscfg_key, curr_syscfg_value, sizeof(curr_syscfg_value));
 
                           if ( 0 != strcmp(curr_syscfg_value, old_value_bs))
                           {
-                              APPLY_PRINT("value on syscfg(%s) has been updated by user to %s for param %s.\n", curr_syscfg_value, old_value_bs, key);
+                              APPLY_PRINT("value on syscfg(%s) has been updated by user from %s for param %s.\n", curr_syscfg_value, old_value_bs, syscfg_key);
                               APPLY_PRINT("only updating the json file and not updating the syscfg.db");
                           }
                           else
