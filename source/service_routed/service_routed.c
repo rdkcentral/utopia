@@ -1135,6 +1135,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         In case the ULA is not available, lan bridge's LL address can be advertise as DNS address.
         */
         sysevent_get(sefd, setok, "ula_address", lan_addr, sizeof(lan_addr));
+        v_secure_system("echo AADHI-DEBUG LAN ULA address from sysevent=%s >> /rdklogs/logs/aadhi.txt", lan_addr);
 
         if (IsValid_ULAAddress(lan_addr) == FALSE)
         {
@@ -1142,12 +1143,15 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
             if (getULAAddressFromInterface(ula_address_brlan) == TRUE)
             {
+                snprintf(lan_addr, sizeof(lan_addr), "%s", ula_address_brlan);
+                v_secure_system("echo AADHI-DEBUG LAN ULA address from interface=%s >> /rdklogs/logs/aadhi.txt", lan_addr);
                 fprintf(logfptr, "%s: ula_address_brlan: %s\n", __FUNCTION__, ula_address_brlan);
                 sysevent_set(sefd, setok, "ula_address", ula_address_brlan, sizeof(ula_address_brlan));
                 sysevent_set(sefd, setok, SYSEVENT_VALID_ULA_ADDRESS, "true", 0);
             }
             else
             {
+                v_secure_system("echo AADHI-DEBUG LAN ULA address lookup failed >> /rdklogs/logs/aadhi.txt");
                 sysevent_set(sefd, setok, SYSEVENT_VALID_ULA_ADDRESS, "false", 0);
             }
         }
