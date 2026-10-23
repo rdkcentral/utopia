@@ -2343,19 +2343,18 @@ STATIC int compare_partner_json_param (char *partner_nvram_bs_obj, char *partner
             //printf("value_bs = %s, source_bs = %s\n", value_bs, source_bs);
             if (strcmp(value, value_bs))
             {
-#ifdef LPM_MANAGER_SUPPORT
-               char previousValue[MAX_VALUESTR_LEN] = {0};
-               strcpy_s(previousValue, sizeof(previousValue), value_bs);
-#endif
                APPLY_PRINT("** Param %s value changed in firmware **\n", key);
                cJSON_ReplaceItemInObject(bs_obj,"DefaultValue", cJSON_CreateString(value));
                cJSON_ReplaceItemInObject(bs_obj,"BuildTime", cJSON_CreateString(getBuildTime()));
                if (!strcmp(source_bs,"-"))
                {
+#ifdef LPM_MANAGER_SUPPORT
+                  int updateLpmSyscfgAlias = shouldUpdateLpmSyscfgAlias(key, value_bs);
+#endif
                   APPLY_PRINT(" ** Param was not overridden previously. Update the active value..\n");
                   cJSON_ReplaceItemInObject(bs_obj,"ActiveValue", cJSON_CreateString(value));
 #ifdef LPM_MANAGER_SUPPORT
-                  if ( shouldUpdateLpmSyscfgAlias(key, previousValue) )
+                  if ( updateLpmSyscfgAlias )
                   {
                      updateSysCfgdDB(key, value);
                   }
