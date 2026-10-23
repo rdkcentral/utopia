@@ -328,21 +328,26 @@ STATIC int getULAAddressFromInterface(char *ulaAddress)
     int status = FALSE;
     FILE *fpStream = NULL;
     char line[128] = {0};
+    v_secure_system("echo AADHI-DEBUG ULA interface lookup start interface=brlan0 >> /rdklogs/logs/aadhi.txt");
 #ifdef CORE_NET_LIB
     char ipv6_address[48] = {0};
     int ula_max_length = 48;
     libnet_status status1 = get_ipv6_address("brlan0", ipv6_address, sizeof(ipv6_address));
+    v_secure_system("echo AADHI-DEBUG ULA CORE_NET lookup status=%d address=%s >> /rdklogs/logs/aadhi.txt", status1, ipv6_address);
     if (status1 == CNL_STATUS_SUCCESS) {
          DEG_PRINT1("Successfully retrieved global IPv6 address for brlan0\n");
 	 if (!strncmp(ipv6_address, "fd", 2) || !strncmp(ipv6_address, "fc", 2)) {
             strncpy(ulaAddress, ipv6_address, ula_max_length - 1); 
             ulaAddress[ula_max_length - 1] = '\0';  
             status = TRUE;
+	 } else {
+            v_secure_system("echo AADHI-DEBUG ULA CORE_NET address rejected address=%s >> /rdklogs/logs/aadhi.txt", ipv6_address);
 	 }
     }      
     else{
          DEG_PRINT1("Failed to retrieve global IPv6 address for brlan0\n");
     }    
+    v_secure_system("echo AADHI-DEBUG ULA interface lookup complete status=%d address=%s >> /rdklogs/logs/aadhi.txt", status, ulaAddress);
     return status;
 #else
     fpStream = v_secure_popen("r","ifconfig brlan0 | grep inet6 | grep Global| awk '/inet6/{print $3}' | cut -d'/' -f1");
@@ -363,8 +368,10 @@ STATIC int getULAAddressFromInterface(char *ulaAddress)
             {
                 strncpy(ulaAddress, line, strlen(line)+1);
                 status = TRUE;
+                v_secure_system("echo AADHI-DEBUG ULA ifconfig candidate accepted address=%s >> /rdklogs/logs/aadhi.txt", ulaAddress);
                 break;
             }
+            v_secure_system("echo AADHI-DEBUG ULA ifconfig candidate rejected address=%s >> /rdklogs/logs/aadhi.txt", line);
             memset (line,0, sizeof(line));
         }
         v_secure_pclose(fpStream);
@@ -374,6 +381,7 @@ STATIC int getULAAddressFromInterface(char *ulaAddress)
         fprintf(logfptr, "%s: Unable to open stream \n", __FUNCTION__);
         status = FALSE;
     }
+    v_secure_system("echo AADHI-DEBUG ULA interface lookup complete status=%d address=%s >> /rdklogs/logs/aadhi.txt", status, ulaAddress);
     return status;
 }
 
@@ -1116,15 +1124,19 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     }
     #endif
     sysevent_get(sefd, setok, "previous_ipv6_prefix", orig_prefix, sizeof(orig_prefix));
+    v_secure_system("echo AADHI-DEBUG IPv6 prefix state prefix=%s previous_prefix=%s preferred_lft=%s valid_lft=%s >> /rdklogs/logs/aadhi.txt", prefix, orig_prefix, preferred_lft, valid_lft);
 #if (!defined (_HUB4_PRODUCT_REQ_) && !defined(_RDKB_GLOBAL_PRODUCT_REQ_)) || defined (_WNXL11BWL_PRODUCT_REQ_)
 
     sysevent_get(sefd, setok, "current_lan_ipv6address", lan_addr, sizeof(lan_addr));
+    v_secure_system("echo AADHI-DEBUG LAN address source=current_lan_ipv6address address=%s >> /rdklogs/logs/aadhi.txt", lan_addr);
 #else
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+    v_secure_system("echo AADHI-DEBUG LAN address build branch=RDKB_GLOBAL ula_feature_supported=%d >> /rdklogs/logs/aadhi.txt", gIsLANULAFeatureSupported);
     if( TRUE == gIsLANULAFeatureSupported )
 #endif /** _RDKB_GLOBAL_PRODUCT_REQ_ */
     {
         result = getLanIpv6Info(&ipv6_enable, &ula_enable);
+        v_secure_system("echo AADHI-DEBUG LAN IPv6 settings result=%d ipv6_enable=%d ula_enable=%d >> /rdklogs/logs/aadhi.txt", result, ipv6_enable, ula_enable);
         if(result != 0) {
             fprintf(stderr, "getLanIpv6Info failed");
             fclose(fp);
@@ -1135,7 +1147,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
         In case the ULA is not available, lan bridge's LL address can be advertise as DNS address.
         */
         sysevent_get(sefd, setok, "ula_address", lan_addr, sizeof(lan_addr));
-        v_secure_system("echo AADHI-DEBUG LAN ULA address from sysevent=%s >> /rdklogs/logs/aadhi.txt", lan_addr);
+        v_secure_system("echo AADHI-DEBUG LAN address source=ula_address address=%s valid=%d >> /rdklogs/logs/aadhi.txt", lan_addr, IsValid_ULAAddress(lan_addr));
 
         if (IsValid_ULAAddress(lan_addr) == FALSE)
         {
@@ -1158,11 +1170,13 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
         if(ula_enable == 1)
             sysevent_get(sefd, setok, "ula_prefix", lan_addr_prefix, sizeof(lan_addr_prefix));
+        v_secure_system("echo AADHI-DEBUG LAN ULA state address=%s ula_prefix=%s ula_enable=%d >> /rdklogs/logs/aadhi.txt", lan_addr, lan_addr_prefix, ula_enable);
     }
 #if defined(_RDKB_GLOBAL_PRODUCT_REQ_)
     else
     {
         sysevent_get(sefd, setok, "current_lan_ipv6address", lan_addr, sizeof(lan_addr));
+        v_secure_system("echo AADHI-DEBUG LAN address source=current_lan_ipv6address global_ula_feature=0 address=%s >> /rdklogs/logs/aadhi.txt", lan_addr);
     }
 #endif  /** _RDKB_GLOBAL_PRODUCT_REQ_ */
 #endif//_HUB4_PRODUCT_REQ_
@@ -1181,6 +1195,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
     sysevent_get(sefd, setok, "ipv6_prefix_vldtime", valid_lft, sizeof(valid_lft));
 #endif
     syscfg_get(NULL, "lan_ifname", lan_if, sizeof(lan_if));
+    v_secure_system("echo AADHI-DEBUG IPv6 inputs complete lan_if=%s prefix=%s previous_prefix=%s lan_addr=%s lan_addr_prefix=%s preferred_lft=%s valid_lft=%s >> /rdklogs/logs/aadhi.txt", lan_if, prefix, orig_prefix, lan_addr, lan_addr_prefix, preferred_lft, valid_lft);
     }
 #endif
     if (atoi(preferred_lft) <= 0)
@@ -1193,6 +1208,7 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 
     sysevent_get(sefd, setok, "wan-status", wan_st, sizeof(wan_st));
     syscfg_get(NULL, "last_erouter_mode", rtmod, sizeof(rtmod));
+    v_secure_system("echo AADHI-DEBUG runtime state wan_status=%s erouter_mode=%s ipv6_assignment=%d mode_switched=%d >> /rdklogs/logs/aadhi.txt", wan_st, rtmod, gIpv6AddrAssignment, gModeSwitched);
 
 
 #if defined(MULTILAN_FEATURE) || defined(CISCO_CONFIG_DHCPV6_PREFIX_DELEGATION) || defined(_ONESTACK_PRODUCT_REQ_)
