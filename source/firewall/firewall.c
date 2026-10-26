@@ -9014,6 +9014,11 @@ static int is_xdns_default_non_override(int iptype, const char *default_dns, con
 	if (iptype == 4)
 	{
 		int i;
+		/* dhcp_nameserver_1/2/3 are admin-configured Static LAN DNS values
+		 * (see dhcp_server_functions.c), not the actual ISP/WAN-provisioned
+		 * resolvers. Check them too in case an admin pinned the LAN DNS to
+		 * these, but the real WAN-provisioned DNS comparison is against the
+		 * "wan_dhcp_dns" sysevent below (RDKB-64441 review). */
 		const char *ns_keys[3] = {"dhcp_nameserver_1", "dhcp_nameserver_2", "dhcp_nameserver_3"};
 
 		for (i = 0; i < 3; i++)
@@ -9024,6 +9029,21 @@ static int is_xdns_default_non_override(int iptype, const char *default_dns, con
 			    ns[0] != '\0' && 0 == strcmp(default_dns, ns))
 			{
 				return 1;
+			}
+		}
+
+		{
+			char wanns[256] = {0};
+			char *saveptr = NULL;
+			char *tok = NULL;
+
+			sysevent_get(sysevent_fd, sysevent_token, "wan_dhcp_dns", wanns, sizeof(wanns));
+			for (tok = strtok_r(wanns, " \t\n\r", &saveptr); tok != NULL; tok = strtok_r(NULL, " \t\n\r", &saveptr))
+			{
+				if (0 == strcmp(default_dns, tok))
+				{
+					return 1;
+				}
 			}
 		}
 	}
@@ -9068,8 +9088,8 @@ static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, char *macaddr, ch
 	if (iptype == 4)
 	{
 		#if defined (INTEL_PUMA7)
-		fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 %sp udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
-		fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 %sp tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
+		fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 %s-p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
+		fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 %s-p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
 		#else
 		fprintf(nat_fp, "-A prerouting_fromlan -i %s %s-p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
 		fprintf(nat_fp, "-A prerouting_fromlan -i %s %s-p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
@@ -9078,8 +9098,8 @@ static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, char *macaddr, ch
 	else
 	{
 		#if defined (INTEL_PUMA7)
-		fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20 %sp udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
-		fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20 %sp tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
+		fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20 %s-p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
+		fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20 %s-p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
 		#else
 		fprintf(nat_fp, "-A PREROUTING -i %s %s-p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
 		fprintf(nat_fp, "-A PREROUTING -i %s %s-p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,mac_match,dns_dest);
