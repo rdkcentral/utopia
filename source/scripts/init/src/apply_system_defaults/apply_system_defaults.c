@@ -887,6 +887,116 @@ void CheckAndHandleInvalidPartnerIDRecoveryProcess(char *PartnerID) {
 
 #endif // (_RDKB_GLOBAL_PRODUCT_REQ_)
 
+#ifdef _ONESTACK_PRODUCT_REQ_
+/*
+ * Decide OneStack devicemode and save it to syscfg (never to DEVICEMODE_FILE).
+ *
+ * DEVICEMODE_FILE ("<mode>:<rawPartner>") is written only by ActivatePartnerId.
+ * It is used only when its partner (without "business" suffix) equals the
+ * PartnerID in use; otherwise it is ignored.
+ *
+ * No valid file:
+ *   business    : factory PartnerID is a business OTP (e.g. comcastBusiness) and
+ *                 PartnerID equals it without the suffix (comcast)
+ *   residential : everything else
+ * Factory PartnerID unreadable: keep syscfg devicemode; if empty use residential
+ * for this boot only (not saved, so the next good boot re-derives it).
+ *
+ * PARTNERID_FILE is created only on the first OneStack boot (reboot with empty
+ * syscfg devicemode) when PartnerID is not a substring of the factory PartnerID,
+ * i.e. the partner was changed on a non-OneStack build. A commercial device thus
+ * never gets "comcast" written there.
+ */
+static void set_onestack_devicemode (char *PartnerID, int isFactoryReset, char *deviceMode, size_t size)
+{
+   char rawFactoryPartnerID[PARTNER_ID_LEN] = {0};
+   char factoryPartnerID[PARTNER_ID_LEN]    = {0};
+   char syscfgDeviceMode[16]                = {0};
+   char fileDeviceMode[16]                  = {0};
+   char filePartnerID[DEVICEMODE_PARTNER_LEN] = {0};
+   int  hasFactoryPartnerID;
+   int  isBusinessFactory = 0;
+   int  hasValidFile;
+   int  saveDeviceMode = 1;
+
+   hasFactoryPartnerID = (0 == getFactoryPartnerId(rawFactoryPartnerID)) && (rawFactoryPartnerID[0] != '\0');
+   if (hasFactoryPartnerID)
+   {
+      snprintf(factoryPartnerID, sizeof(factoryPartnerID), "%s", rawFactoryPartnerID);
+      isBusinessFactory = onestackutils_strip_business_suffix(factoryPartnerID);
+   }
+
+   syscfg_get(NULL, "devicemode", syscfgDeviceMode, sizeof(syscfgDeviceMode));
+
+   /* Step 1: first OneStack boot with a partner changed on a non-OneStack build */
+   if (hasFactoryPartnerID && !isFactoryReset && (syscfgDeviceMode[0] == '\0') &&
+       (PartnerID[0] != '\0') && (0 != strcasecmp(PartnerID, "Unknown")) &&
+       !onestackutils_partner_in_factory(rawFactoryPartnerID, PartnerID) &&
+       (access(PARTNERID_FILE, F_OK) != 0))
+   {
+      FILE *fp = fopen(PARTNERID_FILE, "w");
+      if (fp)
+      {
+         fprintf(fp, "%s", PartnerID);
+         fclose(fp);
+         APPLY_PRINT("%s - PartnerID '%s' written to %s\n", __FUNCTION__, PartnerID, PARTNERID_FILE);
+      }
+      else
+      {
+         APPLY_PRINT("%s - Failed to create %s\n", __FUNCTION__, PARTNERID_FILE);
+      }
+   }
+
+   /* Step 2: devicemode from DEVICEMODE_FILE if it belongs to the partner in use */
+   hasValidFile = (0 == onestackutils_get_file_devicemode(fileDeviceMode, sizeof(fileDeviceMode),
+                                                          filePartnerID, sizeof(filePartnerID)));
+   if (hasValidFile)
+   {
+      onestackutils_strip_business_suffix(filePartnerID);
+      if (0 != strcasecmp(filePartnerID, PartnerID))
+      {
+         APPLY_PRINT("%s - %s partner '%s' != PartnerID '%s', ignoring\n",
+                     __FUNCTION__, DEVICEMODE_FILE, filePartnerID, PartnerID);
+         hasValidFile = 0;
+      }
+   }
+
+   if (hasValidFile)
+   {
+      snprintf(deviceMode, size, "%s", fileDeviceMode);
+   }
+   else if (hasFactoryPartnerID)
+   {
+      snprintf(deviceMode, size, "%s", (isBusinessFactory && (0 == strcasecmp(PartnerID, factoryPartnerID))) ?
+               DEVICEMODE_BUSINESS : DEVICEMODE_RESIDENTIAL);
+   }
+   else if (syscfgDeviceMode[0] != '\0')
+   {
+      snprintf(deviceMode, size, "%s", syscfgDeviceMode);
+   }
+   else
+   {
+      snprintf(deviceMode, size, "%s", DEVICEMODE_RESIDENTIAL);
+      saveDeviceMode = 0;
+   }
+
+   APPLY_PRINT("%s - PartnerID '%s', factory PartnerID '%s', syscfg devicemode '%s', file %s -> '%s'%s\n",
+               __FUNCTION__, PartnerID, rawFactoryPartnerID, syscfgDeviceMode,
+               hasValidFile ? "used" : "not used", deviceMode, saveDeviceMode ? "" : " (not saved)");
+
+   /* Step 3: save to syscfg only */
+   if (saveDeviceMode && (0 != strcmp(syscfgDeviceMode, deviceMode)))
+   {
+      /* syscfg_set_commit (not onestackutils_set_syscfg_devicemode): the
+       * OneStack_DeviceMode_split telemetry event is sent by the caller */
+      if (0 != syscfg_set_commit(NULL, "devicemode", deviceMode))
+      {
+         APPLY_PRINT("%s - Failed to set syscfg devicemode '%s'\n", __FUNCTION__, deviceMode);
+      }
+   }
+}
+#endif // _ONESTACK_PRODUCT_REQ_
+
 static int get_PartnerID (char *PartnerID)
 {
     char buf[PARTNER_ID_LEN];
@@ -894,43 +1004,6 @@ static int get_PartnerID (char *PartnerID)
 
     memset(buf, 0, sizeof(buf));
     //int isValidPartner = 0;
-
-#ifdef _ONESTACK_PRODUCT_REQ_
-    /*
-     * Handle non-onestack -> onestack firmware upgrade and factory-reset
-     */
-    {
-        char devicemode[32] = {0};
-
-        onestackutils_get_syscfg_devicemode(devicemode, sizeof(devicemode));
-        if ('\0' == devicemode[0])
-        {
-            FILE *pPartnerIdFile = fopen(PARTNERID_FILE, "r");
-            if (NULL != pPartnerIdFile)
-            {
-                char filePartnerId[PARTNER_ID_LEN] = {0};
-                char factoryPartnerId[PARTNER_ID_LEN] = {0};
-                char *nl = NULL;
-
-                if (NULL != fgets(filePartnerId, sizeof(filePartnerId), pPartnerIdFile))
-                {
-                    if ((nl = strchr(filePartnerId, '\n')) != NULL)
-                        *nl = '\0';
-                }
-                fclose(pPartnerIdFile);
-                pPartnerIdFile = NULL;
-
-                if ((0 == getFactoryPartnerId(factoryPartnerId)) && (factoryPartnerId[0] != '\0') &&
-                    (0 != strcasecmp(filePartnerId, factoryPartnerId)))
-                {
-                    APPLY_PRINT("%s - devicemode is empty and partner ID file value '%s' does not match factory partner ID '%s', removing %s\n",
-                                __FUNCTION__, filePartnerId, factoryPartnerId, PARTNERID_FILE);
-                    unlink(PARTNERID_FILE);
-                }
-            }
-        }
-    }
-#endif // _ONESTACK_PRODUCT_REQ_
 
 	
     /*
@@ -948,11 +1021,8 @@ static int get_PartnerID (char *PartnerID)
         {
             APPLY_PRINT("%s - PartnerID from HAL: %s\n",__FUNCTION__,PartnerID );
 #ifdef _ONESTACK_PRODUCT_REQ_
-            // Override PartnerID if needed and set devicemode
-            // Must be called BEFORE set_syscfg_partner_values to ensure syscfg gets the correct PartnerID
-            APPLY_PRINT("%s - Calling onestackutils_override_partnerid_and_set_devicemode with PartnerID from HAL: %s\n", __FUNCTION__, PartnerID);
-            onestackutils_override_partnerid_and_set_devicemode(PartnerID);
-            APPLY_PRINT("%s - onestackutils_override_partnerid_and_set_devicemode completed. PartnerID from HAL: %s\n", __FUNCTION__, PartnerID);
+            // Strip "business" suffix (comcastBusiness -> comcast); devicemode is set by set_onestack_devicemode()
+            onestackutils_strip_business_suffix(PartnerID);
 #endif // _ONESTACK_PRODUCT_REQ_
             validatePartnerId ( PartnerID );
         }
@@ -1007,11 +1077,8 @@ static int get_PartnerID (char *PartnerID)
 
         APPLY_PRINT("%s - PartnerID from File: %s\n",__FUNCTION__,PartnerID );
 #ifdef _ONESTACK_PRODUCT_REQ_
-            // Override PartnerID if needed and set devicemode
-            // Must be called BEFORE set_syscfg_partner_values to ensure syscfg gets the correct PartnerID
-            APPLY_PRINT("%s - Calling onestackutils_override_partnerid_and_set_devicemode with PartnerID: %s\n", __FUNCTION__, PartnerID);
-            onestackutils_override_partnerid_and_set_devicemode(PartnerID);
-            APPLY_PRINT("%s - onestackutils_override_partnerid_and_set_devicemode completed. PartnerID: %s\n", __FUNCTION__, PartnerID);
+            // Strip "business" suffix (comcastBusiness -> comcast); devicemode is set by set_onestack_devicemode()
+            onestackutils_strip_business_suffix(PartnerID);
 #endif // _ONESTACK_PRODUCT_REQ_
 
         validatePartnerId ( PartnerID );
@@ -3534,17 +3601,6 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 		isMigrationReq = 1;
 		APPLY_PRINT("%s - Device in Reboot mode, Syndication Migration Required\n", __FUNCTION__ )
 	}
-#ifdef _ONESTACK_PRODUCT_REQ_
-	else // For OneStack, an empty devicemode indicates migration is required
-	{
-		char deviceMode[16] = {0};
-		if ( !((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0')) )
-		{
-			isMigrationReq = 1;
-			APPLY_PRINT("%s -  devicemode is empty, Migration Required\n", __FUNCTION__ )
-		}
-	}
-#endif
 
   }
   else
@@ -3582,6 +3638,10 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 #if !defined (_XB6_PRODUCT_REQ_) && !defined(_HUB4_PRODUCT_REQ_) && !defined(_SR300_PRODUCT_REQ_) && !defined(_SCXF11BFL_PRODUCT_REQ_)
 		//Partner ID is null so need to set default partner ID as "comcast"
 		memset( PartnerID, 0, sizeof( PartnerID ) );
+#if defined (_ONESTACK_PRODUCT_REQ_)
+		// OneStack: leave empty, recovered from factory PartnerID before set_onestack_devicemode()
+		APPLY_PRINT("%s - PartnerID is NULL, will recover it from factory PartnerID\n", __FUNCTION__ );
+#else
 #if defined (_RDK_REF_PLATFORM_)
                 sprintf( PartnerID, "%s", "RDKM");
 #else
@@ -3589,6 +3649,7 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
 #endif
 		set_syscfg_partner_values( PartnerID, "PartnerID" );
 		APPLY_PRINT("%s - PartnerID is NULL so set default partner :%s\n", __FUNCTION__, PartnerID );		
+#endif // _ONESTACK_PRODUCT_REQ_
 #else
  		//RDKB-23050: Change: Adding few retries to get the partnerId from syscfg.db and if still fails fall back to factory_partnerId
                 getPartnerIdWithRetry(buf,PartnerID);
@@ -3602,19 +3663,20 @@ static void getPartnerIdWithRetry(char* buf, char* PartnerID)
     APPLY_PRINT("%s - PartnerID :%s. Calling get_PartnerID() to get a valid PartnerID that was received from XConf \n", __FUNCTION__, PartnerID );
     get_PartnerID ( PartnerID );
   }
+#ifdef _ONESTACK_PRODUCT_REQ_
+  // OneStack: unknown/empty PartnerID without PARTNERID_FILE (e.g. FR on 8.5 left "unknown"):
+  // recover it from the factory PartnerID (comcastBusiness -> comcast) via get_PartnerID()
+  else if ( ('\0' == PartnerID[0]) || (0 == strcasecmp (PartnerID, "Unknown")) ) {
+    APPLY_PRINT("%s - PartnerID :'%s'. Calling get_PartnerID() to recover it from factory PartnerID\n", __FUNCTION__, PartnerID );
+    get_PartnerID ( PartnerID );
+  }
+#endif // _ONESTACK_PRODUCT_REQ_
 
 #ifdef _ONESTACK_PRODUCT_REQ_
 
    char deviceMode[16] = {0};
 
-   if ((syscfg_get(NULL, "devicemode", deviceMode, sizeof(deviceMode)) == 0) && (deviceMode[0] != '\0'))
-   {
-      APPLY_PRINT("Devicemode is: %s\n", deviceMode);
-   }
-   else
-   {
-      APPLY_PRINT("Failed to fetch devicemode from syscfg\n");
-   }
+   set_onestack_devicemode(PartnerID, isNeedToApplyPartnersDefault, deviceMode, sizeof(deviceMode));
    t2_event_s("OneStack_DeviceMode_split", deviceMode);
 
    // For OneStack products, set_defaults() must be called after get_PartnerID() to ensure the partner ID and device mode are correctly configured
