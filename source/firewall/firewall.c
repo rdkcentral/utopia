@@ -15745,6 +15745,8 @@ int error;
 
    update_rabid_features_status();
 
+   t2_init("FIREWALL"); 
+
    switch (event) {
    case SERVICE_EV_START:
       #ifdef RDKB_EXTENDER_ENABLED  
