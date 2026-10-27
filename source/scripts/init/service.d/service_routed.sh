@@ -84,8 +84,8 @@ case "$1" in
        service_routed rip-restart
        ;;
    zebra-restart)
-       echo "[routed] zebra-restart: calling radv-restart"
-       service_routed radv-restart
+       echo "[routed] zebra-restart: calling radv-zebra-restart"
+       service_routed radv-zebra-restart
        ;;
    staticroute-restart)
        echo "[routed] staticroute-restart: calling radv-restart"
