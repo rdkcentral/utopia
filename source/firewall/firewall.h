@@ -62,6 +62,21 @@
 #include "safec_lib_common.h"
 #include "ansc_status.h"
 
+/**
+* @brief Validate a network interface name.
+*
+* This function checks whether @p if_name is a valid interface name for use by
+* the firewall component.
+*
+* @param[in] if_name - Pointer to the interface name string to validate.
+* @param[in] length - Length of @p if_name in characters, excluding the
+* terminating NUL character.
+*
+* @return Validation status.
+* @retval 1 if the interface name is valid.
+* @retval 0 if the interface name is invalid.
+*
+*/
 int IsValidInterfaceName(const char *if_name, size_t length);
 /**
 * @brief Apply logging rules to the filter table.
