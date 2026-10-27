@@ -39,8 +39,10 @@
 # $1 is the calling event (current_wan_state  current_lan_state  ipv6_prefix)
 #------------------------------------------------------------------
 source /etc/device.properties
+source /etc/utopia/service.d/log_capture_path.sh
 
 SERVICE_NAME="routed"
+echo "[routed] service_routed_bci.sh event=$1 pid=$$"
 
 case "$1" in
    "${SERVICE_NAME}-start")
@@ -75,7 +77,7 @@ case "$1" in
        service_routed rip-restart
        ;;
    zebra-restart)
-       service_routed radv-zebra-restart
+       service_routed radv-restart
        ;;
    staticroute-restart)
        service_routed radv-restart

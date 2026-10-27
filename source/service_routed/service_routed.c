@@ -103,6 +103,7 @@ static const char* const service_routed_component_id = "ccsp.routed";
 #define ZEBRA_PID_FILE  "/var/zebra.pid"
 #define RIPD_PID_FILE   "/var/ripd.pid"
 #define ZEBRA_CONF_FILE "/var/zebra.conf"
+#define ZEBRA_CONF_TMP_FILE "/var/zebra.conf.tmp"
 
 #if defined (_BWG_PRODUCT_REQ_)
 #define RIPD_CONF_FILE  "/var/ripd.conf"
@@ -862,6 +863,16 @@ STATIC int updateExtenderConf(FILE *pFp, int sefd, token_t setok, int deviceMode
 #endif
 #endif
 
+/* Per-process temp file: concurrent service_routed runs must not share it. */
+STATIC const char *zebra_conf_tmp_path(void)
+{
+    static char path[48];
+
+    if (path[0] == '\0')
+        snprintf(path, sizeof(path), "%s.%d", ZEBRA_CONF_TMP_FILE, (int)getpid());
+    return path;
+}
+
 STATIC int gen_zebra_conf(int sefd, token_t setok)
 {
     char l_cSecWebUI_Enabled[8] = {0};
@@ -985,8 +996,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif
  
 
-    if ((fp = fopen(ZEBRA_CONF_FILE, "wb")) == NULL) {
-        fprintf(logfptr, "%s: fail to open file %s\n", __FUNCTION__, ZEBRA_CONF_FILE);
+    if ((fp = fopen(zebra_conf_tmp_path(), "wb")) == NULL) {
+        fprintf(logfptr, "%s: fail to open file %s\n", __FUNCTION__, zebra_conf_tmp_path());
         return -1;
     }
 
@@ -2090,7 +2101,55 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 
 #endif 
 
-static int gZebraRestartRequested = 0;
+/* Returns 1 only if both files exist and have identical content. */
+STATIC int is_file_identical(const char *path1, const char *path2)
+{
+    FILE *fp1, *fp2;
+    char buf1[1024], buf2[1024];
+    size_t n1, n2;
+    int same = 1;
+
+    if ((fp1 = fopen(path1, "rb")) == NULL)
+        return 0;
+    if ((fp2 = fopen(path2, "rb")) == NULL) {
+        fclose(fp1);
+        return 0;
+    }
+
+    do {
+        n1 = fread(buf1, 1, sizeof(buf1), fp1);
+        n2 = fread(buf2, 1, sizeof(buf2), fp2);
+        if (n1 != n2 || memcmp(buf1, buf2, n1) != 0) {
+            same = 0;
+            break;
+        }
+    } while (n1 == sizeof(buf1));
+
+    fclose(fp1);
+    fclose(fp2);
+    return same;
+}
+
+/* Returns 1 if pid is a live process named prog; guards against stale PID files and PID reuse. */
+STATIC int is_process_alive(int pid, const char *prog)
+{
+    char path[32];
+    char comm[32] = {0};
+    FILE *fp;
+
+    if (pid <= 0)
+        return 0;
+
+    snprintf(path, sizeof(path), "/proc/%d/comm", pid);
+    if ((fp = fopen(path, "r")) == NULL)
+        return 0;
+    if (fgets(comm, sizeof(comm), fp) == NULL)
+        comm[0] = '\0';
+    fclose(fp);
+
+    comm[strcspn(comm, "\n")] = '\0';
+    return (strcmp(comm, prog) == 0);
+}
 
 STATIC int radv_start(struct serv_routed *sr)
 {
@@ -2170,6 +2229,22 @@ STATIC int radv_start(struct serv_routed *sr)
 
     if (gen_zebra_conf(sr->sefd, sr->setok) != 0) {
         fprintf(logfptr, "%s: fail to save zebra config\n", __FUNCTION__);
+        unlink(zebra_conf_tmp_path());
+        return -1;
+    }
+
+    int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
+    if (is_process_alive(pid, "zebra") &&
+        is_file_identical(zebra_conf_tmp_path(), ZEBRA_CONF_FILE))
+    {
+        unlink(zebra_conf_tmp_path());
+        ROUTED_LOG("%s: zebra.conf unchanged, zebra restart not required\n", __FUNCTION__);
+        return 0;
+    }
+
+    if (rename(zebra_conf_tmp_path(), ZEBRA_CONF_FILE) != 0) {
+        fprintf(logfptr, "%s: fail to update %s\n", __FUNCTION__, ZEBRA_CONF_FILE);
+        unlink(zebra_conf_tmp_path());
         return -1;
     }
 
@@ -2189,15 +2264,7 @@ STATIC int radv_start(struct serv_routed *sr)
         }   
     }
 #endif
-
-    int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
-    ROUTED_LOG("%s: Zebra PID: %d and restart value = %d \n", __FUNCTION__, pid, gZebraRestartRequested);
-    if(pid && !gZebraRestartRequested)
-    {
-        ROUTED_LOG("%s: zebra conf reload \n", __FUNCTION__);
-        kill(pid, SIGUSR1);
-        return 0;
-    }
+    ROUTED_LOG("%s: zebra.conf changed, restarting zebra\n", __FUNCTION__);
     daemon_stop(ZEBRA_PID_FILE, "zebra");
 
 #if defined(_COSA_FOR_BCI_)
@@ -2216,7 +2283,6 @@ STATIC int radv_start(struct serv_routed *sr)
 
 STATIC int radv_stop(struct serv_routed *sr)
 {
-    ROUTED_LOG("%s: Entering\n", __FUNCTION__);
     if(is_daemon_running(ZEBRA_PID_FILE, "zebra"))
     {
         return 0;
@@ -2231,12 +2297,6 @@ STATIC int radv_restart(struct serv_routed *sr)
         fprintf(logfptr, "%s: radv_stop error\n", __FUNCTION__);
     }
     return radv_start(sr);
-}
-
-STATIC int radv_zebra_restart(struct serv_routed *sr)
-{
-    gZebraRestartRequested = 1;
-    return radv_restart(sr);
 }
 
 STATIC int rip_start(struct serv_routed *sr)
@@ -2773,7 +2833,6 @@ STATIC struct cmd_op cmd_ops[] = {
     {"radv-start",  radv_start,     "start RA daemon"},
     {"radv-stop",   radv_stop,      "stop RA daemon"},
     {"radv-restart",radv_restart,   "restart RA daemon"},
-    {"radv-zebra-restart",radv_zebra_restart, "restart RA daemon and zebra, bypassing SIGUSR1 reload"},
     #ifdef WAN_FAILOVER_SUPPORTED
     {"routeset-ula",routeset_ula,   "route set for ula"},
     {"routeunset-ula",routeunset_ula,   "route unset for ula"},
@@ -2796,7 +2855,6 @@ STATIC void usage(void)
 
 int service_routed_main(int argc, char *argv[])
 {
-    ROUTED_LOG("%s : Entering into main", __FUNCTION__);
     int i;
     struct serv_routed sr;
    logfptr = fopen ( LOG_FILE_NAME , "a+");
