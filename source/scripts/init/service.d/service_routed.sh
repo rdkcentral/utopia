@@ -84,17 +84,16 @@ case "$1" in
        service_routed rip-restart
        ;;
    zebra-restart)
-       echo "[routed] zebra-restart: calling radv-zebra-restart"
-       service_routed radv-zebra-restart
-       echo "[routed] zebra-restart: radv-zebra-restart rc=$?"
+       echo "[routed] zebra-restart: calling radv-restart"
+       service_routed radv-restart
        ;;
    staticroute-restart)
        echo "[routed] staticroute-restart: calling radv-restart"
        service_routed radv-restart
        ;;
    ipv6_prefix|ipv6_nameserver)
-       echo "[routed] ipv6_prefix event: calling radv-zebra-restart"
-       service_routed radv-zebra-restart
+       echo "[routed] ipv6_prefix event: calling radv-restart"
+       service_routed radv-restart
        ;;
    *)
        echo "Usage: $SERVICE_NAME [ ${SERVICE_NAME}-start | ${SERVICE_NAME}-stop | ${SERVICE_NAME}-restart]" > /dev/console

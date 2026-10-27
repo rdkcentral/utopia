@@ -2110,7 +2110,7 @@ STATIC char *read_file_alloc(const char *path)
     return buf;
 }
 
-static int gZebraRestartRequested = 0;
+//static int gZebraRestartRequested = 0;
 STATIC int radv_start(struct serv_routed *sr)
 {
     ROUTED_LOG("%s: Entering\n", __FUNCTION__);
@@ -2222,8 +2222,8 @@ if (conf) {
     }
 #endif
     int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
-    ROUTED_LOG("%s: Zebra PID: %d and restart value = %d \n", __FUNCTION__, pid, gZebraRestartRequested);
-        if(pid && !gZebraRestartRequested)
+    ROUTED_LOG("%s: Zebra PID: %d \n", __FUNCTION__, pid);
+        if(pid)
         {
             ROUTED_LOG("%s: Passing SIGUSR1 signal \n", __FUNCTION__);
             kill(pid, SIGUSR1);
@@ -2234,7 +2234,7 @@ if (conf) {
             }
             return 0;
         }
-    ROUTED_LOG("********************************* \n %s: Killing zebra PID for zebra-restart event \n", __FUNCTION__);
+    ROUTED_LOG("********************************* \n %s: Killing zebra \n", __FUNCTION__);
     daemon_stop(ZEBRA_PID_FILE, "zebra");
 
 #if defined(_COSA_FOR_BCI_)
@@ -2269,11 +2269,11 @@ STATIC int radv_restart(struct serv_routed *sr)
     return radv_start(sr);
 }
 
-STATIC int radv_zebra_restart(struct serv_routed *sr)
+/*STATIC int radv_zebra_restart(struct serv_routed *sr)
 {
     gZebraRestartRequested = 1;
     return radv_restart(sr);
-}
+}*/
 
 STATIC int rip_start(struct serv_routed *sr)
 {
@@ -2809,7 +2809,7 @@ STATIC struct cmd_op cmd_ops[] = {
     {"radv-start",  radv_start,     "start RA daemon"},
     {"radv-stop",   radv_stop,      "stop RA daemon"},
     {"radv-restart",radv_restart,   "restart RA daemon"},
-    {"radv-zebra-restart",radv_zebra_restart, "restart RA daemon and zebra, bypassing SIGUSR1 reload"},
+   // {"radv-zebra-restart",radv_zebra_restart, "restart RA daemon and zebra, bypassing SIGUSR1 reload"},
     #ifdef WAN_FAILOVER_SUPPORTED
     {"routeset-ula",routeset_ula,   "route set for ula"},
     {"routeunset-ula",routeunset_ula,   "route unset for ula"},

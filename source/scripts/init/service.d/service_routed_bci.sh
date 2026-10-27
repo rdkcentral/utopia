@@ -77,9 +77,8 @@ case "$1" in
        service_routed rip-restart
        ;;
    zebra-restart)
-       echo "[routed] zebra-restart: calling radv-zebra-restart"
-       service_routed radv-zebra-restart
-       echo "[routed] zebra-restart: radv-zebra-restart rc=$?"
+       echo "[routed] zebra-restart: calling radv-restart"
+       service_routed radv-restart
        ;;
    staticroute-restart)
        service_routed radv-restart
@@ -89,18 +88,18 @@ case "$1" in
 #       ;;
    ipv6_prefix|ipv6_nameserver)
    if [ "$MODEL_NUM" = "DPC3941B" ] || [ "$MODEL_NUM" = "DPC3939B" ] || [ "$MODEL_NUM" = "CGA4131COM" ] || [ "$MODEL_NUM" = "CGA4332COM" ] ; then
-       service_routed radv-zebra-restart
+       service_routed radv-restart
    else
        rdkb_feature_check -q IPv6_Delegation > /dev/null 2>&1
        is_pd_supported=$?
 
        if [ "$is_pd_supported" -eq 0 ] || [ "$is_pd_supported" -eq 127 ]; then
-           service_routed radv-zebra-restart
+           service_routed radv-restart
        fi
    fi
        ;;
    dhcpv6_option_changed)
-       service_routed radv-zebra-restart
+       service_routed radv-restart
        ;;
    *)
        echo "Usage: $SERVICE_NAME [ ${SERVICE_NAME}-start | ${SERVICE_NAME}-stop | ${SERVICE_NAME}-restart]" > /dev/console
