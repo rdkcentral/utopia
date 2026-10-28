@@ -125,7 +125,7 @@ void do_tr69_whitelistTable(FILE *filt_fp, int family)
  ==========================================================================
  */             
 __attribute__((weak))
-int prepare_xconf_rules(FILE *mangle_fp)
+int prepare_xconf_rules(FILE *mangle_fp, int ipmode)
 {
     FIREWALL_DEBUG("Entering prepare_xconf_rules\n");
     FIREWALL_DEBUG("Exiting prepare_xconf_rules\n");

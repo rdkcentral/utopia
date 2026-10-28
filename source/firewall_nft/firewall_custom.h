@@ -58,7 +58,7 @@ void do_ssh_IpAccessTable(FILE *filt_fp, const char *port, int family, const cha
 void do_tr69_whitelistTable(FILE *filt_fp, int family);
 void filterPortMap(FILE *filt_fp);
 void do_openPorts(FILE *filter_fp);
-int prepare_xconf_rules(FILE *mangle_fp);
+int prepare_xconf_rules(FILE *mangle_fp, int ipmode);
 int do_self_heal_rules_v6(FILE *mangle_fp);
 int do_qos_output_marking_v6(FILE *mangle_fp);
 int do_hub4_mapt_rules_v6(FILE *filter_fp);

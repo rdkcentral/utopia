@@ -188,12 +188,13 @@ void do_openPorts(FILE *filter_fp);
 * @brief Prepare XCONF (external configuration) mangle rules.
 *
 * @param[in] mangle_fp - Pointer to the FILE stream for writing mangle table rules.
+* @param[in] ipmode - Address family: AF_INET for IPv4 or AF_INET6 for IPv6.
 *
 * @return The status of the operation.
 * @retval 0 on success.
 *
 */
-int prepare_xconf_rules(FILE *mangle_fp);
+int prepare_xconf_rules(FILE *mangle_fp, int ipmode);
 
 /**
 * @brief Apply IPv6 self-heal mangle rules.

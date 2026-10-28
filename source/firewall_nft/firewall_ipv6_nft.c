@@ -2014,7 +2014,7 @@ void do_ipv6_sn_filter(FILE* fp) {
 	prepare_lld_dscp_rules(fp);
 	prepare_dscp_rules_to_prioritized_clnt(fp);
 	prepare_dscp_rule_for_host_mngt_traffic(fp);
-	prepare_xconf_rules(fp);
+	prepare_xconf_rules(fp, AF_INET6);
 #endif
 
 #ifdef _COSA_INTEL_XB3_ARM_

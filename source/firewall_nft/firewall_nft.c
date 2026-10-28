@@ -11084,7 +11084,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    prepare_dscp_rules_to_prioritized_clnt(mangle_fp);
    prepare_lnf_internet_rules(mangle_fp,4);
    prepare_dscp_rule_for_host_mngt_traffic(mangle_fp);
-   prepare_xconf_rules(mangle_fp);
+   prepare_xconf_rules(mangle_fp, AF_INET);
 
 
 #ifdef CONFIG_BUILD_TRIGGER
@@ -12878,7 +12878,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    prepare_dscp_rule_for_host_mngt_traffic(mangle_fp);
 
    //zqiu: RDKB-5686: xconf rule should work for pseudo bridge mode
-   prepare_xconf_rules(mangle_fp);
+   prepare_xconf_rules(mangle_fp, AF_INET);
 
 #ifdef CONFIG_BUILD_TRIGGER
 #ifndef CONFIG_KERNEL_NF_TRIGGER_SUPPORT
