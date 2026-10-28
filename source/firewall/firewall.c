@@ -1035,6 +1035,24 @@ static int IsValidIPv4Addr(char* ip_addr_string)
     return ret;
 }
 
+//utopia-develop_High_001
+static int is_valid_general_firewall_rule(char *rule)
+{
+   size_t len = strlen(rule);
+
+   while (len > 0 && (('\r' == rule[len - 1]) || ('\n' == rule[len - 1]))) {
+      rule[--len] = '\0';
+   }
+
+   while ('\0' != *rule) {
+      if (('\r' == *rule) || ('\n' == *rule)) {
+         return 0;
+      }
+      rule++;
+   }
+   return 1;
+}
+
 #if defined(FEATURE_MAPT) || defined(FEATURE_SUPPORT_MAPT_NAT46)
 
 /*
@@ -11057,7 +11075,8 @@ static int do_filter_table_general_rules(FILE *fp)
           * for runtime/configuration values
           */
          char str[MAX_QUERY];
-         if (NULL != make_substitutions(in_rule, subst, sizeof(subst))) {
+         if (NULL != make_substitutions(in_rule, subst, sizeof(subst)) &&
+             is_valid_general_firewall_rule(subst)) {
             if ((1 == substitute(subst, str, sizeof(str), "INPUT", "general_input")) ||
                 (1 == substitute(subst, str, sizeof(str), "OUTPUT", "general_output")) ||
                 (1 == substitute(subst, str, sizeof(str), "FORWARD", "general_forward")) ) {
@@ -11087,7 +11106,8 @@ GPFirewallRuleNext:
           * for runtime/configuration values
           */
          char str[MAX_QUERY];
-         if (NULL != make_substitutions(rule, subst, sizeof(subst))) {
+         if (NULL != make_substitutions(rule, subst, sizeof(subst)) &&
+             is_valid_general_firewall_rule(subst)) {
             if ((1 == substitute(subst, str, sizeof(str), "INPUT", "general_input"))   ||
                (1 == substitute(subst, str, sizeof(str), "OUTPUT", "general_output"))  ||
                (1 == substitute(subst, str, sizeof(str), "FORWARD", "general_forward")) ) {
