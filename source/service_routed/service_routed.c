@@ -103,6 +103,7 @@ static const char* const service_routed_component_id = "ccsp.routed";
 #define ZEBRA_PID_FILE  "/var/zebra.pid"
 #define RIPD_PID_FILE   "/var/ripd.pid"
 #define ZEBRA_CONF_FILE "/var/zebra.conf"
+#define ZEBRA_CONF_TMP_FILE "/var/zebra.conf.tmp"
 
 #if defined (_BWG_PRODUCT_REQ_)
 #define RIPD_CONF_FILE  "/var/ripd.conf"
@@ -985,8 +986,8 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif
  
 
-    if ((fp = fopen(ZEBRA_CONF_FILE, "wb")) == NULL) {
-        fprintf(logfptr, "%s: fail to open file %s\n", __FUNCTION__, ZEBRA_CONF_FILE);
+    if ((fp = fopen(ZEBRA_CONF_TMP_FILE, "wb")) == NULL) {
+        fprintf(logfptr, "%s: fail to open file %s\n", __FUNCTION__, ZEBRA_CONF_TMP_FILE);
         return -1;
     }
 
@@ -2090,27 +2091,37 @@ STATIC void checkIfModeIsSwitched(int sefd, token_t setok)
 
 #endif 
 
-/* Returns malloc'd file contents, or NULL if the file is missing. */
-STATIC char *read_file_alloc(const char *path)
+/* Returns 1 only if both files exist and have identical content. */
+STATIC int is_file_identical(const char *path1, const char *path2)
 {
-    FILE *fp = fopen(path, "rb");
-    long len;
-    char *buf = NULL;
+    FILE *fp1, *fp2;
+    char buf1[1024], buf2[1024];
+    size_t n1, n2;
+    int same = 1;
 
-    if (!fp)
-        return NULL;
-    if (fseek(fp, 0, SEEK_END) == 0 && (len = ftell(fp)) >= 0 && fseek(fp, 0, SEEK_SET) == 0) {
-        buf = calloc(1, len + 1);
-        if (buf && fread(buf, 1, len, fp) != (size_t)len) {
-            free(buf);
-            buf = NULL;
-        }
+    if ((fp1 = fopen(path1, "rb")) == NULL)
+        return 0;
+    if ((fp2 = fopen(path2, "rb")) == NULL) {
+        fclose(fp1);
+        return 0;
     }
-    fclose(fp);
-    return buf;
+
+    do {
+        n1 = fread(buf1, 1, sizeof(buf1), fp1);
+        n2 = fread(buf2, 1, sizeof(buf2), fp2);
+        if (n1 != n2 || memcmp(buf1, buf2, n1) != 0) {
+            same = 0;
+            break;
+        }
+    } while (n1 == sizeof(buf1));
+
+    fclose(fp1);
+    fclose(fp2);
+    return same;
 }
 
-static int gZebraRestartRequested = 0;
+/* Set for the zebra-restart event to restart zebra even if zebra.conf is unchanged. */
+//static int gZebraRestartRequested = 0;
 STATIC int radv_start(struct serv_routed *sr)
 {
     ROUTED_LOG("%s: Entering\n", __FUNCTION__);
@@ -2187,22 +2198,26 @@ STATIC int radv_start(struct serv_routed *sr)
 
 #endif 
 
-char *conf = read_file_alloc(ZEBRA_CONF_FILE);
-if (conf) {
-    ROUTED_LOG("%s: zebra.conf:\n%s\n", __FUNCTION__, conf);
-    free(conf);
-}
-
     if (gen_zebra_conf(sr->sefd, sr->setok) != 0) {
         fprintf(logfptr, "%s: fail to save zebra config\n", __FUNCTION__);
+        unlink(ZEBRA_CONF_TMP_FILE);
         return -1;
     }
 
-    conf = read_file_alloc(ZEBRA_CONF_FILE);
-if (conf) {
-    ROUTED_LOG("\n ******* \n %s: After generating zebra conf: \n zebra.conf:\n%s\n", __FUNCTION__, conf);
-    free(conf);
-}
+    int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
+    //if (pid && !gZebraRestartRequested && is_file_identical(ZEBRA_CONF_TMP_FILE, ZEBRA_CONF_FILE))
+    if (pid && is_file_identical(ZEBRA_CONF_TMP_FILE, ZEBRA_CONF_FILE))
+    {
+        unlink(ZEBRA_CONF_TMP_FILE);
+        ROUTED_LOG("%s: zebra.conf unchanged, zebra restart not required\n", __FUNCTION__);
+        return 0;
+    }
+
+    if (rename(ZEBRA_CONF_TMP_FILE, ZEBRA_CONF_FILE) != 0) {
+        fprintf(logfptr, "%s: fail to update %s\n", __FUNCTION__, ZEBRA_CONF_FILE);
+        unlink(ZEBRA_CONF_TMP_FILE);
+        return -1;
+    }
 
 #if defined (_HUB4_PRODUCT_REQ_) && (!defined (_WNXL11BWL_PRODUCT_REQ_)) || defined(_SCER11BEL_PRODUCT_REQ_) || defined(_XER2_PRODUCT_REQ_)
 #if defined(_SCER11BEL_PRODUCT_REQ_)  || defined(_XER2_PRODUCT_REQ_)
@@ -2215,26 +2230,12 @@ if (conf) {
         int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
         if(pid)
         {
-            ROUTED_LOG("%s: For sky, zebra conf reload \n", __FUNCTION__);
             kill(pid, SIGUSR1);
             return 0;
-        }
+        }   
     }
 #endif
-    int pid = is_daemon_running(ZEBRA_PID_FILE, "zebra");
-    ROUTED_LOG("%s: Zebra PID: %d and restart value = %d \n", __FUNCTION__, pid, gZebraRestartRequested);
-        if(pid && !gZebraRestartRequested)
-        {
-            ROUTED_LOG("%s: Passing SIGUSR1 signal \n", __FUNCTION__);
-            kill(pid, SIGUSR1);
-            conf = read_file_alloc(ZEBRA_CONF_FILE);
-            if (conf) {
-                ROUTED_LOG("%s: After SIGUSR1, zebra.conf:\n%s\n", __FUNCTION__, conf);
-                free(conf);
-            }
-            return 0;
-        }
-    ROUTED_LOG("\n ********************************* \n %s: Killing zebra \n", __FUNCTION__);
+    ROUTED_LOG("%s: zebra.conf changed, restarting zebra\n", __FUNCTION__);
     daemon_stop(ZEBRA_PID_FILE, "zebra");
 
 #if defined(_COSA_FOR_BCI_)
@@ -2269,11 +2270,11 @@ STATIC int radv_restart(struct serv_routed *sr)
     return radv_start(sr);
 }
 
-STATIC int radv_zebra_restart(struct serv_routed *sr)
+/*STATIC int radv_zebra_restart(struct serv_routed *sr)
 {
     gZebraRestartRequested = 1;
     return radv_restart(sr);
-}
+}*/
 
 STATIC int rip_start(struct serv_routed *sr)
 {
@@ -2809,7 +2810,7 @@ STATIC struct cmd_op cmd_ops[] = {
     {"radv-start",  radv_start,     "start RA daemon"},
     {"radv-stop",   radv_stop,      "stop RA daemon"},
     {"radv-restart",radv_restart,   "restart RA daemon"},
-    {"radv-zebra-restart",radv_zebra_restart, "restart RA daemon and zebra, bypassing SIGUSR1 reload"},
+  //  {"radv-zebra-restart",radv_zebra_restart, "restart RA daemon and zebra"},
     #ifdef WAN_FAILOVER_SUPPORTED
     {"routeset-ula",routeset_ula,   "route set for ula"},
     {"routeunset-ula",routeunset_ula,   "route unset for ula"},
@@ -2832,7 +2833,6 @@ STATIC void usage(void)
 
 int service_routed_main(int argc, char *argv[])
 {
-    ROUTED_LOG("%s : Entering into main", __FUNCTION__);
     int i;
     struct serv_routed sr;
    logfptr = fopen ( LOG_FILE_NAME , "a+");
