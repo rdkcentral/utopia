@@ -15680,6 +15680,7 @@ int main(int argc, char **argv)
    
    process_id = getpid();
 
+   t2_init("firewall");
    ulogf(ULOG_FIREWALL, UL_INFO, "%s called with %s", service_name, (argc > 1) ? argv[1] : "no arg");
 
    // defualt command if first argument is missing
