@@ -119,7 +119,7 @@ FACTORY_RESET_REASON=false
 HOTSPOT_BLOB="/nvram/hotspot_blob"
 HOTSPOT_JSON="/nvram/hotspot.json"
 MWO_PATH="/opt/secure/mwo"
-CHANNEL_KEEPOUT_PATH="/nvram/mesh"
+CHANNEL_KEEPOUT_PATH="/opt/secure/mesh"
 
 ENCRYPT_SYSCFG=false
 if [ "$MODEL_NUM" = "VTER11QEL" ] || [ "$MODEL_NUM" = "SCER11BEL" ] || [ "$MODEL_NUM" = "SCXF11BFL" ]; then

@@ -254,7 +254,7 @@ FACTORY_RESET_REASON=false
 HOTSPOT_BLOB="/nvram/hotspot_blob"
 HOTSPOT_JSON="/nvram/hotspot.json"
 MWO_PATH="/opt/secure/mwo"
-CHANNEL_KEEPOUT_PATH="/nvram/mesh"
+CHANNEL_KEEPOUT_PATH="/opt/secure/mesh"
 
 if [ -d $SYSCFG_ENCRYPTED_PATH ]; then
        if [ ! -d $SYSCFG_PERSISTENT_PATH ]; then

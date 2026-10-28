@@ -200,7 +200,7 @@ PSM_TMP_XML_CONFIG_FILE_NAME="$SYSCFG_MOUNT/bbhm_tmp_cfg.xml"
 HOTSPOT_BLOB="/nvram/hotspot_blob"
 HOTSPOT_JSON="/nvram/hotspot.json"
 MWO_PATH="/opt/secure/mwo"
-CHANNEL_KEEPOUT_PATH="/nvram/mesh"
+CHANNEL_KEEPOUT_PATH="/opt/secure/mesh"
 
 CheckAndReCreateDB()
 {
