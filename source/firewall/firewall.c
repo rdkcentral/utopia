@@ -8984,29 +8984,8 @@ static int do_device_based_parcon(FILE *natFp, FILE* filterFp)
 #define XDNS_DEFAULT_MAC          "00:00:00:00:00:00"
 
 #ifdef XDNS_ENABLE
-/*
-** XDNS - Decide whether the DNS IP carried by the default (00:00:00:00:00:00)
-**        dnsoverride entry is just the device's normal, non-XDNS DNS server -
-**        i.e. the LAN IP itself, or one of the ISP/WAN provisioned DNS
-**        servers (e.g. Comcast's primary/secondary resolvers handed out over
-**        DHCP). In that case every LAN client is already using that DNS
-**        server, so there is nothing to override by default: only clients
-**        explicitly tagged with their own dnsoverride MAC entry need to be
-**        redirected to dnsmasq. If the default DNS IP is anything else
-**        (e.g. an actual XDNS/content-filtering server), XDNS is effectively
-**        applied to every client, so every client's DNS traffic must be
-**        redirected to dnsmasq, same as before (RDKB-64441).
-**        Returns 1 if default_dns is just the normal (non-XDNS) DNS server,
-**        0 if it represents an actual, device-wide XDNS redirection target.
-**/
-/*
-** XDNS - Compare two textual IP addresses (v4 or v6) for logical equality,
-**        not just byte-for-byte string equality. This matters for IPv6 in
-**        particular, since the same address can be written in different
-**        valid textual forms (e.g. "2001:558:feed::1" vs
-**        "2001:0558:feed:0:0:0:0:1"), which a plain strcmp would wrongly
-**        treat as different addresses.
-**/
+/* Compares two textual IPv4/IPv6 addresses for logical, not string, equality
+ * (e.g. "2001:558:feed::1" == "2001:0558:feed:0:0:0:0:1"). */
 static int xdns_addr_equal(int iptype, const char *a, const char *b)
 {
 	unsigned char abuf[sizeof(struct in6_addr)];
@@ -9027,6 +9006,13 @@ static int xdns_addr_equal(int iptype, const char *a, const char *b)
 	return 0 == strcmp(a, b);
 }
 
+/*
+** XDNS - Returns 1 if the default (00:00:00:00:00:00) dnsoverride entry's
+**        DNS IP is just the device's normal DNS (LAN IP or ISP/WAN DNS) -
+**        meaning only explicitly-tagged clients need redirecting. Returns 0
+**        if it's an actual XDNS server, meaning XDNS applies device-wide and
+**        every client must be redirected (RDKB-64441).
+**/
 static int is_xdns_default_non_override(int iptype, const char *default_dns, const char *lan_ip)
 {
 	if (default_dns == NULL || default_dns[0] == '\0')
@@ -9044,14 +9030,9 @@ static int is_xdns_default_non_override(int iptype, const char *default_dns, con
 		int i;
 		char ns_enabled[8] = {0};
 
-		/* dhcp_nameserver_1/2/3 are admin-configured Static LAN DNS values
-		 * (see dhcp_server_functions.c), and are only actually offered to
-		 * LAN clients when "dhcp_nameserver_enabled" is set (gated the same
-		 * way dhcp_server_functions.c:get_dhcp_option_for_brlan0() uses
-		 * them). Check them too, but only when enabled, in case an admin
-		 * pinned the LAN DNS to these; the real WAN-provisioned DNS
-		 * comparison is against the "wan_dhcp_dns" sysevent below
-		 * (RDKB-64441 review). */
+		/* Static LAN DNS (dhcp_nameserver_1/2/3) only applies when
+		 * dhcp_nameserver_enabled is set, same gating as
+		 * dhcp_server_functions.c:get_dhcp_option_for_brlan0() (review). */
 		if (0 == syscfg_get(NULL, "dhcp_nameserver_enabled", ns_enabled, sizeof(ns_enabled)) &&
 		    ns_enabled[0] != '\0' && 1 == atoi(ns_enabled))
 		{
@@ -9103,16 +9084,8 @@ static int is_xdns_default_non_override(int iptype, const char *default_dns, con
 	return 0;
 }
 
-/*
-** XDNS - Redirect DNS requests only from XDNS clients (dnsoverride entries in
-**        /nvram/dnsmasq_servers.conf) to dnsmasq, instead of redirecting all LAN
-**        DNS traffic. This avoids flooding dnsmasq's DNS forward queue when a
-**        non-XDNS client floods DNS requests (RDKB-64441). If the default
-**        dnsoverride entry targets an actual XDNS server (rather than just
-**        the LAN IP or an ISP/WAN DNS server), every LAN client is redirected
-**        instead, since XDNS then effectively applies to all of them.
-**        Returns the number of redirect rules written.
-**/
+// Emits one DNAT rule redirecting DNS (UDP+TCP/53) to dns_dest, optionally
+// matched to a single client MAC (macaddr == NULL means "all clients").
 static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, char *macaddr, char *dns_dest)
 {
 	char mac_match[64] = {0};
@@ -9144,6 +9117,12 @@ static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, char *macaddr, ch
 	}
 }
 
+// Redirects DNS to dnsmasq only for actual XDNS clients (dnsoverride entries
+// in /nvram/dnsmasq_servers.conf) instead of all LAN traffic, to avoid
+// flooding dnsmasq's queue when a non-XDNS client floods DNS requests
+// (RDKB-64441). Falls back to redirecting every client when XDNS is
+// effectively device-wide (see is_xdns_default_non_override()) or when a
+// masked-MAC entry can't be matched individually. Returns rules written.
 static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 {
 	FILE *fp = NULL;
@@ -9199,12 +9178,9 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 
 		if (is_default)
 		{
-			// The default entry applies to every client that has no
-			// specific MAC override. Multiple default (all-zero MAC)
-			// entries can exist at once (e.g. primary + secondary default
-			// DNS, see XDNS_Commit()); evaluate each independently and OR
-			// the results, so that a non-override secondary entry can't
-			// mask an override-requiring primary entry (or vice versa).
+			// Multiple default (all-zero MAC) entries can exist (primary
+			// + secondary); OR their override-need so neither masks the
+			// other.
 			if (matched_ip != NULL && !is_xdns_default_non_override(iptype, matched_ip, dns_dest))
 			{
 				FIREWALL_DEBUG("### XDNS - default DNS (%s) is an XDNS target, redirecting all clients\n" COMMA matched_ip);
@@ -9215,12 +9191,9 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 
 		if (35 == maclen)
 		{
-			// iptables' "mac" match only supports an exact 6-byte compare,
-			// it cannot match a MAC/MASK range. We can't emit a selective
-			// per-client rule for this entry, so fall back to redirecting
-			// every client; dnsmasq's own dnsoverride matching (which does
-			// understand the mask) still applies the right override once
-			// the query reaches it, same as before RDKB-64441.
+			// iptables' mac match can't do a masked compare; fall back to
+			// a global redirect (dnsmasq's own dnsoverride still applies
+			// the masked override once the query arrives, as before).
 			FIREWALL_DEBUG("### XDNS - masked MAC entry (%s) cannot be matched by iptables, redirecting all clients\n" COMMA macaddr);
 			need_global_redirect = 1;
 			continue;
@@ -9264,8 +9237,6 @@ int do_dns_route(FILE *nat_fp, int iptype) {
 			// Check if lan ip is up. Need to route dns requests to dnsmasq through lan0.
 			if ('\0' != lan_ipaddr[0] && 0 != strcmp("0.0.0.0", lan_ipaddr) )
 			{
-				// Redirect only XDNS clients to dnsmasq, instead of all LAN DNS traffic,
-				// to avoid flooding dnsmasq's DNS queue from non-XDNS clients.
 				int nrules = do_xdns_client_dns_route(nat_fp, 4, lan_ipaddr);
 				printf("### XDNS : Feature Enabled XDNS ipv4, %d client redirect rule(s) added ### \n", nrules);
 			}
@@ -9283,8 +9254,6 @@ int do_dns_route(FILE *nat_fp, int iptype) {
 			// Check if lan ipv6 is up.
 			if ('\0' != lan_ipv6addr[0] && 0 != strcmp("", lan_ipv6addr) && 0 != strcmp("::", lan_ipv6addr))
 			{
-				// Redirect only XDNS clients to dnsmasq, instead of all LAN DNS traffic,
-				// to avoid flooding dnsmasq's DNS queue from non-XDNS clients.
 				int nrules = do_xdns_client_dns_route(nat_fp, 6, lan_ipv6addr);
 				printf("### XDNS : Feature Enabled (XDNS ipv6), %d client redirect rule(s) added ### \n", nrules);
 			}
