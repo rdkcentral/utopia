@@ -8999,6 +8999,34 @@ static int do_device_based_parcon(FILE *natFp, FILE* filterFp)
 **        Returns 1 if default_dns is just the normal (non-XDNS) DNS server,
 **        0 if it represents an actual, device-wide XDNS redirection target.
 **/
+/*
+** XDNS - Compare two textual IP addresses (v4 or v6) for logical equality,
+**        not just byte-for-byte string equality. This matters for IPv6 in
+**        particular, since the same address can be written in different
+**        valid textual forms (e.g. "2001:558:feed::1" vs
+**        "2001:0558:feed:0:0:0:0:1"), which a plain strcmp would wrongly
+**        treat as different addresses.
+**/
+static int xdns_addr_equal(int iptype, const char *a, const char *b)
+{
+	unsigned char abuf[sizeof(struct in6_addr)];
+	unsigned char bbuf[sizeof(struct in6_addr)];
+	int af = (iptype == 6) ? AF_INET6 : AF_INET;
+
+	if (a == NULL || b == NULL)
+	{
+		return 0;
+	}
+
+	if (1 == inet_pton(af, a, abuf) && 1 == inet_pton(af, b, bbuf))
+	{
+		return 0 == memcmp(abuf, bbuf, (iptype == 6) ? sizeof(struct in6_addr) : sizeof(struct in_addr));
+	}
+
+	// Fall back to a plain string compare if either side fails to parse.
+	return 0 == strcmp(a, b);
+}
+
 static int is_xdns_default_non_override(int iptype, const char *default_dns, const char *lan_ip)
 {
 	if (default_dns == NULL || default_dns[0] == '\0')
@@ -9006,7 +9034,7 @@ static int is_xdns_default_non_override(int iptype, const char *default_dns, con
 		return 1;
 	}
 
-	if (lan_ip != NULL && 0 == strcmp(default_dns, lan_ip))
+	if (lan_ip != NULL && xdns_addr_equal(iptype, default_dns, lan_ip))
 	{
 		return 1;
 	}
@@ -9014,21 +9042,30 @@ static int is_xdns_default_non_override(int iptype, const char *default_dns, con
 	if (iptype == 4)
 	{
 		int i;
+		char ns_enabled[8] = {0};
+
 		/* dhcp_nameserver_1/2/3 are admin-configured Static LAN DNS values
-		 * (see dhcp_server_functions.c), not the actual ISP/WAN-provisioned
-		 * resolvers. Check them too in case an admin pinned the LAN DNS to
-		 * these, but the real WAN-provisioned DNS comparison is against the
-		 * "wan_dhcp_dns" sysevent below (RDKB-64441 review). */
-		const char *ns_keys[3] = {"dhcp_nameserver_1", "dhcp_nameserver_2", "dhcp_nameserver_3"};
-
-		for (i = 0; i < 3; i++)
+		 * (see dhcp_server_functions.c), and are only actually offered to
+		 * LAN clients when "dhcp_nameserver_enabled" is set (gated the same
+		 * way dhcp_server_functions.c:get_dhcp_option_for_brlan0() uses
+		 * them). Check them too, but only when enabled, in case an admin
+		 * pinned the LAN DNS to these; the real WAN-provisioned DNS
+		 * comparison is against the "wan_dhcp_dns" sysevent below
+		 * (RDKB-64441 review). */
+		if (0 == syscfg_get(NULL, "dhcp_nameserver_enabled", ns_enabled, sizeof(ns_enabled)) &&
+		    ns_enabled[0] != '\0' && 1 == atoi(ns_enabled))
 		{
-			char ns[64] = {0};
+			const char *ns_keys[3] = {"dhcp_nameserver_1", "dhcp_nameserver_2", "dhcp_nameserver_3"};
 
-			if (0 == syscfg_get(NULL, ns_keys[i], ns, sizeof(ns)) &&
-			    ns[0] != '\0' && 0 == strcmp(default_dns, ns))
+			for (i = 0; i < 3; i++)
 			{
-				return 1;
+				char ns[64] = {0};
+
+				if (0 == syscfg_get(NULL, ns_keys[i], ns, sizeof(ns)) &&
+				    ns[0] != '\0' && xdns_addr_equal(iptype, default_dns, ns))
+				{
+					return 1;
+				}
 			}
 		}
 
@@ -9040,7 +9077,7 @@ static int is_xdns_default_non_override(int iptype, const char *default_dns, con
 			sysevent_get(sysevent_fd, sysevent_token, "wan_dhcp_dns", wanns, sizeof(wanns));
 			for (tok = strtok_r(wanns, " \t\n\r", &saveptr); tok != NULL; tok = strtok_r(NULL, " \t\n\r", &saveptr))
 			{
-				if (0 == strcmp(default_dns, tok))
+				if (xdns_addr_equal(iptype, default_dns, tok))
 				{
 					return 1;
 				}
@@ -9056,7 +9093,7 @@ static int is_xdns_default_non_override(int iptype, const char *default_dns, con
 		sysevent_get(sysevent_fd, sysevent_token, "ipv6_nameserver", ipv6ns, sizeof(ipv6ns));
 		for (tok = strtok_r(ipv6ns, " \t\n\r", &saveptr); tok != NULL; tok = strtok_r(NULL, " \t\n\r", &saveptr))
 		{
-			if (0 == strcmp(default_dns, tok))
+			if (xdns_addr_equal(iptype, default_dns, tok))
 			{
 				return 1;
 			}
@@ -9111,8 +9148,7 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 {
 	FILE *fp = NULL;
 	char entry[256] = {0};
-	char default_dns[64] = {0};
-	int have_default_entry = 0;
+	int need_global_redirect = 0;
 	int rules = 0;
 
 	fp = fopen(XDNS_DNSMASQ_SERVERS_CONF, "r");
@@ -9130,6 +9166,7 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 		char *field = NULL;
 		char *matched_ip = NULL;
 		int is_default = 0;
+		size_t maclen;
 
 		if (token == NULL || 0 != strcmp(token, "dnsoverride"))
 		{
@@ -9137,7 +9174,11 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 		}
 
 		macaddr = strtok_r(NULL, " \t\n\r", &saveptr);
-		if (macaddr == NULL || 17 != strlen(macaddr))
+		maclen = (macaddr != NULL) ? strlen(macaddr) : 0;
+		// Plain MAC is 17 chars ("aa:bb:cc:dd:ee:ff"); XDNS also accepts a
+		// masked MAC/MASK form of 35 chars (see isValidMacAddress() in
+		// cosa_xdns_dml.c), used to match a range of devices.
+		if (macaddr == NULL || (17 != maclen && 35 != maclen))
 		{
 			continue;
 		}
@@ -9159,13 +9200,29 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 		if (is_default)
 		{
 			// The default entry applies to every client that has no
-			// specific MAC override; decide after the loop whether that
-			// means "all clients" or "no clients" need to be redirected.
-			if (matched_ip != NULL)
+			// specific MAC override. Multiple default (all-zero MAC)
+			// entries can exist at once (e.g. primary + secondary default
+			// DNS, see XDNS_Commit()); evaluate each independently and OR
+			// the results, so that a non-override secondary entry can't
+			// mask an override-requiring primary entry (or vice versa).
+			if (matched_ip != NULL && !is_xdns_default_non_override(iptype, matched_ip, dns_dest))
 			{
-				strncpy(default_dns, matched_ip, sizeof(default_dns) - 1);
-				have_default_entry = 1;
+				FIREWALL_DEBUG("### XDNS - default DNS (%s) is an XDNS target, redirecting all clients\n" COMMA matched_ip);
+				need_global_redirect = 1;
 			}
+			continue;
+		}
+
+		if (35 == maclen)
+		{
+			// iptables' "mac" match only supports an exact 6-byte compare,
+			// it cannot match a MAC/MASK range. We can't emit a selective
+			// per-client rule for this entry, so fall back to redirecting
+			// every client; dnsmasq's own dnsoverride matching (which does
+			// understand the mask) still applies the right override once
+			// the query reaches it, same as before RDKB-64441.
+			FIREWALL_DEBUG("### XDNS - masked MAC entry (%s) cannot be matched by iptables, redirecting all clients\n" COMMA macaddr);
+			need_global_redirect = 1;
 			continue;
 		}
 
@@ -9175,11 +9232,10 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 
 	fclose(fp);
 
-	if (have_default_entry && !is_xdns_default_non_override(iptype, default_dns, dns_dest))
+	if (need_global_redirect)
 	{
-		// The default entry targets an actual XDNS server, so XDNS applies
-		// device-wide: redirect every LAN client's DNS traffic to dnsmasq.
-		FIREWALL_DEBUG("### XDNS - default DNS (%s) is an XDNS target, redirecting all clients\n" COMMA default_dns);
+		// XDNS applies device-wide (or to a MAC range iptables can't match
+		// individually): redirect every LAN client's DNS traffic to dnsmasq.
 		emit_xdns_dns_route_rule(nat_fp, iptype, NULL, dns_dest);
 		rules++;
 	}
