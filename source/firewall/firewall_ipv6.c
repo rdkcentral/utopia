@@ -267,7 +267,8 @@ int prepare_ipv6_firewall(const char *fw_file)
    
    errno_t safec_rc = -1;
    if (wan6_ifname[0] == '\0'){
-       safec_rc = strcpy_s(wan6_ifname, sizeof(wan6_ifname),current_wan_ifname);
+       const char *wan_ifname_src = current_wan_ifname;
+       safec_rc = strcpy_s(wan6_ifname, sizeof(wan6_ifname), wan_ifname_src);
        ERR_CHK(safec_rc);
     }
 

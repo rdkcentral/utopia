@@ -169,6 +169,7 @@ ulog_get_mesgs (UCOMP comp, USUBCOMP sub, char *mesgbuf, unsigned int size)
 {
     FILE *fp;
     char match_string[128], linebuf[256];
+    const char *line_src = linebuf;
     errno_t  rc = -1;
 
     if (NULL == mesgbuf) {
@@ -191,7 +192,7 @@ ulog_get_mesgs (UCOMP comp, USUBCOMP sub, char *mesgbuf, unsigned int size)
             if (lsz >= remaining_sz) {
                 break;  // no more room
             }
-            rc = strcat_s(mesgbuf, ULOG_STR_SIZE, linebuf);
+            rc = strcat_s(mesgbuf, ULOG_STR_SIZE, line_src);
             ERR_CHK(rc);
             remaining_sz -= lsz;
         }

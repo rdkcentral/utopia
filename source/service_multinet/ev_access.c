@@ -66,9 +66,10 @@ static void include_netInst(PL2Net net) {
     int match = 0;
     int len = 0;
     errno_t   rc  = -1;
+    const char *live_net_src = liveNetBuf;
     
     sysevent_get(sysevent_fd_interactive, sysevent_token_interactive, "multinet-instances", liveNetBuf, sizeof(liveNetBuf));
-    rc = strcpy_s(outBuf, sizeof(outBuf), liveNetBuf);
+    rc = strcpy_s(outBuf, sizeof(outBuf), live_net_src);
     ERR_CHK(rc);
     
     for(buf = liveNetBuf; (tok = strtok_r(buf, " ", &save)); buf = NULL) {

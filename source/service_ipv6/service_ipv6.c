@@ -777,6 +777,7 @@ STATIC int get_active_lanif(struct serv_ipv6 *si6, unsigned int insts[], unsigne
 STATIC int get_pd_pool(struct serv_ipv6 *si6, pd_pool_t *pool)
 {
     char evt_val[256];
+    const char *evt_val_src = evt_val;
     errno_t rc = -1;
 
     evt_val[0] = 0;
@@ -785,7 +786,7 @@ STATIC int get_pd_pool(struct serv_ipv6 *si6, pd_pool_t *pool)
     {
         return -1;
     }
-    rc = strcpy_s(pool->start, sizeof(pool->start), evt_val);
+    rc = strcpy_s(pool->start, sizeof(pool->start), evt_val_src);
     ERR_CHK(rc);
 
     evt_val[0] = 0;
@@ -794,7 +795,7 @@ STATIC int get_pd_pool(struct serv_ipv6 *si6, pd_pool_t *pool)
     {
         return -1;
     }
-    rc = strcpy_s(pool->end, sizeof(pool->end), evt_val);
+    rc = strcpy_s(pool->end, sizeof(pool->end), evt_val_src);
     ERR_CHK(rc);
 
     evt_val[0] = 0;
@@ -840,6 +841,7 @@ STATIC int divide_ipv6_prefix(struct serv_ipv6 *si6)
     char                iface_name[64];
     int                 used_sub_prefix_num = 0; 
     errno_t  rc = -1;
+    const char *prefix_len_suffix = "/64";
 
     sysevent_set(si6->sefd, si6->setok, "ipv6_prefix-divided", "", 0);
 
@@ -958,7 +960,7 @@ STATIC int divide_ipv6_prefix(struct serv_ipv6 *si6)
 #endif		
         memcpy((void *)buf, (void *)&tmp_prefix, 8);
         inet_ntop(AF_INET6, buf, iface_prefix, INET6_ADDRSTRLEN);
-        rc = strcat_s(iface_prefix, sizeof(iface_prefix), "/64");
+        rc = strcat_s(iface_prefix, sizeof(iface_prefix), prefix_len_suffix);
         ERR_CHK(rc);
 
         /*set related sysevent*/
@@ -1021,7 +1023,7 @@ int compute_global_ip(char *prefix, char *if_name, char *ipv6_addr, unsigned int
     char            tmp[8]           = {0};
     char            mac[32]          = {0};
     errno_t   rc  = -1;
-
+    const char *eui64_fffe = "FF:FE:";
     rc = strcpy_s(globalIP, sizeof(globalIP), prefix);
     ERR_CHK(rc);
 
@@ -1090,7 +1092,7 @@ int compute_global_ip(char *prefix, char *if_name, char *ipv6_addr, unsigned int
     //00:50:56: FF:FE:  92:00:22
     strncpy(out, mac, 9);
     out[9] = '\0';
-    rc = strcat_s(out, sizeof(out), "FF:FE:");
+    rc = strcat_s(out, sizeof(out), eui64_fffe);
     ERR_CHK(rc);
     rc = strcat_s(out, sizeof(out), mac+9);
     ERR_CHK(rc);
@@ -1864,7 +1866,8 @@ STATIC int gen_dibbler_conf(struct serv_ipv6 *si6)
                 fprintf(fp, "   {\n");
 		if (colon_count == 5)
                 {
-                	rc = strcat_s(dummyAddr, sizeof(dummyAddr), ":123");
+                	const char *addr_suffix = ":123";
+                    rc = strcat_s(dummyAddr, sizeof(dummyAddr), addr_suffix);
                 	ERR_CHK(rc);
 			fprintf(fp, "   address %s\n",dummyAddr);
 			fprintf(fp, "   prefix %s:/64\n",prefix_value);

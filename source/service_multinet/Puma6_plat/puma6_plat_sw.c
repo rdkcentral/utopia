@@ -76,6 +76,7 @@ int configVlan_ESW(PSWFabHALArg args, int numArgs, BOOL up)
     PSwPortState portState;
     char ifname[80];
     char temp_ifname[80];
+    const char *tag_suffix = "-t";
     errno_t  rc = -1;
     memset(ifname, 0, 80);
     memset(temp_ifname, 0, 80);
@@ -86,7 +87,7 @@ int configVlan_ESW(PSWFabHALArg args, int numArgs, BOOL up)
         stringIDExtSw(portState, temp_ifname, sizeof(temp_ifname));
         if (args[i].vidParams.tagging)
         {
-            rc = strcat_s(temp_ifname, sizeof(temp_ifname), "-t");
+            rc = strcat_s(temp_ifname, sizeof(temp_ifname), tag_suffix);
             ERR_CHK(rc);
         }
         rc = strcat_s(ifname, sizeof(ifname), temp_ifname);
@@ -124,13 +125,14 @@ int configVlan_WiFi(PSWFabHALArg args, int numArgs, BOOL up)
     char portID[80];
     memset(portID, 0, 80);
     errno_t  rc = -1;
+    const char *tag_suffix = "-t";
 
     for (i = 0; i < numArgs; ++i ) 
     { 
         rc = strcat_s(portID, sizeof(portID), (char*)args[i].portID);
         ERR_CHK(rc);
         if (args[i].vidParams.tagging){
-            rc = strcat_s(portID, sizeof(portID), "-t");
+            rc = strcat_s(portID, sizeof(portID), tag_suffix);
             ERR_CHK(rc);
         }
         if (i < (numArgs - 1)){
