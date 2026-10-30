@@ -326,10 +326,11 @@ int DeviceBlocked_func(char *line, char *desp, char *key){
 
     if( NULL != strstr(key, STRING_DEVICE_BLOCKED_ALL)){
         // Here desp is pointer, It's pointing to the array size is DESP_SIZE
+        const char *blocked_all_desc = "Blocked Unallowed Devices";
         const char *blocked_all_key = STRING_DEVICE_BLOCKED_ALL;
-        safec_rc = strcpy_s(key, KEY_SIZE, blocked_all_key);
+        safec_rc = strcpy_s(desp, DESP_SIZE, blocked_all_desc);
         ERR_CHK(safec_rc);
-        safec_rc = strcpy_s(key, KEY_SIZE,STRING_DEVICE_BLOCKED_ALL);
+        safec_rc = strcpy_s(key, KEY_SIZE, blocked_all_key);
         ERR_CHK(safec_rc);
         return 0;
     }else if(NULL != (c = strstr(line, "MAC "))){

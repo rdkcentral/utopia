@@ -6007,8 +6007,10 @@ static int do_lan2self_by_wanip(FILE *filter_fp, int family)
    tmpQuery[0] = '\0';
    ret = syscfg_get(NULL, "mgmt_wan_httpport_ert", tmpQuery, sizeof(tmpQuery));
    if(ret == 0){
-       errno_t safec_rc = strcpy_s(httpport, sizeof(httpport),tmpQuery);
-       ERR_CHK(safec_rc);
+      const char *http_port_src = tmpQuery;
+      errno_t safec_rc = strcpy_s(httpport, sizeof(httpport),
+                                  http_port_src);
+      ERR_CHK(safec_rc);
    }
 #endif
    //>>zqiu 
@@ -11638,7 +11640,7 @@ static int prepare_ethernetbhaul_greclamp( FILE *mangle_fp) {
             safec_rc = strcpy_s(xhs, sizeof(xhs),pVal);
             ERR_CHK(safec_rc);
     }else {
-            const char *default_xhs_bridge = XHS_BRIDGE;
+            const char *default_xhs_bridge = "brlan1";
             safec_rc = strcpy_s(xhs, sizeof(xhs), default_xhs_bridge);
             ERR_CHK(safec_rc);
     }
