@@ -2377,6 +2377,7 @@ static int prepare_globals_from_configuration(void)
    char cmdiag_ifname_rejected[sizeof(cmdiag_ifname) + 1] = {0};
    size_t cmdiag_ifname_len;
    errno_t  safec_rc  = -1;
+   const char *wan_ip_src = current_wan_ipaddr;
    FIREWALL_DEBUG("Entering prepare_globals_from_configuration\n");       
    tmp[0] = '\0';
    // use wan protocol determined wan interface name if possible, else use default (the name used by the OS)
@@ -2823,7 +2824,7 @@ static int prepare_globals_from_configuration(void)
 
    if(isWanReady && isNatEnabled == 1){
        isNatReady = 1;
-       safec_rc = strcpy_s(natip4, sizeof(natip4),current_wan_ipaddr);
+       safec_rc = strcpy_s(natip4, sizeof(natip4), wan_ip_src);
        ERR_CHK(safec_rc);
    }else if(isWanReady && isNatEnabled == 2 && isWanStaticIPReady ){
        isNatReady = 1;
@@ -2831,7 +2832,7 @@ static int prepare_globals_from_configuration(void)
        ERR_CHK(safec_rc);
    }else if(isWanReady && isNatEnabled == 2 && isWanStaticIPReady == 0 ){
        /* RDKB-34155 When True static IP configured device moved to bridge mode */
-       safec_rc = strcpy_s(natip4, sizeof(natip4),current_wan_ipaddr);
+       safec_rc = strcpy_s(natip4, sizeof(natip4), wan_ip_src);
        ERR_CHK(safec_rc);
        isNatReady = 1;  
    }else 
@@ -2847,7 +2848,7 @@ static int prepare_globals_from_configuration(void)
         if(!isFeatureSupportedInCurrentMode(FEATURE_TRUE_STATIC_IP))
    #endif
     {
-    safec_rc = strcpy_s(natip4, sizeof(natip4),current_wan_ipaddr);
+    safec_rc = strcpy_s(natip4, sizeof(natip4), wan_ip_src);
     ERR_CHK(safec_rc);
     isNatReady = isWanReady;
     }
@@ -4876,7 +4877,8 @@ static int do_dmz(FILE *nat_fp, FILE *filter_fp)
    tmphttpQuery[0] = '\0';
    status_http_ert = syscfg_get(NULL, "mgmt_wan_httpport_ert", tmphttpQuery, sizeof(tmphttpQuery));
 if(status_http_ert == 0){
-       errno_t safec_rc = strcpy_s(Httpport, sizeof(Httpport),tmphttpQuery);
+       const char *http_port_src = tmphttpQuery;
+       errno_t safec_rc = strcpy_s(Httpport, sizeof(Httpport), http_port_src);
        ERR_CHK(safec_rc);
    }
    #endif
@@ -5070,7 +5072,8 @@ static int write_qos_classification_statement (FILE *fp, FILE *qos_fp, char *nam
            safec_rc = strcpy_s(subst_hook, sizeof(subst_hook),"prerouting_qos");
            ERR_CHK(safec_rc);
          } else if (0 == strcasestr(hook, "POSTROUTING") ) {
-            safec_rc = strcpy_s(subst_hook, sizeof(subst_hook),"postrouting_qos");
+            const char *postrouting_chain = "postrouting_qos";
+            safec_rc = strcpy_s(subst_hook, sizeof(subst_hook), postrouting_chain);
             ERR_CHK(safec_rc);
          } else {
             continue;
@@ -7024,8 +7027,9 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
            ERR_CHK(safec_rc);
         }
         if (port != 80) {
-           safec_rc = strcat_s(httpport, sizeof(httpport), ",80");
-           ERR_CHK(safec_rc);
+           const char *http_port_suffix = ",80";
+           safec_rc = strcat_s(httpport, sizeof(httpport), http_port_suffix);
+         ERR_CHK(safec_rc);
         }
 
         port = (httpsport[0]) ? atoi(httpsport) : -1;
@@ -7035,7 +7039,8 @@ int do_remote_access_control(FILE *nat_fp, FILE *filter_fp, int family)
             ERR_CHK(safec_rc);
         }
         if (port != 443) {
-           safec_rc = strcat_s(httpport, sizeof(httpport), ",443");
+           const char *https_port_suffix = ",443";
+           safec_rc = strcat_s(httpsport, sizeof(httpsport), https_port_suffix);
            ERR_CHK(safec_rc);
         }
 		
@@ -8358,6 +8363,7 @@ static int determine_enforcement_schedule2(FILE *cron_fp, const char *namespace)
    char query[MAX_QUERY];
     FIREWALL_DEBUG("Entering determine_enforcement_schedule2\n");  
    int always = 1;
+   const char *default_policy_time = "0:0";
    query[0] = '\0';
    rc = syscfg_get(namespace, "always", query, sizeof(query));
    if (0 != rc || '\0' == query[0] || query[0] == '0') always = 0;
@@ -8370,13 +8376,14 @@ static int determine_enforcement_schedule2(FILE *cron_fp, const char *namespace)
 
    rc = syscfg_get(namespace, "start_time", policy_time_start, sizeof(policy_time_start));
    if (rc != 0 || policy_time_start[0] == '\0'){
-     safec_rc = strcpy_s(policy_time_start, sizeof(policy_time_start),"0:0");
+     safec_rc = strcpy_s(policy_time_start, sizeof(policy_time_start),
+                   default_policy_time);
      ERR_CHK(safec_rc);
    }
 
    rc = syscfg_get(namespace, "end_time", policy_time_stop, sizeof(policy_time_stop));
    if (rc != 0 || policy_time_stop[0] == '\0'){
-      safec_rc = strcpy_s(policy_time_stop, sizeof(policy_time_stop),"0:0");
+      safec_rc = strcpy_s(policy_time_stop, sizeof(policy_time_stop), default_policy_time);
       ERR_CHK(safec_rc);
    }
 
@@ -11631,7 +11638,8 @@ static int prepare_ethernetbhaul_greclamp( FILE *mangle_fp) {
             safec_rc = strcpy_s(xhs, sizeof(xhs),pVal);
             ERR_CHK(safec_rc);
     }else {
-            safec_rc = strcpy_s(xhs, sizeof(xhs),"brlan1");
+            const char *default_xhs_bridge = XHS_BRIDGE;
+            safec_rc = strcpy_s(xhs, sizeof(xhs), default_xhs_bridge);
             ERR_CHK(safec_rc);
     }
     if(pVal) {
@@ -13963,7 +13971,8 @@ void  redirect_dns_to_extender(FILE *nat_fp,int family)
                if (dest_ip[0] == '\0'  )
                {
                       memset(dest_ip,0,sizeof(dest_ip));
-                      safec_rc = strcpy_s(dest_ip, sizeof(dest_ip),"192.168.246.1");
+                      const char *default_extender_ip = "192.168.246.1";
+                      safec_rc = strcpy_s(dest_ip, sizeof(dest_ip), default_extender_ip);
                       ERR_CHK(safec_rc);
                }
          }

@@ -619,13 +619,15 @@ a_client_t *CLI_MGR_new_client(const char *name, const int fd)
  *    <0            : some error.
  */
 int CLI_MGR_init_clients_table(void)
-{   
+{
+   pthread_mutex_lock(&global_clients.mutex);
    global_clients.clients         = NULL;
    global_clients.num_cur_clients = 0;
    global_clients.max_cur_clients = 0;
    // initialize next id to give to client
    global_next_id = TOKEN_START;
    CLI_MGR_inited = 1;
+   pthread_mutex_unlock(&global_clients.mutex);
    return(0);
 }
 

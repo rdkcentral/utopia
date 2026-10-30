@@ -291,9 +291,10 @@ int SiteBlocked_func(char *line, char *desp, char *key){
     if(NULL != (c = strstr(line, "STRING match"))){
         c += strlen("STRING match");
         // Here desp is pointer, It's pointing to the array size is DESP_SIZE
-        safec_rc = strcpy_s(desp, DESP_SIZE, STRING_KEYWORD);
+        const char *keyword_prefix = STRING_KEYWORD;
+        safec_rc = strcpy_s(desp, DESP_SIZE, keyword_prefix);
         ERR_CHK(safec_rc);
-        tmp = _memcpy_quotes(desp + strlen(STRING_KEYWORD), c, DESP_SIZE - strlen(STRING_KEYWORD) - 1);
+        tmp = _memcpy_quotes(desp + strlen(keyword_prefix), c, DESP_SIZE - strlen(keyword_prefix) - 1);
         if(tmp != 0){
             tmp += strlen(STRING_KEYWORD);
             desp[tmp] = '\0';
@@ -325,7 +326,8 @@ int DeviceBlocked_func(char *line, char *desp, char *key){
 
     if( NULL != strstr(key, STRING_DEVICE_BLOCKED_ALL)){
         // Here desp is pointer, It's pointing to the array size is DESP_SIZE
-        safec_rc = strcpy_s(desp, DESP_SIZE,"Blocked Unallowed Devices");
+        const char *blocked_all_key = STRING_DEVICE_BLOCKED_ALL;
+        safec_rc = strcpy_s(key, KEY_SIZE, blocked_all_key);
         ERR_CHK(safec_rc);
         safec_rc = strcpy_s(key, KEY_SIZE,STRING_DEVICE_BLOCKED_ALL);
         ERR_CHK(safec_rc);
@@ -466,11 +468,12 @@ int anlz_rule(char* line, rule_info_t *info){
         return 0;
     } 
 
-    while(action_arry[i].action_name[i] != '\0'){
+    while(action_arry[i].action_name[0] != '\0'){
+        const char *action_name = action_arry[i].action_name;
         if(action_arry[i].get_desp != NULL){
             ret = action_arry[i].get_desp(line, info->desp, info->key);
             if(0 == ret){
-                safec_rc = strcpy_s(info->action, sizeof(info->action),action_arry[i].action_name);
+                safec_rc = strcpy_s(info->action, sizeof(info->action), action_name);
                 ERR_CHK(safec_rc);
                 info->count = count;
                 info->time[0] = '\0';
@@ -481,7 +484,7 @@ int anlz_rule(char* line, rule_info_t *info){
                 /* So use the DROP rule count */
                 flag = ARF_GET_NEXT_COUNT; // we need get next rule's count
                 tmp = *info;
-                safec_rc = strcpy_s(tmp.action, sizeof(tmp.action),action_arry[i].action_name);
+                safec_rc = strcpy_s(tmp.action, sizeof(tmp.action), action_name);
                 ERR_CHK(safec_rc);
                 info->time[0] = '\0';
                 return -1;    

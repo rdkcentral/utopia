@@ -340,6 +340,7 @@ static int dslite_start (struct serv_dslite *sd)
     char dslite_mode[16], dslite_addr_type[16];
     size_t len;
     errno_t safec_rc = -1;
+    const char *aftr_str = DSLITE_AFTR;
     
     if ((sd->rtmod != WAN_RTMOD_IPV6) && (sd->rtmod != WAN_RTMOD_DS))
     {
@@ -426,7 +427,7 @@ static int dslite_start (struct serv_dslite *sd)
 
     if (inet_pton (AF_INET6, DSLITE_AFTR, &v6_addr) == 1)   /* IPv6 address format, no need to do DNS resolution */
     {
-        safec_rc = strcpy_s (resolved_ipv6, sizeof(resolved_ipv6), DSLITE_AFTR); // CID 142880 : Destination buffer too small (STRING_OVERFLOW)
+                safec_rc = strcpy_s (resolved_ipv6, sizeof(resolved_ipv6), aftr_str); // CID 142880 : Destination buffer too small (STRING_OVERFLOW)
 	ERR_CHK(safec_rc);
         dnsttl = 0;
     }

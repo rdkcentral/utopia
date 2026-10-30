@@ -261,23 +261,40 @@ STATIC void set_mta_config ()
 
     while(strlen(opt122))
     {
-        // get sub-option
-        memset (subop, 0, sizeof(subop));
+        size_t remaining = strlen(opt122);
+        size_t value_len;
+
+        if (remaining < 4) {
+            printf("%s: Incomplete opt122 header\n", __FUNCTION__);
+            return;
+        }
+
+        if (opt122[2] < '0' || opt122[2] > '9' ||
+            opt122[3] < '0' || opt122[3] > '9') {
+            printf("%s: Invalid opt122 length\n", __FUNCTION__);
+            return;
+        }
+
+        len = (opt122[2] - '0') * 10 + (opt122[3] - '0');
+
+        if ((size_t)len > (sizeof(buff) - 1) / 2) {
+            printf("%s: opt122 value exceeds buffer capacity\n", __FUNCTION__);
+            return;
+        }
+
+        value_len = (size_t)len * 2;
+        if (value_len > remaining - 4) {
+            printf("%s: Incomplete opt122 value\n", __FUNCTION__);
+            return;
+        }
+
+        memset(subop, 0, sizeof(subop));
         memcpy(subop, opt122, 2);
-        opt122 += 2;
+        opt122 += 4;
 
-        // get length of suboption value
-        memset (buff, 0, sizeof(buff));
-        memcpy(buff, opt122, 2);
-        opt122 += 2;
-
-        len = atoi(buff);
-
-        // get value of the suboption
-        memset (buff, 0, sizeof(buff));
-        memcpy(buff, opt122, len * 2);
-        opt122 += len * 2;
-
+        memcpy(buff, opt122, value_len);
+        buff[value_len] = '\0';
+        opt122 += value_len;
 
         if (atoi(subop) == 1) 
         {
@@ -1274,6 +1291,7 @@ STATIC int get_and_fill_env_data (ipc_dhcpv4_data_t *dhcpv4_data, udhcpc_script_
 {
     char *env;
     errno_t safec_rc = -1;
+    const char *invalid_lease_gateway = "0.0.0.0";
 
     if (dhcpv4_data == NULL || pinfo == NULL)
     {
@@ -1342,7 +1360,7 @@ STATIC int get_and_fill_env_data (ipc_dhcpv4_data_t *dhcpv4_data, udhcpc_script_
             // Marking the lease as invalid based on the option 43 (MAPT Line customization)
             if(strcmp(pinfo->input_option, "invalid_lease") == 0){
                 OnboardLog("[%s-%d] invalid lease received set default gw to [0.0.0.0]  \n",  __FUNCTION__,__LINE__);
-                safec_rc = strcpy_s(dhcpv4_data->gateway, sizeof(dhcpv4_data->gateway), "0.0.0.0");
+                safec_rc = strcpy_s(dhcpv4_data->gateway, sizeof(dhcpv4_data->gateway), invalid_lease_gateway);
             }
             else{
                 safec_rc = strcpy_s(dhcpv4_data->gateway, sizeof(dhcpv4_data->gateway), pinfo->router); // CID 187457: Buffer not null terminated (BUFFER_SIZE)

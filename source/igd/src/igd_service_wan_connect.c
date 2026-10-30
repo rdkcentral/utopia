@@ -235,7 +235,10 @@ LOCAL INT32 _set_connection_type(INOUT struct action_event *event)
     }
 
     // check current connection status
-    safec_rc = strcpy_s(connectionstatus, sizeof(connectionstatus), event->service->state_variables[ConnectionStatus_index].value); // CID 282049: Buffer not null terminated (BUFFER_SIZE)
+    const char *connection_status_src =
+    event->service->state_variables[ConnectionStatus_index].value;
+    safec_rc = strcpy_s(connectionstatus, sizeof(connectionstatus),
+                   connection_status_src);
     ERR_CHK(safec_rc);
     RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "current connection status: %s\n", connectionstatus);
     if ((0 != strcmp(connectionstatus, "Unconfigured")) &&

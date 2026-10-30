@@ -356,9 +356,10 @@ INT32 IGD_pii_get_possible_connection_types(IN INT32 WanDeviceIndex,
     (void) WanConnectionDeviceIndex;
     (void) WanConnectionServiceIndex;
     (void) ServiceType;
+    const char *ipconntype_src = IPCONNTYPELIST;
     errno_t safec_rc = -1;
     if (ConnectionTypesList) {
-        safec_rc = strcpy_s(ConnectionTypesList, UPNP_LINE_SIZE ,IPCONNTYPELIST);
+        safec_rc = strcpy_s(ConnectionTypesList, UPNP_LINE_SIZE ,ipconntype_src);
         ERR_CHK(safec_rc);
     }
 
@@ -418,27 +419,16 @@ INT32 IGD_pii_get_connection_status(IN INT32 WanDeviceIndex,
     }
     Utopia_Free(&ctx, 0);
 
+    const char *status_str;
     switch (wan.status) {
-    case WAN_CONNECTED:
-        safec_rc = strcpy_s(ConnectionStatus, UPNP_LINE_SIZE,"Connected");
-        ERR_CHK(safec_rc);
-        break;
-    case WAN_CONNECTING:
-        safec_rc = strcpy_s(ConnectionStatus, UPNP_LINE_SIZE,"Connecting");
-        ERR_CHK(safec_rc);
-        break;
-    case WAN_DISCONNECTING:
-        safec_rc = strcpy_s(ConnectionStatus, UPNP_LINE_SIZE,"Disconnecting");
-        ERR_CHK(safec_rc);
-        break;
-    case WAN_DISCONNECTED:
-        safec_rc =  strcpy_s(ConnectionStatus, UPNP_LINE_SIZE,"Disconnected");
-        ERR_CHK(safec_rc);
-        break;
-    default:
-        safec_rc = strcpy_s(ConnectionStatus, UPNP_LINE_SIZE,"Unconfigured");
-        ERR_CHK(safec_rc);
+    case WAN_CONNECTED:     status_str = "Connected";     break;
+    case WAN_CONNECTING:    status_str = "Connecting";    break;
+    case WAN_DISCONNECTING: status_str = "Disconnecting"; break;
+    case WAN_DISCONNECTED:  status_str = "Disconnected";  break;
+    default:                status_str = "Unconfigured";  break;
     }
+    safec_rc = strcpy_s(ConnectionStatus, UPNP_LINE_SIZE, status_str);
+    ERR_CHK(safec_rc);
 
     return 0;
 }
@@ -471,8 +461,9 @@ INT32 IGD_pii_get_connection_type(IN INT32 WanDeviceIndex,
     (void) WanConnectionDeviceIndex;
     (void) WanConnectionServiceIndex;
     (void) ServiceType;
+    const char *connection_type_src = "IP_Routed";
     errno_t safec_rc = -1;
-    safec_rc = strcpy_s(ConnectionType, UPNP_LINE_SIZE,"IP_Routed");
+    safec_rc = strcpy_s(ConnectionType, UPNP_LINE_SIZE, connection_type_src);
     ERR_CHK(safec_rc);
     return 0;
 }
@@ -676,9 +667,10 @@ INT32 IGD_pii_get_link_layer_max_bitrate(IN INT32 WanDeviceIndex,
     (void) WanConnectionServiceIndex;
     (void) ServiceType;
     errno_t safec_rc = -1;
-    safec_rc = strcpy_s(UpRate, UPNP_LINE_SIZE,"10000000");
+    const char *max_bitrate_src = "10000000";    
+    safec_rc = strcpy_s(UpRate, UPNP_LINE_SIZE, max_bitrate_src);
     ERR_CHK(safec_rc);
-    safec_rc = strcpy_s(DownRate, UPNP_LINE_SIZE,"10000000");
+    safec_rc = strcpy_s(DownRate, UPNP_LINE_SIZE, max_bitrate_src);
     ERR_CHK(safec_rc);
     return 0;
 }
@@ -1110,7 +1102,10 @@ INT32 IGD_pii_get_portmapping_entry_generic( IN INT32 WanDeviceIndex,
         safec_rc = strcpy_s(PortmappingEntry->remoteHost, sizeof(PortmappingEntry->remoteHost),portmap.external_host);
         ERR_CHK(safec_rc);
         PortmappingEntry->internalPort = portmap.internal_port;
-        safec_rc = strcpy_s(PortmappingEntry->internalClient, sizeof(PortmappingEntry->internalClient),portmap.internal_host);
+        const char *internal_host_src = portmap.internal_host;
+        safec_rc = strcpy_s(PortmappingEntry->internalClient,
+                            sizeof(PortmappingEntry->internalClient),
+                            internal_host_src);
         ERR_CHK(safec_rc);		
 
         RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "%s: Lock released\n", __FUNCTION__);
@@ -1373,9 +1368,10 @@ INT32 IGD_pii_get_lan_dhcpserver_configurable(IN INT32 LanDeviceIndex, OUT CHAR 
 {
     (void) LanDeviceIndex;
     errno_t safec_rc = -1;
+    const char *not_configurable = "0";
     RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "%s: Enter\n", __FUNCTION__);
     // Here status is pointer, It's pointing to the array size is 16 bytes
-    safec_rc = strcpy_s(status, 16,"0");
+    safec_rc = strcpy_s(status, 16, not_configurable);
     ERR_CHK(safec_rc);
     return 0;
 }
@@ -1398,9 +1394,10 @@ INT32 IGD_pii_get_lan_dhcp_relay_status(IN INT32 LanDeviceIndex, OUT CHAR *statu
 {
     (void) LanDeviceIndex;
     errno_t safec_rc = -1;
+    const char *relay_status_src = "0";
     RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "%s: Enter\n", __FUNCTION__);
     // Here status is pointer, It's pointing to the array size is 16 bytes
-    safec_rc = strcpy_s(status, 16,"0");
+    safec_rc = strcpy_s(status, 16, relay_status_src);
     ERR_CHK(safec_rc);
     return 0;
 }
@@ -1574,6 +1571,11 @@ INT32 IGD_pii_get_lan_reserved_addr_list(IN INT32 LanDeviceIndex, OUT CHAR *rese
 
     RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "%s: Enter\n", __FUNCTION__);
 
+    if (NULL == reserved_list || max_list_sz <= 0) {
+        return 1;
+    }
+    reserved_list[0] = '\0';
+
     DHCPMap_t *dhcp_static_hosts = NULL;
     int        dhcp_static_hosts_count = 0;
     lanSetting_t lan;
@@ -1605,19 +1607,19 @@ INT32 IGD_pii_get_lan_reserved_addr_list(IN INT32 LanDeviceIndex, OUT CHAR *rese
     ct = sscanf(lan.ipaddr, "%d.%d.%d.%d", &octet1, &octet2, &octet3, &last_octet);
     if (4 == ct) {
         /*CID 71785 : Logically Dead Code*/
-        int first = 0;
-        char ipaddr[32];
+        size_t used = 0;
         for (i = 0; i < dhcp_static_hosts_count; i++) {
-            if (first) {
-                // append a comma
-                strncat(reserved_list, ",", max_list_sz);
-            } else {
-                first = 1;
+            int n = snprintf(reserved_list + used, (size_t)max_list_sz - used,
+                             "%s%d.%d.%d.%ld",
+                             (i > 0) ? "," : "",
+                             octet1, octet2, octet3,
+                             (long int)dhcp_static_hosts[i].host_ip);
+            if (n < 0 || (size_t)n >= (size_t)max_list_sz - used) {
+                // no room for this entry: drop the partial text and stop
+                reserved_list[used] = '\0';
+                break;
             }
-            //RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "%s: index [%d], name [%s], host_ip [%d], mac [%s]", __FUNCTION__, i, dhcp_static_hosts[i].client_name, dhcp_static_hosts[i].host_ip, dhcp_static_hosts[i].macaddr);
-            snprintf(ipaddr, sizeof(ipaddr), "%d.%d.%d.%ld", 
-                     octet1, octet2, octet3, (long int)dhcp_static_hosts[i].host_ip);
-            strncat(reserved_list, ipaddr, max_list_sz);
+            used += (size_t)n;
         }
     }
 
@@ -1627,3 +1629,5 @@ INT32 IGD_pii_get_lan_reserved_addr_list(IN INT32 LanDeviceIndex, OUT CHAR *rese
 
     return 0;
 }
+
+

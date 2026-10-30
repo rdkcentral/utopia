@@ -90,7 +90,10 @@ int ep_get_allMembers(PL2Net net, PMember live_members, int numMembers){
             live_members[curNumMembers].bTagging = 0;
         }
         live_members[curNumMembers].interface->map = NULL;
-        rc = strcpy_s(live_members[curNumMembers].interface->name, sizeof(live_members[curNumMembers].interface->name), ifnamebuf);
+        const char *ifname_src = ifnamebuf;
+        rc = strcpy_s(live_members[curNumMembers].interface->name,
+                      sizeof(live_members[curNumMembers].interface->name),
+                      ifname_src);
         ERR_CHK(rc);
         curNumMembers++;
     }
@@ -166,6 +169,7 @@ int ep_get_bridge(int l2netinst, PL2Net net) {
     char valbuf[64];
     net->inst = l2netinst;
     errno_t  rc = -1;
+    const char *bridge_name_src = valbuf;
     
     snprintf(keybuf, sizeof(keybuf),  MNET_EP_BRIDGE_VID_FORMAT(l2netinst));
     sysevent_get(sysevent_fd_interactive, sysevent_token_interactive,keybuf, valbuf, sizeof(valbuf));
@@ -178,7 +182,7 @@ int ep_get_bridge(int l2netinst, PL2Net net) {
     sysevent_get(sysevent_fd_interactive, sysevent_token_interactive,keybuf, valbuf, sizeof(valbuf));
     
     if(strlen(valbuf) > 0) {
-        rc = strcpy_s(net->name, sizeof(net->name), valbuf);
+        rc = strcpy_s(net->name, sizeof(net->name), bridge_name_src);
         ERR_CHK(rc);
     }
     return 0;
