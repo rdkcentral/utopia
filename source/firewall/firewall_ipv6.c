@@ -516,6 +516,8 @@ void do_ipv6_filter_table(FILE *fp){
    fprintf(fp, ":lan2wan_pc_service - [0:0]\n");
    fprintf(fp, ":wan2lan - [0:0]\n");
 
+   prepare_unbound_filter_rules(fp, IP_V6);
+
 #if defined(_SR213_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
    if (strcmp ( devicePartnerId, "sky-uk") == 0 || strcmp ( devicePartnerId, "sky-italia") == 0)
    {
@@ -2274,6 +2276,9 @@ void do_ipv6_nat_table(FILE* fp)
     fprintf(fp, "*nat\n");
 	fprintf(fp, ":%s - [0:0]\n", "prerouting_devices");
 	fprintf(fp, ":%s - [0:0]\n", "prerouting_redirect");
+
+   /* Must precede other port-53 DNAT/REDIRECT rules (extender) to take effect */
+   prepare_unbound_nat_rules(fp, IP_V6);
 
 #ifdef WAN_FAILOVER_SUPPORTED
 #if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_)
