@@ -8980,10 +8980,275 @@ static int do_device_based_parcon(FILE *natFp, FILE* filterFp)
 #endif
 
 
-/*
-** XDNS - Route DNS requests from LAN through dnsmasq.
-**/
+#define XDNS_DNSMASQ_SERVERS_CONF "/nvram/dnsmasq_servers.conf"
+#define XDNS_DEFAULT_MAC          "00:00:00:00:00:00"
+#define XDNS_IPSET_V4             "xdns_clients_v4"
+#define XDNS_IPSET_V6             "xdns_clients_v6"
+
 #ifdef XDNS_ENABLE
+/* Compares two textual IPv4/IPv6 addresses for logical, not string, equality
+ * (e.g. "2001:558:feed::1" == "2001:0558:feed:0:0:0:0:1"). */
+static int xdns_addr_equal(int iptype, const char *a, const char *b)
+{
+	unsigned char abuf[sizeof(struct in6_addr)];
+	unsigned char bbuf[sizeof(struct in6_addr)];
+	int af = (iptype == 6) ? AF_INET6 : AF_INET;
+
+	if (a == NULL || b == NULL)
+	{
+		return 0;
+	}
+
+	if (1 == inet_pton(af, a, abuf) && 1 == inet_pton(af, b, bbuf))
+	{
+		return 0 == memcmp(abuf, bbuf, (iptype == 6) ? sizeof(struct in6_addr) : sizeof(struct in_addr));
+	}
+
+	// Fall back to a plain string compare if either side fails to parse.
+	return 0 == strcmp(a, b);
+}
+
+/*
+** XDNS - Returns 1 if the default (00:00:00:00:00:00) dnsoverride entry's
+**        DNS IP is just the device's normal DNS (LAN IP or ISP/WAN DNS) -
+**        meaning only explicitly-tagged clients need redirecting. Returns 0
+**        if it's an actual XDNS server, meaning XDNS applies device-wide and
+**        every client must be redirected.
+**/
+static int is_xdns_default_non_override(int iptype, const char *default_dns, const char *lan_ip)
+{
+	if (default_dns == NULL || default_dns[0] == '\0')
+	{
+		return 1;
+	}
+
+	if (lan_ip != NULL && xdns_addr_equal(iptype, default_dns, lan_ip))
+	{
+		return 1;
+	}
+
+	if (iptype == 4)
+	{
+		int i;
+		char ns_enabled[8] = {0};
+
+		/* Static LAN DNS (dhcp_nameserver_1/2/3) only applies when
+		 * dhcp_nameserver_enabled is set, same gating as
+		 * dhcp_server_functions.c:get_dhcp_option_for_brlan0() (review). */
+		if (0 == syscfg_get(NULL, "dhcp_nameserver_enabled", ns_enabled, sizeof(ns_enabled)) &&
+		    ns_enabled[0] != '\0' && 1 == atoi(ns_enabled))
+		{
+			const char *ns_keys[3] = {"dhcp_nameserver_1", "dhcp_nameserver_2", "dhcp_nameserver_3"};
+
+			for (i = 0; i < 3; i++)
+			{
+				char ns[64] = {0};
+
+				if (0 == syscfg_get(NULL, ns_keys[i], ns, sizeof(ns)) &&
+				    ns[0] != '\0' && xdns_addr_equal(iptype, default_dns, ns))
+				{
+					return 1;
+				}
+			}
+		}
+
+		{
+			char wanns[256] = {0};
+			char *saveptr = NULL;
+			char *tok = NULL;
+
+			sysevent_get(sysevent_fd, sysevent_token, "wan_dhcp_dns", wanns, sizeof(wanns));
+			for (tok = strtok_r(wanns, " \t\n\r", &saveptr); tok != NULL; tok = strtok_r(NULL, " \t\n\r", &saveptr))
+			{
+				if (xdns_addr_equal(iptype, default_dns, tok))
+				{
+					return 1;
+				}
+			}
+		}
+	}
+	else
+	{
+		char ipv6ns[256] = {0};
+		char *saveptr = NULL;
+		char *tok = NULL;
+
+		sysevent_get(sysevent_fd, sysevent_token, "ipv6_nameserver", ipv6ns, sizeof(ipv6ns));
+		for (tok = strtok_r(ipv6ns, " \t\n\r", &saveptr); tok != NULL; tok = strtok_r(NULL, " \t\n\r", &saveptr))
+		{
+			if (xdns_addr_equal(iptype, default_dns, tok))
+			{
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+// Emits one DNAT rule pair (UDP+TCP/53) redirecting matched traffic to
+// dns_dest. match is a pre-formatted iptables match clause (e.g. "-m set
+// --match-set xdns_clients_v4 src ") or NULL/"" to match every client.
+static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, const char *match, char *dns_dest)
+{
+	if (match == NULL)
+	{
+		match = "";
+	}
+
+	if (iptype == 4)
+	{
+		#if defined (INTEL_PUMA7)
+		fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 %s-p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,match,dns_dest);
+		fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 %s-p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,match,dns_dest);
+		#else
+		fprintf(nat_fp, "-A prerouting_fromlan -i %s %s-p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,match,dns_dest);
+		fprintf(nat_fp, "-A prerouting_fromlan -i %s %s-p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,match,dns_dest);
+		#endif
+	}
+	else
+	{
+		#if defined (INTEL_PUMA7)
+		fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20 %s-p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,match,dns_dest);
+		fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20 %s-p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,match,dns_dest);
+		#else
+		fprintf(nat_fp, "-A PREROUTING -i %s %s-p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,match,dns_dest);
+		fprintf(nat_fp, "-A PREROUTING -i %s %s-p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,match,dns_dest);
+		#endif
+	}
+}
+
+// Returns the per-family ipset of plain (unmasked) XDNS client MAC addresses.
+static const char *xdns_ipset_name(int iptype)
+{
+	return (iptype == 6) ? XDNS_IPSET_V6 : XDNS_IPSET_V4;
+}
+
+// (Re)creates and flushes the XDNS client ipset so a firewall restart
+// always fully resyncs it; between restarts, xdns keeps membership current
+// incrementally via ipset add/del.
+static void xdns_ipset_reset(const char *setname)
+{
+	v_secure_system("ipset -! create %s hash:mac", setname);
+	v_secure_system("ipset -! flush %s", setname);
+}
+
+// Redirects DNS to dnsmasq only for actual XDNS clients, instead of all LAN
+// traffic, to avoid flooding dnsmasq's queue. Per-client matching uses a
+// static per-family ipset (xdns_clients_v4/_v6) instead of one iptables
+// rule per MAC, so xdns can add/remove a client without a firewall restart;
+// this function just (re)syncs the set to dnsmasq_servers.conf and emits
+// the one static set-match rule. Falls back to a global redirect when XDNS
+// applies device-wide (see is_xdns_default_non_override()) or a masked-MAC
+// entry can't be matched by ipset. Returns the number of clients placed in
+// the set.
+static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
+{
+	FILE *fp = NULL;
+	char entry[256] = {0};
+	char match[96] = {0};
+	const char *setname = xdns_ipset_name(iptype);
+	int need_global_redirect = 0;
+	int clients = 0;
+
+	xdns_ipset_reset(setname);
+
+	fp = fopen(XDNS_DNSMASQ_SERVERS_CONF, "r");
+	if (fp == NULL)
+	{
+		FIREWALL_DEBUG("### XDNS - %s not available, no client DNS redirect entries added\n" COMMA XDNS_DNSMASQ_SERVERS_CONF);
+	}
+	else
+	{
+		while (fgets(entry, sizeof(entry), fp) != NULL)
+		{
+			char *saveptr = NULL;
+			char *token = strtok_r(entry, " \t\n\r", &saveptr);
+			char *macaddr = NULL;
+			char *field = NULL;
+			char *matched_ip = NULL;
+			int is_default = 0;
+			size_t maclen;
+
+			if (token == NULL || 0 != strcmp(token, "dnsoverride"))
+			{
+				continue;
+			}
+
+			macaddr = strtok_r(NULL, " \t\n\r", &saveptr);
+			maclen = (macaddr != NULL) ? strlen(macaddr) : 0;
+			// Plain MAC is 17 chars ("aa:bb:cc:dd:ee:ff"); XDNS also accepts a
+			// masked MAC/MASK form of 35 chars (see isValidMacAddress() in
+			// cosa_xdns_dml.c), used to match a range of devices.
+			if (macaddr == NULL || (17 != maclen && 35 != maclen))
+			{
+				continue;
+			}
+
+			is_default = (0 == strcasecmp(macaddr, XDNS_DEFAULT_MAC));
+
+			// Remaining fields are "<ipv4> [<ipv6>] [<tag>]"; pick out the field
+			// that matches the address family we're generating rules for.
+			while ((field = strtok_r(NULL, " \t\n\r", &saveptr)) != NULL)
+			{
+				if ((iptype == 4 && strchr(field, '.') != NULL) ||
+				    (iptype == 6 && strchr(field, ':') != NULL))
+				{
+					matched_ip = field;
+					break;
+				}
+			}
+
+			if (is_default)
+			{
+				// Multiple default (all-zero MAC) entries can exist (primary
+				// + secondary); OR their override-need so neither masks the
+				// other.
+				if (matched_ip != NULL && !is_xdns_default_non_override(iptype, matched_ip, dns_dest))
+				{
+					FIREWALL_DEBUG("### XDNS - default DNS (%s) is an XDNS target, redirecting all clients\n" COMMA matched_ip);
+					need_global_redirect = 1;
+				}
+				continue;
+			}
+
+			if (35 == maclen)
+			{
+				// ipset's hash:mac type (like iptables' mac match) can't do a
+				// masked compare; fall back to a global redirect (dnsmasq's
+				// own dnsoverride still applies the masked override once the
+				// query arrives, as before).
+				FIREWALL_DEBUG("### XDNS - masked MAC entry (%s) cannot be matched by ipset, redirecting all clients\n" COMMA macaddr);
+				need_global_redirect = 1;
+				continue;
+			}
+
+			// Add unconditionally, same as the previous per-MAC iptables
+			// rule: this family's DNS is still redirected for the MAC even
+			// if the matching-family override field is absent on this line.
+			v_secure_system("ipset -! add %s %s", setname, macaddr);
+			clients++;
+		}
+
+		fclose(fp);
+	}
+
+	// Static rule, always present regardless of current set membership: lets
+	// the xdns component add/remove clients (ipset add/del) without ever
+	// needing another firewall restart.
+	snprintf(match, sizeof(match), "-m set --match-set %s src ", setname);
+	emit_xdns_dns_route_rule(nat_fp, iptype, match, dns_dest);
+
+	if (need_global_redirect)
+	{
+		// XDNS applies device-wide (or to a MAC range ipset can't match
+		// individually): redirect every LAN client's DNS traffic to dnsmasq.
+		emit_xdns_dns_route_rule(nat_fp, iptype, NULL, dns_dest);
+	}
+
+	return clients;
+}
+
 int do_dns_route(FILE *nat_fp, int iptype) {
 
 	char xdnsflag[20] = {0};
@@ -9005,18 +9270,8 @@ int do_dns_route(FILE *nat_fp, int iptype) {
 			// Check if lan ip is up. Need to route dns requests to dnsmasq through lan0.
 			if ('\0' != lan_ipaddr[0] && 0 != strcmp("0.0.0.0", lan_ipaddr) )
 			{
-	                #if defined (INTEL_PUMA7)
-				// Prerouting is bypassed for the Xi devices (Needed only for XB6)
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                printf("### XDNS : Feature Enabled XDNS ipv4 ### \n");
-                        #else
-
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                printf("### XDNS : Feature Enabled XDNS ipv4 ### \n");
-                        #endif
-
+				int nclients = do_xdns_client_dns_route(nat_fp, 4, lan_ipaddr);
+				printf("### XDNS : Feature Enabled XDNS ipv4, %d client(s) in redirect set ### \n", nclients);
 			}
 			else
 			{
@@ -9032,16 +9287,8 @@ int do_dns_route(FILE *nat_fp, int iptype) {
 			// Check if lan ipv6 is up.
 			if ('\0' != lan_ipv6addr[0] && 0 != strcmp("", lan_ipv6addr) && 0 != strcmp("::", lan_ipv6addr))
 			{
-	                #if defined (INTEL_PUMA7)
-                                // Prerouting is bypassed for the Xi devices (Needed only for XB6)
-                                fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20  -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-			        fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20  -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-				printf("### XDNS : Feature Enabled (XDNS ipv6) ### \n");
-                        #else
-				fprintf(nat_fp, "-A PREROUTING -i %s -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-                                fprintf(nat_fp, "-A PREROUTING -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-                                printf("### XDNS : Feature Enabled (XDNS ipv6) ### \n");
-                        #endif
+				int nclients = do_xdns_client_dns_route(nat_fp, 6, lan_ipv6addr);
+				printf("### XDNS : Feature Enabled (XDNS ipv6), %d client(s) in redirect set ### \n", nclients);
 			}
 			else
 			{
