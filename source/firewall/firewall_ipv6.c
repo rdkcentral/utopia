@@ -190,6 +190,48 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #if defined (_ONESTACK_PRODUCT_REQ_)
 static char ipv6_delegation_prefix[IPV6_PREFIX_BUF_LEN+1] ={0};
 #endif
+
+static int validate_prefix(char *ipv6_prefix)
+{
+    char *slash, *endptr;
+    char prefix_addr_str[INET6_ADDRSTRLEN] = {0};
+    struct in6_addr prefix_addr;
+    long prefix_len;
+    size_t addr_len;
+
+    if (ipv6_prefix == NULL || ipv6_prefix[0] == '\0')
+    {
+        return 0;
+    }
+
+    slash = strchr(ipv6_prefix, '/');
+    if (slash == NULL)
+    {
+        return 0;
+    }
+
+    addr_len = (size_t)(slash - ipv6_prefix);
+    if (addr_len == 0 || addr_len >= sizeof(prefix_addr_str))
+    {
+        return 0;
+    }
+
+    memcpy(prefix_addr_str, ipv6_prefix, addr_len);
+    prefix_addr_str[addr_len] = '\0';
+    if (strspn(slash + 1, "0123456789") != strlen(slash + 1))
+    {
+        return 0;
+    }
+
+    prefix_len = strtol(slash + 1, &endptr, 10);
+    if (endptr == slash + 1 || *endptr != '\0' || prefix_len < 0 || prefix_len > 128)
+    {
+        return 0;
+    }
+
+    return (inet_pton(AF_INET6, prefix_addr_str, &prefix_addr) > 0);
+}
+
 /*
  ****************************************************************
  *               IPv6 Firewall                                  *
@@ -1304,12 +1346,13 @@ v6GPFirewallRuleNext:
 #endif
 #endif
 #ifdef FEATURE_MAPE
-      if (prev_prefix[0] != '\0' && prefix[0] != '\0' && strcmp(prev_prefix, prefix) != 0)
+      if (validate_prefix(prev_prefix) && validate_prefix(prefix) && strcmp(prev_prefix, prefix) != 0)
       {
          fprintf(fp, "-A FORWARD -i brlan0 -o erouter0 -s %s -j REJECT --reject-with icmp6-policy-fail\n", prev_prefix);
       }
 #endif
-      if ( '\0' != prefix[0] ) {
+
+      if (validate_prefix(prefix)) {
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j LOG --log-level %d --log-prefix \"UTOPIA: FW. IPv6 FORWARD anti-spoofing\"\n", prefix, lan_ifname,syslog_level);
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j REJECT --reject-with icmp6-adm-prohibited\n", prefix, lan_ifname);
 #if defined (_COSA_FOR_BCI_) || defined (_ONESTACK_PRODUCT_REQ_)
