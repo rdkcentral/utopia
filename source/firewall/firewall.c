@@ -15358,6 +15358,8 @@ static int service_start ()
    char *filename1 = "/tmp/.ipt";
    char *filename2 = "/tmp/.ipt_v6";
    BOOL needs_flush = FALSE;
+   int clear_rc = 0;
+   int flush_rc = 0;
    char temp[20];
    //int res_rfcfile = -1, res_rfclock = -1;
 
@@ -15408,6 +15410,10 @@ static int service_start ()
    v_secure_system("ip6tables-restore -w 10 < /tmp/.ipt_v6 2> /tmp/.ipv6table_error");
 #endif
    FIREWALL_DEBUG("iptables-restore for ipv6 ends\n");
+   FIREWALL_DEBUG("post-IPv6 state: ppFlushNeeded=%d needs_flush=%d isContainerEnabled=%d isCronRestartNeeded=
+%d isLanHostTracking=%d\n" COMMA
+   ppFlushNeeded COMMA needs_flush COMMA isContainerEnabled COMMA
+   isCronRestartNeeded COMMA isLanHostTracking);
 
    #ifdef _PLATFORM_RASPBERRYPI_
        /* Apply Mac Filtering rules for RPI-Device */
@@ -15441,7 +15447,9 @@ static int service_start ()
       v_secure_system("sh /lib/rdk/iptables_container.sh");
    }
 
-   ClearEstbConnection();
+   FIREWALL_DEBUG("before ClearEstbConnection\n");
+   clear_rc = ClearEstbConnection();
+   FIREWALL_DEBUG("after ClearEstbConnection rc=%d\n" COMMA clear_rc);
    /* start the other process as needed */
 #ifdef CONFIG_BUILD_TRIGGER
 #ifndef CONFIG_KERNEL_NF_TRIGGER_SUPPORT
@@ -15463,7 +15471,9 @@ static int service_start ()
 
    if(ppFlushNeeded == 1) {
 #if defined (INTEL_PUMA7)
-       v_secure_system("conntrack -F");
+	FIREWALL_DEBUG("before ppFlush conntrack -F\n");
+	flush_rc = v_secure_system("conntrack -F");
+	FIREWALL_DEBUG("after ppFlush conntrack -F rc=%d\n" COMMA flush_rc);
 #else
        v_secure_system("echo flush_all_sessions > /proc/net/ti_pp");
 #endif
@@ -15472,7 +15482,9 @@ static int service_start ()
 
    /* If firewall is starting for the first time, we need to flush connection tracking */
    if (needs_flush) {
-      v_secure_system("conntrack -F");
+	FIREWALL_DEBUG("before initial conntrack -F\n");
+	flush_rc = v_secure_system("conntrack -F");
+	FIREWALL_DEBUG("after initial conntrack -F rc=%d\n" COMMA flush_rc);
    }
 
    sysevent_set(sysevent_fd, sysevent_token, "firewall-status", "started", 0);
