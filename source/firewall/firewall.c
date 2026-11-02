@@ -9160,8 +9160,14 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 
 	// Held from before the conf is read through the ipset swap: keeps this
 	// rebuild from racing xdns's own conf update + ipset sync, which takes
-	// the same lock (see xdns_sync_firewall_client() in cosa_xdns_dml.c).
-	lockfd = open(XDNS_FW_SYNC_LOCKFILE, O_CREAT | O_RDWR, 0644);
+	// the same lock (see xdns_fw_lock() in cosa_xdns_dml.c). Opened without
+	// O_CREAT first since xdns (non-root) may own it, and
+	// fs.protected_regular rejects O_CREAT on another user's file in /tmp.
+	lockfd = open(XDNS_FW_SYNC_LOCKFILE, O_RDONLY | O_CLOEXEC);
+	if (lockfd < 0)
+	{
+		lockfd = open(XDNS_FW_SYNC_LOCKFILE, O_RDONLY | O_CREAT | O_CLOEXEC, 0644);
+	}
 	if (lockfd >= 0)
 	{
 		flock(lockfd, LOCK_EX);
