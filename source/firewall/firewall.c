@@ -9124,13 +9124,12 @@ static const char *xdns_ipset_name(int iptype)
 	return (iptype == 6) ? XDNS_IPSET_V6 : XDNS_IPSET_V4;
 }
 
-// (Re)creates and flushes the XDNS client ipset so a firewall restart
-// always fully resyncs it; between restarts, xdns keeps membership current
-// incrementally via ipset add/del.
+// (Re)creates a fresh ipset, destroying any stale leftover first. Used to
+// build a rebuild into a staging set rather than the live one.
 static void xdns_ipset_reset(const char *setname)
 {
+	v_secure_system("ipset -! destroy %s", setname);
 	v_secure_system("ipset -! create %s hash:mac", setname);
-	v_secure_system("ipset -! flush %s", setname);
 }
 
 // Redirects DNS to dnsmasq only for actual XDNS clients, instead of all LAN
@@ -9147,11 +9146,17 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 	FILE *fp = NULL;
 	char entry[256] = {0};
 	char match[96] = {0};
+	char stageset[64] = {0};
 	const char *setname = xdns_ipset_name(iptype);
 	int need_global_redirect = 0;
 	int clients = 0;
 
-	xdns_ipset_reset(setname);
+	// Rebuild into a staging set and swap it into place once populated
+	// (below), instead of flushing the live set in place: the live set is
+	// matched by the static iptables rule the whole time, so flushing it
+	// directly would briefly let tagged clients' DNS bypass the redirect.
+	snprintf(stageset, sizeof(stageset), "%s_new", setname);
+	xdns_ipset_reset(stageset);
 
 	fp = fopen(XDNS_DNSMASQ_SERVERS_CONF, "r");
 	if (fp == NULL)
@@ -9160,6 +9165,12 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 	}
 	else
 	{
+		// Held through the swap below, not just this read: keeps this
+		// rebuild from interleaving with xdns's own incremental ipset
+		// add/del, which takes the same lock on this file around its own
+		// conf update (see xdns_sync_firewall_client() in cosa_xdns_dml.c).
+		flock(fileno(fp), LOCK_EX);
+
 		while (fgets(entry, sizeof(entry), fp) != NULL)
 		{
 			char *saveptr = NULL;
@@ -9226,10 +9237,21 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 			// Add unconditionally, same as the previous per-MAC iptables
 			// rule: this family's DNS is still redirected for the MAC even
 			// if the matching-family override field is absent on this line.
-			v_secure_system("ipset -! add %s %s", setname, macaddr);
+			v_secure_system("ipset -! add %s %s", stageset, macaddr);
 			clients++;
 		}
+	}
 
+	// Make sure the live set exists (first boot), then atomically swap the
+	// fully-populated staging set into it; the iptables rule below keeps
+	// matching the live set name throughout.
+	v_secure_system("ipset -! create %s hash:mac", setname);
+	v_secure_system("ipset -! swap %s %s", stageset, setname);
+	v_secure_system("ipset -! destroy %s", stageset);
+
+	if (fp != NULL)
+	{
+		flock(fileno(fp), LOCK_UN);
 		fclose(fp);
 	}
 
