@@ -55,12 +55,7 @@ SERVICE_NAME="lan_handler"
 POSTD_START_FILE="/tmp/.postd_started"
 
 restartWebuiOnLanIpv6AddrChange() {
-    [ "$1" = "$(syscfg get lan_ifname)" ] || return
-    [ "$2" != "$3" ] || return
-    case "$3" in
-        ""|::|::0|0:0:0:0:0:0:0:0|::1|fe[89aAbB]*|ff*|FF*) return ;;
-    esac
-    echo_t "LAN IPv6 changed on $1 to $3, requesting WebUI restart"
+    echo_t "Requesting PAM WebUI restart for LAN IPv6 change on $1: $2 -> $3"
     sysevent set webui-restart lan-ipv6
 }
 
@@ -213,7 +208,9 @@ case "$1" in
             if [ -n "$SYSEVT_lan_ipaddr_v6_prev" ]; then
                 ip -6 addr del $SYSEVT_lan_ipaddr_v6_prev/64 dev $LAN_IFNAME valid_lft forever preferred_lft forever
             fi
-            if ip -6 addr add "$SYSEVT_lan_ipaddr_v6/64" dev "$LAN_IFNAME" valid_lft forever preferred_lft forever; then
+            if ip -6 addr add "$SYSEVT_lan_ipaddr_v6/64" dev "$LAN_IFNAME" valid_lft forever preferred_lft forever &&
+                [ -n "$SYSEVT_lan_ipaddr_v6" ] &&
+                [ "$SYSEVT_lan_ipaddr_v6_prev" != "$SYSEVT_lan_ipaddr_v6" ]; then
                 restartWebuiOnLanIpv6AddrChange "$LAN_IFNAME" "$SYSEVT_lan_ipaddr_v6_prev" "$SYSEVT_lan_ipaddr_v6"
             fi
         fi

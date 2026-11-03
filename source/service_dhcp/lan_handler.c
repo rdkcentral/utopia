@@ -79,33 +79,6 @@ extern FILE* g_fArmConsoleLog; //Global file pointer declaration
     } while (0)
 static void restartWebuiOnLanIpv6AddrChange(const char *pIfName, const char *pPreviousIP, const char *pIpAddress)
 {
-    char cLanIfname[64] = {0};
-    struct in6_addr address;
-    struct in6_addr previous_address;
-
-    if (pIfName == NULL || pPreviousIP == NULL || pIpAddress == NULL)
-    {
-        fprintf(g_fArmConsoleLog, "%s: Invalid input parameters: IfName=%s, PreviousIP=%s, IP=%s\n", __FUNCTION__, pIfName, pPreviousIP, pIpAddress);
-        return;
-    }
-
-    if (syscfg_get(NULL, "lan_ifname", cLanIfname, sizeof(cLanIfname)) != 0 ||
-        cLanIfname[0] == '\0' || strcmp(pIfName, cLanIfname) != 0 ||
-        inet_pton(AF_INET6, pIpAddress, &address) != 1 ||
-        IN6_IS_ADDR_UNSPECIFIED(&address) || IN6_IS_ADDR_LINKLOCAL(&address) ||
-        IN6_IS_ADDR_MULTICAST(&address) || IN6_IS_ADDR_LOOPBACK(&address))
-    {
-        fprintf(g_fArmConsoleLog, "%s: Invalid conditions for restarting WebUI on IPv6 address change: IfName=%s, IP=%s\n", __FUNCTION__, pIfName, pIpAddress);
-        return;
-    }
-
-    if (inet_pton(AF_INET6, pPreviousIP, &previous_address) == 1 &&
-        memcmp(&previous_address, &address, sizeof(address)) == 0)
-    {
-        fprintf(g_fArmConsoleLog, "%s: IPv6 address has not changed: IfName=%s, IP=%s\n", __FUNCTION__, pIfName, pIpAddress);
-        return;
-    }
-
     fprintf(g_fArmConsoleLog, "%s: %s IPv6 changed to %s, requesting WebUI restart\n", __FUNCTION__, pIfName, pIpAddress);
     if (sysevent_set(g_iSyseventfd, g_tSysevent_token, "webui-restart", "lan-ipv6", 0) != 0)
         fprintf(g_fArmConsoleLog, "%s: Failed to request WebUI restart\n", __FUNCTION__);
@@ -1021,7 +994,9 @@ void lan_restart()
                  "-6 %s/64 dev %s valid_lft forever preferred_lft forever", 
                  l_cLan_IpAddrv6, l_cLanIfName);
 
-        if (addr_add(l_cSysevent_Cmd) == 0)
+        if (addr_add(l_cSysevent_Cmd) == 0 &&
+            strncmp(l_cLan_IpAddrv6_prev, l_cLan_IpAddrv6, sizeof(l_cLan_IpAddrv6)) != 0 &&
+            l_cLan_IpAddrv6[0] != '\0')
             restartWebuiOnLanIpv6AddrChange(l_cLanIfName, l_cLan_IpAddrv6_prev, l_cLan_IpAddrv6);
 	
     }
