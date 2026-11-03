@@ -9135,14 +9135,17 @@ static int xdns_fw_lock(void)
 }
 
 // Parses "dnsoverride <mac> <ipv4> [<ipv6>] [<tag>]" (<mac> is 17 chars, or 35
-// for a MAC/MASK range). Fields are positional, so a tag may hold any
-// characters. Returns 0 on success, with *dns the address for 'iptype' (may
-// be NULL when absent).
+// for a MAC/MASK range), by position. With IPv6 xdns writes <ipv6> then <tag>;
+// without it only <tag> follows <ipv4>, so a lone second field is an IPv6
+// address only if it parses as one. Returns 0 on success, with *dns the
+// address for 'iptype' (may be NULL).
 static int xdns_parse_entry(char *entry, int iptype, char **mac, char **dns, char **tag)
 {
 	char *saveptr = NULL;
 	char *key = strtok_r(entry, " \t\n\r", &saveptr);
 	char *v4 = NULL;
+	char *f2 = NULL;
+	char *f3 = NULL;
 	char *v6 = NULL;
 	size_t len;
 	unsigned char addr6[sizeof(struct in6_addr)];
@@ -9160,11 +9163,16 @@ static int xdns_parse_entry(char *entry, int iptype, char **mac, char **dns, cha
 	}
 
 	v4 = strtok_r(NULL, " \t\n\r", &saveptr);
-	*tag = strtok_r(NULL, " \t\n\r", &saveptr);
-	if (*tag != NULL && 1 == inet_pton(AF_INET6, *tag, addr6))
+	f2 = strtok_r(NULL, " \t\n\r", &saveptr);
+	f3 = strtok_r(NULL, " \t\n\r", &saveptr);
+	*tag = f3;
+	if (f3 != NULL || (f2 != NULL && 1 == inet_pton(AF_INET6, f2, addr6)))
 	{
-		v6 = *tag;
-		*tag = strtok_r(NULL, " \t\n\r", &saveptr);
+		v6 = f2;
+	}
+	else
+	{
+		*tag = f2;
 	}
 
 	*dns = (iptype == 6) ? v6 : v4;
@@ -9173,7 +9181,7 @@ static int xdns_parse_entry(char *entry, int iptype, char **mac, char **dns, cha
 
 // Adds every plain-MAC client in dnsmasq_servers.conf to 'setname' (*clients
 // = number added) and sets *need_global_redirect if XDNS applies device-wide.
-// Returns 0, or -1 if any ipset add failed.
+// Returns 0, or -1 if the conf can't be read or any ipset add failed.
 static int xdns_populate_client_set(const char *setname, int iptype, const char *lan_dns, int *need_global_redirect, int *clients)
 {
 	FILE *fp = fopen(XDNS_DNSMASQ_SERVERS_CONF, "r");
@@ -9187,8 +9195,8 @@ static int xdns_populate_client_set(const char *setname, int iptype, const char 
 
 	if (fp == NULL)
 	{
-		FIREWALL_DEBUG("### XDNS - %s not available, no client DNS redirect entries added\n" COMMA XDNS_DNSMASQ_SERVERS_CONF);
-		return 0;
+		FIREWALL_DEBUG("### XDNS - cannot read %s\n" COMMA XDNS_DNSMASQ_SERVERS_CONF);
+		return -1;
 	}
 
 	while (fgets(entry, sizeof(entry), fp) != NULL)
@@ -9231,12 +9239,10 @@ static int xdns_populate_client_set(const char *setname, int iptype, const char 
 	return ret;
 }
 
-// Redirects DNS to dnsmasq only for XDNS clients, not all LAN traffic, to
-// avoid flooding its queue. Clients are matched by a static per-family ipset
-// (xdns_clients_v4/_v6) that xdns updates without a firewall restart; this
-// resyncs it from dnsmasq_servers.conf. Falls back to a global redirect when
-// XDNS applies device-wide, an entry can't be matched by ipset, or the set
-// can't be trusted.
+// Redirects DNS to dnsmasq only for XDNS clients (matched by the static
+// xdns_clients_v4/_v6 ipset that xdns updates without a firewall restart),
+// not all LAN traffic. Falls back to a global redirect when XDNS applies
+// device-wide, an entry can't be matched by ipset, or the rebuild failed.
 static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 {
 	char match[96] = {0};
@@ -9269,8 +9275,9 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 
 	if (!rebuilt)
 	{
-		FIREWALL_DEBUG("### XDNS - ipset %s rebuild failed, %s\n" COMMA setname COMMA
-			live_existed ? "keeping previous set" : "redirecting all clients");
+		// The previous set may no longer cover every client.
+		FIREWALL_DEBUG("### XDNS - ipset %s rebuild failed, redirecting all clients\n" COMMA setname);
+		need_global_redirect = 1;
 		if (!live_existed)
 		{
 			// Don't leave an empty set that looks valid next time.
