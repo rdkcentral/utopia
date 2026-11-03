@@ -9168,9 +9168,11 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 	{
 		lockfd = open(XDNS_FW_SYNC_LOCKFILE, O_RDONLY | O_CREAT | O_CLOEXEC, 0644);
 	}
-	if (lockfd >= 0)
+	if (lockfd >= 0 && flock(lockfd, LOCK_EX) != 0)
 	{
-		flock(lockfd, LOCK_EX);
+		FIREWALL_DEBUG("### XDNS - could not lock %s, rebuilding without it\n" COMMA XDNS_FW_SYNC_LOCKFILE);
+		close(lockfd);
+		lockfd = -1;
 	}
 
 	fp = fopen(XDNS_DNSMASQ_SERVERS_CONF, "r");
@@ -9259,9 +9261,9 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 	v_secure_system("ipset -! swap %s %s", stageset, setname);
 	v_secure_system("ipset -! destroy %s", stageset);
 
+	// Closing the fd also releases the flock().
 	if (lockfd >= 0)
 	{
-		flock(lockfd, LOCK_UN);
 		close(lockfd);
 	}
 
