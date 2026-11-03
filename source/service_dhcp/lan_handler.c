@@ -80,7 +80,6 @@ extern FILE* g_fArmConsoleLog; //Global file pointer declaration
 static void restartWebuiOnLanIpv6AddrChange(const char *pIfName, const char *pPreviousIP, const char *pIpAddress)
 {
     char cLanIfname[64] = {0};
-    char cInitialAddressSeen[8] = {0};
     struct in6_addr address;
     struct in6_addr previous_address;
 
@@ -100,15 +99,6 @@ static void restartWebuiOnLanIpv6AddrChange(const char *pIfName, const char *pPr
         return;
     }
 
-    sysevent_get(g_iSyseventfd, g_tSysevent_token, "webui_lan_ipv6_seen",
-                 cInitialAddressSeen, sizeof(cInitialAddressSeen));
-    if (strcmp(cInitialAddressSeen, "true") != 0)
-    {
-        sysevent_set(g_iSyseventfd, g_tSysevent_token, "webui_lan_ipv6_seen", "true", 0);
-        fprintf(g_fArmConsoleLog, "%s: Initial LAN IPv6 %s recorded; skipping WebUI restart\n", __FUNCTION__, pIpAddress);
-        return;
-    }
-
     if (inet_pton(AF_INET6, pPreviousIP, &previous_address) == 1 &&
         memcmp(&previous_address, &address, sizeof(address)) == 0)
     {
@@ -116,12 +106,9 @@ static void restartWebuiOnLanIpv6AddrChange(const char *pIfName, const char *pPr
         return;
     }
 
-    fprintf(g_fArmConsoleLog, "%s: %s IPv6 changed to %s, restarting WebUI\n", __FUNCTION__, pIfName, pIpAddress);
-#if defined (_XB6_PRODUCT_REQ_) || defined (_CBR_PRODUCT_REQ_)
-    system("/bin/systemctl restart CcspWebUI.service &");
-#else
-    system("/bin/sh /etc/webgui.sh &");
-#endif
+    fprintf(g_fArmConsoleLog, "%s: %s IPv6 changed to %s, requesting WebUI restart\n", __FUNCTION__, pIfName, pIpAddress);
+    if (sysevent_set(g_iSyseventfd, g_tSysevent_token, "webui-restart", "lan-ipv6", 0) != 0)
+        fprintf(g_fArmConsoleLog, "%s: Failed to request WebUI restart\n", __FUNCTION__);
 }
 
 void get_dateanduptime(char *buffer, int *uptime)

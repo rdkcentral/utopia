@@ -60,17 +60,8 @@ restartWebuiOnLanIpv6AddrChange() {
     case "$3" in
         ""|::|::0|0:0:0:0:0:0:0:0|::1|fe[89aAbB]*|ff*|FF*) return ;;
     esac
-    if [ "$(sysevent get webui_lan_ipv6_seen)" != "true" ]; then
-        sysevent set webui_lan_ipv6_seen true
-        echo_t "Initial LAN IPv6 $3 recorded; skipping WebUI restart"
-        return
-    fi
-    echo_t "LAN IPv6 changed on $1 to $3, restarting WebUI"
-    if [ -f /lib/systemd/system/CcspWebUI.service ] || [ -f /usr/lib/systemd/system/CcspWebUI.service ]; then
-        systemctl restart CcspWebUI.service &
-    else
-        /bin/sh /etc/webgui.sh &
-    fi
+    echo_t "LAN IPv6 changed on $1 to $3, requesting WebUI restart"
+    sysevent set webui-restart lan-ipv6
 }
 
 RPI_SPECIFIC=$BOX_TYPE
