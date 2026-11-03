@@ -8983,10 +8983,12 @@ static int do_device_based_parcon(FILE *natFp, FILE* filterFp)
 #define XDNS_DNSMASQ_SERVERS_CONF "/nvram/dnsmasq_servers.conf"
 #define XDNS_DEFAULT_MAC          "00:00:00:00:00:00"
 #define XDNS_DEFAULT_TAG          "empty"
+#define XDNS_MAC_LEN              17  /* "aa:bb:cc:dd:ee:ff" */
+#define XDNS_MASKED_MAC_LEN       35  /* "aa:bb:cc:dd:ee:ff/ff:ff:ff:ff:ff:00" */
 #define XDNS_IPSET_V4             "xdns_clients_v4"
 #define XDNS_IPSET_V6             "xdns_clients_v6"
 #define XDNS_RESOLV_CONF          "/etc/resolv.conf"
-/* Keep in sync with XDNS_FW_SYNC_LOCKFILE in xdns's cosa_xdns_dml.c; never
+/* Keep in sync with XDNS_FW_SYNC_LOCKFILE in xdns's cosa_xdns_apis.c; never
  * unlink()/rename()d, unlike the conf file. */
 #define XDNS_FW_SYNC_LOCKFILE     "/tmp/xdns_fw_sync.lock"
 
@@ -9114,7 +9116,7 @@ static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, const char *match
 	}
 }
 
-// Takes the lock shared with xdns (see xdns_fw_lock() in cosa_xdns_dml.c).
+// Takes the lock shared with xdns (see xdns_fw_lock() in cosa_xdns_apis.c).
 // Opened without O_CREAT first: xdns (non-root) may own the file and
 // fs.protected_regular rejects O_CREAT on it. Returns the locked fd (close
 // it to release), or -1 if the lock couldn't be taken.
@@ -9134,11 +9136,10 @@ static int xdns_fw_lock(void)
 	return fd;
 }
 
-// Parses "dnsoverride <mac> <ipv4> [<ipv6>] [<tag>]" (<mac> is 17 chars, or 35
-// for a MAC/MASK range), by position. With IPv6 xdns writes <ipv6> then <tag>;
-// without it only <tag> follows <ipv4>, so a lone second field is an IPv6
-// address only if it parses as one. Returns 0 on success, with *dns the
-// address for 'iptype' (may be NULL).
+// Parses "dnsoverride <mac> <ipv4> [<ipv6>] [<tag>]" by position. With IPv6
+// xdns writes <ipv6> then <tag>; without it only <tag> follows <ipv4>, so a
+// lone second field is an IPv6 address only if it parses as one. Returns 0 on
+// success, with *dns the address for 'iptype' (may be NULL).
 static int xdns_parse_entry(char *entry, int iptype, char **mac, char **dns, char **tag)
 {
 	char *saveptr = NULL;
@@ -9157,7 +9158,7 @@ static int xdns_parse_entry(char *entry, int iptype, char **mac, char **dns, cha
 
 	*mac = strtok_r(NULL, " \t\n\r", &saveptr);
 	len = (*mac != NULL) ? strlen(*mac) : 0;
-	if (17 != len && 35 != len)
+	if (XDNS_MAC_LEN != len && XDNS_MASKED_MAC_LEN != len)
 	{
 		return -1;
 	}
@@ -9218,7 +9219,7 @@ static int xdns_populate_client_set(const char *setname, int iptype, const char 
 				*need_global_redirect = 1;
 			}
 		}
-		else if (35 == strlen(mac))
+		else if (XDNS_MASKED_MAC_LEN == strlen(mac))
 		{
 			// ipset hash:mac can't match a masked MAC.
 			FIREWALL_DEBUG("### XDNS - masked MAC entry (%s) cannot be matched by ipset, redirecting all clients\n" COMMA mac);
