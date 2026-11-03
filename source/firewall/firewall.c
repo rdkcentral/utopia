@@ -9133,6 +9133,115 @@ static void xdns_ipset_reset(const char *setname)
 	v_secure_system("ipset -! create %s hash:mac", setname);
 }
 
+// Takes the lock shared with xdns's conf update + ipset sync (see
+// xdns_fw_lock() in cosa_xdns_dml.c). Opened without O_CREAT first since
+// xdns (non-root) may own the file, and fs.protected_regular rejects
+// O_CREAT on another user's file in /tmp. Returns the locked fd (close it
+// to release), or -1 if the lock couldn't be taken.
+static int xdns_fw_lock(void)
+{
+	int fd = open(XDNS_FW_SYNC_LOCKFILE, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+	{
+		fd = open(XDNS_FW_SYNC_LOCKFILE, O_RDONLY | O_CREAT | O_CLOEXEC, 0644);
+	}
+	if (fd >= 0 && flock(fd, LOCK_EX) != 0)
+	{
+		FIREWALL_DEBUG("### XDNS - could not lock %s, rebuilding without it\n" COMMA XDNS_FW_SYNC_LOCKFILE);
+		close(fd);
+		fd = -1;
+	}
+	return fd;
+}
+
+// Adds every plain-MAC dnsoverride client in dnsmasq_servers.conf to
+// 'setname'. Sets *need_global_redirect if XDNS applies device-wide or an
+// entry can't be matched by ipset. Returns the number of clients added.
+static int xdns_populate_client_set(const char *setname, int iptype, const char *lan_dns, int *need_global_redirect)
+{
+	FILE *fp = fopen(XDNS_DNSMASQ_SERVERS_CONF, "r");
+	char entry[256] = {0};
+	int clients = 0;
+
+	if (fp == NULL)
+	{
+		FIREWALL_DEBUG("### XDNS - %s not available, no client DNS redirect entries added\n" COMMA XDNS_DNSMASQ_SERVERS_CONF);
+		return 0;
+	}
+
+	while (fgets(entry, sizeof(entry), fp) != NULL)
+	{
+		char *saveptr = NULL;
+		char *token = strtok_r(entry, " \t\n\r", &saveptr);
+		char *macaddr = NULL;
+		char *field = NULL;
+		char *matched_ip = NULL;
+		int is_default = 0;
+		size_t maclen;
+
+		if (token == NULL || 0 != strcmp(token, "dnsoverride"))
+		{
+			continue;
+		}
+
+		macaddr = strtok_r(NULL, " \t\n\r", &saveptr);
+		maclen = (macaddr != NULL) ? strlen(macaddr) : 0;
+		// Plain MAC is 17 chars ("aa:bb:cc:dd:ee:ff"); XDNS also accepts a
+		// masked MAC/MASK form of 35 chars (see isValidMacAddress() in
+		// cosa_xdns_dml.c), used to match a range of devices.
+		if (macaddr == NULL || (17 != maclen && 35 != maclen))
+		{
+			continue;
+		}
+
+		is_default = (0 == strcasecmp(macaddr, XDNS_DEFAULT_MAC));
+
+		// Remaining fields are "<ipv4> [<ipv6>] [<tag>]"; pick out the field
+		// that matches the address family we're generating rules for.
+		while ((field = strtok_r(NULL, " \t\n\r", &saveptr)) != NULL)
+		{
+			if ((iptype == 4 && strchr(field, '.') != NULL) ||
+			    (iptype == 6 && strchr(field, ':') != NULL))
+			{
+				matched_ip = field;
+				break;
+			}
+		}
+
+		if (is_default)
+		{
+			// Multiple default (all-zero MAC) entries can exist (primary
+			// + secondary); OR their override-need so neither masks the
+			// other.
+			if (matched_ip != NULL && !is_xdns_default_non_override(iptype, matched_ip, lan_dns))
+			{
+				FIREWALL_DEBUG("### XDNS - default DNS (%s) is an XDNS target, redirecting all clients\n" COMMA matched_ip);
+				*need_global_redirect = 1;
+			}
+			continue;
+		}
+
+		if (35 == maclen)
+		{
+			// ipset's hash:mac type (like iptables' mac match) can't do a
+			// masked compare; fall back to a global redirect (dnsmasq's
+			// own dnsoverride still applies the masked override once the
+			// query arrives, as before).
+			FIREWALL_DEBUG("### XDNS - masked MAC entry (%s) cannot be matched by ipset, redirecting all clients\n" COMMA macaddr);
+			*need_global_redirect = 1;
+			continue;
+		}
+
+		// Add unconditionally: this family's DNS still redirects for
+		// the MAC even if the matching-family IP field is absent here.
+		v_secure_system("ipset -! add %s %s", setname, macaddr);
+		clients++;
+	}
+
+	fclose(fp);
+	return clients;
+}
+
 // Redirects DNS to dnsmasq only for actual XDNS clients, instead of all LAN
 // traffic, to avoid flooding dnsmasq's queue. Per-client matching uses a
 // static per-family ipset (xdns_clients_v4/_v6) instead of one iptables
@@ -9142,8 +9251,6 @@ static void xdns_ipset_reset(const char *setname)
 // applies device-wide or a masked-MAC entry can't be matched by ipset.
 static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 {
-	FILE *fp = NULL;
-	char entry[256] = {0};
 	char match[96] = {0};
 	char stageset[64] = {0};
 	const char *setname = xdns_ipset_name(iptype);
@@ -9158,101 +9265,10 @@ static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 	snprintf(stageset, sizeof(stageset), "%s_new", setname);
 	xdns_ipset_reset(stageset);
 
-	// Held from before the conf is read through the ipset swap: keeps this
-	// rebuild from racing xdns's own conf update + ipset sync, which takes
-	// the same lock (see xdns_fw_lock() in cosa_xdns_dml.c). Opened without
-	// O_CREAT first since xdns (non-root) may own it, and
-	// fs.protected_regular rejects O_CREAT on another user's file in /tmp.
-	lockfd = open(XDNS_FW_SYNC_LOCKFILE, O_RDONLY | O_CLOEXEC);
-	if (lockfd < 0)
-	{
-		lockfd = open(XDNS_FW_SYNC_LOCKFILE, O_RDONLY | O_CREAT | O_CLOEXEC, 0644);
-	}
-	if (lockfd >= 0 && flock(lockfd, LOCK_EX) != 0)
-	{
-		FIREWALL_DEBUG("### XDNS - could not lock %s, rebuilding without it\n" COMMA XDNS_FW_SYNC_LOCKFILE);
-		close(lockfd);
-		lockfd = -1;
-	}
-
-	fp = fopen(XDNS_DNSMASQ_SERVERS_CONF, "r");
-	if (fp == NULL)
-	{
-		FIREWALL_DEBUG("### XDNS - %s not available, no client DNS redirect entries added\n" COMMA XDNS_DNSMASQ_SERVERS_CONF);
-	}
-	else
-	{
-		while (fgets(entry, sizeof(entry), fp) != NULL)
-		{
-			char *saveptr = NULL;
-			char *token = strtok_r(entry, " \t\n\r", &saveptr);
-			char *macaddr = NULL;
-			char *field = NULL;
-			char *matched_ip = NULL;
-			int is_default = 0;
-			size_t maclen;
-
-			if (token == NULL || 0 != strcmp(token, "dnsoverride"))
-			{
-				continue;
-			}
-
-			macaddr = strtok_r(NULL, " \t\n\r", &saveptr);
-			maclen = (macaddr != NULL) ? strlen(macaddr) : 0;
-			// Plain MAC is 17 chars ("aa:bb:cc:dd:ee:ff"); XDNS also accepts a
-			// masked MAC/MASK form of 35 chars (see isValidMacAddress() in
-			// cosa_xdns_dml.c), used to match a range of devices.
-			if (macaddr == NULL || (17 != maclen && 35 != maclen))
-			{
-				continue;
-			}
-
-			is_default = (0 == strcasecmp(macaddr, XDNS_DEFAULT_MAC));
-
-			// Remaining fields are "<ipv4> [<ipv6>] [<tag>]"; pick out the field
-			// that matches the address family we're generating rules for.
-			while ((field = strtok_r(NULL, " \t\n\r", &saveptr)) != NULL)
-			{
-				if ((iptype == 4 && strchr(field, '.') != NULL) ||
-				    (iptype == 6 && strchr(field, ':') != NULL))
-				{
-					matched_ip = field;
-					break;
-				}
-			}
-
-			if (is_default)
-			{
-				// Multiple default (all-zero MAC) entries can exist (primary
-				// + secondary); OR their override-need so neither masks the
-				// other.
-				if (matched_ip != NULL && !is_xdns_default_non_override(iptype, matched_ip, dns_dest))
-				{
-					FIREWALL_DEBUG("### XDNS - default DNS (%s) is an XDNS target, redirecting all clients\n" COMMA matched_ip);
-					need_global_redirect = 1;
-				}
-				continue;
-			}
-
-			if (35 == maclen)
-			{
-				// ipset's hash:mac type (like iptables' mac match) can't do a
-				// masked compare; fall back to a global redirect (dnsmasq's
-				// own dnsoverride still applies the masked override once the
-				// query arrives, as before).
-				FIREWALL_DEBUG("### XDNS - masked MAC entry (%s) cannot be matched by ipset, redirecting all clients\n" COMMA macaddr);
-				need_global_redirect = 1;
-				continue;
-			}
-
-			// Add unconditionally: this family's DNS still redirects for
-			// the MAC even if the matching-family IP field is absent here.
-			v_secure_system("ipset -! add %s %s", stageset, macaddr);
-			clients++;
-		}
-
-		fclose(fp);
-	}
+	// Held from before the conf is read through the ipset swap, so this
+	// rebuild can't race xdns's own conf update + ipset sync.
+	lockfd = xdns_fw_lock();
+	clients = xdns_populate_client_set(stageset, iptype, dns_dest, &need_global_redirect);
 
 	// Make sure the live set exists (first boot), then atomically swap the
 	// fully-populated staging set into it; the iptables rule below keeps
