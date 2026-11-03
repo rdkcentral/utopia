@@ -80,6 +80,7 @@ extern FILE* g_fArmConsoleLog; //Global file pointer declaration
 static void restartWebuiOnLanIpv6AddrChange(const char *pIfName, const char *pPreviousIP, const char *pIpAddress)
 {
     char cLanIfname[64] = {0};
+    char cInitialAddressSeen[8] = {0};
     struct in6_addr address;
     struct in6_addr previous_address;
 
@@ -96,6 +97,15 @@ static void restartWebuiOnLanIpv6AddrChange(const char *pIfName, const char *pPr
         IN6_IS_ADDR_MULTICAST(&address) || IN6_IS_ADDR_LOOPBACK(&address))
     {
         fprintf(g_fArmConsoleLog, "%s: Invalid conditions for restarting WebUI on IPv6 address change: IfName=%s, IP=%s\n", __FUNCTION__, pIfName, pIpAddress);
+        return;
+    }
+
+    sysevent_get(g_iSyseventfd, g_tSysevent_token, "webui_lan_ipv6_seen",
+                 cInitialAddressSeen, sizeof(cInitialAddressSeen));
+    if (strcmp(cInitialAddressSeen, "true") != 0)
+    {
+        sysevent_set(g_iSyseventfd, g_tSysevent_token, "webui_lan_ipv6_seen", "true", 0);
+        fprintf(g_fArmConsoleLog, "%s: Initial LAN IPv6 %s recorded; skipping WebUI restart\n", __FUNCTION__, pIpAddress);
         return;
     }
 
