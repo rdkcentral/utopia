@@ -8985,8 +8985,7 @@ static int do_device_based_parcon(FILE *natFp, FILE* filterFp)
 #define XDNS_DEFAULT_TAG          "empty"
 #define XDNS_MAC_LEN              17  /* "aa:bb:cc:dd:ee:ff" */
 #define XDNS_MASKED_MAC_LEN       35  /* "aa:bb:cc:dd:ee:ff/ff:ff:ff:ff:ff:00" */
-#define XDNS_IPSET_V4             "xdns_clients_v4"
-#define XDNS_IPSET_V6             "xdns_clients_v6"
+#define XDNS_IPSET                "xdns_clients"
 #define XDNS_RESOLV_CONF          "/etc/resolv.conf"
 /* Keep in sync with XDNS_FW_SYNC_LOCKFILE in xdns's cosa_xdns_apis.c; never
  * unlink()/rename()d, unlike the conf file. */
@@ -9095,7 +9094,7 @@ static int is_xdns_default_non_override(int iptype, const char *default_dns, con
 }
 
 // Emits a DNAT rule pair (UDP+TCP/53) to dns_dest. match is an iptables
-// match clause (e.g. "-m set --match-set xdns_clients_v4 src ") or NULL for
+// match clause (e.g. "-m set --match-set xdns_clients src ") or NULL for
 // every client.
 static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, const char *match, const char *dns_dest)
 {
@@ -9241,14 +9240,14 @@ static int xdns_populate_client_set(const char *setname, int iptype, const char 
 }
 
 // Redirects DNS to dnsmasq only for XDNS clients (matched by the static
-// xdns_clients_v4/_v6 ipset that xdns updates without a firewall restart),
+// xdns_clients ipset that xdns updates without a firewall restart),
 // not all LAN traffic. Falls back to a global redirect when XDNS applies
 // device-wide, an entry can't be matched by ipset, or the rebuild failed.
 static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 {
 	char match[96] = {0};
 	char stageset[64] = {0};
-	const char *setname = (iptype == 6) ? XDNS_IPSET_V6 : XDNS_IPSET_V4;
+	const char *setname = XDNS_IPSET;
 	int need_global_redirect = 0;
 	int clients = 0;
 	int lockfd = -1;
