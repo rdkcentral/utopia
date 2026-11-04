@@ -25,7 +25,8 @@ apply_system_defaults_gtest_bin_CPPFLAGS = -I$(PKG_CONFIG_SYSROOT_DIR)$(included
                                            -I$(top_srcdir)/source \
                                            -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
                                            -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include \
-                                           -DUNIT_TEST_DOCKER_SUPPORT
+                                           -DUNIT_TEST_DOCKER_SUPPORT \
+                                           -DLPM_MANAGER_SUPPORT
 
 apply_system_defaults_gtest_bin_SOURCES = $(top_builddir)/source/scripts/init/src/apply_system_defaults/apply_system_defaults.c \
                                           apply_system_defaults_test.cpp \
