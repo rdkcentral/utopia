@@ -9211,10 +9211,10 @@ static int xdns_populate_client_set(const char *setname, int iptype, const char 
 			// Any primary/secondary default needing a redirect is enough. A
 			// non-default tag is an explicit global policy even if the DNS
 			// equals the WAN's.
-			if (dns != NULL && ((tag != NULL && 0 != strcmp(tag, XDNS_DEFAULT_TAG)) ||
-			                    !is_xdns_default_non_override(iptype, dns, lan_dns)))
+			if ((tag != NULL && 0 != strcmp(tag, XDNS_DEFAULT_TAG)) ||
+			    (dns != NULL && !is_xdns_default_non_override(iptype, dns, lan_dns)))
 			{
-				FIREWALL_DEBUG("### XDNS - default DNS (%s) is an XDNS target, redirecting all clients\n" COMMA dns);
+				FIREWALL_DEBUG("### XDNS - default entry is an XDNS target, redirecting all clients\n");
 				*need_global_redirect = 1;
 			}
 		}
