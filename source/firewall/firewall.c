@@ -9038,8 +9038,8 @@ static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, const char *match
 static int xdns_global_redirect_needed(void)
 {
 	char flag[2] = {0};
-	return (0 == syscfg_get(NULL, "XDNS_GlobalRedirect", flag, sizeof(flag)) &&
-	        '1' == flag[0]) ? 1 : 0;
+	return (0 != syscfg_get(NULL, "XDNS_GlobalRedirect", flag, sizeof(flag)) ||
+	        '0' != flag[0]) ? 1 : 0;
 }
 
 // Redirects DNS to dnsmasq only for the clients in the xdns_clients ipset,
