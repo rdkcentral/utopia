@@ -9049,25 +9049,19 @@ static int xdns_global_redirect_needed(void)
 static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 {
 	char match[96] = {0};
-	int global = xdns_global_redirect_needed();
 
-	if (0 == v_secure_system("ipset -! create %s hash:mac", XDNS_IPSET))
-	{
+	// Try to use per-client redirect via ipset; fall back to global if set missing.
+	if (0 == v_secure_system("ipset -! create %s hash:mac", XDNS_IPSET) &&
+	    !xdns_global_redirect_needed()) {
+		// ipset available and global redirect not needed: use match-set rule only.
 		snprintf(match, sizeof(match), "-m set --match-set %s src ", XDNS_IPSET);
 		emit_xdns_dns_route_rule(nat_fp, iptype, match, dns_dest);
-	}
-	else
-	{
-		// A --match-set rule on a missing set would fail the whole NAT restore.
-		global = 1;
-	}
-
-	if (global)
-	{
+		return 0;
+	} else {
+		// ipset missing or global redirect required: use global rule.
 		emit_xdns_dns_route_rule(nat_fp, iptype, NULL, dns_dest);
+		return 1;
 	}
-
-	return global;
 }
 
 int do_dns_route(FILE *nat_fp, int iptype) {
