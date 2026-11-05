@@ -160,6 +160,7 @@ int prepare_rabid_rules_for_mapt(FILE *filter_fp, ip_ver_t ver)
     return 0;
 }
 
+#ifdef DNS_FAILOVER_SUPPORT
 /*
  ==========================================================================
                 Unbound DNS redirect
@@ -180,6 +181,7 @@ int prepare_unbound_filter_rules(FILE *filter_fp, ip_ver_t ver)
     FIREWALL_DEBUG("Exiting prepare_unbound_filter_rules\n");
     return 0;
 }
+#endif /* DNS_FAILOVER_SUPPORT */
 
 
 /*              

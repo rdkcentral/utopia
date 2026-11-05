@@ -432,6 +432,7 @@ int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
 */
 int prepare_rabid_rules_for_mapt(FILE *filter_fp, ip_ver_t ver);
 
+#ifdef DNS_FAILOVER_SUPPORT
 /**
 * @brief Prepare nat rules redirecting DNS to the local Unbound resolver.
 *
@@ -459,6 +460,7 @@ int prepare_unbound_nat_rules(FILE *nat_fp, ip_ver_t ver);
 *
 */
 int prepare_unbound_filter_rules(FILE *filter_fp, ip_ver_t ver);
+#endif /* DNS_FAILOVER_SUPPORT */
 
 /**
 * @brief Apply parental control firewall rules.
