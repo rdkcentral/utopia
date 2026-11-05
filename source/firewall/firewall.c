@@ -8987,9 +8987,6 @@ static int do_device_based_parcon(FILE *natFp, FILE* filterFp)
 #define XDNS_MASKED_MAC_LEN       35  /* "aa:bb:cc:dd:ee:ff/ff:ff:ff:ff:ff:00" */
 #define XDNS_IPSET                "xdns_clients"
 #define XDNS_RESOLV_CONF          "/etc/resolv.conf"
-/* Keep in sync with XDNS_FW_SYNC_LOCKFILE in xdns's cosa_xdns_apis.c; never
- * unlink()/rename()d, unlike the conf file. */
-#define XDNS_FW_SYNC_LOCKFILE     "/tmp/xdns_fw_sync.lock"
 
 /*
 ** XDNS - Route DNS requests from LAN through dnsmasq.
@@ -9115,26 +9112,6 @@ static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, const char *match
 	}
 }
 
-// Takes the lock shared with xdns (see xdns_fw_lock() in cosa_xdns_apis.c).
-// Opened without O_CREAT first: xdns (non-root) may own the file and
-// fs.protected_regular rejects O_CREAT on it. Returns the locked fd (close
-// it to release), or -1 if the lock couldn't be taken.
-static int xdns_fw_lock(void)
-{
-	int fd = open(XDNS_FW_SYNC_LOCKFILE, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-	{
-		fd = open(XDNS_FW_SYNC_LOCKFILE, O_RDONLY | O_CREAT | O_CLOEXEC, 0644);
-	}
-	if (fd >= 0 && flock(fd, LOCK_EX) != 0)
-	{
-		FIREWALL_DEBUG("### XDNS - could not lock %s, rebuilding without it\n" COMMA XDNS_FW_SYNC_LOCKFILE);
-		close(fd);
-		fd = -1;
-	}
-	return fd;
-}
-
 // Parses "dnsoverride <mac> <ipv4> [<ipv6>] [<tag>]" by position. With IPv6
 // xdns writes <ipv6> then <tag>; without it only <tag> follows <ipv4>, so a
 // lone second field is an IPv6 address only if it parses as one. Returns 0 on
@@ -9179,27 +9156,25 @@ static int xdns_parse_entry(char *entry, int iptype, char **mac, char **dns, cha
 	return 0;
 }
 
-// Adds every plain-MAC client in dnsmasq_servers.conf to 'setname' (*clients
-// = number added) and sets *need_global_redirect if XDNS applies device-wide.
-// Returns 0, or -1 if the conf can't be read or any ipset add failed.
-static int xdns_populate_client_set(const char *setname, int iptype, const char *lan_dns, int *need_global_redirect, int *clients)
+// Returns 1 if every client's DNS must be redirected: the default entry is an
+// XDNS target (real XDNS server or non-default tag), a masked MAC (which an
+// ipset can't match) exists, or the conf can't be read.
+static int xdns_global_redirect_needed(int iptype, const char *lan_dns)
 {
 	FILE *fp = fopen(XDNS_DNSMASQ_SERVERS_CONF, "r");
 	char entry[256] = {0};
 	char *mac = NULL;
 	char *dns = NULL;
 	char *tag = NULL;
-	int ret = 0;
-
-	*clients = 0;
+	int global = 0;
 
 	if (fp == NULL)
 	{
-		FIREWALL_DEBUG("### XDNS - cannot read %s\n" COMMA XDNS_DNSMASQ_SERVERS_CONF);
-		return -1;
+		FIREWALL_DEBUG("### XDNS - cannot read %s, redirecting all clients\n" COMMA XDNS_DNSMASQ_SERVERS_CONF);
+		return 1;
 	}
 
-	while (fgets(entry, sizeof(entry), fp) != NULL)
+	while (!global && fgets(entry, sizeof(entry), fp) != NULL)
 	{
 		if (0 != xdns_parse_entry(entry, iptype, &mac, &dns, &tag))
 		{
@@ -9208,107 +9183,47 @@ static int xdns_populate_client_set(const char *setname, int iptype, const char 
 
 		if (0 == strcasecmp(mac, XDNS_DEFAULT_MAC))
 		{
-			// Any primary/secondary default needing a redirect is enough. A
-			// non-default tag is an explicit global policy even if the DNS
+			// A non-default tag is an explicit global policy even if the DNS
 			// equals the WAN's.
-			if ((tag != NULL && 0 != strcmp(tag, XDNS_DEFAULT_TAG)) ||
-			    (dns != NULL && !is_xdns_default_non_override(iptype, dns, lan_dns)))
-			{
-				FIREWALL_DEBUG("### XDNS - default entry is an XDNS target, redirecting all clients\n");
-				*need_global_redirect = 1;
-			}
-		}
-		else if (XDNS_MASKED_MAC_LEN == strlen(mac))
-		{
-			// ipset hash:mac can't match a masked MAC.
-			FIREWALL_DEBUG("### XDNS - masked MAC entry (%s) cannot be matched by ipset, redirecting all clients\n" COMMA mac);
-			*need_global_redirect = 1;
-		}
-		else if (0 != v_secure_system("ipset -! add %s %s", setname, mac))
-		{
-			FIREWALL_DEBUG("### XDNS - failed to add %s to ipset %s\n" COMMA mac COMMA setname);
-			ret = -1;
+			global = (tag != NULL && 0 != strcmp(tag, XDNS_DEFAULT_TAG)) ||
+			         (dns != NULL && !is_xdns_default_non_override(iptype, dns, lan_dns));
 		}
 		else
 		{
-			(*clients)++;
+			global = (XDNS_MASKED_MAC_LEN == strlen(mac));
 		}
 	}
 
 	fclose(fp);
-	return ret;
+	return global;
 }
 
-// Redirects DNS to dnsmasq only for XDNS clients (matched by the static
-// xdns_clients ipset that xdns updates without a firewall restart),
-// not all LAN traffic. Falls back to a global redirect when XDNS applies
-// device-wide, an entry can't be matched by ipset, or the rebuild failed.
+// Redirects DNS to dnsmasq only for the clients in the xdns_clients ipset,
+// which xdns keeps up to date. The set is only created here. Falls back to a
+// global redirect when xdns_global_redirect_needed() says so or the set can't
+// be created. Returns 1 if every client is redirected.
 static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 {
 	char match[96] = {0};
-	char stageset[64] = {0};
-	const char *setname = XDNS_IPSET;
-	int need_global_redirect = 0;
-	int clients = 0;
-	int lockfd = -1;
-	int live_existed = 0;
-	int live_ok = 0;
-	int rebuilt = 0;
+	int global = xdns_global_redirect_needed(iptype, dns_dest);
 
-	// Rebuild into a staging set and swap it in, rather than flushing the
-	// live set, which the iptables rule keeps matching: flushing would
-	// briefly let tagged clients bypass the redirect. The lock is held
-	// through the swap so this can't race xdns's conf update + ipset sync.
-	snprintf(stageset, sizeof(stageset), "%s_new", setname);
-	lockfd = xdns_fw_lock();
-	v_secure_system("ipset -! destroy %s", stageset);
-	rebuilt = (0 == v_secure_system("ipset -! create %s hash:mac", stageset));
-	if (0 != xdns_populate_client_set(stageset, iptype, dns_dest, &need_global_redirect, &clients))
+	if (0 == v_secure_system("ipset -! create %s hash:mac", XDNS_IPSET))
 	{
-		rebuilt = 0;
-	}
-
-	live_existed = (0 == v_secure_system("ipset -n list %s >/dev/null 2>&1", setname));
-	live_ok = (0 == v_secure_system("ipset -! create %s hash:mac", setname));
-	rebuilt = rebuilt && live_ok && (0 == v_secure_system("ipset -! swap %s %s", stageset, setname));
-	v_secure_system("ipset -! destroy %s", stageset);
-
-	if (!rebuilt)
-	{
-		// The previous set may no longer cover every client.
-		FIREWALL_DEBUG("### XDNS - ipset %s rebuild failed, redirecting all clients\n" COMMA setname);
-		need_global_redirect = 1;
-		if (!live_existed)
-		{
-			// Don't leave an empty set that looks valid next time.
-			v_secure_system("ipset -! destroy %s", setname);
-			live_ok = 0;
-		}
-	}
-
-	if (lockfd >= 0)
-	{
-		close(lockfd);
-	}
-
-	if (live_ok)
-	{
-		// Always emitted so xdns can add/remove clients without a restart.
-		snprintf(match, sizeof(match), "-m set --match-set %s src ", setname);
+		snprintf(match, sizeof(match), "-m set --match-set %s src ", XDNS_IPSET);
 		emit_xdns_dns_route_rule(nat_fp, iptype, match, dns_dest);
 	}
 	else
 	{
 		// A --match-set rule on a missing set would fail the whole NAT restore.
-		need_global_redirect = 1;
+		global = 1;
 	}
 
-	if (need_global_redirect)
+	if (global)
 	{
 		emit_xdns_dns_route_rule(nat_fp, iptype, NULL, dns_dest);
 	}
 
-	return clients;
+	return global;
 }
 
 int do_dns_route(FILE *nat_fp, int iptype) {
@@ -9332,8 +9247,8 @@ int do_dns_route(FILE *nat_fp, int iptype) {
 			// Check if lan ip is up. Need to route dns requests to dnsmasq through lan0.
 			if ('\0' != lan_ipaddr[0] && 0 != strcmp("0.0.0.0", lan_ipaddr) )
 			{
-				int nclients = do_xdns_client_dns_route(nat_fp, 4, lan_ipaddr);
-				printf("### XDNS : Feature Enabled XDNS ipv4, %d client(s) in redirect set ### \n", nclients);
+				int global = do_xdns_client_dns_route(nat_fp, 4, lan_ipaddr);
+				printf("### XDNS : Feature Enabled XDNS ipv4, redirect all clients: %d ### \n", global);
 			}
 			else
 			{
@@ -9349,8 +9264,8 @@ int do_dns_route(FILE *nat_fp, int iptype) {
 			// Check if lan ipv6 is up.
 			if ('\0' != lan_ipv6addr[0] && 0 != strcmp("", lan_ipv6addr) && 0 != strcmp("::", lan_ipv6addr))
 			{
-				int nclients = do_xdns_client_dns_route(nat_fp, 6, lan_ipv6addr);
-				printf("### XDNS : Feature Enabled (XDNS ipv6), %d client(s) in redirect set ### \n", nclients);
+				int global = do_xdns_client_dns_route(nat_fp, 6, lan_ipv6addr);
+				printf("### XDNS : Feature Enabled (XDNS ipv6), redirect all clients: %d ### \n", global);
 			}
 			else
 			{
