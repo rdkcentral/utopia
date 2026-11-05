@@ -9000,13 +9000,7 @@ static int do_device_based_parcon(FILE *natFp, FILE* filterFp)
 #endif
 
 
-#define XDNS_DNSMASQ_SERVERS_CONF "/nvram/dnsmasq_servers.conf"
-#define XDNS_DEFAULT_MAC          "00:00:00:00:00:00"
-#define XDNS_DEFAULT_TAG          "empty"
-#define XDNS_MAC_LEN              17  /* "aa:bb:cc:dd:ee:ff" */
-#define XDNS_MASKED_MAC_LEN       35  /* "aa:bb:cc:dd:ee:ff/ff:ff:ff:ff:ff:00" */
 #define XDNS_IPSET                "xdns_clients"
-#define XDNS_RESOLV_CONF          "/etc/resolv.conf"
 
 /*
 ** XDNS - Route DNS requests from LAN through dnsmasq.
