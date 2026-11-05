@@ -9014,102 +9014,10 @@ static int do_device_based_parcon(FILE *natFp, FILE* filterFp)
 #ifdef XDNS_ENABLE
 // Compares textual IPv4/IPv6 addresses by value ("2001:558:feed::1" ==
 // "2001:0558:feed:0:0:0:0:1"), or as strings if either doesn't parse.
-static int xdns_addr_equal(int iptype, const char *a, const char *b)
-{
-	unsigned char abuf[sizeof(struct in6_addr)];
-	unsigned char bbuf[sizeof(struct in6_addr)];
-	int af = (iptype == 6) ? AF_INET6 : AF_INET;
-
-	if (a == NULL || b == NULL)
-	{
-		return 0;
-	}
-
-	if (1 == inet_pton(af, a, abuf) && 1 == inet_pton(af, b, bbuf))
-	{
-		return 0 == memcmp(abuf, bbuf, (af == AF_INET6) ? sizeof(struct in6_addr) : sizeof(struct in_addr));
-	}
-
-	return 0 == strcmp(a, b);
-}
-
-// Returns 1 if 'dns' equals any whitespace-separated address in 'list'
-// (which is modified).
-static int xdns_in_list(int iptype, const char *dns, char *list)
-{
-	char *saveptr = NULL;
-	char *tok = NULL;
-
-	for (tok = strtok_r(list, " \t\n\r", &saveptr); tok != NULL; tok = strtok_r(NULL, " \t\n\r", &saveptr))
-	{
-		if (xdns_addr_equal(iptype, dns, tok))
-		{
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
 /*
-** XDNS - is_xdns_default_non_override(): 1 if the default dnsoverride
-** entry is just the device's normal DNS (only tagged clients need
-** redirecting); 0 if it's a real XDNS server (redirect every client).
+** XDNS - Simplified design: xdns updates ipset and writes syscfg flag for
+** global-redirect decision. Firewall only reads the flag (no conf parsing).
 **/
-static int is_xdns_default_non_override(int iptype, const char *default_dns, const char *lan_ip)
-{
-	char buf[256] = {0};
-	char key[32] = {0};
-	FILE *fp = NULL;
-	int i;
-
-	// Empty, the LAN IP, or the loopback xdns uses as a placeholder for an
-	// inactive address family.
-	if (default_dns == NULL || default_dns[0] == '\0' ||
-	    xdns_addr_equal(iptype, default_dns, lan_ip) ||
-	    xdns_addr_equal(iptype, default_dns, (iptype == 6) ? "::1" : "127.0.0.1"))
-	{
-		return 1;
-	}
-
-	// xdns builds its default entry from resolv.conf (incl. static WAN DNS).
-	if ((fp = fopen(XDNS_RESOLV_CONF, "r")) != NULL)
-	{
-		while (fgets(buf, sizeof(buf), fp) != NULL)
-		{
-			if (0 == strncmp(buf, "nameserver", 10) && xdns_in_list(iptype, default_dns, buf + 10))
-			{
-				fclose(fp);
-				return 1;
-			}
-		}
-		fclose(fp);
-	}
-
-	buf[0] = '\0';
-	sysevent_get(sysevent_fd, sysevent_token, (iptype == 6) ? "ipv6_nameserver" : "wan_dhcp_dns", buf, sizeof(buf));
-	if (xdns_in_list(iptype, default_dns, buf))
-	{
-		return 1;
-	}
-
-	// Static LAN DNS applies only when dhcp_nameserver_enabled is set (see
-	// get_dhcp_option_for_brlan0() in dhcp_server_functions.c).
-	if (iptype == 4 && 0 == syscfg_get(NULL, "dhcp_nameserver_enabled", buf, sizeof(buf)) && 1 == atoi(buf))
-	{
-		for (i = 1; i <= 3; i++)
-		{
-			snprintf(key, sizeof(key), "dhcp_nameserver_%d", i);
-			if (0 == syscfg_get(NULL, key, buf, sizeof(buf)) && xdns_addr_equal(iptype, default_dns, buf))
-			{
-				return 1;
-			}
-		}
-	}
-
-	return 0;
-}
-
 // Emits a DNAT rule pair (UDP+TCP/53) to dns_dest. match is an iptables
 // match clause (e.g. "-m set --match-set xdns_clients src ") or NULL for
 // every client.
@@ -9132,90 +9040,12 @@ static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, const char *match
 	}
 }
 
-// Parses "dnsoverride <mac> <ipv4> [<ipv6>] [<tag>]" by position. With IPv6
-// xdns writes <ipv6> then <tag>; without it only <tag> follows <ipv4>, so a
-// lone second field is an IPv6 address only if it parses as one. Returns 0 on
-// success, with *dns the address for 'iptype' (may be NULL).
-static int xdns_parse_entry(char *entry, int iptype, char **mac, char **dns, char **tag)
+// Returns 1 if every client's DNS must be redirected via syscfg flag from xdns.
+static int xdns_global_redirect_needed(void)
 {
-	char *saveptr = NULL;
-	char *key = strtok_r(entry, " \t\n\r", &saveptr);
-	char *v4 = NULL;
-	char *f2 = NULL;
-	char *f3 = NULL;
-	char *v6 = NULL;
-	size_t len;
-	unsigned char addr6[sizeof(struct in6_addr)];
-
-	if (key == NULL || 0 != strcmp(key, "dnsoverride"))
-	{
-		return -1;
-	}
-
-	*mac = strtok_r(NULL, " \t\n\r", &saveptr);
-	len = (*mac != NULL) ? strlen(*mac) : 0;
-	if (XDNS_MAC_LEN != len && XDNS_MASKED_MAC_LEN != len)
-	{
-		return -1;
-	}
-
-	v4 = strtok_r(NULL, " \t\n\r", &saveptr);
-	f2 = strtok_r(NULL, " \t\n\r", &saveptr);
-	f3 = strtok_r(NULL, " \t\n\r", &saveptr);
-	*tag = f3;
-	if (f3 != NULL || (f2 != NULL && 1 == inet_pton(AF_INET6, f2, addr6)))
-	{
-		v6 = f2;
-	}
-	else
-	{
-		*tag = f2;
-	}
-
-	*dns = (iptype == 6) ? v6 : v4;
-	return 0;
-}
-
-// Returns 1 if every client's DNS must be redirected: the default entry is an
-// XDNS target (real XDNS server or non-default tag), a masked MAC (which an
-// ipset can't match) exists, or the conf can't be read.
-static int xdns_global_redirect_needed(int iptype, const char *lan_dns)
-{
-	FILE *fp = fopen(XDNS_DNSMASQ_SERVERS_CONF, "r");
-	char entry[256] = {0};
-	char *mac = NULL;
-	char *dns = NULL;
-	char *tag = NULL;
-	int global = 0;
-
-	if (fp == NULL)
-	{
-		FIREWALL_DEBUG("### XDNS - cannot read %s, redirecting all clients\n" COMMA XDNS_DNSMASQ_SERVERS_CONF);
-		return 1;
-	}
-
-	while (!global && fgets(entry, sizeof(entry), fp) != NULL)
-	{
-		if (0 != xdns_parse_entry(entry, iptype, &mac, &dns, &tag))
-		{
-			continue;
-		}
-
-		if (0 == strcasecmp(mac, XDNS_DEFAULT_MAC))
-		{
-			// A non-default tag is an explicit global policy even if the DNS
-			// equals the WAN's.
-			global = (tag != NULL && 0 != strcmp(tag, XDNS_DEFAULT_TAG)) ||
-			         (dns != NULL && !is_xdns_default_non_override(iptype, dns, lan_dns));
-		}
-		else
-		{
-			global = (XDNS_MASKED_MAC_LEN == strlen(mac));
-		}
-	}
-
-	fclose(fp);
-	return global;
+	char flag[2] = {0};
+	return (0 == syscfg_get(NULL, "XDNS_GlobalRedirect", flag, sizeof(flag)) &&
+	        '1' == flag[0]) ? 1 : 0;
 }
 
 // Redirects DNS to dnsmasq only for the clients in the xdns_clients ipset,
@@ -9225,7 +9055,7 @@ static int xdns_global_redirect_needed(int iptype, const char *lan_dns)
 static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
 {
 	char match[96] = {0};
-	int global = xdns_global_redirect_needed(iptype, dns_dest);
+	int global = xdns_global_redirect_needed();
 
 	if (0 == v_secure_system("ipset -! create %s hash:mac", XDNS_IPSET))
 	{
