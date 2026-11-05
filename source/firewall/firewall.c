@@ -14358,6 +14358,13 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    fprintf(nat_fp, ":%s ACCEPT [0:0]\n", "POSTROUTING");
    fprintf(nat_fp, ":%s ACCEPT [0:0]\n", "OUTPUT");
    fprintf(nat_fp, ":%s - [0:0]\n", "postrouting_towan");
+
+   /* Keep DNS failover redirection active in gateway mode when the firewall is disabled */
+   if (!isBridgeMode)
+   {
+      prepare_unbound_nat_rules(nat_fp, IP_V4);
+   }
+
 #if defined (FEATURE_SUPPORT_MAPT_NAT46)
    if (isMAPTReady)
    {
@@ -14400,6 +14407,13 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
     */
    fprintf(filter_fp, "*filter\n");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "INPUT");
+
+   /* Keep DNS failover filter rules active in gateway mode when the firewall is disabled */
+   if (!isBridgeMode)
+   {
+      prepare_unbound_filter_rules(filter_fp, IP_V4);
+   }
+
    fprintf(filter_fp, ":%s - [0:0]\n", "wan2self_mgmt");
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_mgmt");
    fprintf(filter_fp, ":%s - [0:0]\n", "xlog_drop_wan2self");
