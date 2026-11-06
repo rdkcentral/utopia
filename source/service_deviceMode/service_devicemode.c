@@ -418,6 +418,7 @@ int service_start(int mode)
 #endif
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
 #if !defined(_WNXL11BWL_PRODUCT_REQ_)
+                fprintf(stderr, "ZEBRA_RESTART_TRACE component=service_devicemode pid=%ld site=%s:%d function=%s reason=router_mode_services_started bridge_mode=%d\n", (long)getpid(), __FILE__, __LINE__, __func__, bridgemode);
                 sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
 #endif
         }
