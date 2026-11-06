@@ -243,12 +243,68 @@ void getRFC_Value(const char* dnsOption)
 }
 int dnsmasq_server_start()
 {
-    char l_cSystemCmd[255] = {0};
+    char l_cSystemCmd[512] = {0};
     errno_t safec_rc = -1;
+    char l_cDnsForwardMax[16] = {0};
+    char l_cDnsForwardMaxArg[32] = {0};
+    int is_valid = 1;
+ 
+    /* Read dns-forward-max from syscfg (set via TR-181 X_RDKCENTRAL-COM_DNSForwardMax) */
+    syscfg_get(NULL, "dnsmasq_dns_forward_max", l_cDnsForwardMax, sizeof(l_cDnsForwardMax));
+    
+    if (l_cDnsForwardMax[0] != '\0')
+    {
+        char *endptr = NULL;
+        unsigned long value_ul = 0;
+        
+        /* Reset errno before strtoul */
+        errno = 0;
+        value_ul = strtoul(l_cDnsForwardMax, &endptr, 10);
+        
+        /* Validate: check for conversion errors */
+        if (errno == ERANGE)
+        {
+            fprintf(g_fArmConsoleLog, "Invalid dnsmasq_dns_forward_max value (overflow): %s\n", l_cDnsForwardMax);
+            is_valid = 0;
+        }
+        else if (endptr == l_cDnsForwardMax || *endptr != '\0')
+        {
+            fprintf(g_fArmConsoleLog, "Invalid dnsmasq_dns_forward_max value (non-numeric): %s\n", l_cDnsForwardMax);
+            is_valid = 0;
+        }
+        else if (value_ul < 1 || value_ul > 600)
+        {
+            fprintf(g_fArmConsoleLog, "Invalid dnsmasq_dns_forward_max value (out of range 1-600): %lu\n", value_ul);
+            is_valid = 0;
+        }
+        
+        if (is_valid)
+        {
+            safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
+                             "--dns-forward-max=%u", (unsigned int)value_ul);
+        }
+        else
+        {
+            /* Invalid or out-of-range: use default */
+            safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
+                             "--dns-forward-max=150");
+        }
+    }
+    else
+    {
+        /* Use default value (150) if not set */
+        safec_rc = sprintf_s(l_cDnsForwardMaxArg, sizeof(l_cDnsForwardMaxArg),
+                         "--dns-forward-max=150");
+    }
+    
+    if (safec_rc < EOK)
+    {
+        ERR_CHK(safec_rc);
+        l_cDnsForwardMaxArg[0] = '\0';
+    }
 
     getRFC_Value (dnsOption);
     dnsOption[sizeof(dnsOption) - 1] = '\0'; // CID 340940 : String not null terminated (STRING_NULL)
-    fprintf(g_fArmConsoleLog, "\n%s Adding DNSMASQ Option: %s\n",__FUNCTION__, dnsOption);
     strtok(dnsOption,"\n");
     char l_cXdnsRefacCodeEnable[8] = {0};
     char l_cXdnsEnable[8] = {0};
@@ -264,14 +320,14 @@ int dnsmasq_server_start()
         syscfg_get(NULL, "XDNS_RefacCodeEnable", l_cXdnsRefacCodeEnable, sizeof(l_cXdnsRefacCodeEnable));
         syscfg_get(NULL, "X_RDKCENTRAL-COM_XDNS", l_cXdnsEnable, sizeof(l_cXdnsEnable));
         if (!strncmp(l_cXdnsRefacCodeEnable, "1", 1) && !strncmp(l_cXdnsEnable, "1", 1)){
-            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --xdns-refac-code",
-                    SERVER, DHCP_CONF,dnsOption);
+            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s %s --xdns-refac-code",
+                    SERVER, DHCP_CONF, dnsOption, l_cDnsForwardMaxArg);
             if(safec_rc < EOK){
                 ERR_CHK(safec_rc);
             }
         }else{
-            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s",
-                    SERVER, DHCP_CONF,dnsOption);
+            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s %s",
+                    SERVER, DHCP_CONF, dnsOption, l_cDnsForwardMaxArg);
             if(safec_rc < EOK){
                 ERR_CHK(safec_rc);
             }
@@ -280,7 +336,7 @@ int dnsmasq_server_start()
     else //If XDNS is not enabled 
 #endif
     {
-        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P 4096 -C %s %s", SERVER, DHCP_CONF,dnsOption);
+        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P 4096 -C %s %s %s", SERVER, DHCP_CONF, dnsOption, l_cDnsForwardMaxArg);
         if(safec_rc < EOK){
             ERR_CHK(safec_rc);
         }
@@ -305,7 +361,7 @@ int dnsmasq_server_start()
                 {
                     if(!strncmp(l_cXdnsRefacCodeEnable, "1", 1))
                     {
-                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --xdns-refac-code",SERVER, DHCP_CONF,dnsOption);
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --xdns-refac-code",SERVER, DHCP_CONF, dnsOption, l_cDnsForwardMaxArg);
                         if(safec_rc < EOK)
                         {
                             ERR_CHK(safec_rc);
@@ -313,7 +369,7 @@ int dnsmasq_server_start()
                     }
                     else
                     {
-                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, DHCP_CONF,dnsOption);
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s %s --dhcp-authoritative --proxy-dnssec --cache-size=0 --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, DHCP_CONF, dnsOption, l_cDnsForwardMaxArg);
                         if(safec_rc < EOK)
                         {
                             ERR_CHK(safec_rc);
@@ -324,7 +380,7 @@ int dnsmasq_server_start()
                 {
                     if(!strncmp(l_cXdnsRefacCodeEnable, "1", 1) && !strncasecmp(l_cXdnsEnable, "1", 1))
                     {
-                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, DHCP_CONF,dnsOption);
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s %s --dhcp-authoritative --xdns-refac-code  --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log",SERVER, DHCP_CONF, dnsOption, l_cDnsForwardMaxArg);
                         if(safec_rc < EOK)
                         {
                             ERR_CHK(safec_rc);
@@ -332,7 +388,7 @@ int dnsmasq_server_start()
                     }
                     else
                     {
-                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s --dhcp-authoritative --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log ",SERVER, DHCP_CONF,dnsOption);
+                        safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -q --clear-on-reload --bind-dynamic --add-mac --add-cpe-id=abcdefgh -P 4096 -C %s %s %s --dhcp-authoritative --stop-dns-rebind --log-facility=/rdklogs/logs/dnsmasq.log ",SERVER, DHCP_CONF, dnsOption, l_cDnsForwardMaxArg);
                         if(safec_rc < EOK)
                         {
                             ERR_CHK(safec_rc);
@@ -347,7 +403,7 @@ int dnsmasq_server_start()
         else // XDNS not enabled
 #endif
         {
-            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P 4096 -C %s",SERVER, DHCP_CONF);
+            safec_rc = sprintf_s(l_cSystemCmd, sizeof(l_cSystemCmd),"%s -P 4096 -C %s %s",SERVER, DHCP_CONF, l_cDnsForwardMaxArg);
             if(safec_rc < EOK)
             {
                 ERR_CHK(safec_rc);
