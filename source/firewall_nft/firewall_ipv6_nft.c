@@ -2154,7 +2154,7 @@ void applyIpv6ULARules(FILE* fp)
 int lan_access_set_proto_ipv6(FILE *fp,const char *port, const char *interface)
 {
         if ((0 == strcmp("80", port)) || (0 == strcmp("443", port))) {
-           fprintf(fp, "add rule ip6 filter INPUT iifname \"%s \" tcp dport %s jump webui_limit\n", interface, port);
+           fprintf(fp, "add rule ip6 filter INPUT iifname \"%s\" tcp dport %s jump webui_limit\n", interface, port);
         }
         else
         {
