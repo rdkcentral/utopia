@@ -1445,6 +1445,7 @@ $FwDwld_AvlMem_RsrvThreshold=20
 
 #FwDwld_ImageProcMemPercent Default value
 $FwDwld_ImageProcMemPercent=0
+$edns_packet_size=1232
 
 #DeviceType default value
 $DeviceType=PROD
