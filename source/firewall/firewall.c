@@ -2780,8 +2780,13 @@ static int prepare_globals_from_configuration(void)
          pStr = NULL;
       }
       
-      strncpy(StaticIPSubnet[0].ip, current_wan_static_ipaddr, sizeof(StaticIPSubnet[0].ip));
-      strncpy(StaticIPSubnet[0].mask, current_wan_static_mask, sizeof(StaticIPSubnet[0].mask));
+      strncpy(StaticIPSubnet[0].ip, current_wan_static_ipaddr,
+        sizeof(StaticIPSubnet[0].ip) - 1);
+      StaticIPSubnet[0].ip[sizeof(StaticIPSubnet[0].ip) - 1] = '\0';
+
+      strncpy(StaticIPSubnet[0].mask, current_wan_static_mask,
+        sizeof(StaticIPSubnet[0].mask) - 1);
+      StaticIPSubnet[0].mask[sizeof(StaticIPSubnet[0].mask) - 1] = '\0';
       StaticIPSubnetNum = 1;
 
       unsigned int ts_asn_count = 0;
@@ -2814,7 +2819,9 @@ static int prepare_globals_from_configuration(void)
              }
              rc |= PSM_VALUE_GET_STRING(tmp, pStr) - CCSP_SUCCESS;
              if(rc == 0 && pStr != NULL){
-                strncpy(StaticIPSubnet[StaticIPSubnetNum].ip, pStr, sizeof(StaticIPSubnet[StaticIPSubnetNum].ip));
+                strncpy(StaticIPSubnet[StaticIPSubnetNum].ip, pStr,
+                sizeof(StaticIPSubnet[StaticIPSubnetNum].ip) - 1);
+                StaticIPSubnet[StaticIPSubnetNum].ip[sizeof(StaticIPSubnet[StaticIPSubnetNum].ip) - 1] = '\0';
                 Ansc_FreeMemory_Callback(pStr);
                 pStr = NULL;
              }
@@ -2825,7 +2832,9 @@ static int prepare_globals_from_configuration(void)
              }
              rc |= PSM_VALUE_GET_STRING(tmp, pStr) - CCSP_SUCCESS;
              if(rc == 0 && pStr != NULL){
-                strncpy(StaticIPSubnet[StaticIPSubnetNum].mask, pStr, sizeof(StaticIPSubnet[StaticIPSubnetNum].mask));
+                strncpy(StaticIPSubnet[StaticIPSubnetNum].mask, pStr,
+                sizeof(StaticIPSubnet[StaticIPSubnetNum].mask) - 1);
+                StaticIPSubnet[StaticIPSubnetNum].mask[sizeof(StaticIPSubnet[StaticIPSubnetNum].mask) - 1] = '\0';
                 Ansc_FreeMemory_Callback(pStr);
                 pStr = NULL;
              }
