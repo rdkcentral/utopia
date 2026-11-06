@@ -139,6 +139,7 @@ typedef struct udhcpc_script_t
 #define DHCP_IP_ADDRESS "ip"
 #define DHCP_SUBNET "subnet"
 #define DHCP_SUBNET_MASK "mask"
+#define DHCP_DOMAIN_NAME "domain"
 #define DHCP_ROUTER_GW "router"
 #define DHCP_DNS_SERVER "dns"
 #define DHCP_UPSTREAMRATE "upstreamrate"
@@ -997,6 +998,7 @@ STATIC int handle_wan (udhcpc_script_t *pinfo)
     OnboardLog("[%s][%d] is expired      = %d \n", __FUNCTION__, __LINE__, data.isExpired);
     OnboardLog("[%s][%d] ip              = %s\n",__FUNCTION__, __LINE__, data.ip);
     OnboardLog("[%s][%d] mask            = %s \n", __FUNCTION__, __LINE__,data.mask);
+    OnboardLog("[%s][%d] domain          = %s \n", __FUNCTION__, __LINE__,data.domain);
     OnboardLog("[%s][%d] gateway         = %s \n",__FUNCTION__, __LINE__,data.gateway);
     OnboardLog("[%s][%d] dnsserver1      = %s \n",__FUNCTION__, __LINE__, data.dnsServer);
     OnboardLog("[%s][%d] dnsserver2      = %s \n", __FUNCTION__, __LINE__,data.dnsServer1);
@@ -1334,6 +1336,17 @@ STATIC int get_and_fill_env_data (ipc_dhcpv4_data_t *dhcpv4_data, udhcpc_script_
         else
         {
             OnboardLog("[%s-%d] Subnet is not available \n", __FUNCTION__,__LINE__);
+        }
+
+        /** Domain name */
+        if ((env = getenv(DHCP_DOMAIN_NAME)) != NULL)
+        {
+            safec_rc = strcpy_s(dhcpv4_data->domain, sizeof(dhcpv4_data->domain), env); // CID 187457: Buffer not null terminated (BUFFER_SIZE)
+            ERR_CHK(safec_rc);
+        }
+        else
+        {
+            OnboardLog("[%s-%d] Domain name is not available \n", __FUNCTION__,__LINE__);
         }
 
         /** Gateway. */
