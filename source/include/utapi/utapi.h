@@ -3400,6 +3400,7 @@ int Utopia_SetLanMngmLanNapt(UtopiaContext *ctx, napt_mode_t enable);
 
 typedef struct dns_client{
     char dns_server[DNS_CLIENT_NAMESERVER_CNT][IPADDR_SZ];
+    char s_alias[DNS_CLIENT_NAMESERVER_CNT][TR_ALIAS_SZ];
 }DNS_Client_t;
 
 /**
