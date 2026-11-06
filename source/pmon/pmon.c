@@ -90,6 +90,27 @@ static void str_trim (char **p)
     }
 }
 
+//utopia-develop_High_011
+static int parse_restart_command (char *cmd, char **argv, size_t argv_size)
+{
+    char *saveptr = NULL;
+    char *arg;
+    size_t argc = 0;
+
+    for (arg = strtok_r(cmd, " \t\r\n", &saveptr);
+         NULL != arg;
+         arg = strtok_r(NULL, " \t\r\n", &saveptr)) {
+        if (argc + 1 >= argv_size)
+            return 0;
+        argv[argc++] = arg;
+    }
+    if (0 == argc)
+        return 0;
+
+    argv[argc] = NULL;
+    return 1;
+}
+
 /*
  * Returns 1 if process is found, 0 otherwise
  */
@@ -168,7 +189,8 @@ static int find_process (const char *proc_name,const char *pidfile)
  *   1           : on exec error (caller may want to do _exit(127) if appropriate)
  *   2           : on fork error
  */
-static int proc_mon (const char *proc_name, const char *pid_file, const char *cmd)
+static int proc_mon (const char *proc_name, const char *pid_file,
+                     char *const restart_argv[])
 {
     int pid;
 
@@ -183,7 +205,8 @@ static int proc_mon (const char *proc_name, const char *pid_file, const char *cm
         t2_event_d("SYS_SH_dnsmasq_restart",1);
     }
 
-    printf("pmon: attempting to restart '%s' using '%s'\n", proc_name, cmd);
+    printf("pmon: attempting to restart '%s' using '%s'\n",
+           proc_name, restart_argv[0]);
     if (pid_file) {
         printf("pmon: removing pid file %s\n", pid_file);
         unlink(pid_file);
@@ -191,9 +214,9 @@ static int proc_mon (const char *proc_name, const char *pid_file, const char *cm
 
     pid = fork();
     if (0 == pid) {
-        // child 
-        execl("/bin/sh", "sh", "-c", cmd, (char *)0);
-        return 1; /* exec error */
+        execv(restart_argv[0], restart_argv);
+        perror("pmon: execv failed");
+        _exit(127);
     }
 
     // parent
@@ -210,6 +233,7 @@ int main (int argc, char *argv[])
     FILE *fp;
     char buf[512], *p_buf;
     char buf2[512];
+    char *restart_argv[256];
     char *proc_name, *pid_file, *restart_cmd;
 
     if (1 == argc) {
@@ -235,12 +259,17 @@ int main (int argc, char *argv[])
             printf("pmon: skip malformed config line '%s'\n", buf2);
             continue;
         }
-        printf("%s: proc_name '%s', pid_file '%s', restart_cmd '%s'\n", __FUNCTION__, proc_name, pid_file, restart_cmd);
+        if (!parse_restart_command(restart_cmd, restart_argv,
+                                   sizeof(restart_argv) / sizeof(restart_argv[0]))) {
+            printf("pmon: skip malformed restart command for '%s'\n", proc_name);
+            continue;
+        }
+        printf("%s: proc_name '%s', pid_file '%s', restart '%s'\n",
+               __FUNCTION__, proc_name, pid_file, restart_argv[0]);
         pid_file = (strcasecmp(pid_file,"none")) ? pid_file : NULL;
-        proc_mon(proc_name, pid_file, restart_cmd);
+        proc_mon(proc_name, pid_file, restart_argv);
     }
     fclose(fp);
     
     return 0;
 }
-

@@ -84,6 +84,27 @@ static void restartWebuiOnLanIpv6AddrChange(const char *pIfName, const char *pPr
         fprintf(g_fArmConsoleLog, "%s: Failed to request WebUI restart\n", __FUNCTION__);
 }
 
+//utopia-develop_High_016
+static int is_valid_ifname(const char *ifname)
+{
+    if (NULL == ifname || '\0' == ifname[0])
+    {
+        return 0;
+    }
+
+    for (size_t i = 0; '\0' != ifname[i]; ++i)
+    {
+        char c = ifname[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+              (c >= '0' && c <= '9') || '_' == c || '-' == c || '.' == c))
+        {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 void get_dateanduptime(char *buffer, int *uptime)
 {
     struct 	timeval  tv;
@@ -1019,6 +1040,12 @@ void lan_stop()
     sprintf(l_cSysevent_Cmd, "ipv4_%d-ifname", l_iL3Inst);
     sysevent_get(g_iSyseventfd, g_tSysevent_token, l_cSysevent_Cmd,
                  l_cLanIfName, sizeof(l_cLanIfName));
+
+    if (!is_valid_ifname(l_cLanIfName))
+    {
+        LAN_HANDLER_LOG("LAN HANDLER FAILURE : Invalid LAN interface name, lan-stop cannot proceed\n");
+        return;
+    }
 
     sysevent_set(g_iSyseventfd, g_tSysevent_token, "ipv4-down", l_cL3Inst, 0);
     fprintf(g_fArmConsoleLog, "Calling ipv4_down with L3 Instance:%d\n", l_iL3Inst);
