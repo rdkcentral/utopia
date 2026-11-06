@@ -66,7 +66,9 @@ int vsystem(const char *fmt, ...)
     if (n < 0 || n >= sizeof(cmd))
         return -1;
 
+    #ifndef _COSA_QCA_ARM_
     fprintf(stderr, "%s: %s\n", __FUNCTION__, cmd);
+    #endif
     return system(cmd);
 }
 
