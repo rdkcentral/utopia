@@ -530,6 +530,18 @@ const char* const firewall_component_id = "ccsp.firewall";
 //pthread_mutex_t firewall_check;
 fw_shm_mutex fwmutex;
 #define SERVICE_EV_COUNT 4
+#if defined(SPEED_BOOST_SUPPORTED)
+char speedboost_port_start_v4[10];
+char speedboost_port_end_v4[10];
+char speedboost_port_start_v6[10];
+char speedboost_port_end_v6[10];
+#endif
+int port_range_forward_count;
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+ts_port_range_forward_entry_t ts_port_range_forward_entries[TS_MAX_PORTMAP_ENTRIES];
+#endif
+char dhcp_start[16];
+char dhcp_end[16];
 enum{
     NAT_DISABLE = 0,
     NAT_DHCP,
@@ -799,19 +811,6 @@ static inline int SET_IPT_PRI_MODULD(char *s){
    else
        return 0; 
 } 
-
-/* 
- * Get PSM value 
- */
- #ifdef CISCO_CONFIG_TRUE_STATIC_IP
-#define PSM_NAME_TRUE_STATIC_IP_ADDRESS "dmsb.truestaticip.Ipaddress"
-#define PSM_NAME_TRUE_STATIC_IP_NETMASK "dmsb.truestaticip.Subnetmask"
-#define PSM_NAME_TRUE_STATIC_IP_ENABLE  "dmsb.truestaticip.Enable"
-#define PSM_NAME_TRUE_STATIC_ASN        "dmsb.truestaticip.Asn."
-#define PSM_NAME_TRUE_STATIC_ASN_IP     "Ipaddress"
-#define PSM_NAME_TRUE_STATIC_ASN_MASK   "Subnetmask"
-#define PSM_NAME_TRUE_STATIC_ASN_ENABLE "Enable"
-#endif
 
 #define PSM_VALUE_GET_INS(name, pIns, ppInsArry) PsmGetNextLevelInstances(bus_handle, CCSP_SUBSYS, name, pIns, ppInsArry)
 
@@ -1686,9 +1685,8 @@ static int privateIpCheck(char *ip_to_check)
 {
 #ifndef MULTILAN_FEATURE
 
-    struct in_addr l_sIpValue, l_sDhcpStart, l_sDhcpEnd;
+    struct in_addr l_sIpValue = {0}, l_sDhcpStart = {0}, l_sDhcpEnd = {0};
     long int l_iIpValue, l_iDhcpStart, l_iDhcpEnd;
-	char l_cDhcpStart[16] = {0}, l_cDhcpEnd[16] = {0};
 	int l_iRes;
 
 	if (NULL == ip_to_check || 0 == ip_to_check[0])
@@ -1697,12 +1695,9 @@ static int privateIpCheck(char *ip_to_check)
 		return 1;
 	}
 
-	syscfg_get(NULL, "dhcp_start", l_cDhcpStart, sizeof(l_cDhcpStart));
-	syscfg_get(NULL, "dhcp_end", l_cDhcpEnd, sizeof(l_cDhcpEnd));
-
     l_iRes = inet_pton(AF_INET, ip_to_check, &l_sIpValue);
-    l_iRes &= inet_pton(AF_INET, l_cDhcpStart, &l_sDhcpStart);
-    l_iRes &= inet_pton(AF_INET, l_cDhcpEnd, &l_sDhcpEnd);
+    l_iRes &= inet_pton(AF_INET, dhcp_start, &l_sDhcpStart);
+    l_iRes &= inet_pton(AF_INET, dhcp_end, &l_sDhcpEnd);
 
     l_iIpValue = ntohl(l_sIpValue.s_addr);
     l_iDhcpStart = ntohl(l_sDhcpStart.s_addr);
@@ -2364,6 +2359,16 @@ static int prepare_globals_from_configuration(void)
    wan_staticip_status[0] = '\0';
 #endif
    lan_ipaddr[0] = '\0';
+   dhcp_start[0] = '\0';
+   dhcp_end[0] = '\0';
+   if (0 != syscfg_get(NULL, "dhcp_start", dhcp_start, sizeof(dhcp_start))) {
+      dhcp_start[0] = '\0';
+      FIREWALL_DEBUG("Failed to read dhcp_start from syscfg\n");
+   }
+   if (0 != syscfg_get(NULL, "dhcp_end", dhcp_end, sizeof(dhcp_end))) {
+      dhcp_end[0] = '\0';
+      FIREWALL_DEBUG("Failed to read dhcp_end from syscfg\n");
+   }
    transparent_cache_state[0] = '\0';
    wan_service_status[0] = '\0';
 #if defined(_COSA_BCM_MIPS_)
@@ -3128,22 +3133,30 @@ static int prepare_globals_from_configuration(void)
 
    #if defined(SPEED_BOOST_SUPPORTED)
    {
-      char sb_port_start[10] , sb_port_end[10] , pvd_enable[8];
+      char pvd_enable[8];
       speedboostports[0]='\0';
-      sb_port_start[0]='\0';
-      sb_port_end[0]='\0';
+      speedboost_port_start_v4[0]='\0';
+      speedboost_port_end_v4[0]='\0';
+      speedboost_port_start_v6[0]='\0';
+      speedboost_port_end_v6[0]='\0';
       pvd_enable[0]='\0';
-      int rc_sb = syscfg_get(NULL, "SpeedBoost_Port_StartV4" , sb_port_start, sizeof(sb_port_start));
-      rc_sb |= syscfg_get(NULL, "SpeedBoost_Port_EndV4" , sb_port_end, sizeof(sb_port_end));
-      if (rc_sb == 0 && atoi(sb_port_start) && atoi(sb_port_end) ) {
-         snprintf(speedboostports , sizeof(speedboostports), "%s:%s", sb_port_start, sb_port_end);
+      int rc_sb = syscfg_get(NULL, "SpeedBoost_Port_StartV4", speedboost_port_start_v4, sizeof(speedboost_port_start_v4));
+      rc_sb |= syscfg_get(NULL, "SpeedBoost_Port_EndV4", speedboost_port_end_v4, sizeof(speedboost_port_end_v4));
+      if (rc_sb == 0 && atoi(speedboost_port_start_v4) && atoi(speedboost_port_end_v4)) {
+         snprintf(speedboostports, sizeof(speedboostports), "%s:%s", speedboost_port_start_v4, speedboost_port_end_v4);
+      } else {
+         speedboost_port_start_v4[0] = '\0';
+         speedboost_port_end_v4[0] = '\0';
       }
       #if defined(SPEED_BOOST_SUPPORTED_V6)
       speedboostportsv6[0]='\0';
-      rc_sb = syscfg_get(NULL, "SpeedBoost_Port_StartV6" , sb_port_start, sizeof(sb_port_start));
-      rc_sb |= syscfg_get(NULL, "SpeedBoost_Port_EndV6" , sb_port_end, sizeof(sb_port_end));
-      if (rc_sb == 0 && atoi(sb_port_start) && atoi(sb_port_end) ) {
-         snprintf(speedboostportsv6 , sizeof(speedboostportsv6), "%s:%s", sb_port_start, sb_port_end);
+      rc_sb = syscfg_get(NULL, "SpeedBoost_Port_StartV6", speedboost_port_start_v6, sizeof(speedboost_port_start_v6));
+      rc_sb |= syscfg_get(NULL, "SpeedBoost_Port_EndV6", speedboost_port_end_v6, sizeof(speedboost_port_end_v6));
+      if (rc_sb == 0 && atoi(speedboost_port_start_v6) && atoi(speedboost_port_end_v6)) {
+         snprintf(speedboostportsv6, sizeof(speedboostportsv6), "%s:%s", speedboost_port_start_v6, speedboost_port_end_v6);
+      } else {
+         speedboost_port_start_v6[0] = '\0';
+         speedboost_port_end_v6[0] = '\0';
       }
       #endif
       rc_sb = syscfg_get(NULL, "Advertisement_pvd_enable" , pvd_enable, sizeof(pvd_enable));
@@ -3786,9 +3799,14 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
 #endif
 
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP 
-
    memset(PfRangeIP,0,sizeof(PfRangeIP));
 #endif
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+   if (AF_INET == iptype) {
+      memset(ts_port_range_forward_entries, 0, sizeof(ts_port_range_forward_entries));
+   }
+#endif
+   port_range_forward_count = 0;
    query[0] = '\0';
            FIREWALL_DEBUG("Entering do_port_range_forwarding\n");       
    rc = syscfg_get(NULL, "PortRangeForwardCount", query, sizeof(query));
@@ -3803,6 +3821,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
          count = MAX_SYSCFG_ENTRIES;
       }
    }
+   port_range_forward_count = count;
 
    for (idx=1 ; idx<=count ; idx++) {
       namespace[0] = '\0';
@@ -3811,6 +3830,12 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
       if (0 != rc || '\0' == namespace[0]) {
          continue;
       }
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+      if (AF_INET == iptype && idx <= TS_MAX_PORTMAP_ENTRIES) {
+         snprintf(ts_port_range_forward_entries[idx - 1].namespace_name,
+                  sizeof(ts_port_range_forward_entries[idx - 1].namespace_name), "%s", namespace);
+      }
+#endif
 
 #if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
       FIREWALL_DEBUG("PortMapping:Index %d\n" COMMA idx);
@@ -3819,6 +3844,12 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
       // is the rule enabled
       query[0] = '\0';
       rc = syscfg_get(namespace, "enabled", query, sizeof(query));
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+      if (AF_INET == iptype && idx <= TS_MAX_PORTMAP_ENTRIES && 0 == rc) {
+         snprintf(ts_port_range_forward_entries[idx - 1].enabled,
+                  sizeof(ts_port_range_forward_entries[idx - 1].enabled), "%s", query);
+      }
+#endif
       if (0 != rc || '\0' == query[0]) {
          continue;
       } else if ( (0 == strcmp("0", query)) || (0 == strcasecmp("false", query)) ) {
@@ -3840,6 +3871,12 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
       /* seting IPv4 rule */
       if(iptype == AF_INET){ 
           rc = syscfg_get(namespace, "to_ip", toip, sizeof(toip));
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+          if (0 == rc && idx <= TS_MAX_PORTMAP_ENTRIES) {
+             snprintf(ts_port_range_forward_entries[idx - 1].to_ip,
+                      sizeof(ts_port_range_forward_entries[idx - 1].to_ip), "%s", toip);
+          }
+#endif
           /* some time user only need IPv6 forwarding, in this case 255.255.255.255 will be set as toip. 
            * so we needn't do anything about those entry */
           if ( 0 != rc || '\0' == toip[0] || strcmp("255.255.255.255", toip) == 0 ) {
@@ -3854,6 +3891,12 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
 #endif
 
           rc = syscfg_get(namespace, "public_ip", public_ip, sizeof(public_ip));
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+          if (0 == rc && idx <= TS_MAX_PORTMAP_ENTRIES) {
+             snprintf(ts_port_range_forward_entries[idx - 1].public_ip,
+                      sizeof(ts_port_range_forward_entries[idx - 1].public_ip), "%s", public_ip);
+          }
+#endif
           /* In older version public ip field is not exist.
            * so if it get failed, keep doing the next step */ 
           if(0 == rc && '\0' != public_ip[0] ){

@@ -62,6 +62,30 @@
 #include "safec_lib_common.h"
 #include "ansc_status.h"
 
+#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#define PSM_NAME_TRUE_STATIC_IP_ADDRESS "dmsb.truestaticip.Ipaddress"
+#define PSM_NAME_TRUE_STATIC_IP_NETMASK "dmsb.truestaticip.Subnetmask"
+#define PSM_NAME_TRUE_STATIC_IP_ENABLE  "dmsb.truestaticip.Enable"
+#define PSM_NAME_TRUE_STATIC_ASN        "dmsb.truestaticip.Asn."
+#define PSM_NAME_TRUE_STATIC_ASN_IP     "Ipaddress"
+#define PSM_NAME_TRUE_STATIC_ASN_MASK   "Subnetmask"
+#define PSM_NAME_TRUE_STATIC_ASN_ENABLE "Enable"
+#endif
+
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+#define TS_MAX_SUBNET_COUNT             64
+#define TS_MAX_PORTMAP_ENTRIES          128
+#define TS_PORTMAP_NAMESPACE_SIZE       64
+#define TS_PORTMAP_ENABLED_SIZE         16
+#define TS_PORTMAP_IP_SIZE              40
+typedef struct {
+   char namespace_name[TS_PORTMAP_NAMESPACE_SIZE];
+   char enabled[TS_PORTMAP_ENABLED_SIZE];
+   char to_ip[TS_PORTMAP_IP_SIZE];
+   char public_ip[TS_PORTMAP_IP_SIZE];
+} ts_port_range_forward_entry_t;
+#endif
+
 /**
 * @brief Apply logging rules to the filter table.
 *
@@ -955,6 +979,16 @@ extern int isHttpBlockedV6;
 extern int isP2pBlockedV6;
 extern int isIdentBlockedV6;
 extern int isMulticastBlockedV6;
+extern char speedboost_port_start_v4[10];
+extern char speedboost_port_end_v4[10];
+extern char speedboost_port_start_v6[10];
+extern char speedboost_port_end_v6[10];
+extern int port_range_forward_count;
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+extern ts_port_range_forward_entry_t ts_port_range_forward_entries[TS_MAX_PORTMAP_ENTRIES];
+#endif
+extern char dhcp_start[16];
+extern char dhcp_end[16];
 extern int isFirewallEnabled;
 extern int isBridgeMode;
 extern int isWanServiceReady;
