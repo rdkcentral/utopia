@@ -9004,6 +9004,49 @@ static int do_device_based_parcon(FILE *natFp, FILE* filterFp)
 ** XDNS - Route DNS requests from LAN through dnsmasq.
 **/
 #ifdef XDNS_ENABLE
+#define XDNS_IPSET                "xdns_clients"
+// Emits a DNAT rule pair (UDP+TCP/53) to dns_dest. match is an iptables match clause
+// (e.g. "-m set --match-set xdns_clients src ") or NULL for every client
+static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, const char *match, const char *dns_dest)
+{
+	const char *chain = (iptype == 4) ? "prerouting_fromlan" : "PREROUTING";
+	const char *protos[2] = {"udp", "tcp"};
+#if defined (INTEL_PUMA7)
+	// Prerouting is bypassed for the Xi devices (needed only for XB6).
+	const char *skip = (iptype == 4) ? "! -s 169.254.0.0/16 " : "! -s 2603:2000::/20 ";
+#else
+	const char *skip = "";
+#endif
+
+	for (size_t i = 0; i < sizeof(protos) / sizeof(protos[0]); i++)
+	{
+		fprintf(nat_fp, "-A %s -i %s %s%s-p %s --dport 53 -j DNAT --to-destination %s\n",
+		        chain, lan_ifname, skip, (match != NULL) ? match : "", protos[i], dns_dest);
+	}
+}
+
+// Redirects DNS to dnsmasq only for clients in the xdns_clients ipset
+// (kept up to date by xdns). Falls back to a global redirect when
+// XDNS_GlobalRedirect is set or the ipset can't be created. Returns 1 if
+// the global redirect was used, 0 for per-client.
+static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
+{
+	char match[96] = {0};
+	char flag[2] = {0};
+	int xdns_global_redirect_needed = (0 != syscfg_get(NULL, "XDNS_GlobalRedirect", flag, sizeof(flag)) ||
+	        '0' != flag[0]) ? 1 : 0;
+
+	if (0 == v_secure_system("ipset -! create %s hash:mac", XDNS_IPSET) &&
+	    !xdns_global_redirect_needed) {
+		snprintf(match, sizeof(match), "-m set --match-set %s src ", XDNS_IPSET);
+		emit_xdns_dns_route_rule(nat_fp, iptype, match, dns_dest);
+		return 0;
+	} else {
+		emit_xdns_dns_route_rule(nat_fp, iptype, NULL, dns_dest);
+		return 1;
+	}
+}
+
 int do_dns_route(FILE *nat_fp, int iptype) {
 
 	char xdnsflag[20] = {0};
@@ -9025,18 +9068,8 @@ int do_dns_route(FILE *nat_fp, int iptype) {
 			// Check if lan ip is up. Need to route dns requests to dnsmasq through lan0.
 			if ('\0' != lan_ipaddr[0] && 0 != strcmp("0.0.0.0", lan_ipaddr) )
 			{
-	                #if defined (INTEL_PUMA7)
-				// Prerouting is bypassed for the Xi devices (Needed only for XB6)
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                printf("### XDNS : Feature Enabled XDNS ipv4 ### \n");
-                        #else
-
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                printf("### XDNS : Feature Enabled XDNS ipv4 ### \n");
-                        #endif
-
+				int global = do_xdns_client_dns_route(nat_fp, 4, lan_ipaddr);
+				printf("### XDNS : Feature Enabled XDNS ipv4, global redirect: %d ### \n", global);
 			}
 			else
 			{
@@ -9052,16 +9085,8 @@ int do_dns_route(FILE *nat_fp, int iptype) {
 			// Check if lan ipv6 is up.
 			if ('\0' != lan_ipv6addr[0] && 0 != strcmp("", lan_ipv6addr) && 0 != strcmp("::", lan_ipv6addr))
 			{
-	                #if defined (INTEL_PUMA7)
-                                // Prerouting is bypassed for the Xi devices (Needed only for XB6)
-                                fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20  -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-			        fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20  -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-				printf("### XDNS : Feature Enabled (XDNS ipv6) ### \n");
-                        #else
-				fprintf(nat_fp, "-A PREROUTING -i %s -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-                                fprintf(nat_fp, "-A PREROUTING -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-                                printf("### XDNS : Feature Enabled (XDNS ipv6) ### \n");
-                        #endif
+				int global = do_xdns_client_dns_route(nat_fp, 6, lan_ipv6addr);
+				printf("### XDNS : Feature Enabled (XDNS ipv6), global redirect: %d ### \n", global);
 			}
 			else
 			{
