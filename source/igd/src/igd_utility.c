@@ -158,9 +158,9 @@ LOCAL VOID *_timer_loop_run_once(IN VOID *arg)
         temp_node = copy_timer_function_list;
         while(temp_node != NULL)
         {
-            copy_timer_function_list = copy_timer_function_list->next;
-            free(temp_node);
-            temp_node = copy_timer_function_list;
+             struct timer_function_node *next_node = temp_node_copy->next;
+             free(temp_node);
+             temp_node_copy = next_node;
         }
     }
     return NULL;
