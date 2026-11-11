@@ -922,6 +922,10 @@ void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype);
 
 #endif
 
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+void do_one2one_nat_entry(FILE *nat_fp, const char *toip, const char *public_ip);
+#endif
+
 // String manipulation utilities
 /**
 * @brief Perform string substitutions in firewall rule strings.

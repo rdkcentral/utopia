@@ -3920,6 +3920,9 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
                  if (isWanReady && isWanStaticIPReady) {
                     fprintf(nat_fp, "-A prerouting_fromwan -d %s -j DNAT --to-destination %s\n", public_ip, toip);
                     fprintf(nat_fp, "-A postrouting_towan -s %s -j SNAT --to-source %s\n", toip, public_ip);
+#if defined(SPEED_BOOST_SUPPORTED)
+                    do_one2one_nat_entry(nat_fp, toip, public_ip);
+#endif
 
 		    #if defined(_BWG_PRODUCT_REQ_)
 		    fprintf(stderr, "%s:1-to-1 NAT StaticIP =%s StaticNatCount =%d \n",__FUNCTION__, public_ip, StaticNatCount);
