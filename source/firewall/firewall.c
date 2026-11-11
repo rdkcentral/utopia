@@ -801,19 +801,6 @@ static inline int SET_IPT_PRI_MODULD(char *s){
        return 0; 
 } 
 
-/* 
- * Get PSM value 
- */
- #ifdef CISCO_CONFIG_TRUE_STATIC_IP
-#define PSM_NAME_TRUE_STATIC_IP_ADDRESS "dmsb.truestaticip.Ipaddress"
-#define PSM_NAME_TRUE_STATIC_IP_NETMASK "dmsb.truestaticip.Subnetmask"
-#define PSM_NAME_TRUE_STATIC_IP_ENABLE  "dmsb.truestaticip.Enable"
-#define PSM_NAME_TRUE_STATIC_ASN        "dmsb.truestaticip.Asn."
-#define PSM_NAME_TRUE_STATIC_ASN_IP     "Ipaddress"
-#define PSM_NAME_TRUE_STATIC_ASN_MASK   "Subnetmask"
-#define PSM_NAME_TRUE_STATIC_ASN_ENABLE "Enable"
-#endif
-
 #define PSM_VALUE_GET_INS(name, pIns, ppInsArry) PsmGetNextLevelInstances(bus_handle, CCSP_SUBSYS, name, pIns, ppInsArry)
 
 #define PSM_NAME_SPEEDTEST_SERVER_CAPABILITY "eRT.com.cisco.spvtg.ccsp.tr181pa.Device.IP.Diagnostics.X_RDKCENTRAL-COM_SpeedTest.Server.Capability"

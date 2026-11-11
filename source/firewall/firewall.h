@@ -123,6 +123,20 @@ int prepare_ipv4_firewall(const char *fw_file);
 int prepare_ipv6_firewall(const char *fw_file);
 #define CCSP_SUBSYS "eRT."
 
+#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#define PSM_NAME_TRUE_STATIC_IP_ADDRESS "dmsb.truestaticip.Ipaddress"
+#define PSM_NAME_TRUE_STATIC_IP_NETMASK "dmsb.truestaticip.Subnetmask"
+#define PSM_NAME_TRUE_STATIC_IP_ENABLE  "dmsb.truestaticip.Enable"
+#define PSM_NAME_TRUE_STATIC_ASN        "dmsb.truestaticip.Asn."
+#define PSM_NAME_TRUE_STATIC_ASN_IP     "Ipaddress"
+#define PSM_NAME_TRUE_STATIC_ASN_MASK   "Subnetmask"
+#define PSM_NAME_TRUE_STATIC_ASN_ENABLE "Enable"
+#if defined(SPEED_BOOST_SUPPORTED)
+#define TS_MAX_SUBNET_COUNT             64
+#define TS_MAX_PORTMAP_ENTRIES          128
+#endif
+#endif
+
 #define IF_IPV6ADDR_MAX 16
 
 #define IPV6_ADDR_SCOPE_MASK    0x00f0U
