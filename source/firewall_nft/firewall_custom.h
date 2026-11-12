@@ -46,7 +46,21 @@
 extern FILE *firewallfp;
 #define FW_DEBUG 1
 
-struct firewall_ts_info;
+#ifndef FIREWALL_TS_INFO_TYPES
+#define FIREWALL_TS_INFO_TYPES
+typedef struct {
+    char ip[20];
+    char mask[20];
+} staticip_subnet_t;
+
+typedef staticip_subnet_t firewall_ts_subnet_t;
+
+typedef struct firewall_ts_info {
+    int active;
+    int subnet_count;
+    const firewall_ts_subnet_t *subnets;
+} firewall_ts_info_t;
+#endif
 
 void do_device_based_pp_disabled_appendrule(FILE *fp, const char *ins_num, const char *lan_ifname, const char *query);
 void do_device_based_pp_disabled_ip_appendrule(FILE *fp, const char *ins_num, const char *ipAddr);
@@ -84,7 +98,7 @@ void prepare_dscp_rule_for_host_mngt_traffic(FILE *mangle_fp);
 
 #if defined(SPEED_BOOST_SUPPORTED)
 void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype,
-                              const struct firewall_ts_info *ts_info);
+                              const firewall_ts_info_t *ts_info);
 int IsPortOverlapWithSpeedboostPortRange(int ExternalPort, int ExternalPortEndRange, int InternalPort , int InternalPortend);
 #endif
 
