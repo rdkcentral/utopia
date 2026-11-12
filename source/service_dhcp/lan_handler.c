@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 #include <string.h>
 #include <sys/sysinfo.h>
 #include "sysevent/sysevent.h"
@@ -76,6 +77,12 @@ extern FILE* g_fArmConsoleLog; //Global file pointer declaration
         else \
             fprintf(_fp, fmt, ##__VA_ARGS__); \
     } while (0)
+static void restartWebuiOnLanIpv6AddrChange(const char *pIfName, const char *pPreviousIP, const char *pIpAddress)
+{
+    fprintf(g_fArmConsoleLog, "%s: %s IPv6 changed to %s, requesting WebUI restart\n", __FUNCTION__, pIfName, pIpAddress);
+    if (sysevent_set(g_iSyseventfd, g_tSysevent_token, "webui-restart", "lan-ipv6", 0) != 0)
+        fprintf(g_fArmConsoleLog, "%s: Failed to request WebUI restart\n", __FUNCTION__);
+}
 
 void get_dateanduptime(char *buffer, int *uptime)
 {
@@ -610,7 +617,8 @@ void ipv4_status(int l3_inst, char *status)
 				snprintf(l_cSysevent_Cmd, sizeof(l_cSysevent_Cmd),
             		     "-6 %s/64 dev %s valid_lft forever preferred_lft forever", 
 						 l_cLan_IpAddrv6, l_cLanIfName);
-				addr_add(l_cSysevent_Cmd);
+                if (addr_add(l_cSysevent_Cmd) == 0)
+                    restartWebuiOnLanIpv6AddrChange(l_cLanIfName, l_cLan_IpAddrv6_prev, l_cLan_IpAddrv6);
 
 			}
 		}
@@ -986,7 +994,10 @@ void lan_restart()
                  "-6 %s/64 dev %s valid_lft forever preferred_lft forever", 
                  l_cLan_IpAddrv6, l_cLanIfName);
 
-        addr_add(l_cSysevent_Cmd);
+        if (addr_add(l_cSysevent_Cmd) == 0 &&
+            strncmp(l_cLan_IpAddrv6_prev, l_cLan_IpAddrv6, sizeof(l_cLan_IpAddrv6)) != 0 &&
+            l_cLan_IpAddrv6[0] != '\0')
+            restartWebuiOnLanIpv6AddrChange(l_cLanIfName, l_cLan_IpAddrv6_prev, l_cLan_IpAddrv6);
 	
     }
 	sysevent_set(g_iSyseventfd, g_tSysevent_token, "lan_restarted", "true", 0);

@@ -54,6 +54,11 @@ SERVICE_NAME="lan_handler"
 
 POSTD_START_FILE="/tmp/.postd_started"
 
+restartWebuiOnLanIpv6AddrChange() {
+    echo_t "Requesting PAM WebUI restart for LAN IPv6 change on $1: $2 -> $3"
+    sysevent set webui-restart lan-ipv6
+}
+
 RPI_SPECIFIC=$BOX_TYPE
 #args: router IP, subnet mask
 ap_addr() {
@@ -203,7 +208,11 @@ case "$1" in
             if [ -n "$SYSEVT_lan_ipaddr_v6_prev" ]; then
                 ip -6 addr del $SYSEVT_lan_ipaddr_v6_prev/64 dev $LAN_IFNAME valid_lft forever preferred_lft forever
             fi
-            ip -6 addr add $SYSEVT_lan_ipaddr_v6/64 dev $LAN_IFNAME valid_lft forever preferred_lft forever
+            if ip -6 addr add "$SYSEVT_lan_ipaddr_v6/64" dev "$LAN_IFNAME" valid_lft forever preferred_lft forever &&
+                [ -n "$SYSEVT_lan_ipaddr_v6" ] &&
+                [ "$SYSEVT_lan_ipaddr_v6_prev" != "$SYSEVT_lan_ipaddr_v6" ]; then
+                restartWebuiOnLanIpv6AddrChange "$LAN_IFNAME" "$SYSEVT_lan_ipaddr_v6_prev" "$SYSEVT_lan_ipaddr_v6"
+            fi
         fi
     fi
 
@@ -521,7 +530,9 @@ case "$1" in
             if [ -n "$SYSEVT_lan_ipaddr_v6_prev" ]; then
                 ip -6 addr del $SYSEVT_lan_ipaddr_v6_prev/64 dev $LAN_IFNAME valid_lft forever preferred_lft forever
             fi
-            ip -6 addr add $SYSEVT_lan_ipaddr_v6/64 dev $LAN_IFNAME valid_lft forever preferred_lft forever
+            if ip -6 addr add "$SYSEVT_lan_ipaddr_v6/64" dev "$LAN_IFNAME" valid_lft forever preferred_lft forever; then
+                restartWebuiOnLanIpv6AddrChange "$LAN_IFNAME" "$SYSEVT_lan_ipaddr_v6_prev" "$SYSEVT_lan_ipaddr_v6"
+            fi
         fi
 	lan_restarted_value="true"
 	sysevent set lan_restarted $lan_restarted_value
