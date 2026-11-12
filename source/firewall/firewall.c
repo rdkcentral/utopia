@@ -2402,6 +2402,26 @@ static int prepare_globals_from_configuration(void)
    isComcastImage = bIsComcastImage();
    sysevent_get(sysevent_fd, sysevent_token, "wan_ifname", default_wan_ifname, sizeof(default_wan_ifname));
    sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_ifname, sizeof(current_wan_ifname));
+#ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
+    if ('\0' == current_wan_ifname[0]) {
+	  char wanInterface[20] = {'\0'};	
+      syscfg_get(NULL, "wan_physical_ifname", wanInterface, sizeof(wanInterface));
+	  if(wanInterface[0] != '\0'){   
+	     safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),wanInterface);
+		 ERR_CHK(safec_rc);
+	  }
+      else{
+		 if ('\0' == default_wan_ifname[0]) {
+            safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),"erouter0");
+			ERR_CHK(safec_rc);
+         }
+         else {
+            safec_rc=strcpy_s(current_wan_ifname, sizeof(current_wan_ifname),default_wan_ifname);
+			ERR_CHK(safec_rc);
+         }
+	  } 
+	}
+#else	
    if ('\0' == current_wan_ifname[0]) {
       if ('\0' == default_wan_ifname[0]) {
          snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", "erouter0");
@@ -2410,6 +2430,7 @@ static int prepare_globals_from_configuration(void)
          snprintf(current_wan_ifname, sizeof(current_wan_ifname), "%s", default_wan_ifname);
       }
    }
+ #endif	
 
    sysevent_get(sysevent_fd, sysevent_token, "current_wan_ipaddr", current_wan_ipaddr, sizeof(current_wan_ipaddr));
 
@@ -2516,7 +2537,6 @@ static int prepare_globals_from_configuration(void)
 
    syscfg_get(NULL, "firewall_level", firewall_level, sizeof(firewall_level));
    syscfg_get(NULL, "firewall_levelv6", firewall_levelv6, sizeof(firewall_levelv6));
-
    syscfg_get(NULL, "ecm_wan_ifname", ecm_wan_ifname, sizeof(ecm_wan_ifname));
 #if !defined (NO_MTA_FEATURE_SUPPORT)
    syscfg_get(NULL, "emta_wan_ifname", emta_wan_ifname, sizeof(emta_wan_ifname));
@@ -12378,6 +12398,11 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(nat_fp, "-A POSTROUTING -m physdev --physdev-out %s -j ACCEPT\n", emta_wan_ifname);
 #endif
 
+#ifdef DNS_FAILOVER_SUPPORT
+   /* Must precede other port-53 DNAT/REDIRECT rules (proxy_dns, extender) to take effect */
+   prepare_unbound_nat_rules(nat_fp, IP_V4);
+#endif
+
 #if WAN_FAILOVER_SUPPORTED
 #if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_)
    redirect_dns_to_extender(nat_fp,AF_INET);
@@ -12543,6 +12568,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, ":%s DROP [0:0]\n", "INPUT");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "FORWARD");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "OUTPUT");
+
+#ifdef DNS_FAILOVER_SUPPORT
+   prepare_unbound_filter_rules(filter_fp, IP_V4);
+#endif
 
     prepare_rabid_rules(filter_fp, mangle_fp, IP_V4);
 
@@ -12712,14 +12741,21 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    if(bEthWANEnable)
    {
            //ETH WAN is TC XB6 exclusive feature
-            if (strcmp(current_wan_ifname, default_wan_ifname ) == 0)
-            {
-              fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", current_wan_ifname);
-            }
-            else
-            {
-              fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", default_wan_ifname);
-            }
+	   	   #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
+              if (current_wan_ifname[0] != '\0')
+                  fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", current_wan_ifname);
+              else
+                  fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", default_wan_ifname);	         
+	       #else
+              if (strcmp(current_wan_ifname, default_wan_ifname ) == 0)
+              {
+                  fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", current_wan_ifname);
+              }
+              else
+              {
+                  fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 22 -j SSH_FILTER\n", default_wan_ifname);
+              }
+	       #endif
    }
    else if (erouterSSHEnable)  // Applicable only for PUMA7 platforms
    {
@@ -14353,6 +14389,15 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    fprintf(nat_fp, ":%s ACCEPT [0:0]\n", "POSTROUTING");
    fprintf(nat_fp, ":%s ACCEPT [0:0]\n", "OUTPUT");
    fprintf(nat_fp, ":%s - [0:0]\n", "postrouting_towan");
+
+#ifdef DNS_FAILOVER_SUPPORT
+   /* Keep DNS failover redirection active in gateway mode when the firewall is disabled */
+   if (!isBridgeMode)
+   {
+      prepare_unbound_nat_rules(nat_fp, IP_V4);
+   }
+#endif
+
 #if defined (FEATURE_SUPPORT_MAPT_NAT46)
    if (isMAPTReady)
    {
@@ -14395,6 +14440,15 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
     */
    fprintf(filter_fp, "*filter\n");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "INPUT");
+
+#ifdef DNS_FAILOVER_SUPPORT
+   /* Keep DNS failover filter rules active in gateway mode when the firewall is disabled */
+   if (!isBridgeMode)
+   {
+      prepare_unbound_filter_rules(filter_fp, IP_V4);
+   }
+#endif
+
    fprintf(filter_fp, ":%s - [0:0]\n", "wan2self_mgmt");
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_mgmt");
    fprintf(filter_fp, ":%s - [0:0]\n", "xlog_drop_wan2self");
@@ -15680,6 +15734,7 @@ int main(int argc, char **argv)
    
    process_id = getpid();
 
+   t2_init("firewall");
    ulogf(ULOG_FIREWALL, UL_INFO, "%s called with %s", service_name, (argc > 1) ? argv[1] : "no arg");
 
    // defualt command if first argument is missing
