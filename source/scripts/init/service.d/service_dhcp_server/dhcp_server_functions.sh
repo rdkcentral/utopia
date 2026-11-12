@@ -1118,6 +1118,15 @@ fi
      echo "dhcp-option=vendor:WNXE12AWR,43,tag=123" >> $LOCAL_DHCP_CONF
      echo "dhcp-option=vendor:WNXL11BWL,43,tag=123" >> $LOCAL_DHCP_CONF
      echo "dhcp-option=vendor:RDKBPOD,43,tag=123" >> $LOCAL_DHCP_CONF
+
+     # Tag XLE (WNXL11BWL) as "extender" and send DHCP option 2 (time-offset) to it.
+     # When the XLE's LTE WAN is down and it falls back to the XB backhaul, it
+     # relies on the XB to provide the time-offset via DHCP.
+     echo "dhcp-vendorclass=set:extender,WNXL11BWL" >> $LOCAL_DHCP_CONF
+     TIME_OFFSET=`dmcli eRT retv Device.Time.TimeOffset | tr -d '\r\n'`
+     if [ -n "$TIME_OFFSET" ]; then
+        echo "dhcp-option-force=tag:extender,option:time-offset,$TIME_OFFSET" >> $LOCAL_DHCP_CONF
+     fi
    fi
 
    if [ "dns_only" != "$3" ] ; then
