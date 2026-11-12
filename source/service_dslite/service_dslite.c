@@ -78,6 +78,18 @@ static int dslite_stop (struct serv_dslite *sd);
 static int dslite_restart (struct serv_dslite *sd);
 static int dslite_clear_status (struct serv_dslite *sd);
 
+static int is_valid_dslite_tunnel_ipv4 (const char *address)
+{
+    struct in_addr ip_value;
+
+    if (inet_pton (AF_INET, address, &ip_value) != 1)
+        return 0;
+
+    return strcmp ("0.0.0.0", address) != 0 &&
+           strcmp ("255.255.255.255", address) != 0 &&
+           !IN_MULTICAST (ntohl (ip_value.s_addr));
+}
+
 static const struct cmd_op cmd_ops[] = {
     {"start",   dslite_start,        "start service dslite"   },
     {"stop",    dslite_stop,         "stop service dslite"    },
@@ -327,7 +339,8 @@ static int dslite_start (struct serv_dslite *sd)
     char val[64];
     char buf[128];
     char DSLITE_AFTR[256];
-    char dslite_tnl_ipv4[32];
+    //utopia-develop_High_024
+    char dslite_tnl_ipv4[32] = {0};
     char dslite_tnl_ipv6[64];
     char resolved_ipv6[64] = {0};
     char gw_ipv6[64];
@@ -480,6 +493,16 @@ static int dslite_start (struct serv_dslite *sd)
         return 1;
     }
 
+    syscfg_get (NULL, "dslite_tunnel_v4addr_1", dslite_tnl_ipv4, sizeof(dslite_tnl_ipv4));
+    if (strlen (dslite_tnl_ipv4) == sizeof(dslite_tnl_ipv4) - 1 || 
+        (dslite_tnl_ipv4[0] != '\0' && !is_valid_dslite_tunnel_ipv4 (dslite_tnl_ipv4)))
+    {
+        sysevent_set (sd->sefd, sd->setok, "dslite_service-status", "error", 0);
+        fprintf (fp_dslt_dbg, "%s: Invalid DSLite tunnel IPv4 address\n", __FUNCTION__);
+        SEM_POST;
+        return 1;
+    }
+
     //Stop WAN IPv4 service
     route_deconfig (sd);
     wan_dhcp_stop();
@@ -492,7 +515,6 @@ static int dslite_start (struct serv_dslite *sd)
     //Enabling AutoConf for ip4ip6 interface
     sysctl_iface_set ("/proc/sys/net/ipv6/conf/%s/autoconf", TNL_NETDEVNAME, "1");
 
-    syscfg_get (NULL, "dslite_tunnel_v4addr_1", dslite_tnl_ipv4, sizeof(dslite_tnl_ipv4));
     if (dslite_tnl_ipv4[0] != 0)
     {
         vsystem ("ip link set dev " TNL_NETDEVNAME " txqueuelen 1000 up" "; "   // Activate tunnel
