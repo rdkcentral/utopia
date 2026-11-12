@@ -46,6 +46,8 @@
 extern FILE *firewallfp;
 #define FW_DEBUG 1
 
+struct firewall_ts_info;
+
 /**
 * @brief Append device-based packet processing disabled rule.
 *
@@ -452,7 +454,8 @@ void prepare_dscp_rule_for_host_mngt_traffic(FILE *mangle_fp);
 * @return None.
 *
 */
-void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp , int iptype);
+void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype,
+                              const struct firewall_ts_info *ts_info);
 
 /**
 * @brief Check if a port overlaps with speed boost port range.

@@ -132,7 +132,6 @@ int prepare_ipv6_firewall(const char *fw_file);
 #define PSM_NAME_TRUE_STATIC_ASN_MASK   "Subnetmask"
 #define PSM_NAME_TRUE_STATIC_ASN_ENABLE "Enable"
 #if defined(SPEED_BOOST_SUPPORTED)
-#define TS_MAX_SUBNET_COUNT             64
 #define TS_MAX_PORTMAP_ENTRIES          128
 #endif
 #endif
@@ -920,6 +919,22 @@ int do_dns_route(FILE *nat_fp, int iptype);
 #endif
 
 // Speedboost functions
+#ifndef FIREWALL_TS_INFO_TYPES
+#define FIREWALL_TS_INFO_TYPES
+typedef struct {
+    char ip[20];
+    char mask[20];
+} staticip_subnet_t;
+
+typedef staticip_subnet_t firewall_ts_subnet_t;
+
+typedef struct firewall_ts_info {
+    int active;
+    int subnet_count;
+    const firewall_ts_subnet_t *subnets;
+} firewall_ts_info_t;
+#endif
+
 #if defined(SPEED_BOOST_SUPPORTED) && defined(SPEED_BOOST_SUPPORTED_V6)
 /**
 * @brief Apply speed boost port marking and redirection rules.
@@ -928,11 +943,13 @@ int do_dns_route(FILE *nat_fp, int iptype);
 * @param[in] nat_fp - Pointer to the FILE stream for writing NAT table rules.
 * @param[in] iptype - IP type.
 *                  \n Value 4 for IPv4 or 6 for IPv6.
+* @param[in] ts_info - True Static IP status and subnet information.
 *
 * @return None.
 *
 */
-void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype);
+void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype,
+                              const firewall_ts_info_t *ts_info);
 
 #endif
 

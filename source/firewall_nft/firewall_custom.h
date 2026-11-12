@@ -46,6 +46,8 @@
 extern FILE *firewallfp;
 #define FW_DEBUG 1
 
+struct firewall_ts_info;
+
 void do_device_based_pp_disabled_appendrule(FILE *fp, const char *ins_num, const char *lan_ifname, const char *query);
 void do_device_based_pp_disabled_ip_appendrule(FILE *fp, const char *ins_num, const char *ipAddr);
 int do_parcon_mgmt_lan2wan_pc_site_appendrule(FILE *fp);
@@ -81,7 +83,8 @@ int prepare_lld_dscp_rules(FILE *mangle_fp);
 void prepare_dscp_rule_for_host_mngt_traffic(FILE *mangle_fp);
 
 #if defined(SPEED_BOOST_SUPPORTED)
-void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp , int iptype);
+void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype,
+                              const struct firewall_ts_info *ts_info);
 int IsPortOverlapWithSpeedboostPortRange(int ExternalPort, int ExternalPortEndRange, int InternalPort , int InternalPortend);
 #endif
 
