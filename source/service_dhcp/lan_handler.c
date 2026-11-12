@@ -79,9 +79,14 @@ extern FILE* g_fArmConsoleLog; //Global file pointer declaration
     } while (0)
 static void restartWebuiOnLanIpv6AddrChange(const char *pIfName, const char *pPreviousIP, const char *pIpAddress)
 {
+    int sysevent_result;
+
     fprintf(g_fArmConsoleLog, "%s: %s IPv6 changed to %s, requesting WebUI restart\n", __FUNCTION__, pIfName, pIpAddress);
-    if (sysevent_set(g_iSyseventfd, g_tSysevent_token, "webui-restart", "lan-ipv6", 0) != 0)
-        fprintf(g_fArmConsoleLog, "%s: Failed to request WebUI restart\n", __FUNCTION__);
+    sysevent_result = sysevent_set(g_iSyseventfd, g_tSysevent_token, "webui-restart", "lan-ipv6", 0);
+    if (sysevent_result != 0)
+    {    fprintf(g_fArmConsoleLog, "%s: Failed to request WebUI restart; sysevent_set returned %d\n", __FUNCTION__, sysevent_result); }
+    else
+    {    fprintf(g_fArmConsoleLog, "%s: WebUI restart request sent through sysevent\n", __FUNCTION__);  }
 }
 
 void get_dateanduptime(char *buffer, int *uptime)

@@ -57,6 +57,9 @@ POSTD_START_FILE="/tmp/.postd_started"
 restartWebuiOnLanIpv6AddrChange() {
     echo_t "Requesting PAM WebUI restart for LAN IPv6 change on $1: $2 -> $3"
     sysevent set webui-restart lan-ipv6
+    webui_restart_status=$?
+    echo_t "PAM WebUI restart sysevent command returned status $webui_restart_status"
+    return "$webui_restart_status"
 }
 
 RPI_SPECIFIC=$BOX_TYPE
