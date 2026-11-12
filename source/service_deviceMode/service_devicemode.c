@@ -420,6 +420,10 @@ int service_start(int mode)
 #if !defined(_WNXL11BWL_PRODUCT_REQ_)
                 sysevent_set(sysevent_fd, sysevent_token, "zebra-restart", "", 0);
 #endif
+#ifdef DNS_FAILOVER_SUPPORT
+            // DNS failover must run in router/gateway mode only
+            runCommandInShellBlocking("systemctl start dns-failover-manager.service");
+#endif
         }
         break;
         case DEVICE_MODE_EXTENDER:
@@ -454,6 +458,10 @@ int service_start(int mode)
             }
             runCommandInShellBlocking(buf);
             runCommandInShellBlocking("systemctl restart CcspLMLite.service");
+#ifdef DNS_FAILOVER_SUPPORT
+            // DNS failover must not run in extender mode
+            runCommandInShellBlocking("systemctl stop dns-failover-manager.service");
+#endif
 
         }
         break;
