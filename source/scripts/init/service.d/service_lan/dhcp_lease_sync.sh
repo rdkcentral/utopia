@@ -27,7 +27,7 @@ source /etc/device.properties
 DHCP_LEASE_FILE_ARM="/nvram/dnsmasq.leases"
 DHCP_LEASE_FILE_ATOM="/nvram/dnsmasq.leases"
 DHCP_LEASE_FILE_ATOM_TMP="/tmp/dnsmasq.leases"
-PEER_COMM_ID="/tmp/elxrretyt.swr"
+PEER_COMM_ID="/tmp/interchip"
 if [ ! -f /usr/bin/GetConfigFile ];then
     echo "Error: GetConfigFile Not Found"
     exit 127
