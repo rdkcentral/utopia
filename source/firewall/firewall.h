@@ -139,6 +139,19 @@ int prepare_ipv4_firewall(const char *fw_file);
 int prepare_ipv6_firewall(const char *fw_file);
 #define CCSP_SUBSYS "eRT."
 
+#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#define PSM_NAME_TRUE_STATIC_IP_ADDRESS "dmsb.truestaticip.Ipaddress"
+#define PSM_NAME_TRUE_STATIC_IP_NETMASK "dmsb.truestaticip.Subnetmask"
+#define PSM_NAME_TRUE_STATIC_IP_ENABLE  "dmsb.truestaticip.Enable"
+#define PSM_NAME_TRUE_STATIC_ASN        "dmsb.truestaticip.Asn."
+#define PSM_NAME_TRUE_STATIC_ASN_IP     "Ipaddress"
+#define PSM_NAME_TRUE_STATIC_ASN_MASK   "Subnetmask"
+#define PSM_NAME_TRUE_STATIC_ASN_ENABLE "Enable"
+#if defined(SPEED_BOOST_SUPPORTED)
+#define TS_MAX_PORTMAP_ENTRIES          128
+#endif
+#endif
+
 #define IF_IPV6ADDR_MAX 16
 
 #define IPV6_ADDR_SCOPE_MASK    0x00f0U
@@ -972,12 +985,18 @@ int do_dns_route(FILE *nat_fp, int iptype);
 * @param[in] nat_fp - Pointer to the FILE stream for writing NAT table rules.
 * @param[in] iptype - IP type.
 *                  \n Value 4 for IPv4 or 6 for IPv6.
+* @param[in] ts_info - True Static IP status and subnet information.
 *
 * @return None.
 *
 */
-void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype);
+void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype,
+                              const firewall_ts_info_t *ts_info);
 
+#endif
+
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+void do_one2one_nat_entry(FILE *nat_fp, const char *toip, const char *public_ip);
 #endif
 
 // String manipulation utilities
