@@ -962,7 +962,7 @@ int IsValidIPv6Addr(char* ip_addr_string)
 	return 1;
 }
 
-static int IsValidInterfaceName(const char *if_name, size_t length)
+int IsValidInterfaceName(const char *if_name, size_t length)
 {
    size_t index;
 
@@ -1002,7 +1002,7 @@ void do_xlat_rule(FILE *nat_fp)
 static void add_dslite_mss_clamping(FILE *fp);
 #endif
 
-static int IsValidIPv4Addr(char* ip_addr_string)
+int IsValidIPv4Addr(char* ip_addr_string)
 {
     int ret = 1;
     struct in_addr ip_value;
@@ -12393,6 +12393,11 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(nat_fp, "-A POSTROUTING -m physdev --physdev-out %s -j ACCEPT\n", emta_wan_ifname);
 #endif
 
+#ifdef DNS_FAILOVER_SUPPORT
+   /* Must precede other port-53 DNAT/REDIRECT rules (proxy_dns, extender) to take effect */
+   prepare_unbound_nat_rules(nat_fp, IP_V4);
+#endif
+
 #if WAN_FAILOVER_SUPPORTED
 #if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_)
    redirect_dns_to_extender(nat_fp,AF_INET);
@@ -12558,6 +12563,10 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    fprintf(filter_fp, ":%s DROP [0:0]\n", "INPUT");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "FORWARD");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "OUTPUT");
+
+#ifdef DNS_FAILOVER_SUPPORT
+   prepare_unbound_filter_rules(filter_fp, IP_V4);
+#endif
 
     prepare_rabid_rules(filter_fp, mangle_fp, IP_V4);
 
@@ -14388,6 +14397,15 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
    fprintf(nat_fp, ":%s ACCEPT [0:0]\n", "POSTROUTING");
    fprintf(nat_fp, ":%s ACCEPT [0:0]\n", "OUTPUT");
    fprintf(nat_fp, ":%s - [0:0]\n", "postrouting_towan");
+
+#ifdef DNS_FAILOVER_SUPPORT
+   /* Keep DNS failover redirection active in gateway mode when the firewall is disabled */
+   if (!isBridgeMode)
+   {
+      prepare_unbound_nat_rules(nat_fp, IP_V4);
+   }
+#endif
+
 #if defined (FEATURE_SUPPORT_MAPT_NAT46)
    if (isMAPTReady)
    {
@@ -14430,6 +14448,15 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
     */
    fprintf(filter_fp, "*filter\n");
    fprintf(filter_fp, ":%s ACCEPT [0:0]\n", "INPUT");
+
+#ifdef DNS_FAILOVER_SUPPORT
+   /* Keep DNS failover filter rules active in gateway mode when the firewall is disabled */
+   if (!isBridgeMode)
+   {
+      prepare_unbound_filter_rules(filter_fp, IP_V4);
+   }
+#endif
+
    fprintf(filter_fp, ":%s - [0:0]\n", "wan2self_mgmt");
    fprintf(filter_fp, ":%s - [0:0]\n", "lan2self_mgmt");
    fprintf(filter_fp, ":%s - [0:0]\n", "xlog_drop_wan2self");

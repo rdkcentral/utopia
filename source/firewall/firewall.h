@@ -63,6 +63,22 @@
 #include "ansc_status.h"
 
 /**
+ * @brief Validate a network interface name.
+ *
+ * This function checks whether @p if_name is a valid interface name for use by
+ * the firewall component.
+ *
+ * @param[in] if_name - Pointer to the interface name string to validate.
+ * @param[in] length - Length of @p if_name in characters, excluding the
+ * terminating NUL character.
+ *
+ * @return Validation status.
+ * @retval 1 if the interface name is valid.
+ * @retval 0 if the interface name is invalid.
+ *
+ */
+int IsValidInterfaceName(const char *if_name, size_t length);
+/**
 * @brief Apply logging rules to the filter table.
 *
 * This function adds iptables/ip6tables rules for logging dropped or rejected packets
@@ -445,6 +461,36 @@ int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
 */
 int prepare_rabid_rules_for_mapt(FILE *filter_fp, ip_ver_t ver);
 
+#ifdef DNS_FAILOVER_SUPPORT
+/**
+* @brief Prepare nat rules redirecting DNS to the local Unbound resolver.
+*
+* Default is a weak no-op; a vendor firewall library may override it.
+*
+* @param[in] nat_fp - Pointer to the FILE stream for writing nat table rules.
+* @param[in] ver - IP version type.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+*
+*/
+int prepare_unbound_nat_rules(FILE *nat_fp, ip_ver_t ver);
+
+/**
+* @brief Prepare filter rules guarding the local Unbound resolver.
+*
+* Default is a weak no-op; a vendor firewall library may override it.
+*
+* @param[in] filter_fp - Pointer to the FILE stream for writing filter table rules.
+* @param[in] ver - IP version type.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+*
+*/
+int prepare_unbound_filter_rules(FILE *filter_fp, ip_ver_t ver);
+#endif /* DNS_FAILOVER_SUPPORT */
+
 /**
 * @brief Apply parental control firewall rules.
 *
@@ -797,6 +843,18 @@ void do_openPorts(FILE *fp);
 void do_forwardPorts(FILE *fp);
 
 // Utility functions
+/**
+* @brief Validate IPv4 address format.
+*
+* @param[in] ip_addr_string - Pointer to the IPv4 address string to validate.
+*
+* @return The validation status.
+* @retval 1 if the IPv4 address is valid.
+* @retval 0 if the IPv4 address is invalid.
+*
+*/
+int IsValidIPv4Addr(char* ip_addr_string);
+
 /**
 * @brief Validate IPv6 address format.
 *
