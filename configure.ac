@@ -187,6 +187,24 @@ AC_ARG_ENABLE([extender],
 
 AM_CONDITIONAL([FEATURE_RDKB_EXTENDER], [test $FEATURE_RDKB_EXTENDER = yes])
 
+# DNS failover support (Unbound DNS redirect hooks, dns-failover-manager control).
+# Enabled from the recipe when DISTRO_FEATURES contains dns-failover-support.
+AC_ARG_ENABLE([dns-failover],
+        AS_HELP_STRING([--enable-dns-failover],[enable DNS failover support (default is no)]),
+        [
+          case "${enableval}" in
+           yes) dns_failover_support=true ;;
+           no)  dns_failover_support=false ;;
+           *) AC_MSG_ERROR([bad value ${enableval} for --enable-dns-failover]) ;;
+          esac
+        ],
+        [dns_failover_support=false])
+AM_CONDITIONAL([DNS_FAILOVER_SUPPORT], [test x"$dns_failover_support" = x"true"])
+AS_IF([test x"$dns_failover_support" = x"true"],
+      [CPPFLAGS="$CPPFLAGS -DDNS_FAILOVER_SUPPORT"
+       AC_MSG_NOTICE([DNS failover support is enabled])],
+      [AC_MSG_NOTICE([DNS failover support is disabled])])
+
 #FEATURE_RDKB_WANFAILOVER=no
 #AC_ARG_ENABLE([wanfailover],
 #        AS_HELP_STRING([--enable-wanfailover],[enable wanfailover]),
