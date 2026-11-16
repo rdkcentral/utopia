@@ -410,20 +410,44 @@ static int http_get_callback(struct nfq_q_handle *queueHandle, struct nfgenmsg *
         
 
         char *httpHdr = (char *)tcpHdr + tcpHdr->doff * 4;
+        //utopia-develop_High_004 and utopia-develop_High_005
+        char *payloadEnd = payload + len;
+
+        if (tcpHdr->doff < 5 || httpHdr < payload || httpHdr > payloadEnd || payloadEnd - httpHdr < 3) {
+            ret = nfq_set_verdict(queueHandle, id, NF_ACCEPT, 0, NULL);
+            return ret;
+        }
 
         if(httpHdr[0] == 'G' && httpHdr[1] == 'E' && httpHdr[2] == 'T') {
+            char *urlStart = NULL;
+            for (char *cursor = httpHdr; payloadEnd - cursor >= 5; ++cursor) {
+                if (memcmp(cursor, "Host:", 5) == 0) {
+                    urlStart = cursor + 5;
+                    while (urlStart < payloadEnd &&
+                           (*urlStart == ' ' || *urlStart == '\t')) {
+                        ++urlStart;
+                    }
+                    break;
+                }
+            }
+            if (urlStart == NULL || urlStart == payloadEnd) {
+                ret = nfq_set_verdict(queueHandle, id, NF_DROP, 0, NULL);
+                return ret;
+            }
 
-            while (*httpHdr != 'H' || *(httpHdr+1) != 'o'|| *(httpHdr+2) != 's'|| *(httpHdr+3) != 't')
-                httpHdr++;
+            char *urlEnd = memchr(urlStart, '\r', payloadEnd - urlStart);
+            size_t urlLen;
 
-            char *urlStart = httpHdr + strlen("Host: ");
-            char *urlEnd = urlStart;
-            int urlLen = 0;
+            if (urlEnd == NULL || urlEnd == urlStart) {
+                ret = nfq_set_verdict(queueHandle, id, NF_DROP, 0, NULL);
+                return ret;
+            }
 
-            while (*urlEnd != 0x0d || *(urlEnd+1) != 0x0a)
-                urlEnd++;
-
-            urlLen = urlEnd - urlStart;
+            urlLen = (size_t)(urlEnd - urlStart);
+            if (urlLen >= 256) {
+                ret = nfq_set_verdict(queueHandle, id, NF_DROP, 0, NULL);
+                return ret;
+            }
 
             char url[256];
             memcpy(url, urlStart, urlLen);
