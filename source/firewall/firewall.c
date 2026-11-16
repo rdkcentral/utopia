@@ -970,7 +970,7 @@ int IsValidIPv6Addr(char* ip_addr_string)
 	return 1;
 }
 
-static int IsValidInterfaceName(const char *if_name, size_t length)
+int IsValidInterfaceName(const char *if_name, size_t length)
 {
    size_t index;
 
@@ -1010,7 +1010,7 @@ void do_xlat_rule(FILE *nat_fp)
 static void add_dslite_mss_clamping(FILE *fp);
 #endif
 
-static int IsValidIPv4Addr(char* ip_addr_string)
+int IsValidIPv4Addr(char* ip_addr_string)
 {
     int ret = 1;
     struct in_addr ip_value;
