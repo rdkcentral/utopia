@@ -68,9 +68,11 @@
 #include <telemetry_busmessage_sender.h>
 #include "sysevent/sysevent.h"
 #include "syscfg/syscfg.h"
-#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_) || defined (WAN_FAILOVER_SUPPORTED)
+#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
 #include "utapi.h"
 #include "utapi_util.h"
+#endif
+#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_) || defined (WAN_FAILOVER_SUPPORTED)
 #include "ccsp_dm_api.h"
 #include "ccsp_custom.h"
 #include "ccsp_psm_helper.h"
