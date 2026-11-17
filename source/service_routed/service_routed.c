@@ -68,7 +68,7 @@
 #include <telemetry_busmessage_sender.h>
 #include "sysevent/sysevent.h"
 #include "syscfg/syscfg.h"
-#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_) || defined (WAN_FAILOVER_SUPPORTED)
 #include "utapi.h"
 #include "utapi_util.h"
 #include "ccsp_dm_api.h"
@@ -111,7 +111,7 @@ static const char* const service_routed_component_id = "ccsp.routed";
 #endif
 
 #define RA_INTERVAL 60
-#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_) || defined (WAN_FAILOVER_SUPPORTED)
 #define CCSP_SUBSYS  "eRT."
 #define PSM_VALUE_GET_STRING(name, str) PSM_Get_Record_Value2(bus_handle, CCSP_SUBSYS, name, NULL, &(str))
 STATIC void* bus_handle = NULL;
@@ -255,7 +255,7 @@ STATIC int fw_restart(struct serv_routed *sr)
     return 0;
 }
 
-#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_) || defined (WAN_FAILOVER_SUPPORTED)
 
 STATIC int dbusInit( void )
 {
@@ -2784,7 +2784,7 @@ int service_routed_main(int argc, char *argv[])
         exit(1);
     }
    
-#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_) || defined (WAN_FAILOVER_SUPPORTED)
     /* dbus init based on bus handle value */
     if(bus_handle ==  NULL)
         dbusInit();
