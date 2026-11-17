@@ -1525,3 +1525,7 @@ $MemorySwapStatsIntervalMinutes=30
 $MemorySwapTunablesSwappiness=200
 $MemorySwapTunablesWatermarkScaleFactor=80
 $MemorySwapTunablesPageCluster=0
+$edns_packet_size=1232
+
+#SystemdAnalyze default value 
+$SystemdAnalyzeEnable=false

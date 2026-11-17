@@ -85,6 +85,10 @@ void addInSysCfgdDB (char *key, char *value);
 */
 void updateSysCfgdDB (char *key, char *value);
 
+#ifdef LPM_MANAGER_SUPPORT
+int shouldUpdateLpmSyscfgAlias (const char *key, const char *previousValue);
+#endif
+
 /**
 * @brief Compare partner JSON parameters between bootstrap and default configurations.
 *

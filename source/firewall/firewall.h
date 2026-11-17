@@ -63,6 +63,22 @@
 #include "ansc_status.h"
 
 /**
+ * @brief Validate a network interface name.
+ *
+ * This function checks whether @p if_name is a valid interface name for use by
+ * the firewall component.
+ *
+ * @param[in] if_name - Pointer to the interface name string to validate.
+ * @param[in] length - Length of @p if_name in characters, excluding the
+ * terminating NUL character.
+ *
+ * @return Validation status.
+ * @retval 1 if the interface name is valid.
+ * @retval 0 if the interface name is invalid.
+ *
+ */
+int IsValidInterfaceName(const char *if_name, size_t length);
+/**
 * @brief Apply logging rules to the filter table.
 *
 * This function adds iptables/ip6tables rules for logging dropped or rejected packets
@@ -122,6 +138,19 @@ int prepare_ipv4_firewall(const char *fw_file);
 */
 int prepare_ipv6_firewall(const char *fw_file);
 #define CCSP_SUBSYS "eRT."
+
+#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#define PSM_NAME_TRUE_STATIC_IP_ADDRESS "dmsb.truestaticip.Ipaddress"
+#define PSM_NAME_TRUE_STATIC_IP_NETMASK "dmsb.truestaticip.Subnetmask"
+#define PSM_NAME_TRUE_STATIC_IP_ENABLE  "dmsb.truestaticip.Enable"
+#define PSM_NAME_TRUE_STATIC_ASN        "dmsb.truestaticip.Asn."
+#define PSM_NAME_TRUE_STATIC_ASN_IP     "Ipaddress"
+#define PSM_NAME_TRUE_STATIC_ASN_MASK   "Subnetmask"
+#define PSM_NAME_TRUE_STATIC_ASN_ENABLE "Enable"
+#if defined(SPEED_BOOST_SUPPORTED)
+#define TS_MAX_PORTMAP_ENTRIES          128
+#endif
+#endif
 
 #define IF_IPV6ADDR_MAX 16
 
@@ -431,6 +460,36 @@ int prepare_rabid_rules(FILE *filter_fp, FILE *mangle_fp, ip_ver_t ver);
 *
 */
 int prepare_rabid_rules_for_mapt(FILE *filter_fp, ip_ver_t ver);
+
+#ifdef DNS_FAILOVER_SUPPORT
+/**
+* @brief Prepare nat rules redirecting DNS to the local Unbound resolver.
+*
+* Default is a weak no-op; a vendor firewall library may override it.
+*
+* @param[in] nat_fp - Pointer to the FILE stream for writing nat table rules.
+* @param[in] ver - IP version type.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+*
+*/
+int prepare_unbound_nat_rules(FILE *nat_fp, ip_ver_t ver);
+
+/**
+* @brief Prepare filter rules guarding the local Unbound resolver.
+*
+* Default is a weak no-op; a vendor firewall library may override it.
+*
+* @param[in] filter_fp - Pointer to the FILE stream for writing filter table rules.
+* @param[in] ver - IP version type.
+*
+* @return The status of the operation.
+* @retval 0 on success.
+*
+*/
+int prepare_unbound_filter_rules(FILE *filter_fp, ip_ver_t ver);
+#endif /* DNS_FAILOVER_SUPPORT */
 
 /**
 * @brief Apply parental control firewall rules.
@@ -785,6 +844,18 @@ void do_forwardPorts(FILE *fp);
 
 // Utility functions
 /**
+* @brief Validate IPv4 address format.
+*
+* @param[in] ip_addr_string - Pointer to the IPv4 address string to validate.
+*
+* @return The validation status.
+* @retval 1 if the IPv4 address is valid.
+* @retval 0 if the IPv4 address is invalid.
+*
+*/
+int IsValidIPv4Addr(char* ip_addr_string);
+
+/**
 * @brief Validate IPv6 address format.
 *
 * @param[in] ip_addr_string - Pointer to the IPv6 address string to validate.
@@ -914,12 +985,18 @@ int do_dns_route(FILE *nat_fp, int iptype);
 * @param[in] nat_fp - Pointer to the FILE stream for writing NAT table rules.
 * @param[in] iptype - IP type.
 *                  \n Value 4 for IPv4 or 6 for IPv6.
+* @param[in] ts_info - True Static IP status and subnet information.
 *
 * @return None.
 *
 */
-void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype);
+void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype,
+                              const firewall_ts_info_t *ts_info);
 
+#endif
+
+#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+void do_one2one_nat_entry(FILE *nat_fp, const char *toip, const char *public_ip);
 #endif
 
 // String manipulation utilities
