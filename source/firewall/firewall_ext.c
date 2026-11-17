@@ -37,6 +37,19 @@ char cellular_wan_ipv6addr[IF_IPV6ADDR_MAX][40];
 
 #define SYSEVENT_IPV4_MTU_SIZE "ipv4_%s_mtu"
 
+/* Set by GatewayManager's TR181 - DNSFailureDetectedOnPrimaryGateway.
+ * When "true", the primary gateway is in DNS failover (Unbound), so the local DNS proxy
+ * DNAT rules on the mesh WAN are skipped and DNS goes to the primary gateway. */
+#define SYSEVENT_DNS_FAILOVER_PRIMARY_GW "dns_failover_primary_gw"
+
+static int isDnsFailoverOnPrimaryGw()
+{
+   char buf[8] = {0};
+
+   sysevent_get(sysevent_fd, sysevent_token, SYSEVENT_DNS_FAILOVER_PRIMARY_GW, buf, sizeof(buf));
+   return (strcmp(buf, "true") == 0);
+}
+
 int isExtProfile()
 {
       if ( ( EXTENDER_MODE == Get_Device_Mode() ) )
@@ -197,7 +210,11 @@ int prepare_ipv4_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE 
    fprintf(nat_fp, "-A  POSTROUTING -o %s -j MASQUERADE\n",cellular_ifname);
 
    add_if_mss_clamping(mangle_fp,AF_INET);
-   if (strlen(mesh_wan_ipaddr) != 0 )
+   if (isDnsFailoverOnPrimaryGw())
+   {
+      FIREWALL_DEBUG("DNS failover active on primary gateway - skipping IPv4 DNS proxy DNAT rules on %s\n" COMMA mesh_wan_ifname);
+   }
+   else if (strlen(mesh_wan_ipaddr) != 0 )
    {
       fprintf(nat_fp, "-A  PREROUTING -i %s -p udp --dport 53 -j DNAT --to-destination %s\n",mesh_wan_ifname,mesh_wan_ipaddr);
       fprintf(nat_fp, "-A  PREROUTING -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",mesh_wan_ifname,mesh_wan_ipaddr);      
@@ -398,6 +415,12 @@ int prepare_ipv6_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE 
    add_if_mss_clamping(mangle_fp,AF_INET6);
 
    int i ;
+   if (isDnsFailoverOnPrimaryGw())
+   {
+      FIREWALL_DEBUG("DNS failover active on primary gateway - skipping IPv6 DNS proxy DNAT rules on %s\n" COMMA mesh_wan_ifname);
+   }
+   else
+   {
     for(i = 0; i < mesh_wan_ipv6_num; i++){
 
       if(mesh_wan_ipv6addr[i][0] != '\0' )
@@ -406,6 +429,7 @@ int prepare_ipv6_rule_ex_mode(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE 
          fprintf(nat_fp, "-A  PREROUTING -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",mesh_wan_ifname,mesh_wan_ipv6addr[i]);  
       }
     }
+   }
 
    #if 0
    memset(cellular_wan_ipv6addr,0,sizeof(cellular_wan_ipv6addr));
