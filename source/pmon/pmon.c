@@ -90,6 +90,81 @@ static void str_trim (char **p)
     }
 }
 
+static void free_restart_argv (char **argv)
+{
+    size_t i;
+
+    if (NULL == argv)
+        return;
+
+    for (i = 0; argv[i] != NULL; i++) {
+        free(argv[i]);
+        argv[i] = NULL;
+    }
+}
+
+//utopia-develop_High_011
+static int parse_restart_command (char *cmd, char **argv, size_t argv_size)
+{
+    char *p = cmd;
+    char *arg;
+    size_t argc = 0;
+    size_t arg_len;
+
+    if ((NULL == cmd) || (NULL == argv) || (0 == argv_size))
+        return 0;
+
+    while (1) {
+        while ((*p == ' ') || (*p == '\t') || (*p == '\r') || (*p == '\n'))
+            p++;
+
+        if ('\0' == *p)
+            break;
+
+        if (argc + 1 >= argv_size) {
+            free_restart_argv(argv);
+            argv[0] = NULL;
+            return 0;
+        }
+
+        arg_len = 0;
+        arg = malloc(strlen(p) + 1);
+        if (NULL == arg) {
+            free_restart_argv(argv);
+            argv[0] = NULL;
+            return 0;
+        }
+
+        while ('\0' != *p) {
+            if ((*p == ' ') || (*p == '\t') || (*p == '\r') || (*p == '\n'))
+                break;
+
+            if ((*p == '"') || (*p == '\'')) {
+                char quote = *p++;
+                while ('\0' != *p && *p != quote) {
+                    arg[arg_len++] = *p++;
+                }
+                if ('\0' == *p) {
+                    free(arg);
+                    free_restart_argv(argv);
+                    argv[0] = NULL;
+                    return 0;
+                }
+                p++;
+                continue;
+            }
+
+            arg[arg_len++] = *p++;
+        }
+
+        arg[arg_len] = '\0';
+        argv[argc++] = arg;
+    }
+
+    argv[argc] = NULL;
+    return (0 != argc);
+}
+
 /*
  * Returns 1 if process is found, 0 otherwise
  */
@@ -168,7 +243,8 @@ static int find_process (const char *proc_name,const char *pidfile)
  *   1           : on exec error (caller may want to do _exit(127) if appropriate)
  *   2           : on fork error
  */
-static int proc_mon (const char *proc_name, const char *pid_file, const char *cmd)
+static int proc_mon (const char *proc_name, const char *pid_file,
+                     char *const restart_argv[])
 {
     int pid;
 
@@ -183,7 +259,8 @@ static int proc_mon (const char *proc_name, const char *pid_file, const char *cm
         t2_event_d("SYS_SH_dnsmasq_restart",1);
     }
 
-    printf("pmon: attempting to restart '%s' using '%s'\n", proc_name, cmd);
+    printf("pmon: attempting to restart '%s' using '%s'\n",
+           proc_name, restart_argv[0]);
     if (pid_file) {
         printf("pmon: removing pid file %s\n", pid_file);
         unlink(pid_file);
@@ -191,9 +268,9 @@ static int proc_mon (const char *proc_name, const char *pid_file, const char *cm
 
     pid = fork();
     if (0 == pid) {
-        // child 
-        execl("/bin/sh", "sh", "-c", cmd, (char *)0);
-        return 1; /* exec error */
+        execv(restart_argv[0], restart_argv);
+        perror("pmon: execv failed");
+        _exit(127);
     }
 
     // parent
@@ -210,6 +287,7 @@ int main (int argc, char *argv[])
     FILE *fp;
     char buf[512], *p_buf;
     char buf2[512];
+    char *restart_argv[256];
     char *proc_name, *pid_file, *restart_cmd;
 
     if (1 == argc) {
@@ -235,12 +313,19 @@ int main (int argc, char *argv[])
             printf("pmon: skip malformed config line '%s'\n", buf2);
             continue;
         }
-        printf("%s: proc_name '%s', pid_file '%s', restart_cmd '%s'\n", __FUNCTION__, proc_name, pid_file, restart_cmd);
+        memset(restart_argv, 0, sizeof(restart_argv));
+        if (!parse_restart_command(restart_cmd, restart_argv,
+                                   sizeof(restart_argv) / sizeof(restart_argv[0]))) {
+            printf("pmon: skip malformed restart command for '%s'\n", proc_name);
+            continue;
+        }
+        printf("%s: proc_name '%s', pid_file '%s', restart '%s'\n",
+               __FUNCTION__, proc_name, pid_file, restart_argv[0]);
         pid_file = (strcasecmp(pid_file,"none")) ? pid_file : NULL;
-        proc_mon(proc_name, pid_file, restart_cmd);
+        proc_mon(proc_name, pid_file, restart_argv);
+        free_restart_argv(restart_argv);
     }
     fclose(fp);
     
     return 0;
 }
-

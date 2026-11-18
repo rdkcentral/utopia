@@ -58,6 +58,8 @@ static int s_UTCTX_BatchGet(UtopiaContext* pCtx, char** ppszArgs, int iArgCount)
         char* pszName;
         char* pszNamespace = 0;
         char pszBuf[1024] = {'\0'};
+	//utopia-develop_High_012
+        const char* pszValue;
 
         if ((pszName = strstr(ppszArgs[i], "::")) != 0)
         {
@@ -75,12 +77,26 @@ static int s_UTCTX_BatchGet(UtopiaContext* pCtx, char** ppszArgs, int iArgCount)
 
         if (pszNamespace)
         {
-            printf("SYSCFG_%s_%s='%s'\n", pszNamespace, pszName, pszBuf);
+            printf("SYSCFG_%s_%s='", pszNamespace, pszName);
         }
         else
         {
-            printf("SYSCFG_%s='%s'\n", pszName, pszBuf);
+            printf("SYSCFG_%s='", pszName);
         }
+
+        for (pszValue = pszBuf; *pszValue; ++pszValue)
+        {
+            if (*pszValue == '\'')
+            {
+                printf("'\\''");
+            }
+            else
+            {
+                printf("%c", *pszValue);
+            }
+        }
+
+        printf("'\n");
     }
 
     return 0;
