@@ -366,7 +366,7 @@ NOT_DEF:
 #include <net/if.h>
 #include <telemetry_busmessage_sender.h>
 
-#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+#if defined(SPEED_BOOST_SUPPORTED) && (defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_))
 __attribute__((weak))
 void do_one2one_nat_entry(FILE *nat_fp, const char *toip, const char *public_ip)
 {
@@ -14168,7 +14168,7 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
 WAN_FAILOVER_SUPPORT_CHECK
    if(isWanServiceReady) {
        firewall_ts_info_t ts_info = {0};
-#if defined(CISCO_CONFIG_TRUE_STATIC_IP)
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
        if (bus_handle != NULL && '\0' != current_wan_ipaddr[0] &&
            0 != strcmp("0.0.0.0", current_wan_ipaddr) &&
            isWanStaticIPReady && !isBridgeMode &&

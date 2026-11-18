@@ -12703,7 +12703,7 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
 WAN_FAILOVER_SUPPORT_CHECK
    if(isWanServiceReady) {
        firewall_ts_info_t ts_info = {0};
-#if defined(CISCO_CONFIG_TRUE_STATIC_IP)
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
        if (bus_handle != NULL && '\0' != current_wan_ipaddr[0] &&
            0 != strcmp("0.0.0.0", current_wan_ipaddr) &&
            isWanStaticIPReady && !isBridgeMode &&
