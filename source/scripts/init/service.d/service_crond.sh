@@ -193,14 +193,13 @@ service_start ()
    
       else
 	      echo_t "Selfheal cron is disabled"
+      fi
 
       # Monitor resource_monitor.sh every 5 minutes TCCBR-3288
 #      if [ "$BOX_TYPE" = "TCCBR" ]; then 
          echo "*/5 * * * * /usr/ccsp/tad/resource_monitor_recover.sh" >> $CRONTAB_FILE
 #      fi
 	 
-      fi
-
       # Monitor syscfg DB every 15minutes
       echo "*/15 * * * * /usr/ccsp/tad/syscfg_recover.sh" >> $CRONTAB_FILE
 
@@ -244,6 +243,11 @@ service_start ()
       if [ "$BOX_TYPE" == "SCER11BEL" ] && [ "$ntpHealthCheck" == "true" ]; then
           # Add syncing the timeoffset everyday at 01:00 AM
           echo "0 1 * * * /etc/sky/sync_timeoffset.sh" >> $CRONTAB_FILE
+      fi
+
+      if [ "$BOX_TYPE" == "XER2" ]; then
+          # add syncing the timeoffset everyday at 01:00 AM
+          echo "0 1 * * * /etc/comcast/sync_timeoffset.sh" >> $CRONTAB_FILE
       fi
 
       # Logging current chain mask value of 2G - runs on 1st minute of every 12th hour - only for 3941 box

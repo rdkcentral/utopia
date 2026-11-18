@@ -190,6 +190,48 @@ int numifs = sizeof(ifnames) / sizeof(*ifnames);
 #if defined (_ONESTACK_PRODUCT_REQ_)
 static char ipv6_delegation_prefix[IPV6_PREFIX_BUF_LEN+1] ={0};
 #endif
+
+static int validate_prefix(char *ipv6_prefix)
+{
+    char *slash, *endptr;
+    char prefix_addr_str[INET6_ADDRSTRLEN] = {0};
+    struct in6_addr prefix_addr;
+    long prefix_len;
+    size_t addr_len;
+
+    if (ipv6_prefix == NULL || ipv6_prefix[0] == '\0')
+    {
+        return 0;
+    }
+
+    slash = strchr(ipv6_prefix, '/');
+    if (slash == NULL)
+    {
+        return 0;
+    }
+
+    addr_len = (size_t)(slash - ipv6_prefix);
+    if (addr_len == 0 || addr_len >= sizeof(prefix_addr_str))
+    {
+        return 0;
+    }
+
+    memcpy(prefix_addr_str, ipv6_prefix, addr_len);
+    prefix_addr_str[addr_len] = '\0';
+    if (strspn(slash + 1, "0123456789") != strlen(slash + 1))
+    {
+        return 0;
+    }
+
+    prefix_len = strtol(slash + 1, &endptr, 10);
+    if (endptr == slash + 1 || *endptr != '\0' || prefix_len < 0 || prefix_len > 128)
+    {
+        return 0;
+    }
+
+    return (inet_pton(AF_INET6, prefix_addr_str, &prefix_addr) > 0);
+}
+
 /*
  ****************************************************************
  *               IPv6 Firewall                                  *
@@ -318,7 +360,7 @@ int prepare_ipv6_firewall(const char *fw_file)
 #if defined(SPEED_BOOST_SUPPORTED) && defined(SPEED_BOOST_SUPPORTED_V6)
 	WAN_FAILOVER_SUPPORT_CHECK
 	if(isWanServiceReady && !isBridgeMode)
-		do_speedboost_port_rules(mangle_fp,nat_fp , 6);
+		do_speedboost_port_rules(mangle_fp, nat_fp, 6, NULL);
 	WAN_FAILOVER_SUPPORT_CHECk_END
 #endif
         prepare_lnf_internet_rules(mangle_fp,6);
@@ -516,6 +558,10 @@ void do_ipv6_filter_table(FILE *fp){
    fprintf(fp, ":lan2wan_pc_service - [0:0]\n");
    fprintf(fp, ":wan2lan - [0:0]\n");
 
+#ifdef DNS_FAILOVER_SUPPORT
+   prepare_unbound_filter_rules(fp, IP_V6);
+#endif
+
 #if defined(_SR213_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
    if (strcmp ( devicePartnerId, "sky-uk") == 0 || strcmp ( devicePartnerId, "sky-italia") == 0)
    {
@@ -652,10 +698,14 @@ void do_ipv6_filter_table(FILE *fp){
    // Create iptable chain to ratelimit remote management packets
    do_webui_rate_limit(fp);
    // Rate limiting the webui-access lan side
+   int cmdiag_valid = (cmdiag_ifname[0] != '\0');
    if(isBridgeMode)
    {
-       lan_access_set_proto(fp, "80",cmdiag_ifname);
-       lan_access_set_proto(fp, "443",cmdiag_ifname);
+       if (cmdiag_valid)
+       {
+	   lan_access_set_proto(fp, "80",cmdiag_ifname);
+	   lan_access_set_proto(fp, "443",cmdiag_ifname);
+       }
    }
    else
    {
@@ -665,7 +715,7 @@ void do_ipv6_filter_table(FILE *fp){
    // Blocking webui access to unnecessary interfaces
    fprintf(fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",lan_ifname);
    fprintf(fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",ecm_wan_ifname);
-   if (isCmDiagEnabled)
+   if (isCmDiagEnabled && cmdiag_valid)
    {
       fprintf(fp, "-A INPUT -p tcp -i %s --match multiport --dport 80,443 -j ACCEPT\n",cmdiag_ifname);
    }
@@ -1299,12 +1349,13 @@ v6GPFirewallRuleNext:
 #endif
 #endif
 #ifdef FEATURE_MAPE
-      if (prev_prefix[0] != '\0' && prefix[0] != '\0' && strcmp(prev_prefix, prefix) != 0)
+      if (validate_prefix(prev_prefix) && validate_prefix(prefix) && strcmp(prev_prefix, prefix) != 0)
       {
          fprintf(fp, "-A FORWARD -i brlan0 -o erouter0 -s %s -j REJECT --reject-with icmp6-policy-fail\n", prev_prefix);
       }
 #endif
-      if ( '\0' != prefix[0] ) {
+
+      if (validate_prefix(prefix)) {
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j LOG --log-level %d --log-prefix \"UTOPIA: FW. IPv6 FORWARD anti-spoofing\"\n", prefix, lan_ifname,syslog_level);
          //fprintf(fp, "-A FORWARD ! -s %s -i %s -m limit --limit 10/sec -j REJECT --reject-with icmp6-adm-prohibited\n", prefix, lan_ifname);
 #if defined (_COSA_FOR_BCI_) || defined (_ONESTACK_PRODUCT_REQ_)
@@ -2271,6 +2322,11 @@ void do_ipv6_nat_table(FILE* fp)
 	fprintf(fp, ":%s - [0:0]\n", "prerouting_devices");
 	fprintf(fp, ":%s - [0:0]\n", "prerouting_redirect");
 
+#ifdef DNS_FAILOVER_SUPPORT
+   /* Must precede other port-53 DNAT/REDIRECT rules (extender) to take effect */
+   prepare_unbound_nat_rules(fp, IP_V6);
+#endif
+
 #ifdef WAN_FAILOVER_SUPPORTED
 #if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_)
       redirect_dns_to_extender(fp,AF_INET6);
@@ -2372,6 +2428,9 @@ void do_ipv6_nat_table(FILE* fp)
 #endif
 
 #ifdef _PLATFORM_BANANAPI_R4_
+#if defined (FEATURE_MAPT) || defined (FEATURE_SUPPORT_MAPT_NAT46)
+   if (!isMAPTReady)
+#endif
    fprintf(fp, "-A POSTROUTING -o %s -j MASQUERADE\n", current_wan_ifname);
 #endif
 
