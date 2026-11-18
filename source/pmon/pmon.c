@@ -191,9 +191,25 @@ static int proc_mon (const char *proc_name, const char *pid_file, const char *cm
 
     pid = fork();
     if (0 == pid) {
-        // child 
-        execl("/bin/sh", "sh", "-c", cmd, (char *)0);
-        return 1; /* exec error */
+        // child
+        char cmd_copy[512];
+        char *argv[sizeof(cmd_copy) / 2 + 1];
+        char *token;
+        int argc = 0;
+
+        strncpy(cmd_copy, cmd, sizeof(cmd_copy) - 1);
+        cmd_copy[sizeof(cmd_copy) - 1] = '\0';
+
+        token = strtok(cmd_copy, " ");
+        while (token && argc < (int)(sizeof(argv) / sizeof(argv[0])) - 1) {
+            argv[argc++] = token;
+            token = strtok(NULL, " ");
+        }
+        argv[argc] = NULL;
+
+        execv(argv[0], argv);
+ 
+        _exit(127); /* exec error */
     }
 
     // parent
