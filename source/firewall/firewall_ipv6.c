@@ -360,7 +360,7 @@ int prepare_ipv6_firewall(const char *fw_file)
 #if defined(SPEED_BOOST_SUPPORTED) && defined(SPEED_BOOST_SUPPORTED_V6)
 	WAN_FAILOVER_SUPPORT_CHECK
 	if(isWanServiceReady && !isBridgeMode)
-		do_speedboost_port_rules(mangle_fp,nat_fp , 6);
+		do_speedboost_port_rules(mangle_fp, nat_fp, 6, NULL);
 	WAN_FAILOVER_SUPPORT_CHECk_END
 #endif
         prepare_lnf_internet_rules(mangle_fp,6);
@@ -557,6 +557,10 @@ void do_ipv6_filter_table(FILE *fp){
    fprintf(fp, ":lan2wan_pc_site - [0:0]\n");
    fprintf(fp, ":lan2wan_pc_service - [0:0]\n");
    fprintf(fp, ":wan2lan - [0:0]\n");
+
+#ifdef DNS_FAILOVER_SUPPORT
+   prepare_unbound_filter_rules(fp, IP_V6);
+#endif
 
 #if defined(_SR213_PRODUCT_REQ_) || defined(_HUB4_PRODUCT_REQ_)
    if (strcmp ( devicePartnerId, "sky-uk") == 0 || strcmp ( devicePartnerId, "sky-italia") == 0)
@@ -2317,6 +2321,11 @@ void do_ipv6_nat_table(FILE* fp)
     fprintf(fp, "*nat\n");
 	fprintf(fp, ":%s - [0:0]\n", "prerouting_devices");
 	fprintf(fp, ":%s - [0:0]\n", "prerouting_redirect");
+
+#ifdef DNS_FAILOVER_SUPPORT
+   /* Must precede other port-53 DNAT/REDIRECT rules (extender) to take effect */
+   prepare_unbound_nat_rules(fp, IP_V6);
+#endif
 
 #ifdef WAN_FAILOVER_SUPPORTED
 #if !defined(_PLATFORM_RASPBERRYPI_) && !defined(_PLATFORM_BANANAPI_R4_)

@@ -526,10 +526,6 @@ char mac[19];
 
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP 
 #define MAX_TS_ASN_COUNT 64
-typedef struct{
-    char ip[20];
-    char mask[20];
-}staticip_subnet_t;
 
 static char wan_staticip_status[20];       // wan_service-status
 
@@ -12705,8 +12701,21 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
    do_filter_table_general_rules(filter_fp);
 #if defined(SPEED_BOOST_SUPPORTED)
 WAN_FAILOVER_SUPPORT_CHECK
-   if(isWanServiceReady)
-	do_speedboost_port_rules(mangle_fp,nat_fp , 4);
+   if(isWanServiceReady) {
+       firewall_ts_info_t ts_info = {0};
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP)
+       if (bus_handle != NULL && '\0' != current_wan_ipaddr[0] &&
+           0 != strcmp("0.0.0.0", current_wan_ipaddr) &&
+           isWanStaticIPReady && !isBridgeMode &&
+           (isNatEnabled == NAT_DHCP || isNatEnabled == NAT_STATICIP) &&
+           StaticIPSubnetNum > 0 && '\0' != StaticIPSubnet[0].ip[0]) {
+           ts_info.active = 1;
+           ts_info.subnet_count = StaticIPSubnetNum;
+           ts_info.subnets = StaticIPSubnet;
+       }
+#endif
+       do_speedboost_port_rules(mangle_fp, nat_fp, 4, &ts_info);
+   }
 WAN_FAILOVER_SUPPORT_CHECk_END
 #endif
 
