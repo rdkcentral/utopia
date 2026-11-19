@@ -312,6 +312,7 @@ fi
    rm -f /nvram/bootstrap.json
    rm -f /opt/secure/bootstrap.json
    rm -f /opt/secure/RFC/tr181store.json
+   rm -f /opt/secure/data/rdklogsuppressor.conf
 # Remove syscfg and PSM storage files
    rm -f $SYSCFG_BKUP_FILE
    rm -f $SYSCFG_FILE

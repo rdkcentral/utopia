@@ -352,6 +352,7 @@ fi
    rm -f /nvram/bootstrap.json
    rm -f /opt/secure/bootstrap.json
    rm -f /opt/secure/RFC/tr181store.json
+   rm -f /opt/secure/data/rdklogsuppressor.conf
    rm -f /opt/secure/Blocklist_file.txt
    rm -f /nvram/Blocklist_XB3.txt
    rm -f $SYSCFG_BKUP_FILE
