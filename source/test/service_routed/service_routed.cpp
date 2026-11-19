@@ -119,6 +119,15 @@ protected:
     virtual void TearDown() override {
         printf("service_routed_test::TearDown\n");
     }
+    void ExpectNonFailoverWan(const serv_routed& sr) {
+        const char* wanIfname = "erouter0";
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, StrEq("eRT."), StrEq("dmsb.Mesh.WAN.Interface.Name"), nullptr, _))
+            .WillOnce(Return(-1));
+        EXPECT_CALL(*g_psmMock, PSM_Get_Record_Value2(_, StrEq("eRT."), StrEq("dmsb.wanmanager.if.3.Name"), nullptr, _))
+            .WillOnce(Return(-1));
+        EXPECT_CALL(*g_syseventMock, sysevent_get(sr.sefd, sr.setok, StrEq("current_wan_ifname"), _, 64))
+            .WillOnce(DoAll(SetArrayArgument<3>(wanIfname, wanIfname + strlen(wanIfname) + 1), Return(0)));
+    }
     static void SetUpTestCase() {
         printf("%s %s\n", __func__,
                ::testing::UnitTest::GetInstance()->current_test_case()->name());
@@ -364,6 +373,7 @@ TEST_F(service_routed_test, SuccessfulSetIPv6RouteS) {
     struct serv_routed sr;
     sr.sefd = 1; 
     sr.setok = 1; 
+    ExpectNonFailoverWan(sr);
     EXPECT_CALL(*g_syseventMock, sysevent_get(sr.sefd, sr.setok, "ipv6_prefix_ula", _, 128))
         .WillOnce(DoAll(SetArrayArgument<3>(mockPrefix, mockPrefix + strlen(mockPrefix) + 1), Return(0)));
     EXPECT_CALL(*g_syscfgMock, syscfg_get(nullptr, "lan_ifname", _, 32))
@@ -404,6 +414,7 @@ TEST_F(service_routed_test, IPv6RouteNotSetDueToEmptyPrefixS) {
     struct serv_routed sr;
     sr.sefd = 1;  
     sr.setok = 1; 
+    ExpectNonFailoverWan(sr);
     EXPECT_CALL(*g_syseventMock, sysevent_get(sr.sefd, sr.setok, StrEq("ipv6_prefix_ula"), _, _))
         .WillOnce(DoAll(SetArrayArgument<3>(mockPrefix, mockPrefix + strlen(mockPrefix) + 1), Return(0)));
     EXPECT_CALL(*g_syscfgMock, syscfg_get(nullptr, "lan_ifname", _, _))
@@ -426,6 +437,7 @@ TEST_F(service_routed_test, IPv6subPrefixIsFalseS) {
     struct serv_routed sr;
     sr.sefd = 1;  
     sr.setok = 1; 
+    ExpectNonFailoverWan(sr);
     EXPECT_CALL(*g_syseventMock, sysevent_get(sr.sefd, sr.setok, "ipv6_prefix_ula", _, 128))
         .WillOnce(DoAll(SetArrayArgument<3>(mockPrefix, mockPrefix + strlen(mockPrefix) + 1), Return(0)));
     EXPECT_CALL(*g_syscfgMock, syscfg_get(nullptr, "lan_ifname", _, 32))
