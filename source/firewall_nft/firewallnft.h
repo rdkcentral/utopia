@@ -225,7 +225,8 @@ int do_dns_route(FILE *nat_fp, int iptype);
 
 // Speedboost functions
 #if defined(SPEED_BOOST_SUPPORTED) && defined(SPEED_BOOST_SUPPORTED_V6)
-void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype);
+void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype,
+                              const firewall_ts_info_t *ts_info);
 #endif
 
 // String manipulation utilities
