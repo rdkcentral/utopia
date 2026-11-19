@@ -393,10 +393,8 @@ TEST_F(service_routed_test, SuccessfulSetIPv6RouteS) {
     EXPECT_CALL(*g_syseventMock, sysevent_get(sr.sefd, sr.setok, StrEq("eth1_ipaddr_v6_ula"), _, 128))
         .WillOnce(DoAll(SetArrayArgument<3>(mockPrefix, mockPrefix + strlen(mockPrefix) + 1), Return(0)));
     EXPECT_CALL(*g_libnetMock,route_add(testing::_))
-        .Times(testing::AtLeast(1))
-        .WillOnce(Return(CNL_STATUS_FAILURE))
-        .WillOnce(Return(CNL_STATUS_SUCCESS))
-        .WillOnce(Return(CNL_STATUS_SUCCESS));
+        .Times(3)
+        .WillRepeatedly(Return(CNL_STATUS_SUCCESS));
     EXPECT_CALL(*g_libnetMock,addr_add(testing::_))
         .Times(testing::AtLeast(1))
         .WillOnce(Return(CNL_STATUS_FAILURE))
@@ -447,8 +445,7 @@ TEST_F(service_routed_test, IPv6subPrefixIsFalseS) {
     EXPECT_CALL(*g_syscfgMock, syscfg_get(nullptr, "IPv6subPrefix", _, 100))
         .WillOnce(DoAll(SetArrayArgument<2>(mockIPv6subPrefix, mockIPv6subPrefix + strlen(mockIPv6subPrefix) + 1), Return(0)));
     EXPECT_CALL(*g_libnetMock,route_add(testing::_))
-        .Times(testing::AtLeast(1))
-        .WillOnce(Return(CNL_STATUS_FAILURE))
+        .Times(1)
         .WillOnce(Return(CNL_STATUS_SUCCESS));
     EXPECT_CALL(*g_libnetMock,addr_add(testing::_))
         .Times(testing::AtLeast(1))
