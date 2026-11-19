@@ -552,7 +552,7 @@ typedef struct _decMacs_
 char mac[19];
 }devMacSt;
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP 
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
 #define MAX_TS_ASN_COUNT 64
 
 static char wan_staticip_status[20];       // wan_service-status
