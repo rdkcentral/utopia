@@ -99,7 +99,7 @@ GRE_ARP_PROC=hotspot_arpd
 HOTSPOT_COMP=CcspHotspot
 ARP_NFQUEUE=0
 
-WAN_IF=erouter0
+WAN_IF=$(getWanInterfaceName)
 HANDLE_GRE_ASYNC="/tmp/.hotspot_path"
 
 AB_SSID_DELIM=':'

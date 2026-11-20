@@ -37,6 +37,8 @@
 # setting all ebtables rules here.
 
 source /etc/device.properties
+source /etc/waninfo.sh
+WAN_INTERFACE=$(getWanInterfaceName)
 
 do_block_lan_to_wanip() {
     lan_if=$1
@@ -97,7 +99,7 @@ set_ebtable_rules() {
     echo 0 > /proc/sys/net/ipv4/conf/all/arp_ignore
     echo 2 > /proc/sys/net/ipv4/conf/wan0/arp_ignore
     echo 2 > /proc/sys/net/ipv4/conf/lan0/arp_ignore
-    echo 2 > /proc/sys/net/ipv4/conf/erouter0/arp_ignore
+    echo 2 > /proc/sys/net/ipv4/conf/"$WAN_INTERFACE"/arp_ignore
     echo 2 > /proc/sys/net/ipv4/conf/mta0/arp_ignore
     echo 2 > /proc/sys/net/ipv4/conf/esafe0/arp_ignore
     echo 2 > /proc/sys/net/ipv4/conf/esafe1/arp_ignore

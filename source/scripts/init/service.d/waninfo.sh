@@ -27,7 +27,7 @@ getWanInterfaceName()
   sysevent_ret=`echo $?`
   #TCXB7-5773 - checking sysevent returns any value other than interface name by return status
   if [ -z "$interface_name" ] || [ $sysevent_ret -ne 0 ];then
-      interface_name="erouter0"
+      interface_name=`syscfg get wan_ifname`
   fi
   echo "$interface_name"
 }

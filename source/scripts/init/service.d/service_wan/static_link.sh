@@ -60,7 +60,9 @@
 source /etc/utopia/service.d/ulog_functions.sh
 source /etc/utopia/service.d/hostname_functions.sh
 source /etc/utopia/service.d/log_capture_path.sh
+source /etc/waninfo.sh
 
+WAN_INTERFACE=$(getWanInterfaceName)
 PID="($$)"
 RESOLV_CONF="/etc/resolv.conf"
 RESOLV_CONF_TMP="/tmp/resolv_tmp.conf"
@@ -164,7 +166,7 @@ do_stop_static() {
    sysevent set ipv4_wan_ipaddr 0.0.0.0
    sysevent set ipv4_wan_subnet 0.0.0.0
    sysevent set default_router
-   OLDIP=`ip addr show dev erouter0 label erouter0 | grep "inet " | awk '{split($2,foo, "/"); print(foo[1]);}'`
+   OLDIP=`ip addr show dev "$WAN_INTERFACE" label "$WAN_INTERFACE" | grep "inet " | awk '{split($2,foo, "/"); print(foo[1]);}'`
    ip rule del from "$OLDIP" lookup erouter
    ulog static_wan status "$PID setting current_ipv4_link_state down"
    sysevent set current_ipv4_link_state down

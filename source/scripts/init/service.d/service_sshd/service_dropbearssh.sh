@@ -42,10 +42,11 @@
 source /etc/utopia/service.d/ulog_functions.sh
 source /etc/utopia/service.d/log_capture_path.sh
 source /etc/device.properties
-
+source /etc/waninfo.sh
+WAN_INTERFACE=$(getWanInterfaceName)
 
 if [ "$BOX_TYPE" = "HUB4" ] || [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SE501" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "WNXL11BWL" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "$BOX_TYPE" = "SCXF11BFL" ] || [ "$BOX_TYPE" = "XER2" ]; then
-   CMINTERFACE="erouter0"
+   CMINTERFACE="$WAN_INTERFACE"
 else
    if [ "$WAN0_IS_DUMMY" = "true" ]; then
        CMINTERFACE="privbr:0"

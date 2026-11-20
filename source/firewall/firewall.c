@@ -357,7 +357,11 @@ NOT_DEF:
 #include "ccsp_psm_helper.h"
 #include <ccsp_base_api.h>
 #include "ccsp_memory.h"
+#include <net/if.h>
+#include <linux/sockios.h>
 
+#define PARAM_SIZE_64           64
+#if defined  (WAN_FAILOVER_SUPPORTED) || defined(RDKB_EXTENDER_ENABLED)
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -2374,6 +2378,7 @@ static int prepare_globals_from_configuration(void)
    // use wan protocol determined wan interface name if possible, else use default (the name used by the OS)
    default_wan_ifname[0] = '\0';
    current_wan_ifname[0] = '\0';
+   char sysevent_name[PARAM_SIZE_64] = {0};
 #ifdef CISCO_CONFIG_TRUE_STATIC_IP
    current_wan_static_ipaddr[0] = '\0';
    current_wan_static_mask[0] = '\0';
@@ -2392,7 +2397,8 @@ static int prepare_globals_from_configuration(void)
 #endif
    getPartnerId ( devicePartnerId ) ;
    isComcastImage = bIsComcastImage();
-   sysevent_get(sysevent_fd, sysevent_token, "wan_ifname", default_wan_ifname, sizeof(default_wan_ifname));
+   //sysevent_get(sysevent_fd, sysevent_token, "wan_ifname", default_wan_ifname, sizeof(default_wan_ifname));
+   syscfg_get( NULL, "wan_ifname", default_wan_ifname, sizeof(default_wan_ifname));
    sysevent_get(sysevent_fd, sysevent_token, "current_wan_ifname", current_wan_ifname, sizeof(current_wan_ifname));
 #ifdef FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE
     if ('\0' == current_wan_ifname[0]) {
@@ -5564,8 +5570,13 @@ static int do_wan_nat_lan_clients(FILE *fp)
   fprintf(fp, "-A postrouting_towan -s %s -j RETURN\n", current_wan_ipaddr); 
 #endif 
 #if defined(_ENABLE_EPON_SUPPORT_)
-  if (isBridgeMode) {// Dont NAT network devices that are part of erouter0    
-    DIR * dirp = opendir("/sys/devices/virtual/net/erouter0/brif");
+  if (isBridgeMode) 
+  {
+    // Dont NAT network devices that are part of erouter0
+    char path[256];
+    snprintf(path, sizeof(path), "/sys/devices/virtual/net/%s/brif", current_wan_ifname);
+
+    DIR * dirp = opendir(path);
     if (dirp) {
       struct dirent * dp = NULL;
       while ((dp = readdir(dirp)) != NULL) {
@@ -14638,7 +14649,7 @@ static int prepare_disabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *n
 #if defined(_CBR_PRODUCT_REQ_)
    else {
      	   //TCCBR-2674 - Technicolor CBR Telnet port exposed to Public internet
-	   fprintf(filter_fp, "-A INPUT -i erouter0 -p tcp -m tcp --dport 23 -j DROP\n" );
+	   fprintf(filter_fp, "-A INPUT -i %s -p tcp -m tcp --dport 23 -j DROP\n", current_wan_ifname);
 	 }
 #endif
 

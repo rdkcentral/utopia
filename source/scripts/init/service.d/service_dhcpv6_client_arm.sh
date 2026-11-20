@@ -40,6 +40,9 @@ source /etc/utopia/service.d/event_handler_functions.sh
 source /etc/utopia/service.d/sysevent_functions.sh
 source /etc/utopia/service.d/log_capture_path.sh
 . /etc/device.properties
+source /etc/waninfo.sh
+interface=$(getWanInterfaceName)
+
 # This handler is called not only to start/stop/restart the service
 # but also when WAN or LAN status is updated as well as current_wan_ifname
 # and when DHCPv6 has received a reply or a time-out
@@ -152,10 +155,10 @@ service_stop()
            # We need to make sure the erouter0 interface is UP when the DHCPv6 client process plan to send
            # the RELEASE message. Otherwise it will wait to send the message and get messed when another
            # DHCPv6 client process plan to start in service_start().
-           EROUTER0_STATUS=`ip -d link show erouter0 | grep state | awk '/erouter0/{print $9}'`
+           EROUTER0_STATUS=`ip -d link show $interface | grep state | awk '/$interface/{print $9}'`
            if [ "$EROUTER0_STATUS" != "UP" ]
            then
-              ip link set erouter0 up
+              ip link set $interface up
               sleep 1
            fi
         fi
