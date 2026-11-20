@@ -38,7 +38,9 @@
 source /etc/utopia/service.d/hostname_functions.sh
 source /etc/utopia/service.d/ulog_functions.sh
 source /etc/utopia/service.d/event_handler_functions.sh
+source /etc/waninfo.sh
 
+WAN_INTERFACE=$(getWanInterfaceName)
 SERVICE_NAME="bridge"
 
 UDHCPC_PID_FILE=/var/run/udhcpc.pid
@@ -473,8 +475,8 @@ virtual_interface_ebtables_rules ()
         ebtables -F BRIDGE_FORWARD_FILTER 2> /dev/null
         ebtables -I FORWARD -j BRIDGE_FORWARD_FILTER
 
-        echo "ebtables -A BRIDGE_FORWARD_FILTER -s $CMDIAG_MAC -o erouter0 -j DROP"
-        ebtables -A BRIDGE_FORWARD_FILTER -s "$CMDIAG_MAC" -o erouter0 -j DROP
+	echo "ebtables -A BRIDGE_FORWARD_FILTER -s $CMDIAG_MAC -o $WAN_INTERFACE -j DROP"
+	ebtables -A BRIDGE_FORWARD_FILTER -s "$CMDIAG_MAC" -o "$WAN_INTERFACE" -j DROP
 
         echo "ebtables -A BRIDGE_FORWARD_FILTER -j RETURN"
         ebtables -A BRIDGE_FORWARD_FILTER -j RETURN
@@ -502,8 +504,8 @@ virtual_interface_ebtables_rules ()
          #--------------------------------------------------------------------------------------
          #DROP target in this BROUTING chain actually broutes the frame(frame has to be routed)
          #--------------------------------------------------------------------------------------
-        echo "ebtables -t broute -A BROUTING -i erouter0 -d $EROUTER_MAC -j redirect --redirect-target DROP"
-        ebtables -t broute -A BROUTING -i erouter0 -d "$EROUTER_MAC" -j redirect --redirect-target DROP
+	echo "ebtables -t broute -A BROUTING -i $WAN_INTERFACE -d $EROUTER_MAC -j redirect --redirect-target DROP"
+        ebtables -t broute -A BROUTING -i "$WAN_INTERFACE" -d "$EROUTER_MAC" -j redirect --redirect-target DROP
 
    else
         echo "ebtables -D FORWARD -j BRIDGE_FORWARD_FILTER"
@@ -635,8 +637,8 @@ filter_local_traffic()
 
         echo "ebtables -A BRIDGE_OUTPUT_FILTER --logical-out $BRIDGE_NAME -j DROP"
         ebtables -A BRIDGE_OUTPUT_FILTER --logical-out "$BRIDGE_NAME" -j DROP
-        echo "ebtables -A BRIDGE_OUTPUT_FILTER -o erouter0 -j DROP"
-        ebtables -A BRIDGE_OUTPUT_FILTER -o erouter0 -j DROP
+        echo "ebtables -A BRIDGE_OUTPUT_FILTER -o $WAN_INTERFACE -j DROP"
+        ebtables -A BRIDGE_OUTPUT_FILTER -o "$WAN_INTERFACE" -j DROP
 
         #Return from filter chain
         echo "ebtables -A BRIDGE_OUTPUT_FILTER -j RETURN"
@@ -679,12 +681,12 @@ routing_rules(){
 }
 
 block_bridge(){
-    ebtables -A FORWARD -i erouter0 -j DROP
+    ebtables -A FORWARD -i "$WAN_INTERFACE" -j DROP
 }
 
 #Unblock bridged traffic through erouter0
 unblock_bridge(){
-    ebtables -D FORWARD -i erouter0 -j DROP
+    ebtables -D FORWARD -i "$WAN_INTERFACE" -j DROP
 }
 
 

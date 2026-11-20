@@ -55,7 +55,9 @@ const char* SERVICE_CUSTOM_EVENTS[] = { "wan-status|/etc/utopia/service.d/servic
 const char* SERVICE_CUSTOM_EVENTS[] = {  "current_wan_ifname|/etc/utopia/service.d/service_ntpd.sh|NULL|"TUPLE_FLAG_EVENT,
                                         NULL };
 #else
-const char* SERVICE_CUSTOM_EVENTS[] = { "wan-status|/etc/utopia/service.d/service_ntpd.sh", NULL };
+const char* SERVICE_CUSTOM_EVENTS[] = { "wan-status|/etc/utopia/service.d/service_ntpd.sh",
+					"current_wan_ifname|/etc/utopia/service.d/service_ntpd.sh",
+					NULL };
 #endif //#ifdef RDKB_EXTENDER_ENABLED
 #endif
 void srv_register(void) {

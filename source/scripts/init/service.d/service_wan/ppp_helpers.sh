@@ -33,12 +33,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #######################################################################
+source /etc/waninfo.sh
 
 PPP_PEERS_DIRECTORY=/etc/ppp/peers
 PPPOE_PEERS_FILE=$PPP_PEERS_DIRECTORY"/utopia-pppoe"
 PPP_OPTIONS_FILE=/etc/ppp/options
 PPP_CHAP_SECRETS_FILE=/etc/ppp/chap-secrets
 PPP_PAP_SECRETS_FILE=/etc/ppp/pap-secrets
+WAN_INTERFACE=$(getWanInterfaceName)
 
 #------------------------------------------------------------------
 # script to be run before bringing up ppp interface
@@ -84,44 +86,21 @@ prepare_pppd_ip_up_script() {
    IP_UP_FILENAME=/etc/ppp/ip-up
    PPP_RESOLV_CONF=/var/run/ppp/resolv.conf
    WAN_DOMAIN_CONF=/etc/ppp/domain.conf
+   RESOLV_IF_TMP="/tmp/resolv_\$1_v4.dnsmasq"
 
    echo -n > $IP_UP_FILENAME
    echo "#!/bin/sh" >> $IP_UP_FILENAME
    echo "source /etc/utopia/service.d/ulog_functions.sh" >> $IP_UP_FILENAME
 
+   echo "if [ -f $PPP_RESOLV_CONF ]; then" >> $IP_UP_FILENAME
+   echo "   cat $PPP_RESOLV_CONF > $RESOLV_IF_TMP" >> $IP_UP_FILENAME
+   echo "fi" >> $IP_UP_FILENAME
+
    echo "echo \"[utopia][pppd ip-up] Interface: \$1 tty device name: \$2 tty device speed: \$3\" > /dev/console" >> $IP_UP_FILENAME
    echo "echo \"[utopia][pppd ip-up] Local IP address: \$4 Remote IP Address: \$5 ipparam value: \$6\" > /dev/console" >> $IP_UP_FILENAME
 
-   echo "PPP_IPADDR=\$4" >> $IP_UP_FILENAME
-   echo "PPP_SUBNET=255.255.255.255" >> $IP_UP_FILENAME
-
-   echo "sysevent set wan_ppp_ifname \$1" >> $IP_UP_FILENAME
-   echo "sysevent set ppp_local_ipaddr \$4" >> $IP_UP_FILENAME
-   echo "sysevent set ppp_remote_ipaddr \$5" >> $IP_UP_FILENAME
-   echo "sysevent set wan_default_gateway \$5" >> $IP_UP_FILENAME
-
-   echo "echo \"[utopia][pppd ip-up] sysevent set pppd_current_wan_ifname \$1\" > /dev/console" >> $IP_UP_FILENAME
-   echo "sysevent set pppd_current_wan_ifname \$1" >> $IP_UP_FILENAME
-   echo "echo \"[utopia][pppd ip-up] sysevent set pppd_current_wan_subnet \$PPP_SUBNET\" > /dev/console" >> $IP_UP_FILENAME
-   echo "sysevent set pppd_current_wan_subnet \$PPP_SUBNET" >> $IP_UP_FILENAME
-   echo "echo \"[utopia][pppd ip-up] sysevent set pppd_current_wan_ipaddr \$PPP_IPADDR\" > /dev/console" >> $IP_UP_FILENAME
-   echo "sysevent set pppd_current_wan_ipaddr \$PPP_IPADDR" >> $IP_UP_FILENAME
-
-   echo "if [ -f $PPP_RESOLV_CONF ]; then" >> $IP_UP_FILENAME
-   echo "   WAN_DOMAIN=\`sysevent get dhcp_domain\`" >> $IP_UP_FILENAME
-   echo "   if [ \"\$WAN_DOMAIN\" != \"\" ] ; then" >> $IP_UP_FILENAME
-   echo "      echo \"search \$WAN_DOMAIN\" > $WAN_DOMAIN_CONF" >> $IP_UP_FILENAME
-   echo "      echo \"[utopia][pppd ip-up] sysevent get dhcp_domain \$WAN_DOMAIN\" > /dev/console" >> $IP_UP_FILENAME
-   echo "   fi" >> $IP_UP_FILENAME
-   echo "   cat $WAN_DOMAIN_CONF $PPP_RESOLV_CONF > /etc/resolv.conf" >> $IP_UP_FILENAME
-   echo "   PPP_DNS=\`awk '{ print \$2 }' $PPP_RESOLV_CONF\`" >> $IP_UP_FILENAME
-   echo "   sysevent set wan_ppp_dns \"\$PPP_DNS\"" >> $IP_UP_FILENAME
-   echo "   echo \"[utopia][pppd ip-up] sysevent set wan_ppp_dns \$PPP_DNS\" > /dev/console" >> $IP_UP_FILENAME
-   echo "fi" >> $IP_UP_FILENAME
-
-   echo "sysevent set ppp_status up 2>&1 > /dev/console" >> $IP_UP_FILENAME
-   echo "ulog ip-up event \"sysevent set ppp_status up\"" >> $IP_UP_FILENAME
-   echo "echo \"[utopia][pppd ip-up] sysevent set ppp_status up <\`date\`>\" > /dev/console" >> $IP_UP_FILENAME
+   #Store last used ppp server mac in nvram
+   echo "cat /proc/net/pppoe | awk 'FNR ==2 {print \$2}' > /nvram/last_\$1_session" >> $IP_UP_FILENAME
 
    chmod 777 $IP_UP_FILENAME
 
@@ -151,14 +130,21 @@ prepare_pppd_ipv6_up_script() {
 IPV6_ROUTER_ADV=\`syscfg get router_adv_provisioning_enable\`
 if [ "1" = "\$IPV6_ROUTER_ADV" ] ; then
    echo 2 > /proc/sys/net/ipv6/conf/\$1/accept_ra    # Accept RA even when forwarding is enabled
+   echo 0 > /proc/sys/net/ipv6/conf/\$1/accept_ra_mtu    # Accept RA MTU for MRU negotiation
    echo 1 > /proc/sys/net/ipv6/conf/\$1/accept_ra_dfrtr # Accept default router (metric 1024)
    echo 1 > /proc/sys/net/ipv6/conf/\$1/accept_ra_pinfo # Accept prefix information for SLAAC
    echo 1 > /proc/sys/net/ipv6/conf/\$1/autoconf     # Do SLAAC
 fi
 EOM
 
+   echo "killall -HUP dnsmasq" >> $IPV6_UP_FILENAME
    chmod 777 $IPV6_UP_FILENAME
    sysevent set current_wan_ipv6address_ll "$4"
+
+   cat << EOM >> $IPV6_UP_FILENAME
+
+EOM
+
 }
 
 #------------------------------------------------------------------
@@ -175,11 +161,6 @@ prepare_pppd_ip_down_script() {
    # echo "echo \"[utopia][pppd ip-down] Parameter 4: \$4 Parameter 5: \$5 Parameter 6: \$6\" > /dev/console" >> $IP_DOWN_FILENAME
 
    echo "echo \"[utopia][pppd ip-down] unset wan_ppp_ifname \" > /dev/console" >> $IP_DOWN_FILENAME
-   echo "sysevent set wan_ppp_ifname" >> $IP_DOWN_FILENAME
-
-   echo "sysevent set ppp_status down" >> $IP_DOWN_FILENAME
-   echo "ulog ip-down event \"sysevent set ppp_status down\"" >> $IP_DOWN_FILENAME
-   echo "echo \"[utopia][pppd ip-down] <\`date\`>\" > /dev/console" >> $IP_DOWN_FILENAME
 
    chmod 777 $IP_DOWN_FILENAME
 }

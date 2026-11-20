@@ -18,6 +18,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+source /etc/waninfo.sh
 NVRAM2_SUPPORTED="no"
 ATOM_IP=""
 UPLOAD_THRESHOLD=""
@@ -109,7 +110,7 @@ UPLOAD_ON_REQUEST_SUCCESS="$LOG_UPLOAD_FOLDER/uploadsuccess"
 REGULAR_UPLOAD="$LOG_FOLDER/uploading"
 
 UPLOADRESULT="$LOG_UPLOAD_FOLDER/resultOfupload"
-WAN_INTERFACE="erouter0"
+WAN_INTERFACE=$(getWanInterfaceName)
 OutputFile="/tmp/httpresult.txt"
 HTTP_CODE="/tmp/curl_httpcode"
 S3_URL="https://ssr.ccp.xcal.tv/cgi-bin/rdkb_snmp.cgi"

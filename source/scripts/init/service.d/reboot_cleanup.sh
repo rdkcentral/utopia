@@ -17,5 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-WAN_IFNAME="erouter0"
-ifconfig $WAN_IFNAME down
+source /etc/waninfo.sh
+WAN_IFNAME=$(getWanInterfaceName)
+ifconfig "$WAN_IFNAME" down
+
