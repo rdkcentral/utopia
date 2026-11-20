@@ -1256,8 +1256,8 @@ $AggressiveInterval=5
 $CredDwnld_Enable=false
 $CredDwnld_Use=false
 
-#CA store download is disabled by default
-$DLCaStoreEnabled=false
+#CA store download is being enabled by default
+$DLCaStoreEnabled=true
 
 #Low Queue Reboot Threshold
 $low_queue_reboot_threshold=0
