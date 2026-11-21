@@ -77,6 +77,10 @@
 #include <ccsp_base_api.h>
 #include "ccsp_memory.h"
 static const char* const service_routed_component_id = "ccsp.routed";
+#elif defined (UNIT_TEST_DOCKER_SUPPORT)
+#include "ccsp_psm_helper.h"
+#include <ccsp_base_api.h>
+#include "ccsp_memory.h"
 #endif
 #include "secure_wrapper.h"
 #define PROG_NAME       "SERVICE-ROUTED"
@@ -111,7 +115,7 @@ static const char* const service_routed_component_id = "ccsp.routed";
 #endif
 
 #define RA_INTERVAL 60
-#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_)
+#if defined (_HUB4_PRODUCT_REQ_) || defined (RDKB_EXTENDER_ENABLED) || defined (FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) || defined(_RDKB_GLOBAL_PRODUCT_REQ_) || defined (UNIT_TEST_DOCKER_SUPPORT)
 #define CCSP_SUBSYS  "eRT."
 #define PSM_VALUE_GET_STRING(name, str) PSM_Get_Record_Value2(bus_handle, CCSP_SUBSYS, name, NULL, &(str))
 STATIC void* bus_handle = NULL;
