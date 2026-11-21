@@ -32,6 +32,7 @@
 #include <telemetry_busmessage_sender.h>
 #include "safec_lib_common.h"
 #include <libnet.h>
+#include "firewall.h"
 #ifdef FEATURE_SUPPORT_ONBOARD_LOGGING
 #include <rdk_debug.h>
 #define LOGGING_MODULE "Utopia"
@@ -1019,6 +1020,13 @@ void lan_stop()
     sprintf(l_cSysevent_Cmd, "ipv4_%d-ifname", l_iL3Inst);
     sysevent_get(g_iSyseventfd, g_tSysevent_token, l_cSysevent_Cmd,
                  l_cLanIfName, sizeof(l_cLanIfName));
+
+    //utopia-develop_High_016
+    if (!IsValidInterfaceName(l_cLanIfName, strlen(l_cLanIfName)))
+    {
+        LAN_HANDLER_LOG("LAN HANDLER FAILURE : Invalid LAN interface name, lan-stop cannot proceed\n");
+        return;
+    }
 
     sysevent_set(g_iSyseventfd, g_tSysevent_token, "ipv4-down", l_cL3Inst, 0);
     fprintf(g_fArmConsoleLog, "Calling ipv4_down with L3 Instance:%d\n", l_iL3Inst);

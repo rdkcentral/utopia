@@ -361,7 +361,12 @@ int nv_get_members(PL2Net net, PMember memberList, int numMembers)
         for(i = 0; fgets(valBuff, sizeof(valBuff), psmcliOut); ++i) {
             MNET_DEBUG("nv_get_members, current lookup line %s, i=%d\n" COMMA valBuff COMMA i)
             ifToken = strtok(valBuff+2, "\" \n");
-            while(ifToken) { //FIXME: check for memberList overflow
+	    //utopia-develop_High_027
+            while(ifToken) {
+                if (actualNumMembers >= numMembers) {
+                    MNET_DEBUG("nv_get_members, member limit %d reached\n" COMMA numMembers)
+                    break;
+                }
                 MNET_DEBUG("nv_get_members, current lookup token %s\n" COMMA ifToken)
                 if ((dash = strchr(ifToken, '-'))){
                     *dash = '\0';
@@ -437,6 +442,11 @@ int nv_get_members(PL2Net net, PMember memberList, int numMembers)
 	
 			while(ifToken) 
 			{ 
+				if (actualNumMembers >= numMembers)
+				{
+					MNET_DEBUG("nv_get_members, member limit %d reached\n" COMMA numMembers)
+					break;
+				}
 				if ((dash = strchr(ifToken, '-')))
 				{
 					*dash = '\0';

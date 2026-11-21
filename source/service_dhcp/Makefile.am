@@ -27,6 +27,7 @@ service_dhcp_CPPFLAGS = -I$(top_srcdir)/source/include \
                         -I$(top_srcdir)/source/util/utils \
                         -I$(top_srcdir)/source/util/print_uptime \
                         -I$(top_srcdir)/source/service_dhcp/include \
+                        -I$(top_srcdir)/source/firewall \
                         $(DBUS_CFLAGS) \
                         -I${PKG_CONFIG_SYSROOT_DIR}$(includedir)/dbus-1.0 \
                         -I${PKG_CONFIG_SYSROOT_DIR}$(libdir)/dbus-1.0/include

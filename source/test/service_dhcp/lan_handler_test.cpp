@@ -66,6 +66,25 @@ ACTION_P(SetPsmValueArg4, value)
     *static_cast<char**>(arg4) = strdup(*value);
 }
 
+static void expectLanStopInterface(const char *ifName)
+{
+    char mockVal[] = "1";
+    char mockIfName[16] = {0};
+    snprintf(mockIfName, sizeof(mockIfName), "%s", ifName);
+
+    EXPECT_CALL(*g_syseventMock, sysevent_get(_, _, StrEq("primary_lan_l3net"), _, _)).Times(1)
+    .WillOnce(testing::WithArg<3>(testing::Invoke([mockVal](char *value) {
+        memcpy(value, mockVal, strlen(mockVal) + 1);
+        return 0;
+    })));
+
+    EXPECT_CALL(*g_syseventMock, sysevent_get(_, _, StrEq("ipv4_1-ifname"), _, _)).Times(1)
+    .WillOnce(testing::WithArg<3>(testing::Invoke([mockIfName](char *value) {
+        memcpy(value, mockIfName, strlen(mockIfName) + 1);
+        return 0;
+    })));
+}
+
 TEST_F(LanHandlerTest, get_dateanduptime) {
     char buffer[25] = {0};
     int uptime = 0;
@@ -553,7 +572,7 @@ TEST_F(LanHandlerTest, lan_restart_CASE_2) {
 
 TEST_F(LanHandlerTest, lan_stop) {
     char mockVal[] = "1";
-    char mockIfName[] = "brlan0";
+    char mockIfName[] = "eth0.100";
     char mockIPv6[] = "fe80::1";
     char mockPrefix[] = "64";
 
@@ -584,6 +603,25 @@ TEST_F(LanHandlerTest, lan_stop) {
     ));
 
     lan_stop();
+}
+
+TEST_F(LanHandlerTest, lan_stop_rejects_invalid_interface_names) {
+    const char *invalidIfNames[] = {
+        "",
+        "br lan0",
+        "br\tlan0",
+        "br/lan0",
+        "brlan0;echo invalid"
+    };
+
+    EXPECT_CALL(*g_syseventMock, sysevent_set(_, _, StrEq("ipv4-down"), _, _)).Times(0);
+    EXPECT_CALL(*g_syseventMock, sysevent_get(_, _, StrEq("lan_ipaddr_v6_prev"), _, _)).Times(0);
+    EXPECT_CALL(*g_syseventMock, sysevent_get(_, _, StrEq("lan_prefix_v6"), _, _)).Times(0);
+
+    for (const char *ifName : invalidIfNames) {
+        expectLanStopInterface(ifName);
+        lan_stop();
+    }
 }
 
 TEST_F(LanHandlerTest, erouter_mode_updated) {
