@@ -1470,6 +1470,7 @@ STATIC int lan_addr6_set(struct serv_ipv6 *si6)
 
     //Intel Proposed RDKB Generic Bug Fix from XB6 SDK
     /*start zebra*/
+    fprintf(stderr, "ZEBRA_RESTART_TRACE component=service_ipv6 pid=%ld site=%s:%d function=%s reason=LAN_IPv6_addresses_configured\n", (long)getpid(), __FILE__, __LINE__, __func__);
     sysevent_set(si6->sefd, si6->setok, "zebra-restart", NULL, 0);
 	
     return 0;
@@ -2219,6 +2220,7 @@ STATIC int serv_ipv6_start(struct serv_ipv6 *si6)
 	
     //Intel Proposed RDKB Generic Bug Fix from XB6 SDK
     /*start zebra*/
+    fprintf(stderr, "ZEBRA_RESTART_TRACE component=service_ipv6 pid=%ld site=%s:%d function=%s reason=IPv6_start_continuing_before_DHCPv6_server_start\n", (long)getpid(), __FILE__, __LINE__, __func__);
     sysevent_set(si6->sefd, si6->setok, "zebra-restart", NULL, 0);
 	
    if (dhcpv6s_start_if_needed(si6) != 0) {
