@@ -236,10 +236,11 @@ LOCAL VOID *_timer_loop_cycle(VOID *arg)
         temp_node_copy = copy_timer_function_list;
         while(temp_node_copy != NULL)
         {
-            copy_timer_function_list = copy_timer_function_list->next;
+            struct timer_function_node *next_node = temp_node_copy->next;
             free(temp_node_copy);
-            temp_node_copy = copy_timer_function_list;
+            temp_node_copy = next_node;
         }
+	copy_timer_function_list = NULL;
     }
     return NULL;
 }
