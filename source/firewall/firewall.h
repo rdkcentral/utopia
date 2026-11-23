@@ -139,7 +139,7 @@ int prepare_ipv4_firewall(const char *fw_file);
 int prepare_ipv6_firewall(const char *fw_file);
 #define CCSP_SUBSYS "eRT."
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
 #define PSM_NAME_TRUE_STATIC_IP_ADDRESS "dmsb.truestaticip.Ipaddress"
 #define PSM_NAME_TRUE_STATIC_IP_NETMASK "dmsb.truestaticip.Subnetmask"
 #define PSM_NAME_TRUE_STATIC_IP_ENABLE  "dmsb.truestaticip.Enable"
@@ -995,7 +995,7 @@ void do_speedboost_port_rules(FILE *mangle_fp, FILE *nat_fp, int iptype,
 
 #endif
 
-#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+#if defined(SPEED_BOOST_SUPPORTED) && (defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_))
 void do_one2one_nat_entry(FILE *nat_fp, const char *toip, const char *public_ip);
 #endif
 
