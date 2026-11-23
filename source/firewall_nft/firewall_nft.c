@@ -524,7 +524,7 @@ typedef struct _decMacs_
 char mac[19];
 }devMacSt;
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP 
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
 #define MAX_TS_ASN_COUNT 64
 
 static char wan_staticip_status[20];       // wan_service-status
@@ -566,7 +566,7 @@ typedef enum {
  */ 
 enum{
    IPT_PRI_NONEED = 0,
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP   
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    IPT_PRI_STATIC_IP,
 #endif
    IPT_PRI_PORTMAPPING,
@@ -756,7 +756,7 @@ static inline void SET_IPT_PRI_DEFAULT(void){
   iptables_pri_level[IPT_PRI_PORTTRIGGERING -1]= IPT_PRI_PORTTRIGGERING; 
   iptables_pri_level[IPT_PRI_DMZ-1]= IPT_PRI_DMZ; 
   iptables_pri_level[IPT_PRI_FIREWALL -1]= IPT_PRI_FIREWALL; 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
   iptables_pri_level[IPT_PRI_STATIC_IP -1]= IPT_PRI_STATIC_IP; 
 #endif
 }
@@ -771,7 +771,7 @@ static inline int SET_IPT_PRI_MODULD(char *s){
        return IPT_PRI_DMZ;
     else if(strcmp(s, "firewall") == 0)
        return IPT_PRI_FIREWALL;
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
     else if(strcmp(s, "staticip") == 0)
        return IPT_PRI_STATIC_IP;
 #endif
@@ -796,7 +796,7 @@ const char* get_log_level(int level) {
 /* 
  * Get PSM value 
  */
- #ifdef CISCO_CONFIG_TRUE_STATIC_IP
+ #if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
 #define PSM_NAME_TRUE_STATIC_IP_ADDRESS "dmsb.truestaticip.Ipaddress"
 #define PSM_NAME_TRUE_STATIC_IP_NETMASK "dmsb.truestaticip.Subnetmask"
 #define PSM_NAME_TRUE_STATIC_IP_ENABLE  "dmsb.truestaticip.Enable"
@@ -2298,7 +2298,7 @@ static int prepare_globals_from_configuration(void)
    // use wan protocol determined wan interface name if possible, else use default (the name used by the OS)
    default_wan_ifname[0] = '\0';
    current_wan_ifname[0] = '\0';
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    current_wan_static_ipaddr[0] = '\0';
    current_wan_static_mask[0] = '\0';
    wan_staticip_status[0] = '\0';
@@ -2558,7 +2558,7 @@ static int prepare_globals_from_configuration(void)
    isDmzEnabled      = (0 == strcmp("1", dmz_enabled)) ? 1 : 0;
    /* nat_enabled(0): disable  (1) DHCP (2)StaticIP (others) disable */
    isNatEnabled      = atoi(nat_enabled);
-   #ifdef CISCO_CONFIG_TRUE_STATIC_IP
+   #if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    isNatEnabled      = (isNatEnabled > NAT_STATICIP ? NAT_DISABLE : isNatEnabled);
    #else
    isNatEnabled      = (isNatEnabled == NAT_DISABLE ? NAT_DISABLE : NAT_DHCP);
@@ -2574,7 +2574,7 @@ static int prepare_globals_from_configuration(void)
    isLogOutgoingEnabled = 0;
    isCmDiagEnabled   = (0 == strcmp("1", cmdiag_enabled)) ? 1 : 0;
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    /* get true static IP info */   
    sysevent_get(sysevent_fd, sysevent_token, "wan_staticip-status", wan_staticip_status, sizeof(wan_staticip_status));
    isWanStaticIPReady = (0 == strcmp("started", wan_staticip_status)) ? 1 : 0; 
@@ -3664,7 +3664,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
    BOOL isFeatureDisabled = TRUE;
 #endif
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP 
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
 
    memset(PfRangeIP,0,sizeof(PfRangeIP));
 #endif
@@ -3728,7 +3728,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
           if ( 0 != rc || '\0' == toip[0] || strcmp("255.255.255.255", toip) == 0 ) {
              continue;
           }
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP 
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
           strncpy(PfRangeIP[PfRangeCount],toip,MAX_IP4_SIZE-1);
           PfRangeCount++ ;
 #endif
@@ -9706,7 +9706,7 @@ static int do_wan2lan_accept(FILE *fp)
    return(0);
 }
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
 /*
  *  Procedure     : do_wan2lan_staticip
  *  Purpose       : accept or deny static ip subnet packet from wan to lan
@@ -9840,7 +9840,7 @@ static int do_wan2lan(FILE *fp)
    do_wan2lan_disabled(fp);
    do_wan2lan_misc(fp);
    do_wan2lan_accept(fp);
-   #ifdef CISCO_CONFIG_TRUE_STATIC_IP
+   #if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    do_wan2lan_staticip(fp);
    do_wan2lan_tsip_pm(fp);
    #endif
@@ -11411,7 +11411,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
 
    fprintf(filter_fp, "add chain ip filter %s\n", "wan2lan_disabled");
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    fprintf(filter_fp, "add chain ip filter%s", "wan2lan_staticip_pm");
    fprintf(filter_fp, "add chain ip filter%s", "wan2lan_staticip");
    fprintf(filter_fp, "add chain ip filter%s", "wan2lan_staticip_post");
@@ -12048,7 +12048,7 @@ fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"brlan112
    for(i=0; i< IPT_PRI_MAX; i++)
    {
       switch(iptables_pri_level[i]){
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
           case IPT_PRI_STATIC_IP:
              fprintf(filter_fp, "add rule ip filter wan2lan counter jump wan2lan_staticip_pm\n");
              fprintf(filter_fp, "add rule ip filter wan2lan counter jump wan2lan_staticip\n");
@@ -12080,7 +12080,7 @@ fprintf(filter_fp, "add rule ip filter FORWARD iifname \"%s\" oifname \"brlan112
              fprintf(filter_fp, "add rule ip filter wan2lan counter jump wan2lan_nonat\n");
              fprintf(filter_fp, "add rule ip filter wan2lan ct state related,established counter accept\n");
              fprintf(filter_fp, "add rule ip filter wan2lan counter jump host_detect\n");
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
              /* TODO: next time change to USE IPT_PRI flag */
 	     fprintf(filter_fp,"add rule ip filter wan2lan counter jump wan2lan_staticip_post\n");
 #endif
@@ -12703,7 +12703,7 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
 WAN_FAILOVER_SUPPORT_CHECK
    if(isWanServiceReady) {
        firewall_ts_info_t ts_info = {0};
-#if defined(CISCO_CONFIG_TRUE_STATIC_IP)
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
        if (bus_handle != NULL && '\0' != current_wan_ipaddr[0] &&
            0 != strcmp("0.0.0.0", current_wan_ipaddr) &&
            isWanStaticIPReady && !isBridgeMode &&
