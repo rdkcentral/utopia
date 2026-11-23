@@ -15257,11 +15257,8 @@ FIREWALL_DEBUG("exiting firewall service_close()\n");
 /*
  * Name           :  fw_service_timing
  * Purpose        :  Emit a monotonic-clock timestamp (ms resolution) for a
- *                   labelled step in service_start(). Used to localise where
- *                   a slow firewall restart spends its time (SHARMAN-4367:
- *                   ~40s-2min gap between ipv6 restore and firewall-status
- *                   "started"). Deltas between adjacent TIMING lines identify
- *                   the blocking call.
+ *                   labelled step in service_start(). Deltas between
+ *                   adjacent TIMING lines identify the blocking call.
  * Parameters     :
  *    label          : short step name
  * Return Values  :  None
