@@ -2423,6 +2423,13 @@ static int prepare_globals_from_configuration(void)
       }
    }
  #endif	
+#if defined(FEATURE_RDKB_CONFIGURABLE_WAN_INTERFACE) && defined(FEATURE_RDKB_VLAN_MANAGER)
+   if (default_wan_ifname[0]!=0 && strcmp(current_wan_ifname, default_wan_ifname))
+   {
+      safec_rc=strcpy_s(default_wan_ifname, sizeof(default_wan_ifname), current_wan_ifname);
+      ERR_CHK(safec_rc);
+   }
+#endif
 
    sysevent_get(sysevent_fd, sysevent_token, "current_wan_ipaddr", current_wan_ipaddr, sizeof(current_wan_ipaddr));
 
