@@ -15298,26 +15298,32 @@ static int service_start ()
    prepare_ipv4_firewall(filename1);
 
    FIREWALL_DEBUG("iptables-restore for ipv4 starts\n");
+   FIREWALL_DEBUG("TIMING service_start: ipv4_restore_start\n");
 #ifdef _HUB4_PRODUCT_REQ_
    v_secure_system("iptables-restore -c  < /tmp/.ipt 2> /tmp/.ipv4table_error");
 #else
    v_secure_system("iptables-restore -w 10 -c  < /tmp/.ipt 2> /tmp/.ipv4table_error");
 #endif
    FIREWALL_DEBUG("iptables-restore for ipv4 ends\n");
+   FIREWALL_DEBUG("TIMING service_start: ipv4_restore_end\n");
 
    //if (!isFirewallEnabled) {
    //   unlink(filename1);
    //}
 
    /* ipv6 */
+   FIREWALL_DEBUG("TIMING service_start: ipv6_prepare_start\n");
    prepare_ipv6_firewall(filename2);
+   FIREWALL_DEBUG("TIMING service_start: ipv6_prepare_end\n");
    FIREWALL_DEBUG("iptables-restore for ipv6 starts\n");
+   FIREWALL_DEBUG("TIMING service_start: ipv6_restore_start\n");
 #ifdef _HUB4_PRODUCT_REQ_
    v_secure_system("ip6tables-restore < /tmp/.ipt_v6 2> /tmp/.ipv6table_error");
 #else
    v_secure_system("ip6tables-restore -w 10 < /tmp/.ipt_v6 2> /tmp/.ipv6table_error");
 #endif
    FIREWALL_DEBUG("iptables-restore for ipv6 ends\n");
+   FIREWALL_DEBUG("TIMING service_start: ipv6_restore_end\n");
 
    #ifdef _PLATFORM_RASPBERRYPI_
        /* Apply Mac Filtering rules for RPI-Device */
@@ -15351,41 +15357,55 @@ static int service_start ()
       v_secure_system("sh /lib/rdk/iptables_container.sh");
    }
 
+   FIREWALL_DEBUG("TIMING service_start: before_ClearEstbConnection\n");
    ClearEstbConnection();
+   FIREWALL_DEBUG("TIMING service_start: after_ClearEstbConnection\n");
    /* start the other process as needed */
 #ifdef CONFIG_BUILD_TRIGGER
 #ifndef CONFIG_KERNEL_NF_TRIGGER_SUPPORT
    if (isTriggerMonitorRestartNeeded) {
+      FIREWALL_DEBUG("TIMING service_start: before_set_firewall_trigger_monitor-start\n");
       sysevent_set(sysevent_fd, sysevent_token, "firewall_trigger_monitor-start", NULL, 0);
+      FIREWALL_DEBUG("TIMING service_start: after_set_firewall_trigger_monitor-start\n");
    }
 #endif
 #endif
    if (isLanHostTracking) {
+      FIREWALL_DEBUG("TIMING service_start: before_set_firewall_newhost_monitor-start\n");
       sysevent_set(sysevent_fd, sysevent_token, "firewall_newhost_monitor-start", NULL, 0);
+      FIREWALL_DEBUG("TIMING service_start: after_set_firewall_newhost_monitor-start\n");
    }
 
    if (isCronRestartNeeded) {
+      FIREWALL_DEBUG("TIMING service_start: before_set_crond-restart\n");
       sysevent_set(sysevent_fd, sysevent_token, "crond-restart", "1", 0);
+      FIREWALL_DEBUG("TIMING service_start: after_set_crond-restart\n");
    }
    else {
       unlink(cron_file);
    }
 
    if(ppFlushNeeded == 1) {
+      FIREWALL_DEBUG("TIMING service_start: before_pp_flush\n");
 #if defined (INTEL_PUMA7)
        v_secure_system("conntrack -F");
 #else
        v_secure_system("echo flush_all_sessions > /proc/net/ti_pp");
 #endif
        sysevent_set(sysevent_fd, sysevent_token, "pp_flush", "0", 0);
+      FIREWALL_DEBUG("TIMING service_start: after_pp_flush\n");
    }
 
    /* If firewall is starting for the first time, we need to flush connection tracking */
    if (needs_flush) {
+      FIREWALL_DEBUG("TIMING service_start: before_conntrack_flush\n");
       v_secure_system("conntrack -F");
+      FIREWALL_DEBUG("TIMING service_start: after_conntrack_flush\n");
    }
 
+   FIREWALL_DEBUG("TIMING service_start: before_set_firewall-status_started\n");
    sysevent_set(sysevent_fd, sysevent_token, "firewall-status", "started", 0);
+   FIREWALL_DEBUG("TIMING service_start: after_set_firewall-status_started\n");
    ulogf(ULOG_FIREWALL, UL_INFO, "started %s service", service_name);
    FIREWALL_DEBUG("started %s service\n" COMMA service_name);
 //   pthread_mutex_unlock(&firewall_check);
