@@ -58,11 +58,14 @@ router_mode ()
         if [ "$LAN_STATUS" = "stopped" ] ; then 
                 sysevent set lan-start 
         fi 
-        ps aux | grep hostapd0 | grep -v grep | awk '{print $1}' | xargs kill -9 
-        ps aux | grep hostapd1 | grep -v grep | awk '{print $1}' | xargs kill -9 
-        sleep 2 
-        /usr/sbin/hostapd -B /nvram/hostapd0.conf 
-        /usr/sbin/hostapd -B /nvram/hostapd1.conf 
+        # BPI runs one global "hostapd -g" that owns every VAP, restarting per-interface hostapd here (RPi only) stops the running APs.
+        if [ "$BOX_TYPE" != "bpi" ]; then
+            ps aux | grep hostapd0 | grep -v grep | awk '{print $1}' | xargs kill -9
+            ps aux | grep hostapd1 | grep -v grep | awk '{print $1}' | xargs kill -9
+            sleep 2
+            /usr/sbin/hostapd -B /nvram/hostapd0.conf
+            /usr/sbin/hostapd -B /nvram/hostapd1.conf
+        fi
 } 
 
 #--------------------------------------------------------------

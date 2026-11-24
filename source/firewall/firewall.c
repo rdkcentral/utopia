@@ -366,7 +366,7 @@ NOT_DEF:
 #include <net/if.h>
 #include <telemetry_busmessage_sender.h>
 
-#if defined(SPEED_BOOST_SUPPORTED) && defined(CISCO_CONFIG_TRUE_STATIC_IP)
+#if defined(SPEED_BOOST_SUPPORTED) && (defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_))
 __attribute__((weak))
 void do_one2one_nat_entry(FILE *nat_fp, const char *toip, const char *public_ip)
 {
@@ -552,7 +552,7 @@ typedef struct _decMacs_
 char mac[19];
 }devMacSt;
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP 
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
 #define MAX_TS_ASN_COUNT 64
 
 static char wan_staticip_status[20];       // wan_service-status
@@ -594,7 +594,7 @@ typedef enum {
  */ 
 enum{
    IPT_PRI_NONEED = 0,
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP   
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    IPT_PRI_STATIC_IP,
 #endif
    IPT_PRI_PORTMAPPING,
@@ -783,7 +783,7 @@ static inline void SET_IPT_PRI_DEFAULT(void){
   iptables_pri_level[IPT_PRI_PORTTRIGGERING -1]= IPT_PRI_PORTTRIGGERING; 
   iptables_pri_level[IPT_PRI_DMZ-1]= IPT_PRI_DMZ; 
   iptables_pri_level[IPT_PRI_FIREWALL -1]= IPT_PRI_FIREWALL; 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
   iptables_pri_level[IPT_PRI_STATIC_IP -1]= IPT_PRI_STATIC_IP; 
 #endif
 }
@@ -798,7 +798,7 @@ static inline int SET_IPT_PRI_MODULD(char *s){
        return IPT_PRI_DMZ;
     else if(strcmp(s, "firewall") == 0)
        return IPT_PRI_FIREWALL;
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
     else if(strcmp(s, "staticip") == 0)
        return IPT_PRI_STATIC_IP;
 #endif
@@ -2374,7 +2374,7 @@ static int prepare_globals_from_configuration(void)
    // use wan protocol determined wan interface name if possible, else use default (the name used by the OS)
    default_wan_ifname[0] = '\0';
    current_wan_ifname[0] = '\0';
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    current_wan_static_ipaddr[0] = '\0';
    current_wan_static_mask[0] = '\0';
    wan_staticip_status[0] = '\0';
@@ -3832,7 +3832,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
    BOOL isBothProtocol = FALSE;
 #endif
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP 
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
 
    memset(PfRangeIP,0,sizeof(PfRangeIP));
 #endif
@@ -3892,7 +3892,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
           if ( 0 != rc || '\0' == toip[0] || strcmp("255.255.255.255", toip) == 0 ) {
              continue;
           }
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP 
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
           strncpy(PfRangeIP[PfRangeCount],toip,MAX_IP4_SIZE-1);
           PfRangeCount++ ;
 #endif
@@ -3908,7 +3908,7 @@ int do_port_range_forwarding(FILE *nat_fp, FILE *filter_fp, int iptype, FILE *fi
               if ((0 != strcmp("0.0.0.0", public_ip)) &&  ( privateIpCheck(toip) ))
 			  {
 /* if TRUE static IP not be configed , skip one 2 one nat */
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
                  if (isWanReady && isWanStaticIPReady) {
                     fprintf(nat_fp, "-A prerouting_fromwan -d %s -j DNAT --to-destination %s\n", public_ip, toip);
                     fprintf(nat_fp, "-A postrouting_towan -s %s -j SNAT --to-source %s\n", toip, public_ip);
@@ -8999,6 +8999,49 @@ static int do_device_based_parcon(FILE *natFp, FILE* filterFp)
 ** XDNS - Route DNS requests from LAN through dnsmasq.
 **/
 #ifdef XDNS_ENABLE
+#define XDNS_IPSET                "xdns_clients"
+// Emits a DNAT rule pair (UDP+TCP/53) to dns_dest. match is an iptables match clause
+// (e.g. "-m set --match-set xdns_clients src ") or NULL for every client
+static void emit_xdns_dns_route_rule(FILE *nat_fp, int iptype, const char *match, const char *dns_dest)
+{
+	const char *chain = (iptype == 4) ? "prerouting_fromlan" : "PREROUTING";
+	const char *protos[2] = {"udp", "tcp"};
+#if defined (INTEL_PUMA7)
+	// Prerouting is bypassed for the Xi devices (needed only for XB6).
+	const char *skip = (iptype == 4) ? "! -s 169.254.0.0/16 " : "! -s 2603:2000::/20 ";
+#else
+	const char *skip = "";
+#endif
+
+	for (size_t i = 0; i < sizeof(protos) / sizeof(protos[0]); i++)
+	{
+		fprintf(nat_fp, "-A %s -i %s %s%s-p %s --dport 53 -j DNAT --to-destination %s\n",
+		        chain, lan_ifname, skip, (match != NULL) ? match : "", protos[i], dns_dest);
+	}
+}
+
+// Redirects DNS to dnsmasq only for clients in the xdns_clients ipset
+// (kept up to date by xdns). Falls back to a global redirect when
+// XDNS_GlobalRedirect is set or the ipset can't be created. Returns 1 if
+// the global redirect was used, 0 for per-client.
+static int do_xdns_client_dns_route(FILE *nat_fp, int iptype, char *dns_dest)
+{
+	char match[96] = {0};
+	char flag[2] = {0};
+	int xdns_global_redirect_needed = (0 != syscfg_get(NULL, "XDNS_GlobalRedirect", flag, sizeof(flag)) ||
+	        '0' != flag[0]) ? 1 : 0;
+
+	if (0 == v_secure_system("ipset -! create %s hash:mac", XDNS_IPSET) &&
+	    !xdns_global_redirect_needed) {
+		snprintf(match, sizeof(match), "-m set --match-set %s src ", XDNS_IPSET);
+		emit_xdns_dns_route_rule(nat_fp, iptype, match, dns_dest);
+		return 0;
+	} else {
+		emit_xdns_dns_route_rule(nat_fp, iptype, NULL, dns_dest);
+		return 1;
+	}
+}
+
 int do_dns_route(FILE *nat_fp, int iptype) {
 
 	char xdnsflag[20] = {0};
@@ -9020,18 +9063,8 @@ int do_dns_route(FILE *nat_fp, int iptype) {
 			// Check if lan ip is up. Need to route dns requests to dnsmasq through lan0.
 			if ('\0' != lan_ipaddr[0] && 0 != strcmp("0.0.0.0", lan_ipaddr) )
 			{
-	                #if defined (INTEL_PUMA7)
-				// Prerouting is bypassed for the Xi devices (Needed only for XB6)
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s ! -s 169.254.0.0/16 -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                printf("### XDNS : Feature Enabled XDNS ipv4 ### \n");
-                        #else
-
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                fprintf(nat_fp, "-A prerouting_fromlan -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipaddr);
-                                printf("### XDNS : Feature Enabled XDNS ipv4 ### \n");
-                        #endif
-
+				int global = do_xdns_client_dns_route(nat_fp, 4, lan_ipaddr);
+				printf("### XDNS : Feature Enabled XDNS ipv4, global redirect: %d ### \n", global);
 			}
 			else
 			{
@@ -9047,16 +9080,8 @@ int do_dns_route(FILE *nat_fp, int iptype) {
 			// Check if lan ipv6 is up.
 			if ('\0' != lan_ipv6addr[0] && 0 != strcmp("", lan_ipv6addr) && 0 != strcmp("::", lan_ipv6addr))
 			{
-	                #if defined (INTEL_PUMA7)
-                                // Prerouting is bypassed for the Xi devices (Needed only for XB6)
-                                fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20  -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-			        fprintf(nat_fp, "-A PREROUTING -i %s ! -s 2603:2000::/20  -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-				printf("### XDNS : Feature Enabled (XDNS ipv6) ### \n");
-                        #else
-				fprintf(nat_fp, "-A PREROUTING -i %s -p udp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-                                fprintf(nat_fp, "-A PREROUTING -i %s -p tcp --dport 53 -j DNAT --to-destination %s\n",lan_ifname,lan_ipv6addr);
-                                printf("### XDNS : Feature Enabled (XDNS ipv6) ### \n");
-                        #endif
+				int global = do_xdns_client_dns_route(nat_fp, 6, lan_ipv6addr);
+				printf("### XDNS : Feature Enabled (XDNS ipv6), global redirect: %d ### \n", global);
 			}
 			else
 			{
@@ -10860,7 +10885,7 @@ static int do_wan2lan_accept(FILE *fp)
    return(0);
 }
 
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
 /*
  *  Procedure     : do_wan2lan_staticip
  *  Purpose       : Accept or deny static ip subnet packet from wan to lan
@@ -10991,7 +11016,7 @@ static int do_wan2lan(FILE *fp)
    do_wan2lan_disabled(fp);
    do_wan2lan_misc(fp);
    do_wan2lan_accept(fp);
-   #ifdef CISCO_CONFIG_TRUE_STATIC_IP
+   #if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    do_wan2lan_staticip(fp);
    do_wan2lan_tsip_pm(fp);
    #endif
@@ -12645,7 +12670,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
 #endif
 
    fprintf(filter_fp, ":%s - [0:0]\n", "wan2lan_disabled");
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
    fprintf(filter_fp, ":%s - [0:0]\n", "wan2lan_staticip_pm");
    fprintf(filter_fp, ":%s - [0:0]\n", "wan2lan_staticip");
    fprintf(filter_fp, ":%s - [0:0]\n", "wan2lan_staticip_post");
@@ -13370,7 +13395,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
    for(i=0; i< IPT_PRI_MAX; i++)
    {
       switch(iptables_pri_level[i]){
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
           case IPT_PRI_STATIC_IP:
              fprintf(filter_fp, "-A wan2lan -j wan2lan_staticip_pm\n");
              fprintf(filter_fp, "-A wan2lan -j wan2lan_staticip\n");
@@ -13400,7 +13425,7 @@ static int prepare_subtables(FILE *raw_fp, FILE *mangle_fp, FILE *nat_fp, FILE *
              fprintf(filter_fp, "-A wan2lan  -j wan2lan_nonat\n");
              fprintf(filter_fp, "-A wan2lan -m state --state RELATED,ESTABLISHED -j ACCEPT\n");
              fprintf(filter_fp, "-A wan2lan  -j host_detect\n");
-#ifdef CISCO_CONFIG_TRUE_STATIC_IP
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
              /* TODO: next time change to USE IPT_PRI flag */
              fprintf(filter_fp, "-A wan2lan  -j wan2lan_staticip_post\n");
 #endif
@@ -14168,7 +14193,7 @@ static int prepare_enabled_ipv4_firewall(FILE *raw_fp, FILE *mangle_fp, FILE *na
 WAN_FAILOVER_SUPPORT_CHECK
    if(isWanServiceReady) {
        firewall_ts_info_t ts_info = {0};
-#if defined(CISCO_CONFIG_TRUE_STATIC_IP)
+#if defined(CISCO_CONFIG_TRUE_STATIC_IP) || defined(_ONESTACK_PRODUCT_REQ_)
        if (bus_handle != NULL && '\0' != current_wan_ipaddr[0] &&
            0 != strcmp("0.0.0.0", current_wan_ipaddr) &&
            isWanStaticIPReady && !isBridgeMode &&
