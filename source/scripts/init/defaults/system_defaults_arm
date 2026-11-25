@@ -1363,7 +1363,7 @@ $CredDwnld_Enable=false
 $CredDwnld_Use=false
 
 #CA store download is disabled by default
-$DLCaStoreEnabled=false
+$DLCaStoreEnabled=true
 
 #ocsp staple support
 $EnableOCSPStapling=true
