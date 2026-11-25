@@ -282,6 +282,7 @@ if [ -z "$DEVICETYPE_MIGRATE" ]; then
     syscfg commit
 fi
 
+#Change DLCASTORE on firmware upgrade
 DLCASTORE_MIGRATE="$(syscfg get DLCaStoreEnabled_migrate)”
 if [ -z "$DLCASTORE_MIGRATE" ]; then
     CURRENT_DLCASTORE="$(syscfg get DLCaStoreEnabled)"
