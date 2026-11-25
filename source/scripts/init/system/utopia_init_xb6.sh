@@ -433,7 +433,7 @@ fi
 DLCASTORE_MIGRATE="$(syscfg get DLCaStoreEnabled_migrate)”
 if [ -z "$DLCASTORE_MIGRATE" ]; then
     CURRENT_DLCASTORE="$(syscfg get DLCaStoreEnabled)"
-    echo_t "[utopia][init] Devicetype is $CURRENT_DLCASTORE"
+    echo_t "[utopia][init] DLCASTORE is $CURRENT_DLCASTORE"
     # When DLCaStoreEnabled has never been set in syscfg, CURRENT_DLCASTORE will be empty.
     # Explicitly migrate false DLCaStoreEnabled values to TRUE.
     if [ -z "$CURRENT_DLCASTORE" ]; then
