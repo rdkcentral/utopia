@@ -282,6 +282,25 @@ if [ -z "$DEVICETYPE_MIGRATE" ]; then
     syscfg commit
 fi
 
+DLCASTORE_MIGRATE="$(syscfg get DLCaStoreEnabled_migrate)”
+if [ -z "$DLCASTORE_MIGRATE" ]; then
+    CURRENT_DLCASTORE="$(syscfg get DLCaStoreEnabled)"
+    echo_t "[utopia][init] DLCASTORE is $CURRENT_DLCASTORE"
+    # When DLCaStoreEnabled has never been set in syscfg, CURRENT_DLCASTORE will be false.
+    # Explicitly migrate false DLCaStoreEnabled values to TRUE.
+    if [ -z "$CURRENT_DLCASTORE" ]; then
+        echo_t "[utopia][init] DLCaStoreEnabled is unset or empty, migrating to TRUE”
+        syscfg set DLCaStoreEnabled true
+    elif [ "$CURRENT_DLCASTORE" != “true” ]; then
+        echo_t "[utopia][init] setting DLCaStoreEnabled to true"
+        syscfg set DLCaStoreEnabled true
+    else
+        echo_t "[utopia][init] DLCaStoreEnabled is already TRUE, no change needed"
+    fi
+    syscfg set DLCaStoreEnabled_migrate "1"
+    syscfg commit
+fi
+
 if [ -f $SYSCFG_OLDBKUP_FILE ];then
 	rm -rf $SYSCFG_OLDBKUP_FILE
 fi
