@@ -1618,7 +1618,8 @@ INT32 IGD_pii_get_lan_reserved_addr_list(IN INT32 LanDeviceIndex, OUT CHAR *rese
                      octet1, octet2, octet3, (long int)dhcp_static_hosts[i].host_ip);
             size_t need = strlen(ipaddr) + (first ? 1 : 0);
             if (used + need >= cap) {
-                break;
+		free(dhcp_static_hosts);
+		return 1;
             }
             if (first) {
                 reserved_list[used++] = ',';

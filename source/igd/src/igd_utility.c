@@ -238,7 +238,7 @@ LOCAL VOID *_timer_loop_cycle(VOID *arg)
         {
             struct timer_function_node *next_node = temp_node_copy->next;
             free(temp_node_copy);
-            temp_node_copy = next_node;
+	    temp_node_copy = next_node;
         }
 	copy_timer_function_list = NULL;
     }
