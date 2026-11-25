@@ -1156,14 +1156,15 @@ STATIC int gen_zebra_conf(int sefd, token_t setok)
 #endif//_HUB4_PRODUCT_REQ_
 
     // If the current prefix is the same as the previous prefix, no need to advertise the previous one with a lifetime of 0
-    if(strncmp(prefix, orig_prefix, 64) == 0) {
+    if(strlen(orig_prefix) && strncmp(prefix, orig_prefix, 64) == 0) {
+        // Keep the sysevent: lan_prefix may still be stale here while WanMgr is switching to a new prefix.
+        fprintf(logfptr, "%s: previous prefix %s equals current prefix, not advertising it\n", __FUNCTION__, orig_prefix);
         strncpy(orig_prefix, "", sizeof(orig_prefix));
-        sysevent_set(sefd, setok, "previous_ipv6_prefix", orig_prefix, 0);
     }
 
 #ifdef MULTILAN_FEATURE
     sysevent_get(sefd, setok, COSA_DML_DHCPV6C_PREF_PRETM_SYSEVENT_NAME, preferred_lft, sizeof(preferred_lft));
-    sysevent_get(sefd, setok, COSA_DML_DHCPV6C_PREF_PRETM_SYSEVENT_NAME, valid_lft, sizeof(valid_lft));
+    sysevent_get(sefd, setok, COSA_DML_DHCPV6C_PREF_VLDTM_SYSEVENT_NAME, valid_lft, sizeof(valid_lft));
 #else
     sysevent_get(sefd, setok, "ipv6_prefix_prdtime", preferred_lft, sizeof(preferred_lft));
     sysevent_get(sefd, setok, "ipv6_prefix_vldtime", valid_lft, sizeof(valid_lft));
