@@ -1496,9 +1496,14 @@ static int s_UtopiaTransact_GetAll(UtopiaContext* pUtopiaCtx, char* pszBuffer, u
             }
             j = rc;
         }
+        if (j < 0 || (unsigned int)j >= ccbBuf)
+        {
+            free(pState);
+            return 0;
+        }
 
         pszBuffer += j;
-        ccbBuf -= j;
+        ccbBuf -= (unsigned int)j;
     }
 
     /* Next, call syscfg get all */

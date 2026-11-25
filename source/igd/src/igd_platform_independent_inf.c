@@ -1607,17 +1607,26 @@ INT32 IGD_pii_get_lan_reserved_addr_list(IN INT32 LanDeviceIndex, OUT CHAR *rese
         /*CID 71785 : Logically Dead Code*/
         int first = 0;
         char ipaddr[32];
-        for (i = 0; i < dhcp_static_hosts_count; i++) {
+        size_t used = 0;
+        size_t cap = (max_list_sz > 0) ? (size_t)max_list_sz : 0;
+
+        if (cap > 0) {
+            reserved_list[0] = '\0';
+        }
+        for (i = 0; i < dhcp_static_hosts_count && cap > 0; i++) {
+            snprintf(ipaddr, sizeof(ipaddr), "%d.%d.%d.%ld", 
+                     octet1, octet2, octet3, (long int)dhcp_static_hosts[i].host_ip);
+            size_t need = strlen(ipaddr) + (first ? 1 : 0);
+            if (used + need >= cap) {
+                break;
+            }
             if (first) {
-                // append a comma
-                strncat(reserved_list, ",", max_list_sz);
+                reserved_list[used++] = ',';
             } else {
                 first = 1;
             }
-            //RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IGD", "%s: index [%d], name [%s], host_ip [%d], mac [%s]", __FUNCTION__, i, dhcp_static_hosts[i].client_name, dhcp_static_hosts[i].host_ip, dhcp_static_hosts[i].macaddr);
-            snprintf(ipaddr, sizeof(ipaddr), "%d.%d.%d.%ld", 
-                     octet1, octet2, octet3, (long int)dhcp_static_hosts[i].host_ip);
-            strncat(reserved_list, ipaddr, max_list_sz);
+            memcpy(reserved_list + used, ipaddr, strlen(ipaddr) + 1);
+            used += strlen(ipaddr);
         }
     }
 
