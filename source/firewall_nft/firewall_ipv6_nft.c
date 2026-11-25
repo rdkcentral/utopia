@@ -302,7 +302,7 @@ int prepare_ipv6_firewall(const char *fw_file)
 #if defined(SPEED_BOOST_SUPPORTED) && defined(SPEED_BOOST_SUPPORTED_V6)
 	WAN_FAILOVER_SUPPORT_CHECK
 	if(isWanServiceReady && !isBridgeMode)
-		do_speedboost_port_rules(mangle_fp,nat_fp , 6);
+		do_speedboost_port_rules(mangle_fp, nat_fp, 6, NULL);
 	WAN_FAILOVER_SUPPORT_CHECk_END
 #endif
         prepare_lnf_internet_rules(mangle_fp,6);
