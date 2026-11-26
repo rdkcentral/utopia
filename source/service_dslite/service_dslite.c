@@ -318,6 +318,7 @@ static void restart_zebra (struct serv_dslite *sd)
 
     if (restart_needed)
     {
+        fprintf(stderr, "ZEBRA_RESTART_TRACE component=service_dslite pid=%ld site=%s:%d function=%s reason=no_verified_live_zebra pid_candidate=%d\n", (long)getpid(), __FILE__, __LINE__, __func__, pid);
         sysevent_set (sd->sefd, sd->setok, "zebra-restart", "", 0);
     }
 }
