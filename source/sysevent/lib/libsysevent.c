@@ -1739,12 +1739,15 @@ int SE_msg_send (int fd, char *sendmsg)
    SE_msg_hdr_mbytes_fixup(msg_hdr);
 
    // keep track of the number of bytes in the msg (including the header)
-   int bytes_to_write = ntohl(msg_hdr->mbytes);
+   unsigned int msg_bytes = ntohl(msg_hdr->mbytes);
+   int bytes_to_write;
    se_buffer send_msg_buffer;
-   if (bytes_to_write + sizeof(se_msg_footer) > sizeof(send_msg_buffer)) {
+   if (msg_bytes > sizeof(send_msg_buffer) ||
+       msg_bytes + sizeof(se_msg_footer) > sizeof(send_msg_buffer)) {
       return(-2);
    } else {
-      memcpy(send_msg_buffer, sendmsg, bytes_to_write);
+      bytes_to_write = (int)msg_bytes;
+      memcpy(send_msg_buffer, sendmsg, msg_bytes);
 
       // add a transport message footer to help ensure message integrity during transport
       se_msg_footer footer;
@@ -1794,12 +1797,14 @@ int SE_msg_send_data (int fd, char *sendmsg, unsigned int msgsize)
    SE_msg_hdr_mbytes_fixup(msg_hdr);
 
    // keep track of the number of bytes in the msg (including the header)
-   int bytes_to_write = ntohl(msg_hdr->mbytes);
+   unsigned int msg_bytes = ntohl(msg_hdr->mbytes);
+   int bytes_to_write;
    unsigned int bin_size = sysevent_get_binmsg_maxsize();
    char *send_msg_buffer = sendmsg;
-   if (bytes_to_write + sizeof(se_msg_footer) > bin_size) {
+   if (msg_bytes > bin_size || msg_bytes + sizeof(se_msg_footer) > bin_size) {
       return(-2);
    } else {
+       bytes_to_write = (int)msg_bytes;
        if (fileread == 0)
        {
            v_secure_system("echo fname %s: bytestowrite %d before msg copy >> /tmp/sys_d.txt",__FUNCTION__,bytes_to_write);
