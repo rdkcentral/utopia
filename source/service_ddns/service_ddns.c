@@ -474,11 +474,14 @@ static void urlencoder(char *d, char *s, size_t n)
 static int ddns_update_server(struct serv_ddns *sdd)
 {
     char buf[64];
-    char command[572];
+    char command[1024];
     char *cmd;
     int ret;
     int fd;
     char client_password[64 * 3]; /* raw value from syscfg may expand upto 3x if URL encoded */
+    char username_encoded[64 * 3];
+    char hostname_encoded[64 * 3];
+    char wan_ipaddr_encoded[24 * 3];
     FILE *output_file;
 
     fd = open("/var/run/updating_ddns_server.txt", O_CREAT, 0644);
@@ -508,6 +511,24 @@ static int ddns_update_server(struct serv_ddns *sdd)
         goto EXIT;
     }
 
+    /* High_022: URL-encode usernames; High_021: URL-encode hostnames. */
+    urlencoder(username_encoded, sdd->client.username, sizeof(username_encoded));
+    urlencoder(hostname_encoded, sdd->hostname.name, sizeof(hostname_encoded));
+    urlencoder(wan_ipaddr_encoded, sdd->wan_conf.wan_ipaddr, sizeof(wan_ipaddr_encoded));
+
+    /* High_020/High_023: reject apostrophes and shell-quote Basic Auth usernames
+       to prevent shell command injection and curl argument splitting. */
+    if ((sdd->server.array_index == DYNDNS || sdd->server.array_index == AFRAID) &&
+        strchr(sdd->client.username, '\'') != NULL)
+    {
+        fprintf(stderr, "%s: invalid quote in DDNS username\n", __FUNCTION__);
+        sdd->client.lasterror = AUTHENTICATION_ERROR;
+        strncpy(sdd->client.connection_msg, "error-auth", sizeof(sdd->client.connection_msg));
+        ret = -1;
+        unlink("/var/run/updating_ddns_server.txt");
+        goto EXIT;
+    }
+
     /* Read and encode password (except for duckdns, which does not use a password) */
     if (sdd->server.array_index != DUCKDNS)
     {
@@ -528,19 +549,18 @@ static int ddns_update_server(struct serv_ddns *sdd)
     cmd += sprintf(cmd, "/usr/bin/curl --interface erouter0 -o %s ", buf);
 
     if (sdd->server.array_index == CHANGEIP)
-        cmd += sprintf(cmd, "--url 'http://nic.changeip.com/nic/update?u=%s&p=%s&hostname=%s&ip=%s'", sdd->client.username, client_password, sdd->hostname.name, sdd->wan_conf.wan_ipaddr);
+        cmd += sprintf(cmd, "--url 'http://nic.changeip.com/nic/update?u=%s&p=%s&hostname=%s&ip=%s'", username_encoded, client_password, hostname_encoded, wan_ipaddr_encoded);
     else if (sdd->server.array_index == NOIP)
     {
-        char username_encoded[64 * 3]; /* raw value from syscfg may expand upto 3x if URL encoded */
         urlencoder(username_encoded, sdd->client.username, sizeof(username_encoded));
-        cmd += sprintf(cmd, "--url 'http://%s:%s@dynupdate.no-ip.com/nic/update?hostname=%s&myip=%s'", username_encoded, client_password, sdd->hostname.name, sdd->wan_conf.wan_ipaddr);
+        cmd += sprintf(cmd, "--url 'http://%s:%s@dynupdate.no-ip.com/nic/update?hostname=%s&myip=%s'", username_encoded, client_password, hostname_encoded, wan_ipaddr_encoded);
     }
     else if (sdd->server.array_index == DYNDNS)
-        cmd += sprintf(cmd, "--user %s:%s --url 'http://members.dyndns.org/nic/update?hostname=%s&myip=%s'", sdd->client.username, client_password, sdd->hostname.name, sdd->wan_conf.wan_ipaddr);
+        cmd += sprintf(cmd, "--user '%s':%s --url 'http://members.dyndns.org/nic/update?hostname=%s&myip=%s'", sdd->client.username, client_password, hostname_encoded, wan_ipaddr_encoded);
     else if (sdd->server.array_index == DUCKDNS)
-        cmd += sprintf(cmd, "-g --insecure --url 'https://www.duckdns.org/update?domains=%s&token=%s&ip=%s&verbose=true'", sdd->hostname.name, sdd->client.username, sdd->wan_conf.wan_ipaddr);
+        cmd += sprintf(cmd, "-g --insecure --url 'https://www.duckdns.org/update?domains=%s&token=%s&ip=%s&verbose=true'", hostname_encoded, username_encoded, wan_ipaddr_encoded);
     else if (sdd->server.array_index == AFRAID)
-        cmd += sprintf(cmd, "--user %s:%s --insecure --url 'https://freedns.afraid.org/nic/update?hostname=%s&myip=%s'", sdd->client.username, client_password, sdd->hostname.name, sdd->wan_conf.wan_ipaddr);
+        cmd += sprintf(cmd, "--user '%s':%s --insecure --url 'https://freedns.afraid.org/nic/update?hostname=%s&myip=%s'", sdd->client.username, client_password, hostname_encoded, wan_ipaddr_encoded);
     else
         goto EXIT;
 
