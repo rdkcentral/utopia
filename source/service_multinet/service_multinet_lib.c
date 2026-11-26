@@ -329,10 +329,13 @@ int multinet_bridgeUp(PL2Net network, int bFirewallRestart){
         interfaceBuf[i].type = ifTypeBuf +i;
     }
     
+    //utopia-develop_High_027
+    //Reserve space for implicit members before loading members from nv
+    numMembers = plat_addImplicitMembers(network, memberBuf);
     //Load members from nv
-    numMembers = nv_get_members(network, memberBuf, sizeof(memberBuf)/sizeof(*memberBuf));
+    numMembers += nv_get_members(network, memberBuf + numMembers,
+                                 sizeof(memberBuf)/sizeof(*memberBuf) - numMembers);
     MNET_DEBUG("Get members for %d complete. \n" COMMA network->inst)
-    numMembers += plat_addImplicitMembers(network, memberBuf+numMembers);
     MNET_DEBUG("plat_addImplicitMembers for %d complete. \n" COMMA network->inst)
     
     //create bridge
@@ -586,8 +589,9 @@ int multinet_SyncInst(int l2netInst){
     nv_net.inst = l2netInst;
     if (ep_netIsStarted(l2netInst)) {
         nv_get_bridge(l2netInst, &nv_net);
-        numNvMembers = nv_get_members(&nv_net, nv_members, sizeof(nv_members)/sizeof(*nv_members));
-        numNvMembers += plat_addImplicitMembers(&nv_net, nv_members+numNvMembers);
+        numNvMembers = plat_addImplicitMembers(&nv_net, nv_members);
+        numNvMembers += nv_get_members(&nv_net, nv_members + numNvMembers,
+                                       sizeof(nv_members)/sizeof(*nv_members) - numNvMembers);
         result = multinet_Sync(&nv_net, nv_members, numNvMembers);
     }
 
