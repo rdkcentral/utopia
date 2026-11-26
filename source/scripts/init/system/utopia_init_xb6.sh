@@ -426,7 +426,7 @@ if [ -z "$DEVICETYPE_MIGRATE" ]; then
         echo_t "[utopia][init] DeviceType is already PROD, no change needed"
     fi
     syscfg set devicetype_migrate "1"
-	syscfg commit
+    syscfg commit
 fi
 
 #Change DLCaStoreEnabled on firmware upgrade
