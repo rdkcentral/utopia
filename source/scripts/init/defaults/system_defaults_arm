@@ -1362,8 +1362,8 @@ $dslite_tcpmss_1=1420
 $CredDwnld_Enable=false
 $CredDwnld_Use=false
 
-#CA store download is disabled by default
-$DLCaStoreEnabled=false
+#CA store download is enabled by default
+$DLCaStoreEnabled=true
 
 #ocsp staple support
 $EnableOCSPStapling=true

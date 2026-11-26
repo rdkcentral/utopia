@@ -224,6 +224,26 @@ if [ -z "$DEVICETYPE_MIGRATE" ]; then
     syscfg commit
 fi
 
+#Change DLCaStoreEnabled on firmware upgrade
+DLCASTORE_MIGRATE="$(syscfg get DLCaStoreEnabled_migrate)"
+if [ -z "$DLCASTORE_MIGRATE" ]; then
+    CURRENT_DLCASTORE="$(syscfg get DLCaStoreEnabled)"
+    echo_t "[utopia][init] DLCaStoreEnabled is $CURRENT_DLCASTORE"
+    # When DLCaStoreEnabled has never been set in syscfg, CURRENT_DLCASTORE will be empty.
+    # Explicitly migrate empty/unset or non-true DLCaStoreEnabled values to true.
+    if [ -z "$CURRENT_DLCASTORE" ]; then
+        echo_t "[utopia][init] DLCaStoreEnabled is unset or empty, migrating to true"
+        syscfg set DLCaStoreEnabled "true"
+    elif [ "$CURRENT_DLCASTORE" != "true" ]; then
+        echo_t "[utopia][init] setting DLCaStoreEnabled to true"
+        syscfg set DLCaStoreEnabled "true"
+    else
+        echo_t "[utopia][init] DLCaStoreEnabled is already true, no change needed"
+    fi
+    syscfg set DLCaStoreEnabled_migrate "1"
+    syscfg commit
+fi
+
 #Hard Factory reset from mount-fs.sh
 if [ `cat /data/HFRES_UTOPIA` -eq 1 ]; then
    syscfg set $FACTORY_RESET_KEY $FACTORY_RESET_RGWIFI
