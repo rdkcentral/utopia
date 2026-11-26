@@ -224,21 +224,21 @@ if [ -z "$DEVICETYPE_MIGRATE" ]; then
     syscfg commit
 fi
 
-#Change DLCASTORE on firmware upgrade
-DLCASTORE_MIGRATE="$(syscfg get DLCaStoreEnabled_migrate)”
+#Change DLCaStoreEnabled on firmware upgrade
+DLCASTORE_MIGRATE="$(syscfg get DLCaStoreEnabled_migrate)"
 if [ -z "$DLCASTORE_MIGRATE" ]; then
     CURRENT_DLCASTORE="$(syscfg get DLCaStoreEnabled)"
-    echo_t "[utopia][init] DLCASTORE is $CURRENT_DLCASTORE"
+    echo_t "[utopia][init] DLCaStoreEnabled is $CURRENT_DLCASTORE"
     # When DLCaStoreEnabled has never been set in syscfg, CURRENT_DLCASTORE will be empty.
-    # Explicitly migrate false DLCaStoreEnabled values to TRUE.
+    # Explicitly migrate empty/unset or non-true DLCaStoreEnabled values to true.
     if [ -z "$CURRENT_DLCASTORE" ]; then
-        echo_t "[utopia][init] DLCaStoreEnabled is unset or empty, migrating to TRUE”
-        syscfg set DLCaStoreEnabled true
-    elif [ "$CURRENT_DLCASTORE" != “true” ]; then
-        echo_t "[utopia][init] setting DLCaStoreEnabled to true”
-        syscfg set DLCaStoreEnabled true
+        echo_t "[utopia][init] DLCaStoreEnabled is unset or empty, migrating to true"
+        syscfg set DLCaStoreEnabled "true"
+    elif [ "$CURRENT_DLCASTORE" != "true" ]; then
+        echo_t "[utopia][init] setting DLCaStoreEnabled to true"
+        syscfg set DLCaStoreEnabled "true"
     else
-        echo_t "[utopia][init] DLCaStoreEnabled is already TRUE, no change needed"
+        echo_t "[utopia][init] DLCaStoreEnabled is already true, no change needed"
     fi
     syscfg set DLCaStoreEnabled_migrate "1"
     syscfg commit
