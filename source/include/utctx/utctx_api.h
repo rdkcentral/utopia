@@ -610,6 +610,8 @@ typedef enum _UtopiaValue
 	UtopiaValue_PFR_PrevRuleEnabledState,
 	UtopiaValue_PRT_PrevRuleEnabledState,
     UtopiaValue_HashPassword,
+    UtopiaValue_Dns_Relay_Enable,
+    UtopiaValue_Dns_ForwardCount,
     #if defined(_WAN_MANAGER_ENABLED_)
       UtopiaValue_WanMode,
       UtopiaValue_WanConnEnabled,
